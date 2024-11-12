@@ -16,5 +16,7 @@ class PRD_BillOfMaterialChild extends Model
         'item_description',
         'quantity',
         'measure',
+        'status',
+        'action_type',
     ];
 }

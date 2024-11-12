@@ -1,11 +1,10 @@
 <x-app-layout>
-
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <h2>{{ __("Create Bill of Materials") }}</h2>
-                    <form action="{{ route('production.bom.store') }}" method="POST">
+                    <form action="{{ route('production.bom.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         
                         <!-- Parent Fields -->
@@ -27,15 +26,31 @@
                             </select>
                         </div>
 
-                        <h2 class="mt-6">Child Information</h2>
-                        <div id="child-rows-container">
-                            <!-- Child Rows Will Be Added Here -->
+                        <!-- Toggle Section for Child Information -->
+                        <div class="mt-6 flex justify-between items-center">
+                            <h2>Child Information</h2>
+                            <button type="button" id="toggle-input-method" class="bg-blue-500 text-white px-4 py-2 rounded-md">
+                                Switch to Excel Upload
+                            </button>
                         </div>
 
-                        <button type="button" id="add-child-btn" class="mt-4 bg-blue-500 text-grey px-4 py-2 rounded-md">Add Another Child</button>
+                        <!-- Child Information Input Section -->
+                        <div id="manual-input-section">
+                            <div id="child-rows-container">
+                                <!-- Child Rows Will Be Added Here -->
+                            </div>
+                            <button type="button" id="add-child-btn" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded-md">Add Another Child</button>
+                        </div>
+
+                        <!-- Excel Upload Section (Initially Hidden) -->
+                        <div id="excel-upload-section" class="hidden mt-6">
+                            <label for="excel_file" class="block text-sm font-medium text-gray-700">Upload Excel File</label>
+                            <input type="file" name="excel_file" id="excel_file" accept=".xlsx, .xls" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <p class="text-sm text-gray-500 mt-2">Upload a valid Excel file containing child items.</p>
+                        </div>
 
                         <div class="mt-4">
-                            <button type="submit" class="bg-green-500 text-grey px-4 py-2 rounded-md">Save BOM</button>
+                            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md">Save BOM</button>
                         </div>
                     </form>
                 </div>
@@ -63,25 +78,37 @@
     </template>
 
     <script>
-        // Get the button and container for child rows
+        // Toggle between manual input and Excel upload
+        const toggleInputMethodBtn = document.getElementById('toggle-input-method');
+        const manualInputSection = document.getElementById('manual-input-section');
+        const excelUploadSection = document.getElementById('excel-upload-section');
+
+        toggleInputMethodBtn.addEventListener('click', () => {
+            manualInputSection.classList.toggle('hidden');
+            excelUploadSection.classList.toggle('hidden');
+            
+            if (manualInputSection.classList.contains('hidden')) {
+                toggleInputMethodBtn.textContent = 'Switch to Manual Input';
+            } else {
+                toggleInputMethodBtn.textContent = 'Switch to Excel Upload';
+            }
+        });
+
+        // Add new child row
         const addChildBtn = document.getElementById('add-child-btn');
         const childRowsContainer = document.getElementById('child-rows-container');
         const childRowTemplate = document.getElementById('child-row-template');
 
-        // Add event listener to the "Add Another Child" button
         addChildBtn.addEventListener('click', function() {
-            // Clone the child row template and append to the container
             const newChildRow = childRowTemplate.content.cloneNode(true);
             childRowsContainer.appendChild(newChildRow);
         });
 
-        // Event delegation for removing a child row
+        // Remove child row
         childRowsContainer.addEventListener('click', function(event) {
             if (event.target.classList.contains('remove-child-btn')) {
-                // Remove the parent row when the "Remove" button is clicked
                 event.target.closest('.child-row').remove();
             }
         });
     </script>
-
 </x-app-layout>

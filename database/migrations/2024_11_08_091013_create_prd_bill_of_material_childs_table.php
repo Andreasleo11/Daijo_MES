@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('parent_id');
             $table->string('item_code');
             $table->string('item_description');
-            $table->integer('quantity');
+            $table->double('quantity');
             $table->string('measure');
             $table->timestamps();
         });

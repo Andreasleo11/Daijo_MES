@@ -16,8 +16,9 @@ class PRD_BillOfMaterialParent extends Model
         'type',
     ];
 
-    public function child(){
-        $this->hasMany(PRD_BillOfMaterialChild::class, 'parentid');
+    public function child()
+    {
+        return $this->hasMany(PRD_BillOfMaterialChild::class, 'parent_id');
     }
 
 }
