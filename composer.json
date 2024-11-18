@@ -12,6 +12,7 @@
         "laravel/tinker": "^2.8",
         "livewire/livewire": "^3.4",
         "livewire/volt": "^1.0",
+        "milon/barcode": "^11.0",
         "phpoffice/phpspreadsheet": "^3.4"
     },
     "require-dev": {

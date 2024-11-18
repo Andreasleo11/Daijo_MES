@@ -19,4 +19,14 @@ class PRD_BillOfMaterialChild extends Model
         'status',
         'action_type',
     ];
+
+    public function materialProcess()
+    {
+        return $this->hasMany(PRD_MaterialLog::class, 'child_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(PRD_BillOfMaterialParent::class, 'parent_id');
+    }
 }

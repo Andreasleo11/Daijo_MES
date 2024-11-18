@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Production;
 
+use Milon\Barcode\Facades\DNS1DFacade as DNS1D;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\Production\PRD_BillOfMaterialChild;
+use App\Models\Production\PRD_MaterialLog;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+
 
 class BillOfMaterialController extends Controller
 {
@@ -41,9 +45,12 @@ class BillOfMaterialController extends Controller
     public function show($id)
     {
         // Find the BOM parent by ID
-        $bomParent = PRD_BillOfMaterialParent::with('child')->findOrFail($id);
+        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess')->findOrFail($id);
+        // dd($bomParent);
+        $user = auth()->user();
+        // dd($user);
         // Pass the data to the view
-        return view('production.bom.detail', compact('bomParent'));
+        return view('production.bom.detail', compact('bomParent','user'));
     }
 
     public function update(Request $request, $id)
@@ -251,4 +258,66 @@ class BillOfMaterialController extends Controller
 
         return redirect()->back()->with('success', 'Action type assigned successfully.');
     }
+
+    public function updateStatusChild($id)
+    {
+        // Find the child item by ID
+        $child = PRD_BillOfMaterialChild::findOrFail($id);
+        
+        // Update the status to "Available"
+        $child->status = 'Available';
+        $child->save();
+
+        // Redirect back with a success message
+        return redirect()->back()->with('success', 'Item status updated to Available.');
+    }
+
+    public function assignProcess(Request $request, $id)
+    {
+         // Retrieve the processes from the request
+        $processes = $request->input('all_process');
+
+        // Validate if processes are provided
+        if (empty($processes)) {
+            return redirect()->back()->with('error', 'No processes were selected.');
+        }
+
+        // Loop through each process and insert it into the PRD_MaterialLog table
+        foreach ($processes as $process) {
+            PRD_MaterialLog::create([
+                'child_id' => $id,           // The child ID passed to the method
+                'process_name' => $process,   // The process name from the form
+                'scan_in' => null,            // Set default value or leave as null
+                'scan_out' => null,           // Set default value or leave as null
+                // Status will use the default value of 0 in the database
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Processes assigned successfully.');
+    }
+
+    public function materialDetail($id)
+    {
+        // Retrieve the child and its related material processes
+        $child = PRD_BillOfMaterialChild::with('materialProcess','parent')->findOrFail($id);
+        // Generate barcode (item_code and id in the barcode)
+        $barcodeData = $child->item_code . '-' . $child->id; // Item Code and ID separated by tab
+        
+        // Generate the barcode PNG content
+        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128');
+        
+        // Define the file name and path
+        $fileName = 'barcode_' . $child->item_code . '_' . $child->id . '.png';
+        $filePath = 'public/barcode/' . $fileName;
+
+        // Save the barcode image to storage
+        Storage::put($filePath, base64_decode($barcodePNG));
+
+        // Get the URL for the barcode image
+        $barcodeUrl = asset('storage/barcode/' . $fileName);
+
+        // Pass the data to the view
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl'));
+    }
+
 }
