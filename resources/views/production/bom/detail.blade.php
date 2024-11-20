@@ -167,7 +167,7 @@
                                             <button onclick="toggleModal('modal-{{ $child->id }}', true)" class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
                                                 Edit
                                             </button>
-
+                                        @if (!in_array($child->status, ['Started', 'Finished']))
                                             <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
                                                 @csrf
                                                 @method('DELETE')
@@ -175,6 +175,7 @@
                                                     Delete
                                                 </button>
                                             </form>
+                                        @endif
                                             <td class="px-4 py-2 border">
                                             @if (is_null($child->action_type))
                                                 <!-- Show "Assign Type" button if action_type is null -->

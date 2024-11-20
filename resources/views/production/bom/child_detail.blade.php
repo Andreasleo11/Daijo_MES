@@ -35,6 +35,7 @@
                     <!-- Other columns will be hidden when printing -->
                     <th class="print-hidden px-4 py-2 border">Scan In</th>
                     <th class="print-hidden px-4 py-2 border">Scan Out</th>
+                    <th class="print-hidden px-4 py-2 border">Pic</th>
                     <th class="print-hidden px-4 py-2 border">Status</th>
                 </tr>
             </thead>
@@ -45,6 +46,7 @@
                         <!-- These cells will be hidden when printing -->
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_in }}</td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_out }}</td>
+                        <td class="print-hidden px-4 py-2 border">{{ $process->pic }}</td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->status == 0 ? 'Pending' : 'Completed' }}</td>
                     </tr>
                 @endforeach

@@ -16,6 +16,7 @@ class PRD_MaterialLog extends Model
         'scan_in',
         'scan_out',
         'status',
+        'pic',
     ];
 
     public function childData()
