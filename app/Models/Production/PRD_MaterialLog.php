@@ -24,4 +24,9 @@ class PRD_MaterialLog extends Model
         return $this->belongsTo(PRD_BillOfMaterialChild::class, 'child_id');
     }
 
+    public function workers()
+    {
+        return $this->hasMany(PRD_MouldingUserLog::class, 'material_log_id');
+    }
+
 }

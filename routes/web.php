@@ -50,8 +50,11 @@ Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])
 
 Route::post('/workshop/update-username', [WorkshopController::class, 'updateUsername'])->name('update.username');
 Route::post('/workshop/scan-start', [WorkshopController::class, 'handleScanStart'])->name('workshop.scan');
-Route::get('/workshop/index', [WorkshopController::class, 'index'])->name('workshop.index');
+Route::get('/workshop/index/{id}', [WorkshopController::class, 'index'])->name('workshop.index');
 Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->name('workshop.scan_out');
+Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
+Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
+
 
 
 require __DIR__.'/auth.php';

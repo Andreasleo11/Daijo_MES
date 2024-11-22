@@ -10,7 +10,7 @@
 <div class="container mx-auto py-6">
     <h1 class="text-2xl font-bold mb-4">Child Details - {{ $child->item_code }}</h1>
     <h1 class="text-2xl font-bold mb-4">Project Code - {{ $child->parent->item_code }}</h1>
-    <h1 class="text-2xl font-bold mb-4">Project Code - {{ $child->parent->item_description }}</h1>
+    <h1 class="text-2xl font-bold mb-4">Project Description - {{ $child->parent->item_description }}</h1>
 
     <div class="bg-white shadow-lg rounded-lg p-6">
         <h3 class="text-lg font-semibold mb-4">Child Information</h3>
@@ -36,6 +36,7 @@
                     <th class="print-hidden px-4 py-2 border">Scan In</th>
                     <th class="print-hidden px-4 py-2 border">Scan Out</th>
                     <th class="print-hidden px-4 py-2 border">Pic</th>
+                    <th class="print-hidden px-4 py-2 border">Workers</th>
                     <th class="print-hidden px-4 py-2 border">Status</th>
                 </tr>
             </thead>
@@ -47,11 +48,22 @@
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_in }}</td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_out }}</td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->pic }}</td>
-                        <td class="print-hidden px-4 py-2 border">{{ $process->status == 0 ? 'Pending' : 'Completed' }}</td>
+                        <td class="print-hidden px-4 py-2 border">
+                            @foreach($process->workers as $worker)
+                                {{ $worker->username }} - {{ $worker->shift }} <br>
+                            @endforeach
+                        </td>
+                        <td class="print-hidden px-4 py-2 border">{{ $process->status == 0 ? 'Pending' : 'Completed' }}</td>     
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
 </div>
+
+<div class="mt-6">
+                        <a href="{{ route('production.bom.index') }}" class="text-blue-500 hover:text-blue-700">
+                            Back to BOM Index
+                        </a>
+                    </div>
 </x-app-layout>

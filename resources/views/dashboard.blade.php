@@ -64,6 +64,13 @@
                 required
             />
         </form>
+
+        <div class="mb-6">
+            <a href="{{ route('workshop.main.menu') }}"
+               class="inline-block bg-green-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400">
+                Back to Main Menu
+            </a>
+        </div>
         @endif
     @else
         <!-- Optional: Message for other roles -->

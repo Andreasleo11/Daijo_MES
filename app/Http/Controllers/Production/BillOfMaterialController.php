@@ -299,9 +299,10 @@ class BillOfMaterialController extends Controller
     public function materialDetail($id)
     {
         // Retrieve the child and its related material processes
-        $child = PRD_BillOfMaterialChild::with('materialProcess','parent')->findOrFail($id);
+        $child = PRD_BillOfMaterialChild::with('materialProcess','parent', 'materialProcess.workers')->findOrFail($id);
         // Generate barcode (item_code and id in the barcode)
-        $barcodeData = $child->item_code . '-' . $child->id; // Item Code and ID separated by tab
+        // dd($child);
+        $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
         
         // Generate the barcode PNG content
         $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128');

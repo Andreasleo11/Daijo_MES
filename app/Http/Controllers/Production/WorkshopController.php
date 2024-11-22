@@ -5,12 +5,39 @@ namespace App\Http\Controllers\Production;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-use App\Models\Production\PRD_MouldingJob;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
+use App\Models\Production\PRD_MouldingUserLog;
+use Carbon\Carbon;
 
 class WorkshopController extends Controller
 {
+    function determineShift($clockIn): ?int
+    {
+        // Convert the string $clockIn to a Carbon instance
+        $clockIn = Carbon::parse($clockIn)->setTimezone('Asia/Jakarta');
+
+        $shiftStartTimes = [
+            1 => Carbon::parse($clockIn->format('Y-m-d') . ' 07:30:00')->setTimezone('Asia/Jakarta'),
+            2 => Carbon::parse($clockIn->format('Y-m-d') . ' 15:30:00')->setTimezone('Asia/Jakarta'),
+            3 => Carbon::parse($clockIn->format('Y-m-d') . ' 23:30:00')->setTimezone('Asia/Jakarta'),
+        ];
+
+        $shiftEndTimes = [
+            1 => $shiftStartTimes[2]->copy(),
+            2 => $shiftStartTimes[3]->copy(),
+            3 => Carbon::parse($clockIn->format('Y-m-d') . ' 07:30:00')->setTimezone('Asia/Jakarta')->addDay(),
+        ];
+
+        foreach ($shiftStartTimes as $shift => $startTime) {
+            $endTime = $shiftEndTimes[$shift];
+            if ($clockIn->between($startTime, $endTime, true)) { // Carbon's between() method is inclusive
+                return $shift;
+            }
+        }
+
+        return null; // Return null if no shift matches
+    }
 
     public function updateUsername(Request $request)
     {
@@ -25,17 +52,19 @@ class WorkshopController extends Controller
         $user->save();
 
         // Redirect back with a success message
-        return redirect()->back()->with('success', 'Your username has been updated successfully.');
+        return redirect()->route('workshop.main.menu')->with('success', 'Your username has been updated successfully.');
     }
 
     public function handleScanStart(Request $request)
     {   
+        // dd($request->all());
+        $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
         // Get the scanned barcode from the request
         $barcode = $request->input('barcode');
 
         // Split the barcode using '-' as the separator
-        if (strpos($barcode, '-') !== false) {
-            [$item_code, $item_id] = explode('-', $barcode, 2);
+        if (strpos($barcode, '~') !== false) {
+            [$item_code, $item_id] = explode('~', $barcode, 2);
         } else {
             return back()->with('error', 'Invalid barcode format.');
         }
@@ -45,7 +74,7 @@ class WorkshopController extends Controller
         // dd($user);
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
-        
+        // dd($data);
         $materialProcess = $data->materialProcess()
         ->where('process_name', $user->name)
         ->whereNull('scan_in')  // Ensure scan_in is null
@@ -67,35 +96,15 @@ class WorkshopController extends Controller
         } else {
             return back()->with('error', 'No matching material process found.');
         }
-
-        $job = PRD_MouldingJob::create([
-            'user_id' => $user->id,  // User ID from authenticated user
-            'material_id' => $item_id,
-            'scan_start' => $scanTime,  // The scan start time (scan_in)
-            'scan_finish' => null,  // Initially, scan_finish is null
-            'created_at' => now(),  // Current timestamp
-            'updated_at' => now(),  // Current timestamp
+        
+        $worker = PRD_MouldingUserLog::create([
+            'material_log_id' => $materialProcess->id,
+            'username' => $user->username,
+            'shift' => $this->determineShift($clockIn),
         ]);
 
-        $log = PRD_MaterialLog::with('childData', 'childData.parent')->where('scan_in', $job->scan_start)
-            ->first();
-    
-
-        return redirect()->route('workshop.index');
-    }
-
-    public function index()
-    {
-        $user = auth()->user();
-        $job = PRD_MouldingJob::where('user_id', $user->id)
-            ->whereNull('scan_finish')
-            ->first();
-
-        $log = PRD_MaterialLog::with('childData', 'childData.parent')->where('scan_in', $job->scan_start)
-            ->first();
-
-        return view('production.workshop.index', compact('job', 'log'));
-
+        
+        return redirect()->route('workshop.main.menu');
     }
 
     public function updateMaterialChildStatus($materialChildId)
@@ -128,21 +137,70 @@ class WorkshopController extends Controller
     public function handeScanOut(Request $request)
     {
         $logId = $request->input('log_id');
-        $jobId = $request->input('job_id');
+        $childId = $request->input('child_id');
+        $verifydata = PRD_BillOfMaterialChild::find($childId);
+        $verifiedbarcode = $verifydata->item_code . '~' . $verifydata->id;
+        $barcode = $request->input('scan_out');
+
+        if ($verifiedbarcode !== $barcode) {
+            return redirect()->back()->with('error', 'Barcode salah brow');
+        }
+
         $scanOutTime = now('Asia/Jakarta')->format('Y-m-d H:i:s'); // Current timestamp for scan out
 
         $log = PRD_MaterialLog::find($logId);
-        $job = PRD_MouldingJob::find($jobId);
 
         $log->scan_out = $scanOutTime; 
         $log->status = '1';
         $log->save();
 
-        $job->scan_finish = $scanOutTime;
-        $job->save();
-
         $this->updateAllMaterialChildrenStatus();
-        return redirect()->route('dashboard');
+        return redirect()->route('workshop.main.menu');
+    }
+
+
+    public function index($id)
+    {
+        
+        $user = auth()->user();
+
+        $log = PRD_MaterialLog::with('childData', 'childData.parent')->find($id);
+        
+        $workers = PRD_MouldingUserLog::where('material_log_id', $id)->get();
+
+        return view('production.workshop.index', compact('log', 'workers'));
+
+    }
+
+    public function mainMenuByWorkshop()
+    {
+        $user = auth()->user();
+        $logs = PRD_MaterialLog::with('childData')->where('process_name', $user->name)->whereNotNull('scan_in')->get();
+        // dd($jobs);
+
+        return view('production.workshop.mainmenu', compact('logs', 'user'));
+    }
+
+
+    public function addWorker(Request $request)
+    {
+       
+        $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
+        // Validate the incoming request data
+        $request->validate([
+            'username' => 'required|string|max:255', // Adjust validation as needed
+            'log_id' => 'required|exists:prd_material_logs,id', // Ensure the job exists in the jobs table
+        ]);
+
+        // Create a new worker and associate it with the job
+        PRD_MouldingUserLog::create([
+            'material_log_id' => $request->input('log_id'),
+            'username' => $request->input('username'),
+            'shift' => $this->determineShift($clockIn),
+        ]);
+
+        // Redirect back with a success message
+        return redirect()->back()->with('success', 'Worker added successfully.');
     }
    
 }
