@@ -85,6 +85,17 @@ class BillOfMaterialController extends Controller
         return redirect()->back()->with('success', 'Child item updated successfully!');
     }
 
+    
+    public function cancel($id)
+    {
+        $child = PRD_BillOfMaterialChild::findOrFail($id);
+        $child->status = 'Canceled'; // Or any other field indicating cancellation
+        $child->save();
+
+        return redirect()->back()->with('success', 'Material has been canceled successfully.');
+    }
+
+
     public function destroyChild($id)
     {
         // Find the child item by its ID
@@ -265,7 +276,7 @@ class BillOfMaterialController extends Controller
         $child = PRD_BillOfMaterialChild::findOrFail($id);
         
         // Update the status to "Available"
-        $child->status = 'Available';
+        $child->status = 'Finished';
         $child->save();
 
         // Redirect back with a success message
@@ -305,7 +316,7 @@ class BillOfMaterialController extends Controller
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
         
         // Generate the barcode PNG content
-        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128');
+        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 2, 70);
         
         // Define the file name and path
         $fileName = 'barcode_' . $child->item_code . '_' . $child->id . '.png';

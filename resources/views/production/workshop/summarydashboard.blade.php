@@ -33,9 +33,23 @@
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->scan_in }}</td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->scan_out }}</td>
                             <td class="px-4 py-2 text-sm">
-                                <span class="px-2 py-1 rounded {{ $data->status ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800' }}">
-                                    {{ $data->status ? 'Completed' : 'Pending' }}
-                                </span>
+                                @if ($data->childData->status === 'Canceled')
+                                    <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                        Canceled
+                                    </span>
+                                @elseif ($data->scan_in !== null && $data->scan_out !== null)
+                                    <span class="px-2 py-1 rounded bg-green-200 text-green-800">
+                                        Completed
+                                    </span>
+                                @elseif ($data->scan_in !== null)
+                                    <span class="px-2 py-1 rounded bg-blue-200 text-blue-800">
+                                        Started
+                                    </span>
+                                @else
+                                    <span class="px-2 py-1 rounded {{ $data->status ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800' }}">
+                                        {{ $data->status ? 'Completed' : 'Pending' }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->pic ?? 'Unassigned' }}</td>
                             <td class="print-hidden px-4 py-2 border">

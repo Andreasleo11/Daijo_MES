@@ -74,7 +74,11 @@ class WorkshopController extends Controller
         // dd($user);
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
-        // dd($data);
+
+        if ($data->status === 'Canceled') {
+            return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
+        }
+        
         $materialProcess = $data->materialProcess()
         ->where('process_name', $user->name)
         ->whereNull('scan_in')  // Ensure scan_in is null
@@ -177,7 +181,7 @@ class WorkshopController extends Controller
         $user = auth()->user();
         $logs = PRD_MaterialLog::with('childData')->where('process_name', $user->name)->whereNotNull('scan_in')->get();
         // dd($jobs);
-
+        $this->updateAllMaterialChildrenStatus();
         return view('production.workshop.mainmenu', compact('logs', 'user'));
     }
 

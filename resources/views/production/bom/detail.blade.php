@@ -74,7 +74,6 @@
                                                     </button>
                                                 </form>
                                             </td>
-
                                        
                                         
                                         </td>
@@ -161,46 +160,79 @@
                                         <td class="px-4 py-2 border">{{ $child->quantity }}</td>
                                         <td class="px-4 py-2 border">{{ $child->measure }}</td>
                                         <td class="px-4 py-2 border">{{ $child->created_at->format('Y-m-d H:i') }}</td>
-                                        <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}</td>
+                                        <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}</td>  
                                         <td class="px-4 py-2 border">
                                             <!-- Edit Child Button -->
-                                            <button onclick="toggleModal('modal-{{ $child->id }}', true)" class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
-                                                Edit
-                                            </button>
-                                        @if (!in_array($child->status, ['Started', 'Finished']))
-                                            <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" onclick="return confirm('Are you sure you want to delete this item?')" class="bg-red-500 text-red px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                    Delete
+                                            @if ($child->status === 'Canceled')
+                                                <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                                    {{ $child->status }}
+                                                </span>
+                                            @elseif ($child->status === 'Finished')
+                                                <!-- Show only the Cancel button -->
+                                                <button onclick="toggleModal('modal-{{ $child->id }}', true)" class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
+                                                    Edit
                                                 </button>
-                                            </form>
-                                        @endif
-                                            <td class="px-4 py-2 border">
-                                            @if (is_null($child->action_type))
-                                                <!-- Show "Assign Type" button if action_type is null -->
-                                                <button onclick="toggleModal('modal-assign-{{ $child->id }}', true)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
-                                                    Assign Type
-                                                </button>
-                                            @elseif ($child->action_type == 'buy')
+                                                <form action="{{ route('production.bom.child.cancel', $child->id) }}" method="POST" class="inline-block ml-2">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button type="submit" onclick="return confirm('Are you sure you want to cancel this material?')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                        Cancel
+                                                    </button>
+                                                </form>
                                             @else
-                                                <!-- Show "Assign Process" button if action_type is not null -->
-                                                <button onclick="toggleModal('modal-process-{{ $child->id }}', true)" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                    Assign Process
+                                                <button onclick="toggleModal('modal-{{ $child->id }}', true)" class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
+                                                    Edit
                                                 </button>
-                                            @endif
-
-                                            @if ($child->materialProcess->isNotEmpty())
-                                                <button onclick="toggleModal('modal-detail-process-{{ $child->id }}', true)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">
-                                                    Detail Process
-                                                </button>
-                                                <a href="{{ route('production.child.detail.material', $child->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                    Show Detail
-                                                </a>
+                                                @if (!in_array($child->status, ['Started', 'Finished']))
+                                                    <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" onclick="return confirm('Are you sure you want to delete this item?')" class="bg-red-500 text-red px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                <form action="{{ route('production.bom.child.cancel', $child->id) }}" method="POST" class="inline-block ml-2">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button type="submit" onclick="return confirm('Are you sure you want to cancel this material?')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                        Cancel
+                                                    </button>
+                                                </form>
                                             @endif
                                         </td>
+                                        <td class="px-4 py-2 border">
+                                            @if ($child->status === 'Canceled')
+                                                <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                                    {{ $child->status }}
+                                                </span>
+                                            @elseif ($child->status === 'Finished')
+                                                @if ($child->materialProcess->isNotEmpty())
+                                                        <a href="{{ route('production.child.detail.material', $child->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                        Show Detail
+                                                    </a>
+                                                @endif
+                                            @else
+                                                @if (is_null($child->action_type))
+                                                    <!-- Show "Assign Type" button if action_type is null -->
+                                                    <button onclick="toggleModal('modal-assign-{{ $child->id }}', true)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                                                        Assign Type
+                                                    </button>
+                                                @elseif ($child->action_type == 'buy')
+                                                    <!-- Add any specific handling for 'buy' if needed -->
+                                                @else
+                                                    <!-- Show "Assign Process" button if action_type is not null -->
+                                                    <button onclick="toggleModal('modal-process-{{ $child->id }}', true)" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                        Assign Process
+                                                    </button>
+                                                @endif
 
-                                        
+                                                @if ($child->materialProcess->isNotEmpty())
+                                                    <a href="{{ route('production.child.detail.material', $child->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                        Show Detail
+                                                    </a>
+                                                @endif
+                                            @endif
                                         </td>
                                         <td class="px-4 py-2 border">{{ $child->status }}</td>
                                     </tr>
