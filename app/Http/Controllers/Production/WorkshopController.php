@@ -203,4 +203,11 @@ class WorkshopController extends Controller
         return redirect()->back()->with('success', 'Worker added successfully.');
     }
    
+
+    public function summaryDashboard()
+    {
+        $datas = PRD_MaterialLog::with('childData', 'workers', 'childData.parent')->paginate(10);
+        // dd($datas);
+        return view('production.workshop.summarydashboard', compact('datas'));
+    }
 }

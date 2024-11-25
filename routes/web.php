@@ -55,6 +55,7 @@ Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->n
 Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
 Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
 
+Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
 
 
 require __DIR__.'/auth.php';
