@@ -36,7 +36,6 @@
                                     <th class="px-4 py-2 border">Measure</th>
                                     <th class="px-4 py-2 border">Created At</th>
                                     <th class="px-4 py-2 border">Action Type</th>
-                                    <th class="px-4 py-2 border">Actions</th>
                                     <th class="px-4 py-2 border">Advance Actions</th>
                                     <th class="px-4 py-2 border">Status</th>
                                 </tr>
@@ -52,30 +51,19 @@
                                         <td class="px-4 py-2 border">{{ $child->measure }}</td>
                                         <td class="px-4 py-2 border">{{ $child->created_at->format('Y-m-d H:i') }}</td>
                                         <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}</td>
+                                       
                                         <td class="px-4 py-2 border">
-                                            <!-- Edit Child Button -->
-                                            <button onclick="toggleModal('modal-{{ $child->id }}', true)" class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
-                                                Edit
-                                            </button>
-
-                                            <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
+                                        @if ($child->status === 'Finished')
+                                            <span class="text-green-500 font-bold">Item Arrived</span>
+                                        @else
+                                            <form action="{{ route('production.bom.child.updateStatus', $child->id) }}" method="POST" class="inline-block ml-2">
                                                 @csrf
-                                                @method('DELETE')
-                                                <button type="submit" onclick="return confirm('Are you sure you want to delete this item?')" class="bg-red-500 text-red px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                    Delete
+                                                @method('PUT')
+                                                <button type="submit" onclick="return confirm('Mark item as arrived and available?')" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
+                                                    Mark as Arrived
                                                 </button>
                                             </form>
-                                            <td class="px-4 py-2 border">
-                                                <form action="{{ route('production.bom.child.updateStatus', $child->id) }}" method="POST" class="inline-block ml-2">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <button type="submit" onclick="return confirm('Mark item as arrived and available?')" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
-                                                        Item Arrived
-                                                    </button>
-                                                </form>
-                                            </td>
-                                       
-                                        
+                                        @endif
                                         </td>
                                         <td class="px-4 py-2 border">{{ $child->status }}</td>
                                     </tr>
