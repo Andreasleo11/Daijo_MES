@@ -29,4 +29,9 @@ class PRD_BillOfMaterialChild extends Model
     {
         return $this->belongsTo(PRD_BillOfMaterialParent::class, 'parent_id');
     }
+
+    public function brokenChild()
+    {
+        return $this->hasMany(PRD_BrokenChild::class, 'child_id');
+    }
 }

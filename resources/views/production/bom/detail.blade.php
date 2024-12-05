@@ -9,8 +9,10 @@
                     <div class="mb-6 flex justify-between items-center">
                         <div>
                             <h3 class="text-xl font-medium">{{ $bomParent->item_code }} - {{ $bomParent->item_description }}</h3>
+                            <h3 class="text-xl font-medium">{{ $bomParent->customer }}</h3>
                             <p class="text-sm text-gray-600">Type: {{ ucfirst($bomParent->type) }}</p>
                             <p class="text-sm text-gray-600">Created At: {{ $bomParent->created_at->format('Y-m-d H:i') }}</p>
+
                         </div>
 
                         <!-- Edit Button to Open Modal for BOM Parent -->
@@ -36,14 +38,18 @@
                                     <th class="px-4 py-2 border">Measure</th>
                                     <th class="px-4 py-2 border">Created At</th>
                                     <th class="px-4 py-2 border">Action Type</th>
+                                    <th class="px-4 py-2 border">Action</th>
                                     <th class="px-4 py-2 border">Advance Actions</th>
                                     <th class="px-4 py-2 border">Status</th>
+                                    @if($user->hasRole('ADMIN'))
+                                    <th class="px-4 py-2 border">Process Count</th>
+                                    @endif
                                 </tr>
                             </thead>
                             @if ($user->hasRole('WAREHOUSE'))
                             <tbody>
                                 @foreach ($bomParent->child as $child)
-                                @if ($child->action_type === 'buy')
+                                @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
                                     <tr>
                                         <td class="px-4 py-2 border">{{ $child->item_code }}</td>
                                         <td class="px-4 py-2 border">{{ $child->item_description }}</td>
@@ -51,9 +57,9 @@
                                         <td class="px-4 py-2 border">{{ $child->measure }}</td>
                                         <td class="px-4 py-2 border">{{ $child->created_at->format('Y-m-d H:i') }}</td>
                                         <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}</td>
-                                       
-                                        <td class="px-4 py-2 border">
-                                        @if ($child->status === 'Finished')
+                                        <td class="px-4 py-2 border"></td>
+                                        <td class="px-4 py-2 border">   
+                                        @if ($child->status === 'Finished' || $child->status === 'Available')
                                             <span class="text-green-500 font-bold">Item Arrived</span>
                                         @else
                                             <form action="{{ route('production.bom.child.updateStatus', $child->id) }}" method="POST" class="inline-block ml-2">
@@ -68,74 +74,8 @@
                                         <td class="px-4 py-2 border">{{ $child->status }}</td>
                                     </tr>
 
-                                    
-                                    
-                                    <!-- Edit Modal for Each Child -->
-                                    <div id="modal-{{ $child->id }}" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                                        <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
-                                            <h3 class="text-xl font-semibold mb-4">Edit Child Item</h3>
-                                            <form action="{{ route('production.bom.child.update', $child->id) }}" method="POST">
-                                                @csrf
+                            
 
-                                                <div class="mb-4">
-                                                    <label class="block text-sm font-medium">Item Code</label>
-                                                    <input type="text" name="item_code" value="{{ $child->item_code }}" class="w-full border rounded px-4 py-2" required>
-                                                </div>
-
-                                                <div class="mb-4">
-                                                    <label class="block text-sm font-medium">Item Description</label>
-                                                    <input type="text" name="item_description" value="{{ $child->item_description }}" class="w-full border rounded px-4 py-2" required>
-                                                </div>
-
-                                                <div class="mb-4">
-                                                    <label class="block text-sm font-medium">Quantity</label>
-                                                    <input type="number" name="quantity" value="{{ $child->quantity }}" class="w-full border rounded px-4 py-2" required>
-                                                </div>
-
-                                                <div class="mb-4">
-                                                    <label class="block text-sm font-medium">Measure</label>
-                                                    <input type="text" name="measure" value="{{ $child->measure }}" class="w-full border rounded px-4 py-2" required>
-                                                </div>
-
-                                                <div class="flex justify-end mt-6">
-                                                    <button type="button" onclick="toggleModal('modal-{{ $child->id }}', false)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
-                                                        Cancel
-                                                    </button>
-                                                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                                        Save Changes
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-
-
-                                    <div id="modal-assign-{{ $child->id }}" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                                        <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
-                                            <h3 class="text-xl font-semibold mb-4">Assign Action Type</h3>
-                                            <form action="{{ route('production.bom.child.assign_type', $child->id) }}" method="POST">
-                                                @csrf
-                                                @method('PUT')
-
-                                                <div class="mb-4">
-                                                    <label class="block text-sm font-medium">Action Type</label>
-                                                    <select name="action_type" class="w-full border rounded px-4 py-2" required>
-                                                        <option value="buy" {{ $child->action_type == 'buy' ? 'selected' : '' }}>Buy</option>
-                                                        <option value="make" {{ $child->action_type == 'make' ? 'selected' : '' }}>Make</option>
-                                                    </select>
-                                                </div>
-
-                                                <div class="flex justify-end mt-6">
-                                                    <button type="button" onclick="toggleModal('modal-assign-{{ $child->id }}', false)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
-                                                        Cancel
-                                                    </button>
-                                                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                                                        Assign Type
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
                                     @endif
                                 @endforeach
                             </tbody>
@@ -172,13 +112,14 @@
                                                     Edit
                                                 </button>
                                                 @if (!in_array($child->status, ['Started', 'Finished']))
-                                                    <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
+                                                <!-- delete button -->
+                                                    <!-- <form action="{{ route('production.bom.child.destroy', $child->id) }}" method="POST" class="inline-block">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" onclick="return confirm('Are you sure you want to delete this item?')" class="bg-red-500 text-red px-3 py-1 rounded hover:bg-red-600 ml-2">
                                                             Delete
                                                         </button>
-                                                    </form>
+                                                    </form> -->
                                                 @endif
                                                 <form action="{{ route('production.bom.child.cancel', $child->id) }}" method="POST" class="inline-block ml-2">
                                                     @csrf
@@ -206,8 +147,17 @@
                                                     <button onclick="toggleModal('modal-assign-{{ $child->id }}', true)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
                                                         Assign Type
                                                     </button>
-                                                @elseif ($child->action_type == 'buy')
+                                                @elseif ($child->action_type == 'buyfinish' || $child->action_type == 'stockfinish')
                                                     <!-- Add any specific handling for 'buy' if needed -->
+                                                @elseif($child->action_type == 'buyprocess')
+                                                    @if($child->status == 'Available' || $child->status == 'Started')
+                                                        <button onclick="toggleModal('modal-process-{{ $child->id }}', true)" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                            Assign Process
+                                                        </button>
+                                                    @else
+                                                    Barang belom Sampai
+                                                    @endif
+                                              
                                                 @else
                                                     <!-- Show "Assign Process" button if action_type is not null -->
                                                     <button onclick="toggleModal('modal-process-{{ $child->id }}', true)" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
@@ -220,9 +170,21 @@
                                                         Show Detail
                                                     </a>
                                                 @endif
+
+                                                
+                                            <button onclick="toggleModal('modal-broken-{{ $child->id }}', true)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                Add Broken Quantity
+                                            </button>
                                             @endif
+
                                         </td>
                                         <td class="px-4 py-2 border">{{ $child->status }}</td>
+                                        <td class="px-4 py-2 border">
+                                            {{-- Styled Total / Finished / Not Finished --}}
+                                            <span style="color: blue;">{{ $child->materialProcess->count() }}</span> / 
+                                            <span style="color: green;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out !== null)->count() }}</span> / 
+                                            <span style="color: red;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out === null)->count() }}</span>
+                                        </td>
                                     </tr>
 
                                     
@@ -315,8 +277,10 @@
                                                 <div class="mb-4">
                                                     <label class="block text-sm font-medium">Action Type</label>
                                                     <select name="action_type" class="w-full border rounded px-4 py-2" required>
-                                                        <option value="buy" {{ $child->action_type == 'buy' ? 'selected' : '' }}>Buy</option>
-                                                        <option value="make" {{ $child->action_type == 'make' ? 'selected' : '' }}>Make</option>
+                                                        <option value="buyfinish" {{ $child->action_type == 'buyfinish' ? 'selected' : '' }}>Buy Finish</option>
+                                                        <option value="buyprocess" {{ $child->action_type == 'buyprocess' ? 'selected' : '' }}>Buy Process</option>
+                                                        <option value="stockfinish" {{ $child->action_type == 'stockfinish' ? 'selected' : '' }}>Stock Finish</option>
+                                                        <option value="stockprocess" {{ $child->action_type == 'stockprocess' ? 'selected' : '' }}>Stock Process</option>
                                                     </select>
                                                 </div>
 
@@ -326,6 +290,31 @@
                                                     </button>
                                                     <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
                                                         Assign Type
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div id="modal-broken-{{ $child->id }}" class="fixed inset-0 flex items-center justify-center hidden bg-black bg-opacity-50 z-50">
+                                        <div class="bg-white rounded-lg shadow-lg p-6 w-1/3">
+                                            <h2 class="text-lg font-bold mb-4">Add Broken Quantity for {{ $child->item_code }}</h2>
+                                            <form action="{{ route('production.bom.child.addBrokenQuantity', $child->id) }}" method="POST">
+                                                @csrf
+                                                <div class="mb-4">
+                                                    <label for="broken_quantity_{{ $child->id }}" class="block text-sm font-medium text-gray-700">Broken Quantity</label>
+                                                    <input type="number" name="broken_quantity" id="broken_quantity_{{ $child->id }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+                                                </div>
+                                                <div class="mb-4">
+                                                    <label for="remark_{{ $child->id }}" class="block text-sm font-medium text-gray-700">Remark</label>
+                                                    <textarea name="remark" id="remark_{{ $child->id }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Optional"></textarea>
+                                                </div>
+                                                <div class="flex justify-end">
+                                                    <button type="button" onclick="toggleModal('modal-broken-{{ $child->id }}', false)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
+                                                        Cancel
+                                                    </button>
+                                                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                                        Submit
                                                     </button>
                                                 </div>
                                             </form>
@@ -373,6 +362,11 @@
                         <option value="moulding" {{ $bomParent->type == 'moulding' ? 'selected' : '' }}>Moulding</option>
                         <option value="production" {{ $bomParent->type == 'production' ? 'selected' : '' }}>Production</option>
                     </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium">Customer </label>
+                    <input type="text" name="customer" value="{{ $bomParent->customer }}" class="w-full border rounded px-4 py-2" required>
                 </div>
 
                 <div class="flex justify-end mt-6">

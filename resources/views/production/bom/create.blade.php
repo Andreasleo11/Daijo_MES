@@ -26,6 +26,11 @@
                             </select>
                         </div>
 
+                        <div class="mt-4">
+                            <label for="customer" class="block text-sm font-medium text-gray-700">Customer </label>
+                            <input type="text" name="customer" id="customer" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
+                        </div>
+
                         <!-- Toggle Section for Child Information -->
                         <div class="mt-6 flex justify-between items-center">
                             <h2>Child Information</h2>

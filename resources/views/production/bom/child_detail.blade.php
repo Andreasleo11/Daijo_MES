@@ -16,7 +16,7 @@
         <h3 class="text-lg font-semibold mb-4">Child Information</h3>
         <p><strong>Item Code:</strong> {{ $child->item_code }}</p>
         <p><strong>Item Description:</strong> {{ $child->item_description }}</p>
-        <p><strong>Quantity:</strong> {{ $child->quantity }}</p>
+        <p><strong>Quantity:</strong> {{ $child->quantity }} (Barang Rusak : {{ $child->brokenChild->sum('broken_quantity') }} , Barang Aman : {{ $child->quantity - $child->brokenChild->sum('broken_quantity')}})</p>
         <p><strong>Measure:</strong> {{ $child->measure }}</p>
         <p><strong>Status:</strong> {{ $child->status }}</p>
 
@@ -35,6 +35,7 @@
                     <!-- Other columns will be hidden when printing -->
                     <th class="print-hidden px-4 py-2 border">Scan In</th>
                     <th class="print-hidden px-4 py-2 border">Scan Out</th>
+                    <th class="print-hidden px-4 py-2 border">Duration</th>
                     <th class="print-hidden px-4 py-2 border">Pic</th>
                     <th class="print-hidden px-4 py-2 border">Workers</th>
                     <th class="print-hidden px-4 py-2 border">Status</th>
@@ -42,11 +43,29 @@
             </thead>
             <tbody>
                 @foreach ($child->materialProcess as $process)
+                @php
+                    $hours = 0;
+                    $minutes = 0;
+                    if ($process->scan_in && $process->scan_out) {
+                        $scanIn = \Carbon\Carbon::parse($process->scan_in);
+                        $scanOut = \Carbon\Carbon::parse($process->scan_out);
+                        $totalMinutes = $scanOut->diffInMinutes($scanIn);
+                        $hours = intdiv($totalMinutes, 60);
+                        $minutes = $totalMinutes % 60;
+                    }
+                @endphp
                     <tr>
                         <td class="px-4 py-2 border">{{ $process->process_name }}</td>
                         <!-- These cells will be hidden when printing -->
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_in }}</td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->scan_out }}</td>
+                        <td class="print-hidden px-4 py-2 border">
+                            @if ($process->scan_in && $process->scan_out)
+                                {{ $hours }} hours {{ $minutes }} minutes
+                            @else
+                                N/A
+                            @endif
+                        </td>
                         <td class="print-hidden px-4 py-2 border">{{ $process->pic }}</td>
                         <td class="print-hidden px-4 py-2 border">
                             @foreach($process->workers as $worker)

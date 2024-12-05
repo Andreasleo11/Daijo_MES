@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
+use App\Models\Production\PRD_BrokenChild;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -56,7 +57,7 @@ class BillOfMaterialController extends Controller
     public function update(Request $request, $id)
     {
         $bomParent = PRD_BillOfMaterialParent::findOrFail($id);
-        $bomParent->update($request->only(['item_code', 'item_description', 'type']));
+        $bomParent->update($request->only(['item_code', 'item_description', 'type', 'customer']));
         
         return redirect()->route('production.bom.show', $id)->with('success', 'BOM Parent updated successfully.');
     }
@@ -120,6 +121,7 @@ class BillOfMaterialController extends Controller
             'item_code' => 'required|string',
             'item_description' => 'required|string',
             'type' => 'required|string|in:production,moulding',
+            'customer' => 'required|string',
             'excel_file' => 'nullable|file',
         ]);
         // dd($validated);
@@ -129,6 +131,7 @@ class BillOfMaterialController extends Controller
             'item_code' => $validated['item_code'],
             'item_description' => $validated['item_description'],
             'type' => $validated['type'],
+            'customer' => $validated['customer'],
         ]);
         
         // Check if an Excel file is uploaded
@@ -265,6 +268,10 @@ class BillOfMaterialController extends Controller
     {
         $child = PRD_BillOfMaterialChild::findOrFail($childId);
         $child->action_type = $request->input('action_type');
+        if($child->action_type === "stockfinish")
+        {
+            $child->status = "Finished";
+        }
         $child->save();
 
         return redirect()->back()->with('success', 'Action type assigned successfully.');
@@ -275,8 +282,14 @@ class BillOfMaterialController extends Controller
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
         
+        if($child->action_type === "buyprocess")
+        {
+            $child->status = 'Available';
+        }
+        else{
+            $child->status = 'Finished';
+        }
         // Update the status to "Available"
-        $child->status = 'Finished';
         $child->save();
 
         // Redirect back with a success message
@@ -309,10 +322,18 @@ class BillOfMaterialController extends Controller
 
     public function materialDetail($id)
     {
+        
         // Retrieve the child and its related material processes
-        $child = PRD_BillOfMaterialChild::with('materialProcess','parent', 'materialProcess.workers')->findOrFail($id);
-        // Generate barcode (item_code and id in the barcode)
-        // dd($child);
+        $child = PRD_BillOfMaterialChild::with([
+            'materialProcess' => function ($query) {
+                $query->orderByRaw('scan_in IS NULL, scan_in ASC');
+            },
+            'parent',
+            'materialProcess.workers',
+            'brokenChild'
+        ])->findOrFail($id);
+
+      
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
         
         // Generate the barcode PNG content
@@ -330,6 +351,34 @@ class BillOfMaterialController extends Controller
 
         // Pass the data to the view
         return view('production.bom.child_detail', compact('child', 'barcodeUrl'));
+    }
+
+    public function addBrokenQuantity(Request $request, $childId)
+    {
+        $request->validate([
+            'broken_quantity' => 'required|integer|min:0',
+            'remark' => 'nullable|string|max:255',
+        ]);
+
+        $child = PRD_BillOfMaterialChild::findOrFail($childId);
+
+        // Calculate the total existing broken quantity for the child_id
+        $existingBrokenQuantity = PRD_BrokenChild::where('child_id', $childId)->sum('broken_quantity');
+
+        // Validation: Check if the total broken quantity will exceed the child's available quantity
+        $newTotalQuantity = $existingBrokenQuantity + $request->input('broken_quantity');
+        if ($newTotalQuantity > $child->quantity) {
+            return redirect()->back()->withErrors(['broken_quantity' => 'The total broken quantity exceeds the available quantity.']);
+        }
+
+        // Insert the new broken quantity into the PRD_BrokenChild table
+        PRD_BrokenChild::create([
+            'child_id' => $childId,
+            'broken_quantity' => $request->input('broken_quantity'),
+            'remark' => $request->input('remark'),
+        ]);
+
+        return redirect()->back()->with('success', 'Broken quantity added successfully.');
     }
 
 }

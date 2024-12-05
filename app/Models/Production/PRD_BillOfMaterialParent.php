@@ -14,6 +14,7 @@ class PRD_BillOfMaterialParent extends Model
         'item_code',
         'item_description',
         'type',
+        'customer',
     ];
 
     public function child()
