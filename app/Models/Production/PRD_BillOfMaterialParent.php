@@ -11,13 +11,15 @@ class PRD_BillOfMaterialParent extends Model
     protected $table = 'prd_bill_of_material_parents';
 
     protected $fillable = [
-        'item_code',
-        'item_description',
+        'code',
+        'description',
         'type',
+        'customer',
     ];
 
-    public function child(){
-        $this->hasMany(PRD_BillOfMaterialChild::class, 'parentid');
+    public function child()
+    {
+        return $this->hasMany(PRD_BillOfMaterialChild::class, 'parent_id');
     }
 
 }

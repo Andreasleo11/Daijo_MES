@@ -16,5 +16,22 @@ class PRD_BillOfMaterialChild extends Model
         'item_description',
         'quantity',
         'measure',
+        'status',
+        'action_type',
     ];
+
+    public function materialProcess()
+    {
+        return $this->hasMany(PRD_MaterialLog::class, 'child_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(PRD_BillOfMaterialParent::class, 'parent_id');
+    }
+
+    public function brokenChild()
+    {
+        return $this->hasMany(PRD_BrokenChild::class, 'child_id');
+    }
 }
