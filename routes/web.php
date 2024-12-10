@@ -28,8 +28,8 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
-
-Route::get('/production/bom/index', [BillOfMaterialController::class, 'index'])->name('production.bom.index');
+Route::middleware('auth')->group(function (){
+    Route::get('/production/bom/index', [BillOfMaterialController::class, 'index'])->name('production.bom.index');
 
 Route::get('/production/bill-of-material/{id}', [BillOfMaterialController::class, 'show'])->name('production.bom.show');
 Route::delete('/production/delete-bill-of-material/{id}', [BillOfMaterialController::class, 'destroy'])->name('production.bom.destroy');
@@ -55,14 +55,14 @@ Route::get('/get-item-codes', [BillOfMaterialController::class, 'getItemCodes'])
 Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])->name('production.bom.store');
 
 
-Route::post('/workshop/update-username', [WorkshopController::class, 'updateUsername'])->name('update.username');
-Route::post('/workshop/scan-start', [WorkshopController::class, 'handleScanStart'])->name('workshop.scan');
-Route::get('/workshop/index/{id}', [WorkshopController::class, 'index'])->name('workshop.index');
-Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->name('workshop.scan_out');
-Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
-Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
+    Route::post('/workshop/update-username', [WorkshopController::class, 'updateUsername'])->name('update.username');
+    Route::post('/workshop/scan-start', [WorkshopController::class, 'handleScanStart'])->name('workshop.scan');
+    Route::get('/workshop/index/{id}', [WorkshopController::class, 'index'])->name('workshop.index');
+    Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->name('workshop.scan_out');
+    Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
+    Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
 
-Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
-
+    Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
+});
 
 require __DIR__.'/auth.php';

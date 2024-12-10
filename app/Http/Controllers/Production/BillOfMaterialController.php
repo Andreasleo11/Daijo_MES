@@ -59,8 +59,9 @@ class BillOfMaterialController extends Controller
     public function update(Request $request, $id)
     {
         $bomParent = PRD_BillOfMaterialParent::findOrFail($id);
+
         $bomParent->update($request->only(['item_code', 'item_description', 'type', 'customer']));
-        
+
         return redirect()->route('production.bom.show', $id)->with('success', 'BOM Parent updated successfully.');
     }
 
@@ -88,7 +89,7 @@ class BillOfMaterialController extends Controller
         return redirect()->back()->with('success', 'Child item updated successfully!');
     }
 
-    
+
     public function cancel($id)
     {
         $child = PRD_BillOfMaterialChild::findOrFail($id);
@@ -112,16 +113,16 @@ class BillOfMaterialController extends Controller
 
         return redirect()->back()->with('error', 'Child item not found.');
     }
-        
- 
+
+
 
     public function store(Request $request)
     {
         // dd($request->all());
         // Validate common fields
         $validated = $request->validate([
-            'item_code' => 'required|string',
-            'item_description' => 'required|string',
+            'code' => 'required|string',
+            'description' => 'required|string',
             'type' => 'required|string|in:production,moulding',
             'customer' => 'required|string',
             'excel_file' => 'nullable|file',
@@ -130,12 +131,12 @@ class BillOfMaterialController extends Controller
 
         // Create the parent BOM record
         $parent = PRD_BillOfMaterialParent::create([
-            'item_code' => $validated['item_code'],
-            'item_description' => $validated['item_description'],
+            'code' => $validated['code'],
+            'description' => $validated['description'],
             'type' => $validated['type'],
             'customer' => $validated['customer'],
         ]);
-        
+
         // Check if an Excel file is uploaded
         if ($request->hasFile('excel_file')) {
             $file = $request->file('excel_file');
@@ -163,8 +164,8 @@ class BillOfMaterialController extends Controller
                 // Create the child record
                 PRD_BillOfMaterialChild::create([
                     'parent_id' => $parent->id,
-                    'item_code' => $childItemCode,
-                    'item_description' => $childItemDescription,
+                    'code' => $childItemCode,
+                    'description' => $childItemDescription,
                     'quantity' => $quantity,
                     'measure' => $measure,
                 ]);
@@ -211,7 +212,7 @@ class BillOfMaterialController extends Controller
         foreach ($request->child as $childData) {
             // Add the parent_id to the child data before creating the child record
             $childData['parent_id'] = $bomParent->id;
-    
+
             // Create the child record
             $bomParent->child()->create($childData);
         }
@@ -283,14 +284,7 @@ class BillOfMaterialController extends Controller
     {
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
-        
-        if($child->action_type === "buyprocess")
-        {
-            $child->status = 'Available';
-        }
-        else{
-            $child->status = 'Finished';
-        }
+
         // Update the status to "Available"
         $child->save();
 
@@ -324,7 +318,7 @@ class BillOfMaterialController extends Controller
 
     public function materialDetail($id)
     {
-        
+
         // Retrieve the child and its related material processes
         $child = PRD_BillOfMaterialChild::with([
             'materialProcess' => function ($query) {
@@ -335,12 +329,12 @@ class BillOfMaterialController extends Controller
             'brokenChild'
         ])->findOrFail($id);
 
-      
+
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
-        
+
         // Generate the barcode PNG content
         $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 2, 70);
-        
+
         // Define the file name and path
         $fileName = 'barcode_' . $child->item_code . '_' . $child->id . '.png';
         $filePath = 'public/barcode/' . $fileName;
