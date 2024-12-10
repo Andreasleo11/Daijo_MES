@@ -284,7 +284,14 @@ class BillOfMaterialController extends Controller
     {
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
-
+       
+        if($child->action_type === "buyfinish")
+        {
+            $child->status = "Finished";
+        }else
+        {
+            $child->status = "Available";
+        }
         // Update the status to "Available"
         $child->save();
 

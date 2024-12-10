@@ -98,7 +98,7 @@
             <div class="flex space-x-4 mt-4 child-row">
                 <div class="w-1/3">
                     <input type="text" name="child_item_code[]" placeholder="Child Item Code"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        class="child-item-code mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         required>
                         <div class="dropdown hidden absolute z-10 bg-white border border-gray-300 w-full rounded-md shadow-md max-h-40 overflow-auto"></div>
                 </div>
@@ -173,6 +173,7 @@
 
                     if (query.length > 1) { // Only make a request if query length is > 1
                         fetchFilteredItemCodes(query, dropdown);
+                        console.log('asu');
                     } else {
                         dropdown.classList.add("hidden");
                     }

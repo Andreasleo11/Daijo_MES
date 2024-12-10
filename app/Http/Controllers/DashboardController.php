@@ -20,11 +20,11 @@ class DashboardController extends Controller
         $mouldingUserLogs = PRD_MouldingUserLog::get();
         $user = auth()->user();
 
-
+        
         if($user->role->name === 'ADMIN'){
             return view('dashboards.dashboard-admin', compact('parents', 'childs', 'materialLogs', 'mouldingUserLogs'));
         } elseif($user->role->name === 'WORKSHOP') {
-            return view('dashboard.dashboard-workshop', compact('user'));
+            return view('dashboards.dashboard-workshop', compact('user'));
         } else {
             return view('dashboard', compact('user'));
         }

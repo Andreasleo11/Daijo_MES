@@ -116,7 +116,11 @@
                                     @endforeach
                                 </td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">
-                                    {{ $process->status == 0 ? 'Pending' : 'Completed' }}
+                                    {{ 
+                                        $process->status == 0 ? 'Not Started' : 
+                                        ($process->status == 1 ? 'Started' : 
+                                        ($process->status == 2 ? 'Completed' : 'Unknown Status')) 
+                                    }}
                                 </td>
                             </tr>
                         @endforeach

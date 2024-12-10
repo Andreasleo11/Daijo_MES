@@ -89,12 +89,14 @@ class WorkshopController extends Controller
         if ($materialProcess) {
             $materialProcess->scan_in = $scanTime;
             $materialProcess->pic = $user->username;
+            $materialProcess->status = 1;
             $materialProcess->save();  // Save the changes
             $anyScanIn = $data->materialProcess()->whereNotNull('scan_in')->exists();
 
         // If any materialProcess has scan_in not null, update the status to 'started'
             if ($anyScanIn) {
                 $data->status = 'Started';
+                
                 $data->save();  // Save the status update
             }
         } else {
@@ -155,7 +157,7 @@ class WorkshopController extends Controller
         $log = PRD_MaterialLog::find($logId);
 
         $log->scan_out = $scanOutTime; 
-        $log->status = '1';
+        $log->status = '2';
         $log->save();
 
         $this->updateAllMaterialChildrenStatus();

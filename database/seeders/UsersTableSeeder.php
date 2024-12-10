@@ -22,6 +22,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'admin',
                 'email' => 'admin@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'ADMIN')->first()->id,
                 'remember_token' => null,
                 'password' => Hash::make('admin1234'),
@@ -31,6 +32,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'joko',
                 'email' => 'joko@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WAREHOUSE')->first()->id,
                 'password' => Hash::make('joko1234'),
                 'remember_token' => null,
@@ -40,6 +42,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'CNC',
                 'email' => 'cnc@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -49,6 +52,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'EDM',
                 'email' => 'edm@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -58,6 +62,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'WIRECUT',
                 'email' => 'wirecut@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -67,6 +72,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'QC',
                 'email' => 'qc@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -76,6 +82,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'POLISH',
                 'email' => 'polish@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -85,6 +92,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'ASSEMBLY',
                 'email' => 'assembly@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
@@ -94,6 +102,7 @@ class UsersTableSeeder extends Seeder
             [
                 'name' => 'MANUAL',
                 'email' => 'manual@daijo.co.id',
+                'role_id' => 0,
                 'specification_id' => Specification::where('name', 'WORKSHOP')->first()->id,
                 'password' => Hash::make('daijo123'),
                 'remember_token' => null,
