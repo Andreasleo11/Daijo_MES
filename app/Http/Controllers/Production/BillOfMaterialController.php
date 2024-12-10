@@ -13,7 +13,7 @@ use App\Models\Production\PRD_BrokenChild;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-
+use App\Models\Production\PRD_ListAllMasterItem;
 
 class BillOfMaterialController extends Controller
 {
@@ -26,7 +26,9 @@ class BillOfMaterialController extends Controller
 
     public function create()
     {
-        return view('production.bom.create');
+        $datas = PRD_ListAllMasterItem::get();
+        
+        return view('production.bom.create', compact('datas'));
     }
 
     public function destroy($id)
@@ -380,5 +382,22 @@ class BillOfMaterialController extends Controller
 
         return redirect()->back()->with('success', 'Broken quantity added successfully.');
     }
+
+
+    public function getItemCodes(Request $request)
+    {
+        $query = $request->get('query');
+
+        if (!$query) {
+            return response()->json([]);
+        }
+
+        $items = PRD_ListAllMasterItem::where('item_code', 'LIKE', "%{$query}%")
+            ->select('item_code', 'item_description', 'uom')
+            ->get();
+
+        return response()->json($items);
+    }
+
 
 }

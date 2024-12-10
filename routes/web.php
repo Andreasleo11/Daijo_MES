@@ -49,6 +49,9 @@ Route::post('/production/bom/child/{childId}/addBrokenQuantity', [BillOfMaterial
 
 
 Route::get('/production/bom/create', [BillOfMaterialController::class, 'create'])->name('production.bom.create');
+Route::get('/get-item-codes', [BillOfMaterialController::class, 'getItemCodes'])->name('get-item-codes');
+
+
 Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])->name('production.bom.store');
 
 

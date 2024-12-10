@@ -71,10 +71,10 @@ class WorkshopController extends Controller
         $scanTime = now('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         $user = auth()->user();
-        // dd($user);
+        
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
-
+      
         if ($data->status === 'Canceled') {
             return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
         }
