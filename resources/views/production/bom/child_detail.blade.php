@@ -83,6 +83,7 @@
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Pic</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Workers</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Status</th>
+                            <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,6 +122,20 @@
                                         ($process->status == 1 ? 'Started' : 
                                         ($process->status == 2 ? 'Completed' : 'Unknown Status')) 
                                     }}
+                                </td>
+                                <td class="print-hidden px-4 py-2 border text-gray-700">
+                                    @if (!$process->scan_in)
+                                        <form action="{{ route('production.process.delete', $process->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" 
+                                                    class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                                                Delete Process
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-gray-500 text-sm">Cannot delete - Process already started</span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

@@ -28,10 +28,12 @@
                             class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
                             Print/Export Report
                         </button> --}}
+                        @if($user->role->name === "ADMIN")
                         <button onclick="toggleModal('parentModal', true)"
                             class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
                             Edit BOM Parent
                         </button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -39,10 +41,12 @@
                 <div class="p-6 text-gray-900">
                     <div class="flex justify-between items center">
                         <h2 class="text-2xl font-semibold mb-4">{{ __('BOM Parent Details') }}</h2>
+                        @if($user->role->name === "ADMIN")
                         <button onclick="toggleModal('addChildModal', true)"
                             class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
                             Add Child
                         </button>
+                        @endif
                     </div>
                     <!-- Child Items Table -->
                     <h4 class="text-lg font-semibold mb-4">Child Items</h4>

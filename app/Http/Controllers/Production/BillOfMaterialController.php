@@ -21,7 +21,11 @@ class BillOfMaterialController extends Controller
     {
         $bomParents = PRD_BillOfMaterialParent::all();
         // dd($datas);
-        return view('production.bom.index', compact('bomParents'));
+        $user = auth()->user();
+      
+
+        
+        return view('production.bom.index', compact('bomParents', 'user'));
     }
 
     public function create()
@@ -400,5 +404,26 @@ class BillOfMaterialController extends Controller
         return response()->json($items);
     }
 
+
+    public function destroyProcess($id)
+    {
+        // Find the process by ID
+        $process = PRD_MaterialLog::find($id);
+
+        // Check if the process exists
+        if (!$process) {
+            return redirect()->back()->with('error', 'Process not found.');
+        }
+
+        // Check if the process can be deleted (no scan_in)
+        if ($process->scan_in) {
+            return redirect()->back()->with('error', 'Cannot delete a process that has already started.');
+        }
+
+        // Delete the process
+        $process->delete();
+
+        return redirect()->back()->with('success', 'Process deleted successfully.');
+    }
 
 }

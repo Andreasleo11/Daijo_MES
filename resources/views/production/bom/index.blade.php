@@ -12,6 +12,7 @@
                 </span>
             </nav>
             <!-- Header Section -->
+            @if($user->role->name === "ADMIN")
             <div class="bg-white shadow-md rounded-lg p-6 flex justify-between items-center">
                 <h1 class="text-3xl font-semibold text-gray-900">Bill of Materials (BOM) Index</h1>
                 <a href="{{ route('production.bom.create') }}"
@@ -25,7 +26,7 @@
                     Add New BOM
                 </a>
             </div>
-
+            @endif
             <!-- Table Section -->
             <div class="bg-white shadow-md rounded-lg mt-6">
                 @if ($bomParents->isEmpty())
@@ -71,6 +72,7 @@
                                             View
                                         </a>
 
+                                        @if($user->role->name === "ADMIN")
                                         <!-- Delete -->
                                         <form action="{{ route('production.bom.destroy', $parent->id) }}" method="POST"
                                             class="inline-block"
@@ -86,6 +88,7 @@
                                                 Delete
                                             </button>
                                         </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
