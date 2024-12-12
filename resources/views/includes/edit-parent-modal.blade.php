@@ -1,4 +1,4 @@
-<div id="parentModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+<div id="editParentModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
     <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
         <h3 class="text-xl font-semibold mb-4">Edit BOM Parent</h3>
         <form action="{{ route('production.bom.update', $bomParent->id) }}" method="POST">
@@ -32,7 +32,7 @@
                     class="w-full border rounded px-4 py-2" required>
             </div>
             <div class="flex justify-end mt-6">
-                <button type="button" onclick="toggleModal('parentModal', false)"
+                <button type="button" onclick="toggleModal('editParentModal', false)"
                     class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
                     Cancel
                 </button>

@@ -1,4 +1,4 @@
-<div id="modal-process-{{ $child->id }}"
+<div id="add-child-process-modal-{{ $child->id }}"
     class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
     <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">Assign Process for Material</h2>
@@ -34,7 +34,7 @@
 
             <!-- Modal Actions -->
             <div class="mt-6 flex justify-end space-x-3">
-                <button type="button" onclick="toggleModal('modal-process-{{ $child->id }}', false)"
+                <button type="button" onclick="toggleModal('add-child-process-modal-{{ $child->id }}', false)"
                     class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
                     Cancel
                 </button>
