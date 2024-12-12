@@ -71,10 +71,10 @@ class WorkshopController extends Controller
         $scanTime = now('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         $user = auth()->user();
-        // dd($user);
+        
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
-
+      
         if ($data->status === 'Canceled') {
             return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
         }
@@ -89,12 +89,14 @@ class WorkshopController extends Controller
         if ($materialProcess) {
             $materialProcess->scan_in = $scanTime;
             $materialProcess->pic = $user->username;
+            $materialProcess->status = 1;
             $materialProcess->save();  // Save the changes
             $anyScanIn = $data->materialProcess()->whereNotNull('scan_in')->exists();
 
         // If any materialProcess has scan_in not null, update the status to 'started'
             if ($anyScanIn) {
                 $data->status = 'Started';
+                
                 $data->save();  // Save the status update
             }
         } else {
@@ -155,7 +157,7 @@ class WorkshopController extends Controller
         $log = PRD_MaterialLog::find($logId);
 
         $log->scan_out = $scanOutTime; 
-        $log->status = '1';
+        $log->status = '2';
         $log->save();
 
         $this->updateAllMaterialChildrenStatus();
@@ -211,7 +213,7 @@ class WorkshopController extends Controller
     public function summaryDashboard()
     {
         $datas = PRD_MaterialLog::with('childData', 'workers', 'childData.parent')->paginate(10);
-        // dd($datas);
+       
         return view('production.workshop.summarydashboard', compact('datas'));
     }
 }

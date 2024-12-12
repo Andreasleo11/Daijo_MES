@@ -98,8 +98,9 @@
             <div class="flex space-x-4 mt-4 child-row">
                 <div class="w-1/3">
                     <input type="text" name="child_item_code[]" placeholder="Child Item Code"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        class="child-item-code mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         required>
+                        <div class="dropdown hidden absolute z-10 bg-white border border-gray-300 w-full rounded-md shadow-md max-h-40 overflow-auto"></div>
                 </div>
                 <div class="w-1/3">
                     <input type="text" name="child_item_description[]" placeholder="Child Item Description"
@@ -158,5 +159,76 @@
                 const defaultChildRow = childRowTemplate.content.cloneNode(true);
                 childRowsContainer.appendChild(defaultChildRow);
             });
-        </script>
+    
+        document.addEventListener("DOMContentLoaded", function () {
+
+        const childRowsContainer = document.getElementById("child-rows-container");
+
+            // Event delegation to attach event listener to dynamically added inputs
+            childRowsContainer.addEventListener("input", function (event) {
+                if (event.target.classList.contains("child-item-code")) {
+                    const inputField = event.target;
+                    const dropdown = inputField.nextElementSibling; // Find the sibling dropdown element
+                    const query = inputField.value;
+
+                    if (query.length > 1) { // Only make a request if query length is > 1
+                        fetchFilteredItemCodes(query, dropdown);
+                        console.log('asu');
+                    } else {
+                        dropdown.classList.add("hidden");
+                    }
+                }
+            });
+
+            // Fetch filtered item codes using AJAX
+            function fetchFilteredItemCodes(query, dropdown) {
+                fetch(`/get-item-codes?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateDropdown(data, dropdown);
+                    })
+                    .catch(error => {
+                        console.error("Error fetching item codes:", error);
+                    });
+            }
+
+            // Update the dropdown with fetched results
+            function updateDropdown(items, dropdown) {
+                dropdown.innerHTML = ""; // Clear existing items
+                if (items.length > 0) {
+                    items.forEach(item => {
+                        const option = document.createElement("div");
+                        option.className = "dropdown-item p-2 hover:bg-gray-200 cursor-pointer";
+                        option.textContent = `${item.item_code} - ${item.item_description}`;
+                        option.dataset.itemCode = item.item_code;
+                        option.dataset.itemDescription = item.item_description;
+                        option.dataset.itemUom = item.uom; // Add UOM data
+                        dropdown.appendChild(option);
+                    });
+                    dropdown.classList.remove("hidden");
+                } else {
+                    dropdown.classList.add("hidden");
+                }
+            }
+
+            // Handle dropdown item click to populate the input field
+            childRowsContainer.addEventListener("click", function (event) {
+                if (event.target.classList.contains("dropdown-item")) {
+                    const selectedItem = event.target;
+                    const inputField = selectedItem.parentElement.previousElementSibling; // Get the input field
+                    const childRow = selectedItem.closest(".child-row"); // Find the parent child-row
+                    const descriptionField = childRow.querySelector("input[name='child_item_description[]']");
+                    const measureField = childRow.querySelector("input[name='measure[]']");
+                    // Populate fields with selected item
+                    inputField.value = selectedItem.dataset.itemCode;
+                    descriptionField.value = selectedItem.dataset.itemDescription;
+                    measureField.value = selectedItem.dataset.itemUom;
+                    // Hide dropdown
+                    selectedItem.parentElement.classList.add("hidden");
+                }
+            });
+        }); 
+       
+
+    </script>
 </x-app-layout>

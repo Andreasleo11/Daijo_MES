@@ -13,7 +13,7 @@ use App\Models\Production\PRD_BrokenChild;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-
+use App\Models\Production\PRD_ListAllMasterItem;
 
 class BillOfMaterialController extends Controller
 {
@@ -21,12 +21,18 @@ class BillOfMaterialController extends Controller
     {
         $bomParents = PRD_BillOfMaterialParent::all();
         // dd($datas);
-        return view('production.bom.index', compact('bomParents'));
+        $user = auth()->user();
+      
+
+        
+        return view('production.bom.index', compact('bomParents', 'user'));
     }
 
     public function create()
     {
-        return view('production.bom.create');
+        $datas = PRD_ListAllMasterItem::get();
+        
+        return view('production.bom.create', compact('datas'));
     }
 
     public function destroy($id)
@@ -282,7 +288,14 @@ class BillOfMaterialController extends Controller
     {
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
-
+       
+        if($child->action_type === "buyfinish")
+        {
+            $child->status = "Finished";
+        }else
+        {
+            $child->status = "Available";
+        }
         // Update the status to "Available"
         $child->save();
 
@@ -373,6 +386,44 @@ class BillOfMaterialController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Broken quantity added successfully.');
+    }
+
+
+    public function getItemCodes(Request $request)
+    {
+        $query = $request->get('query');
+
+        if (!$query) {
+            return response()->json([]);
+        }
+
+        $items = PRD_ListAllMasterItem::where('item_code', 'LIKE', "%{$query}%")
+            ->select('item_code', 'item_description', 'uom')
+            ->get();
+
+        return response()->json($items);
+    }
+
+
+    public function destroyProcess($id)
+    {
+        // Find the process by ID
+        $process = PRD_MaterialLog::find($id);
+
+        // Check if the process exists
+        if (!$process) {
+            return redirect()->back()->with('error', 'Process not found.');
+        }
+
+        // Check if the process can be deleted (no scan_in)
+        if ($process->scan_in) {
+            return redirect()->back()->with('error', 'Cannot delete a process that has already started.');
+        }
+
+        // Delete the process
+        $process->delete();
+
+        return redirect()->back()->with('success', 'Process deleted successfully.');
     }
 
 }

@@ -15,5 +15,4 @@ class PRD_BrokenChild extends Model
         'remark',
     ];
 
-
 }

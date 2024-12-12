@@ -60,8 +60,8 @@
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->item_code ?? 'N/A' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->item_description ?? 'N/A' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->quantity ?? 'N/A' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->item_code ?? 'N/A' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->item_description ?? 'N/A' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->code ?? 'N/A' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->description ?? 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>

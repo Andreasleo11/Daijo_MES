@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->bigInteger('role_id')->after('email');
+            $table->integer('specification_id')->after('id')->nullable();
         });
     }
 
@@ -22,7 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropIfExists('email');
+            $table->dropIfExists('role_id');
+            $table->dropIfExists('specification_id');
         });
     }
 };

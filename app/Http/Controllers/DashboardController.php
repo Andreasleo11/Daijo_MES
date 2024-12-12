@@ -51,7 +51,7 @@ class DashboardController extends Controller
         if($user->role->name === 'ADMIN'){
             return view('dashboards.dashboard-admin', compact('parents', 'childs', 'materialLogs', 'mouldingUserLogs', 'completedItems', 'overallCompletionPercentage', 'totalPendingChildren'));
         } elseif($user->role->name === 'WORKSHOP') {
-            return view('dashboard.dashboard-workshop', compact('user'));
+            return view('dashboards.dashboard-workshop', compact('user'));
         } else {
             return view('dashboard', compact('user'));
         }
