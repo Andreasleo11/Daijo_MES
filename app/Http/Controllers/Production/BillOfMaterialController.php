@@ -64,7 +64,7 @@ class BillOfMaterialController extends Controller
     {
         $bomParent = PRD_BillOfMaterialParent::findOrFail($id);
 
-        $bomParent->update($request->only(['item_code', 'item_description', 'type', 'customer']));
+        $bomParent->update($request->only(['code', 'description', 'type', 'customer']));
 
         return redirect()->route('production.bom.show', $id)->with('success', 'BOM Parent updated successfully.');
     }

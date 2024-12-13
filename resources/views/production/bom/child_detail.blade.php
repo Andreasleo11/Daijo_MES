@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-print-layout>
     <style>
         @media print {
 
@@ -20,15 +20,15 @@
         <!-- Header & Navigation (Will not print) -->
         <div class="flex justify-between items-center mb-6 no-print">
             <div>
-                <a href="{{ route('production.bom.index') }}" class="text-blue-500 hover:text-blue-700 text-sm">
-                    ← Back to BOM Index
+                <a href="{{ url()->previous() }}" class="text-blue-500 hover:text-blue-700 text-sm">
+                    ← Back
                 </a>
                 <h1 class="text-2xl font-bold mt-2">Item Code Details</h1>
                 <p class="text-gray-600 text-sm">Viewing details for <strong>{{ $child->item_code }}</strong></p>
             </div>
             <div class="space-x-4">
                 <button onclick="window.print()"
-                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 text-sm">
+                    class="bg-blue-100 text-blue-700 px-4 py-2 rounded-md hover:bg-blue-200 text-sm border-blue-500 border">
                     Print Page
                 </button>
             </div>
@@ -144,4 +144,4 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+</x-print-layout>

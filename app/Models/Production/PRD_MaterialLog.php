@@ -2,12 +2,13 @@
 
 namespace App\Models\Production;
 
+use App\Traits\BroadcastsDashboardModelUpdates;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PRD_MaterialLog extends Model
 {
-    use HasFactory;
+    use HasFactory, BroadcastsDashboardModelUpdates;
     protected $table = 'prd_material_logs';
 
     protected $fillable = [

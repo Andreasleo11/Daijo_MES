@@ -5,6 +5,8 @@ use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Store\SOController;
+use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -16,7 +18,7 @@ use App\Http\Controllers\Store\SOController;
 |
 */
 
-Route::view('/', 'welcome');
+Route::redirect('/', '/login');
 
 // Route::view('dashboard', 'dashboard')
 //     ->middleware(['auth', 'verified'])
@@ -24,6 +26,9 @@ Route::view('/', 'welcome');
 
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+
+// Route::get('/login', LivewireLoginSwitcher::class)->name('login');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
@@ -62,7 +67,7 @@ Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])
     Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->name('workshop.scan_out');
     Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
     Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
-    
+
 
     Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
 
