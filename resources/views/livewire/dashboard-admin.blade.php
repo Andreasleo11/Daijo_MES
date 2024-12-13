@@ -63,7 +63,12 @@
                                         if ($processCount > 0 && $finishedCount === $processCount) {
                                             $finishedChildren++;
                                         } else {
-                                            $finishedChildren += $finishedCount / $processCount;
+                                            if ($processCount > 0) {
+                                                    $finishedChildren += $finishedCount / $processCount;
+                                                } else {
+                                                    // Handle the case where processCount is 0
+                                                    $finishedChildren += 0; // or handle it as per your requirement
+                                                }
                                         }
                                     }
                                 }
