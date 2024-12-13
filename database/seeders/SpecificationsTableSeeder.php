@@ -17,6 +17,7 @@ class SpecificationsTableSeeder extends Seeder
         Specification::create(['name' => 'WORKSHOP']);
         Specification::create(['name' => 'WAREHOUSE']);
         Specification::create(['name' => 'ADMIN']);
+        
 
     }
 }
