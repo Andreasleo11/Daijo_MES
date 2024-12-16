@@ -28,11 +28,11 @@
                             class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
                             Print/Export Report
                         </button> --}}
-                        @if($user->role->name === "ADMIN")
-                        <button onclick="toggleModal('parentModal', true)"
-                            class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
-                            Edit BOM Parent
-                        </button>
+                        @if ($user->role->name === 'ADMIN')
+                            <button onclick="toggleModal('editParentModal', true)"
+                                class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
+                                Edit BOM Parent
+                            </button>
                         @endif
                     </div>
                 </div>
@@ -41,11 +41,11 @@
                 <div class="p-6 text-gray-900">
                     <div class="flex justify-between items center">
                         <h2 class="text-2xl font-semibold mb-4">{{ __('BOM Parent Details') }}</h2>
-                        @if($user->role->name === "ADMIN")
-                        <button onclick="toggleModal('addChildModal', true)"
-                            class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
-                            Add Child
-                        </button>
+                        @if ($user->role->name === 'ADMIN')
+                            <button onclick="toggleModal('addChildModal', true)"
+                                class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
+                                Add Child
+                            </button>
                         @endif
                     </div>
                     <!-- Child Items Table -->
@@ -74,16 +74,16 @@
                                     @foreach ($bomParent->child as $child)
                                         @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
                                             <tr>
-                                                <td class="px-4 py-2 border">{{ $child->item_code }}</td>
-                                                <td class="px-4 py-2 border">{{ $child->item_description }}</td>
-                                                <td class="px-4 py-2 border">{{ $child->quantity }}</td>
-                                                <td class="px-4 py-2 border">{{ $child->measure }}</td>
-                                                <td class="px-4 py-2 border">
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->item_code }}</td>
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->item_description }}</td>
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->quantity }}</td>
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->measure }}</td>
+                                                <td class="px-4 py-2 border-black border-4">
                                                     {{ $child->created_at->format('Y-m-d H:i') }}</td>
-                                                <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->action_type ?? 'Unknown' }}
                                                 </td>
-                                                <td class="px-4 py-2 border"></td>
-                                                <td class="px-4 py-2 border">
+                                                <td class="px-4 py-2 border-black border-4"></td>
+                                                <td class="px-4 py-2 border-black border-4">
                                                     @if ($child->status === 'Finished' || $child->status === 'Available')
                                                         <span class="text-green-500 font-bold">Item Arrived</span>
                                                     @else
@@ -100,10 +100,8 @@
                                                         </form>
                                                     @endif
                                                 </td>
-                                                <td class="px-4 py-2 border">{{ $child->status }}</td>
+                                                <td class="px-4 py-2 border-black border-4">{{ $child->status }}</td>
                                             </tr>
-
-
 
                                             <!-- Edit Modal for Each Child -->
                                             @include('includes.edit-child-modal', ['child' => $child])
@@ -122,7 +120,7 @@
                                             </td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->action_type ?? 'Unknown' }}</td>
                                             <td class="px-4 py-2 border-black border-4">
-                                                <div class="space-y-2 flex flex-auto">
+                                                <div class="space-2 space-x-2 flex flex-auto items-center">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
                                                             {{ $child->status }}
@@ -179,7 +177,7 @@
                                                 </div>
                                             </td>
                                             <td class="px-4 py-2 border-black border-4">
-                                                <div class="space-y-2 flex flex-auto">
+                                                <div class="space-2 flex flex-auto items-center">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
                                                             {{ $child->status }}
