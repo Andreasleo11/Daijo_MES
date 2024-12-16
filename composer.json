@@ -15,7 +15,8 @@
         "livewire/volt": "^1.0",
         "milon/barcode": "^11.0",
         "phpoffice/phpspreadsheet": "^3.4",
-        "pusher/pusher-php-server": "^7.2"
+        "pusher/pusher-php-server": "^7.2",
+        "yajra/laravel-datatables": "10.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
