@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Store\SOController;
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -69,6 +70,16 @@ Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])
 
 
     Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
+
+    
+    Route::get('/so/index', [SOController::class, 'index'])->name('so.index');
+    Route::get('/so/filter', [SOController::class, 'index'])->name('so.filter');
+    Route::get('/so/filterauto', [SoController::class, 'filter'])->name('so.filterauto');
+    Route::get('/so/process/{docNum}', [SOController::class, 'process'])->name('so.process');
+    Route::post('/so/scan', [SOController::class, 'scanBarcode'])->name('so.scanBarcode');
+    Route::get('/update-so-data/{docNum}', [SOController::class, 'updateSoData'])->name('update.so.data');
+
+    Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
 });
 
 require __DIR__.'/auth.php';
