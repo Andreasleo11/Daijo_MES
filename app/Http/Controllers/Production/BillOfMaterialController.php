@@ -52,7 +52,7 @@ class BillOfMaterialController extends Controller
     public function show($id)
     {
         // Find the BOM parent by ID
-        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess')->findOrFail($id);
+        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess', 'child.brokenChild')->findOrFail($id);
         // dd($bomParent);
         $user = auth()->user();
         // dd($user);

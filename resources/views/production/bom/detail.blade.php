@@ -50,21 +50,22 @@
                     </div>
                     <!-- Child Items Table -->
                     <h4 class="text-lg font-semibold mb-4">Child Items</h4>
-                    <div class="mt-4">
-                        <table class="min-w-full table-auto">
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full table-auto border-black border-4">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-2 border">Item Code</th>
-                                    <th class="px-4 py-2 border">Item Description</th>
-                                    <th class="px-4 py-2 border">Quantity</th>
-                                    <th class="px-4 py-2 border">Measure</th>
-                                    <th class="px-4 py-2 border">Created At</th>
-                                    <th class="px-4 py-2 border">Action Type</th>
-                                    <th class="px-4 py-2 border">Action</th>
-                                    <th class="px-4 py-2 border">Advance Actions</th>
-                                    <th class="px-4 py-2 border">Status</th>
+                                    <th class="px-4 py-2 border-black border-4">Item Code</th>
+                                    <th class="px-4 py-2 border-black border-4">Item Description</th>
+                                    <th class="px-4 py-2 border-black border-4">Quantity</th>
+                                    <th class="px-4 py-2 border-black border-4">Measure</th>
+                                    <th class="px-4 py-2 border-black border-4">Created At</th>
+                                    <th class="px-4 py-2 border-black border-4">Action Type</th>
+                                    <th class="px-4 py-2 border-black border-4">Action</th>
+                                    <th class="px-4 py-2 border-black border-4">Advance Actions</th>
+                                    <th class="px-4 py-2 border-black border-4">Status</th>
                                     @if ($user->role->name === 'ADMIN')
-                                        <th class="px-4 py-2 border">Process Count</th>
+                                        <th class="px-4 py-2 border-black border-4">Broken Quantity</th>
+                                        <th class="px-4 py-2 border-black border-4">Process Count</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -113,15 +114,15 @@
                                 <tbody>
                                     @foreach ($bomParent->child as $child)
                                         <tr>
-                                            <td class="px-4 py-2 border">{{ $child->item_code }}</td>
-                                            <td class="px-4 py-2 border">{{ $child->item_description }}</td>
-                                            <td class="px-4 py-2 border">{{ $child->quantity }}</td>
-                                            <td class="px-4 py-2 border">{{ $child->measure }}</td>
-                                            <td class="px-4 py-2 border">{{ $child->created_at->format('Y-m-d H:i') }}
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->item_code }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->item_description }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->quantity }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->measure }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->created_at->format('Y-m-d H:i') }}
                                             </td>
-                                            <td class="px-4 py-2 border">{{ $child->action_type ?? 'Unknown' }}</td>
-                                            <td class="px-4 py-2 border">
-                                                <div class="space-y-2 text-center">
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->action_type ?? 'Unknown' }}</td>
+                                            <td class="px-4 py-2 border-black border-4">
+                                                <div class="space-y-2 flex flex-auto">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
                                                             {{ $child->status }}
@@ -177,8 +178,8 @@
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-2 border">
-                                                <div class="space-y-2 text-center">
+                                            <td class="px-4 py-2 border-black border-4">
+                                                <div class="space-y-2 flex flex-auto">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
                                                             {{ $child->status }}
@@ -205,7 +206,7 @@
                                                                 <button
                                                                     onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
                                                                     class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                    Assign Process
+                                                                    Add Process
                                                                 </button>
                                                             @else
                                                                 Barang belom Sampai
@@ -215,7 +216,7 @@
                                                             <button
                                                                 onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
                                                                 class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                Assign Process
+                                                                Add Process
                                                             </button>
                                                         @endif
 
@@ -225,7 +226,7 @@
                                                                 method="get">
                                                                 <button type="submit"
                                                                     class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                                    Show Detail
+                                                                    Detail
                                                                 </button>
                                                             </form>
                                                         @endif
@@ -233,13 +234,14 @@
                                                         <button
                                                             onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
                                                             class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                            Add Broken Quantity
+                                                            Add Broken Qty
                                                         </button>
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-2 border">{{ $child->status }}</td>
-                                            <td class="px-4 py-2 border">
+                                            <td class="px-4 py-2 border-black border-4">{{ $child->status }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
+                                            <td class="px-4 py-2 border-black border-4">
                                                 {{-- Styled Total / Finished / Not Finished --}}
                                                 <span
                                                     style="color: blue;">{{ $child->materialProcess->count() }}</span>
