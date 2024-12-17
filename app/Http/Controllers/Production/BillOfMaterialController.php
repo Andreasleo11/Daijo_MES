@@ -340,6 +340,7 @@ class BillOfMaterialController extends Controller
             'brokenChild'
         ])->findOrFail($id);
 
+        $temp = $child->parent->id;
 
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
 
@@ -357,7 +358,7 @@ class BillOfMaterialController extends Controller
         $barcodeUrl = asset('storage/barcode/' . $fileName);
 
         // Pass the data to the view
-        return view('production.bom.child_detail', compact('child', 'barcodeUrl'));
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp'));
     }
 
     public function addBrokenQuantity(Request $request, $childId)

@@ -20,7 +20,7 @@
         <!-- Header & Navigation (Will not print) -->
         <div class="flex justify-between items-center mb-6 no-print">
             <div>
-                <a href="{{ url()->previous() }}" class="text-blue-500 hover:text-blue-700 text-sm">
+                <a href="{{ route('production.bom.show', ['id' => $temp]) }}" class="text-blue-500 hover:text-blue-700 text-sm">
                     ← Back
                 </a>
                 <h1 class="text-2xl font-bold mt-2">Item Code Details</h1>
