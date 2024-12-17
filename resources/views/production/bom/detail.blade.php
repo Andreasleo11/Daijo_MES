@@ -57,6 +57,9 @@
                                     <th class="px-4 py-2 border-black border-4">Item Code</th>
                                     <th class="px-4 py-2 border-black border-4">Item Description</th>
                                     <th class="px-4 py-2 border-black border-4">Quantity</th>
+                                    @if ($user->role->name === 'ADMIN')
+                                    <th class="px-4 py-2 border-black border-4">Broken Quantity</th>
+                                    @endif
                                     <th class="px-4 py-2 border-black border-4">Measure</th>
                                     <th class="px-4 py-2 border-black border-4">Created At</th>
                                     <th class="px-4 py-2 border-black border-4">Action Type</th>
@@ -64,7 +67,6 @@
                                     <th class="px-4 py-2 border-black border-4">Advance Actions</th>
                                     <th class="px-4 py-2 border-black border-4">Status</th>
                                     @if ($user->role->name === 'ADMIN')
-                                        <th class="px-4 py-2 border-black border-4">Broken Quantity</th>
                                         <th class="px-4 py-2 border-black border-4">Process Count</th>
                                     @endif
                                 </tr>
@@ -115,6 +117,7 @@
                                             <td class="px-4 py-2 border-black border-4">{{ $child->item_code }}</td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->item_description }}</td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->quantity }}</td>
+                                            <td class="px-4 py-2 border-black border-4">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->measure }}</td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->created_at->format('Y-m-d H:i') }}
                                             </td>
@@ -189,6 +192,11 @@
                                                                 Show Detail
                                                             </a>
                                                         @endif
+                                                        <button
+                                                            onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
+                                                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                            Add Broken Qty
+                                                        </button>
                                                     @else
                                                         @if (is_null($child->action_type))
                                                             <!-- Show "Assign Type" button if action_type is null -->
@@ -238,7 +246,6 @@
                                                 </div>
                                             </td>
                                             <td class="px-4 py-2 border-black border-4">{{ $child->status }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
                                             <td class="px-4 py-2 border-black border-4">
                                                 {{-- Styled Total / Finished / Not Finished --}}
                                                 <span
