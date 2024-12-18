@@ -51,23 +51,23 @@
                     <!-- Child Items Table -->
                     <h4 class="text-lg font-semibold mb-4">Child Items</h4>
                     <div class="mt-4 overflow-x-auto">
-                        <table class="min-w-full table-auto border-black border-4">
+                        <table class="min-w-full table-auto border-black border-2">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-2 border-black border-4">Item Code</th>
-                                    <th class="px-4 py-2 border-black border-4">Item Description</th>
-                                    <th class="px-4 py-2 border-black border-4">Quantity</th>
+                                    <th class="px-4 py-2 border-black border-2">Item Code</th>
+                                    <th class="px-4 py-2 border-black border-2">Item Description</th>
+                                    <th class="px-4 py-2 border-black border-2">Quantity</th>
                                     @if ($user->role->name === 'ADMIN')
-                                    <th class="px-4 py-2 border-black border-4">Broken Quantity</th>
+                                    <th class="px-4 py-2 border-black border-2">Broken Quantity</th>
                                     @endif
-                                    <th class="px-4 py-2 border-black border-4">Measure</th>
-                                    <th class="px-4 py-2 border-black border-4">Created At</th>
-                                    <th class="px-4 py-2 border-black border-4">Action Type</th>
-                                    <th class="px-4 py-2 border-black border-4">Action</th>
-                                    <th class="px-4 py-2 border-black border-4">Advance Actions</th>
-                                    <th class="px-4 py-2 border-black border-4">Status</th>
+                                    <th class="px-4 py-2 border-black border-2">Measure</th>
+                                    <th class="px-4 py-2 border-black border-2">Created At</th>
+                                    <th class="px-4 py-2 border-black border-2">Action Type</th>
+                                    <th class="px-4 py-2 border-black border-2">Action</th>
+                                    <th class="px-4 py-2 border-black border-2">Advance Actions</th>
+                                    <th class="px-4 py-2 border-black border-2">Status</th>
                                     @if ($user->role->name === 'ADMIN')
-                                        <th class="px-4 py-2 border-black border-4">Process Count</th>
+                                        <th class="px-4 py-2 border-black border-2">Process Count</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -76,16 +76,16 @@
                                     @foreach ($bomParent->child as $child)
                                         @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
                                             <tr>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->item_code }}</td>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->item_description }}</td>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->quantity }}</td>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->measure }}</td>
-                                                <td class="px-4 py-2 border-black border-4">
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
+                                                <td class="px-4 py-2 border-black border-2">
                                                     {{ $child->created_at->format('Y-m-d H:i') }}</td>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->action_type ?? 'Unknown' }}
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}
                                                 </td>
-                                                <td class="px-4 py-2 border-black border-4"></td>
-                                                <td class="px-4 py-2 border-black border-4">
+                                                <td class="px-4 py-2 border-black border-2"></td>
+                                                <td class="px-4 py-2 border-black border-2">
                                                     @if ($child->status === 'Finished' || $child->status === 'Available')
                                                         <span class="text-green-500 font-bold">Item Arrived</span>
                                                     @else
@@ -102,7 +102,7 @@
                                                         </form>
                                                     @endif
                                                 </td>
-                                                <td class="px-4 py-2 border-black border-4">{{ $child->status }}</td>
+                                                <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
                                             </tr>
 
                                             <!-- Edit Modal for Each Child -->
@@ -114,15 +114,15 @@
                                 <tbody>
                                     @foreach ($bomParent->child as $child)
                                         <tr>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->item_code }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->item_description }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->quantity }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->measure }}</td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->created_at->format('Y-m-d H:i') }}
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
+                                            <td class="px-4 py-2 border-black border-2">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->created_at->format('Y-m-d H:i') }}
                                             </td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->action_type ?? 'Unknown' }}</td>
-                                            <td class="px-4 py-2 border-black border-4">
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}</td>
+                                            <td class="px-4 py-2 border-black border-2">
                                                 <div class="space-2 space-x-2 flex flex-auto items-center">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
@@ -179,7 +179,7 @@
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-2 border-black border-4">
+                                            <td class="px-4 py-2 border-black border-2">
                                                 <div class="space-2 flex flex-auto items-center">
                                                     @if ($child->status === 'Canceled')
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
@@ -245,8 +245,8 @@
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-2 border-black border-4">{{ $child->status }}</td>
-                                            <td class="px-4 py-2 border-black border-4">
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
+                                            <td class="px-4 py-2 border-black border-2">
                                                 {{-- Styled Total / Finished / Not Finished --}}
                                                 <span
                                                     style="color: blue;">{{ $child->materialProcess->count() }}</span>

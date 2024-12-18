@@ -3,7 +3,8 @@
         <h3 class="text-xl font-semibold mb-4">Edit Child Item</h3>
         <form action="{{ route('production.bom.child.update', $child->id) }}" method="POST">
             @csrf
-
+            @method('PUT')
+            
             <div class="mb-4">
                 <label class="block text-sm font-medium">Item Code</label>
                 <input type="text" name="item_code" value="{{ $child->item_code }}"
