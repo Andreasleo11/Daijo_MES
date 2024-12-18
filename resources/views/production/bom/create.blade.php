@@ -108,7 +108,7 @@
                         required>
                 </div>
                 <div class="w-1/3">
-                    <input type="text" name="quantity[]" placeholder="Quantity"
+                    <input type="number" step="any" name="quantity[]" placeholder="Quantity"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         required>
                 </div>
@@ -173,7 +173,7 @@
 
                     if (query.length > 1) { // Only make a request if query length is > 1
                         fetchFilteredItemCodes(query, dropdown);
-                        console.log('asu');
+                        console.log('weww');
                     } else {
                         dropdown.classList.add("hidden");
                     }

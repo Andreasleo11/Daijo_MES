@@ -18,7 +18,7 @@
 
             <div class="mb-4">
                 <label class="block text-sm font-medium">Quantity</label>
-                <input type="number" name="child[0][quantity]" class="w-full border rounded px-4 py-2" required>
+                <input type="number" step="any" name="child[0][quantity]" class="w-full border rounded px-4 py-2" required>
             </div>
 
             <div class="mb-4 ">
