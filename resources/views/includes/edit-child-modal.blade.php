@@ -19,7 +19,7 @@
 
             <div class="mb-4">
                 <label class="block text-sm font-medium">Quantity</label>
-                <input type="number" name="quantity" value="{{ $child->quantity }}"
+                <input type="number" step="any" name="quantity" value="{{ $child->quantity }}"
                     class="w-full border rounded px-4 py-2" required>
             </div>
 
