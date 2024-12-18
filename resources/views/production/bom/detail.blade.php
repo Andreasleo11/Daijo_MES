@@ -22,6 +22,10 @@
                         <h3 class="text-lg">{{ $bomParent->customer }}</h3>
                         <p class="text-sm text-gray-600">Generated on: {{ now()->format('Y-m-d H:i') }}</p>
                         <p class="text-sm text-gray-600">Type: {{ ucfirst($bomParent->type) }}</p>
+                        <p class="text-lg text-gray-600">Buy Finish: {{ $actionTypeCounts->get('buyfinish', 0) }}</p>
+                        <p class="text-lg text-gray-600">Buy Process: {{ $actionTypeCounts->get('buyprocess', 0) }}</p>
+                        <p class="text-lg text-gray-600">Stock Finish: {{ $actionTypeCounts->get('stockfinish', 0) }}</p>
+                        <p class="text-lg text-gray-600">Stock Process: {{ $actionTypeCounts->get('stockprocess', 0) }}</p>
                     </div>
                     <div>
                         {{-- <button onclick="window.print()"
@@ -73,45 +77,48 @@
                             </thead>
                             @if ($user->role->name === 'WAREHOUSE')
                                 <tbody>
-                                    @foreach ($bomParent->child as $child)
-                                        @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
-                                            <tr>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
-                                                <td class="px-4 py-2 border-black border-2">
-                                                    {{ $child->created_at->format('Y-m-d H:i') }}</td>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}
-                                                </td>
-                                                <td class="px-4 py-2 border-black border-2"></td>
-                                                <td class="px-4 py-2 border-black border-2">
-                                                    @if ($child->status === 'Finished' || $child->status === 'Available')
-                                                        <span class="text-green-500 font-bold">Item Arrived</span>
-                                                    @else
-                                                        <form
-                                                            action="{{ route('production.bom.child.updateStatus', $child->id) }}"
-                                                            method="POST" class="inline-block ml-2">
-                                                            @csrf
-                                                            @method('PUT')
-                                                            <button type="submit"
-                                                                onclick="return confirm('Mark item as arrived and available?')"
-                                                                class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
-                                                                Mark as Arrived
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                </td>
-                                                <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
-                                            </tr>
+                                    <div class="max-height: 400px; overflow-y: auto;">
+                                        @foreach ($bomParent->child as $child)
+                                            @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
+                                                <tr>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">
+                                                        {{ $child->created_at->format('Y-m-d H:i') }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}
+                                                    </td>
+                                                    <td class="px-4 py-2 border-black border-2"></td>
+                                                    <td class="px-4 py-2 border-black border-2">
+                                                        @if ($child->status === 'Finished' || $child->status === 'Available')
+                                                            <span class="text-green-500 font-bold">Item Arrived</span>
+                                                        @else
+                                                            <form
+                                                                action="{{ route('production.bom.child.updateStatus', $child->id) }}"
+                                                                method="POST" class="inline-block ml-2">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <button type="submit"
+                                                                    onclick="return confirm('Mark item as arrived and available?')"
+                                                                    class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
+                                                                    Mark as Arrived
+                                                                </button>
+                                                            </form>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
+                                                </tr>
 
-                                            <!-- Edit Modal for Each Child -->
-                                            @include('includes.edit-child-modal', ['child' => $child])
-                                        @endif
-                                    @endforeach
+                                                <!-- Edit Modal for Each Child -->
+                                                @include('includes.edit-child-modal', ['child' => $child])
+                                            @endif
+                                        @endforeach
+                                    </div>
                                 </tbody>
                             @else
                                 <tbody>
+                                <div class="max-height: 400px; overflow-y: auto;">
                                     @foreach ($bomParent->child as $child)
                                         <tr>
                                             <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
@@ -119,7 +126,8 @@
                                             <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
                                             <td class="px-4 py-2 border-black border-2">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
                                             <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->created_at->format('Y-m-d H:i') }}
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->created_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
                                             </td>
                                             <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}</td>
                                             <td class="px-4 py-2 border-black border-2">
@@ -271,6 +279,7 @@
                                             'child' => $child,
                                         ])
                                     @endforeach
+                                        </div>
                                 </tbody>
                             @endif
                         </table>

@@ -55,9 +55,13 @@ class BillOfMaterialController extends Controller
         $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess', 'child.brokenChild')->findOrFail($id);
         // dd($bomParent);
         $user = auth()->user();
+        $actionTypeCounts = $bomParent->child->groupBy('action_type')->map(function ($group) {
+            return $group->count();
+        });
+        
         // dd($user);
         // Pass the data to the view
-        return view('production.bom.detail', compact('bomParent','user'));
+        return view('production.bom.detail', compact('bomParent','user', 'actionTypeCounts'));
     }
 
     public function update(Request $request, $id)
