@@ -22,10 +22,6 @@
                         <h3 class="text-lg">{{ $bomParent->customer }}</h3>
                         <p class="text-sm text-gray-600">Generated on: {{ now()->format('Y-m-d H:i') }}</p>
                         <p class="text-sm text-gray-600">Type: {{ ucfirst($bomParent->type) }}</p>
-                        <p class="text-lg text-gray-600">Buy Finish: {{ $actionTypeCounts->get('buyfinish', 0) }}</p>
-                        <p class="text-lg text-gray-600">Buy Process: {{ $actionTypeCounts->get('buyprocess', 0) }}</p>
-                        <p class="text-lg text-gray-600">Stock Finish: {{ $actionTypeCounts->get('stockfinish', 0) }}</p>
-                        <p class="text-lg text-gray-600">Stock Process: {{ $actionTypeCounts->get('stockprocess', 0) }}</p>
                     </div>
                     <div>
                         {{-- <button onclick="window.print()"
@@ -41,6 +37,25 @@
                     </div>
                 </div>
             </div>
+
+            <div class="flex justify-between mt-4 space-x-4">
+            `                <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
+                                <p class="text-lg font-semibold text-gray-700">Buy Finish</p>
+                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('buyfinish', 0) }}</p>
+                            </div>
+                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
+                                <p class="text-lg font-semibold text-gray-700">Buy Process</p>
+                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('buyprocess', 0) }}</p>
+                            </div>
+                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
+                                <p class="text-lg font-semibold text-gray-700">Stock Finish</p>
+                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('stockfinish', 0) }}</p>
+                            </div>
+                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
+                                <p class="text-lg font-semibold text-gray-700">Stock Process</p>
+                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('stockprocess', 0) }}</p>
+                            </div>
+                        </div>`
             <div class="bg-white overflow-hidden shadow-md sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <div class="flex justify-between items center">
@@ -54,7 +69,7 @@
                     </div>
                     <!-- Child Items Table -->
                     <h4 class="text-lg font-semibold mb-4">Child Items</h4>
-                    <div class="mt-4 overflow-x-auto">
+                    <div class="mt-4 overflow-x-auto h-dvh">
                         <table class="min-w-full table-auto border-black border-2">
                             <thead>
                                 <tr>
