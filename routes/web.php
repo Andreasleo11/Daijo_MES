@@ -1,9 +1,16 @@
 <?php
 
+use App\Http\Controllers\BarcodeController;
+use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\InitialBarcodeController;
+use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MasterItemController;
+use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
@@ -72,8 +79,49 @@ Route::middleware('auth')->group(function (){
     Route::get('/so/process/{docNum}', [SOController::class, 'process'])->name('so.process');
     Route::post('/so/scan', [SOController::class, 'scanBarcode'])->name('so.scanBarcode');
     Route::get('/update-so-data/{docNum}', [SOController::class, 'updateSoData'])->name('update.so.data');
-
     Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
+
+    Route::get('/initialbarcode', [InitialBarcodeController::class, 'index'])->name('barcode.index');
+    Route::post('/barcodes/generate', [InitialBarcodeController::class, 'generate'])->name('barcode.generate');
+    Route::get('/manualbarcodes', [InitialBarcodeController::class, 'manualgenerate'])->name('manualbarcode.index');
+    Route::post('/generate-barcode', [InitialBarcodeController::class, 'generateBarcode'])->name('generate.barcode');
+
+    Route::post('file/upload', [FileController::class, 'upload'])->name('file.upload');
+    Route::delete('file/{id}/delete', [FileController::class, 'destroy'])->name('file.delete');
+
+    Route::get('master-item', [MasterItemController::class, 'index'])->middleware(['auth', 'verified'])->name('master-item.index');
+
+    Route::get('/daily-item-codes', [DailyItemCodeController::class, 'index'])->name('daily-item-code.index');
+    Route::post('/daily-item-code', [DailyItemCodeController::class, 'store'])->name('daily-item-code.store');
+    Route::get('/daily-item-code', [DailyItemCodeController::class, 'create'])->name('daily-item-code.create');
+    Route::post('/calculate-item', [DailyItemCodeController::class, 'calculateItem'])->name('calculate.item');
+    Route::get('/daily-item-codes', [DailyItemCodeController::class, 'index'])->name('daily-item-code.index');
+    Route::post('/apply-item-code/{machine_id}', [DailyItemCodeController::class, 'applyItemCode'])->name('apply-item-code');
+    Route::get('/daily-item-codes/daily', [DailyItemCodeController::class, 'daily'])->name('daily-item-code.daily');
+    Route::put('/daily-item-codes/{id}', [DailyItemCodeController::class, 'update'])->name('daily-item-code.update');
+
+    Route::get('barcode/index', [BarcodeController::class, 'index'])->name('barcode.base.index');
+    Route::get('barcode/inandout/index', [BarcodeController::class, 'inandoutpage'])->name('inandout.index');
+    Route::get('barcode/missing/index', [BarcodeController::class, 'missingbarcodeindex'])->name('missingbarcode.index');
+    Route::post('barcode/missing/generate', [BarcodeController::class, 'missingbarcodegenerator'])->name('generateBarcodeMissing');
+    Route::post('barcode/process/save', [BarcodeController::class, 'processInAndOut'])->name('process.in.and.out');
+    Route::post('process/inandoutbarcode', [BarcodeController::class, 'storeInAndOut'])->name('processbarcodeinandout');
+    Route::get('indexbarcode', [BarcodeController::class, 'indexBarcode'])->name('barcodeindex');
+    Route::post('packaging-barcode-generate', [BarcodeController::class, 'generateBarcode'])->name('generatepackagingbarcode');
+    Route::get('barcode/list', [BarcodeController::class, 'barcodelist'])->name('list.barcode');
+    Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
+    Route::get('barcode/historytable', [BarcodeController::class, 'historybarcodelist'])->name('barcode.historytable');
+    Route::get('/barcode/filter', [BarcodeController::class, 'filter'])->name('barcode.filter');
+    Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
+    Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
+
+    Route::get('/maintenance/index', [MaintenanceController::class, 'index'])->name('maintenance.index');
+
+    Route::get('/second-daily-process', [SecondDailyController::class, 'index'])->name('second.daily.process.index');
+    Route::get('/second-daily-process/create', [SecondDailyController::class, 'create'])->name('second.daily.process.create');
+    Route::post('/second-daily-process/store', [SecondDailyController::class, 'store'])->name('second.daily.process.store');
+    Route::get('/api/items', [SecondDailyController::class, 'searchItems'])->name('api.items');
+    Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
 });
 
 require __DIR__.'/auth.php';

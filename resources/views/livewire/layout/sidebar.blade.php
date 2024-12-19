@@ -23,10 +23,10 @@ new class extends Component {
             <!-- Logo -->
             <div class="flex items-center justify-between">
                 <a href="{{ route('dashboard') }}" wire:navigate>
-                    <x-application-logo class="block h-20 w-auto fill-current text-gray-800" />
+                    <x-application-logo class="block fill-current text-gray-800 w-16 h-16" />
                 </a>
-                <span class="ms-4 font-semibold text-sm">
-                    Daijo Production Project
+                <span class="ms-5 font-semibold text-xl">
+                    Daijo MES System
                 </span>
             </div>
 
@@ -40,28 +40,28 @@ new class extends Component {
                         :active="request()->routeIs('production.bom.index')" wire:navigate />
                 @endif
 
-                {{-- <!-- Admin Links -->
+                <!-- Admin Links -->
                 @if (auth()->user()->can('view-admin-links'))
                     <livewire:sidebar-link href="{{ route('barcode.index') }}" label="Generate Master Barcode"
                         :active="request()->routeIs('barcode.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('so.index') }}" label="DO Index" :active="request()->routeIs('so.index')"
                         wire:navigate />
-                @endif --}}
+                @endif
 
-                {{-- <!-- PE Links -->
+                <!-- PE Links -->
                 @if (auth()->user()->can('view-pe-links'))
                     <livewire:sidebar-link href="{{ route('master-item.index') }}" label="Master Item" :active="request()->routeIs('master-item.index')"
                         wire:navigate />
-                @endif --}}
+                @endif
 
-                {{-- <!-- PPIC Links -->
+                <!-- PPIC Links -->
                 @if (auth()->user()->can('view-ppic-links'))
                     <livewire:sidebar-link href="{{ route('daily-item-code.index') }}" label="Daily Production Plan"
                         :active="request()->routeIs('daily-item-code.index')" wire:navigate />
-                @endif --}}
+                @endif
 
-                {{-- <!-- Store Links -->
+                <!-- Store Links -->
                 @if (auth()->user()->can('view-store-links'))
                     <livewire:parent-dropdown label="Store" :childRoutes="[
                         ['name' => 'barcodeindex', 'label' => 'Create Barcode'],
@@ -70,18 +70,18 @@ new class extends Component {
                         ['name' => 'stockallbarcode', 'label' => 'Stock Item'],
                         ['name' => 'updated.barcode.item.position', 'label' => 'List All Item Barcode'],
                     ]" />
-                @endif --}}
-
-                {{-- <!-- Maintenance Links -->
+                @endif
+                <hr>
+                <!-- Maintenance Links -->
                 @if (auth()->user()->can('view-maintenance-links'))
                     <livewire:sidebar-link href="{{ route('maintenance.index') }}" label="Maintenance Index"
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
-                @endif --}}
+                @endif
 
-                {{-- @if (auth()->user()->can('view-second-process-links'))
+                @if (auth()->user()->can('view-second-process-links'))
                     <livewire:sidebar-link href="{{ route('second.daily.process.create') }}" label="Plan Second Process"
                         :active="request()->routeIs('second.daily.process.create')" wire:navigate />
-                @endif --}}
+                @endif
 
             </div>
         </div>
