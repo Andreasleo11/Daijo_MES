@@ -51,4 +51,16 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Specification::class);
     }
+
+    public function hasRoleAccess($requiredRole)
+    {
+        // Get the role hierarchy from config
+        $roleHierarchy = config('roles.hierarchy');
+
+        // Get the current user's role
+        $userRole = $this->role->name;
+
+        // Check if the user's role is allowed to access the required role
+        return in_array($requiredRole, $roleHierarchy[$userRole]);
+    }
 }
