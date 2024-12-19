@@ -10,9 +10,9 @@ new class extends Component {
      */
     public function logout(Logout $logout): void
     {
-        if (auth()->user()->role_name === 'WORKSHOP') {
+        if (auth()->user()->role_id === 1) {
             // Set username to null for the logged-out user with the WORKSHOP role
-            User::where('role_name', 'WORKSHOP')->update(['username' => null]);
+            User::where('role_id', 1)->update(['username' => null]);
         }
 
         $logout();

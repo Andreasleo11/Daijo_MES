@@ -39,10 +39,10 @@
                     <p><strong>Log ID:</strong> {{ $log->id }}</p>
                     <p><strong>Process Name:</strong> {{ $log->process_name }}</p>
                     <p><strong>Scan In:</strong> 
-                    {{ \Carbon\Carbon::parse($log->scan_in)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}
+                    {{ \Carbon\Carbon::parse($log->scan_in)->format('Y-m-d H:i:s') }}
                 </p>
                     <p><strong>Scan Out:</strong>
-                    {{ $log->scan_out ? \Carbon\Carbon::parse($log->scan_out)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : 'Not Finished' }}
+                    {{ $log->scan_out ? \Carbon\Carbon::parse($log->scan_out)->format('Y-m-d H:i:s') : 'Not Finished' }}
                 </p>
                     <p><strong>Status:</strong> {{ $log->status }}</p>
                     <p><strong>Created At:</strong>

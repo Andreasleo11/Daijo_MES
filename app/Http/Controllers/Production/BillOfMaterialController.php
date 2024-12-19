@@ -52,12 +52,16 @@ class BillOfMaterialController extends Controller
     public function show($id)
     {
         // Find the BOM parent by ID
-        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess')->findOrFail($id);
+        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess', 'child.brokenChild')->findOrFail($id);
         // dd($bomParent);
         $user = auth()->user();
+        $actionTypeCounts = $bomParent->child->groupBy('action_type')->map(function ($group) {
+            return $group->count();
+        });
+        
         // dd($user);
         // Pass the data to the view
-        return view('production.bom.detail', compact('bomParent','user'));
+        return view('production.bom.detail', compact('bomParent','user', 'actionTypeCounts'));
     }
 
     public function update(Request $request, $id)
@@ -340,6 +344,7 @@ class BillOfMaterialController extends Controller
             'brokenChild'
         ])->findOrFail($id);
 
+        $temp = $child->parent->id;
 
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
 
@@ -357,7 +362,7 @@ class BillOfMaterialController extends Controller
         $barcodeUrl = asset('storage/barcode/' . $fileName);
 
         // Pass the data to the view
-        return view('production.bom.child_detail', compact('child', 'barcodeUrl'));
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp'));
     }
 
     public function addBrokenQuantity(Request $request, $childId)
