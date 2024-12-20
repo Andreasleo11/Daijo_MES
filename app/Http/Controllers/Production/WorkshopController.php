@@ -170,11 +170,15 @@ class WorkshopController extends Controller
         
         $user = auth()->user();
 
-        $log = PRD_MaterialLog::with('childData', 'childData.parent')->find($id);
+        $log = PRD_MaterialLog::with('childData', 'childData.parent', 'childData.materialProcess')->find($id);
+        // Initialize an array to hold the process names and statuses
+        
+        $allprocess = $log->childData->materialProcess;
+       
         
         $workers = PRD_MouldingUserLog::where('material_log_id', $id)->get();
 
-        return view('production.workshop.index', compact('log', 'workers'));
+        return view('production.workshop.index', compact('log', 'workers', 'allprocess'));
 
     }
 
@@ -196,6 +200,8 @@ class WorkshopController extends Controller
         $request->validate([
             'username' => 'required|string|max:255', // Adjust validation as needed
             'log_id' => 'required|exists:prd_material_logs,id', // Ensure the job exists in the jobs table
+            'job' => 'nullable|string|max:255', // Validate the job field (you can adjust this if you want to enforce specific jobs)
+            'remark_worker' => 'nullable|string|max:500', // Validate the remark_worker (optional field)
         ]);
 
         // Create a new worker and associate it with the job
@@ -203,6 +209,8 @@ class WorkshopController extends Controller
             'material_log_id' => $request->input('log_id'),
             'username' => $request->input('username'),
             'shift' => $this->determineShift($clockIn),
+            'jobs' => $request->input('job'), // Save the job
+            'remark' => $request->input('remark_worker'),
         ]);
 
         // Redirect back with a success message
@@ -216,4 +224,70 @@ class WorkshopController extends Controller
        
         return view('production.workshop.summarydashboard', compact('datas'));
     }
+
+    public function setScanStart(Request $request)
+    {
+        $log = PRD_MaterialLog::find($request->log_id);
+
+        // Set the scan_start to current Jakarta time (timezone 'Asia/Jakarta')
+        if (is_null($log->scan_start)) {
+            $log->scan_start = Carbon::now('Asia/Jakarta');
+            $log->save();
+        }
+
+        return redirect()->route('workshop.index', ['id' => $log->id]); // Redirect to the same page (or another route you prefer)
+    }
+
+    public function storeRemark(Request $request, $log_id)
+    {
+        // Validate input
+        $request->validate([
+            'remark' => 'required|string|max:255',
+        ]);
+
+        // Find the log and update its remark
+        $log = PRD_MaterialLog::findOrFail($log_id);
+        $log->remark = $request->remark;
+        $log->save();
+
+        // Redirect back to the log show page
+        return redirect()->route('workshop.index', ['id' => $log->id]);
+    }
+
+
+    public function updateWorker(Request $request)
+    {
+      
+        // Validate the input data
+        $request->validate([
+            'worker_id' => 'required|exists:prd_moulding_user_logs,id', // Ensure worker exists
+            'username' => 'nullable|string|max:255',
+            'job' => 'nullable|string|max:255',
+            'remark' => 'nullable|string|max:255',
+        ]);
+        
+        // Find the worker by ID and update the details
+        $worker = PRD_MouldingUserLog::find($request->worker_id);
+        $worker->username = $request->username;
+        $worker->jobs = $request->job;
+        $worker->remark = $request->remark;
+        $worker->save();
+
+        // Redirect back with a success message
+        return redirect()->back()->with('success', 'Worker details updated successfully.');
+    }
+    
+
+    public function removeScanIn($id)
+    {
+        $log = PRD_MaterialLog::find($id);
+        
+        // Your logic to remove the scan_in goes here
+        // For example:
+        $log->scan_in = null;  // Remove scan_in or reset as needed
+        $log->save();
+
+        return redirect()->route('workshop.main.menu')->with('status', 'Scan In removed successfully!');
+    }
+
 }

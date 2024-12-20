@@ -15,6 +15,8 @@ class PRD_MouldingUserLog extends Model
         'material_log_id',
         'username',
         'shift',
+        'jobs',
+        'remark',
     ];
 
     public function userlog()

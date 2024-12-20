@@ -65,11 +65,15 @@ Route::middleware('auth')->group(function (){
     Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])->name('production.bom.store');
 
     Route::post('/workshop/update-username', [WorkshopController::class, 'updateUsername'])->name('update.username');
+    Route::post('/workshop/set-scan-start', [WorkshopController::class, 'setScanStart'])->name('workshop.set_scan_start');
+    Route::get('/workshop/remove-scan-in/{id}', [WorkshopController::class, 'removeScanIn'])->name('workshop.removeScanIn');
     Route::post('/workshop/scan-start', [WorkshopController::class, 'handleScanStart'])->name('workshop.scan');
     Route::get('/workshop/index/{id}', [WorkshopController::class, 'index'])->name('workshop.index');
     Route::post('/workshop/scanout', [WorkshopController::class, 'handeScanOut'])->name('workshop.scan_out');
     Route::get('/workshop/mainmenu', [WorkshopController::class, 'mainMenuByWorkshop'])->name('workshop.main.menu');
     Route::post('/workshop/addworker', [WorkshopController::class, 'addworker'])->name('workshop.add.worker');
+    Route::post('/workshop/remark/store/{log_id}', [WorkshopController::class, 'storeRemark'])->name('remark.store');
+    Route::put('/workshop/update-worker', [WorkshopController::class, 'updateWorker'])->name('workshop.update.worker');
 
     Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
 

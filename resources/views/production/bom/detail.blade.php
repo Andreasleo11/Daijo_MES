@@ -33,6 +33,7 @@
                                 class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
                                 Edit BOM Parent
                             </button>
+                            
                         @endif
                     </div>
                 </div>
@@ -303,6 +304,10 @@
             </div>
         </div>
     </div>
+
+
+
+
 
     @include('includes.edit-parent-modal', ['bomParent' => $bomParent])
 

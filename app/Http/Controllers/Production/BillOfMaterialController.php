@@ -10,6 +10,7 @@ use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_BrokenChild;
+use App\Models\File;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -361,8 +362,10 @@ class BillOfMaterialController extends Controller
         // Get the URL for the barcode image
         $barcodeUrl = asset('storage/barcode/' . $fileName);
 
+        $image = File::where('item_code', $child->item_code)->first();
+
         // Pass the data to the view
-        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp'));
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image'));
     }
 
     public function addBrokenQuantity(Request $request, $childId)

@@ -16,7 +16,8 @@
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">ID</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">BOM/Project Code</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Material</th>
-                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Scan Start</th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Scan in</th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Start Process</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Scan Finish</th>
                         <th class="px-4 py-2 text-center text-sm font-semibold text-gray-600 text-center">Actions</th>
                     </tr>
@@ -30,11 +31,18 @@
                                 {{ $log->childData->item_description ?? 'N/A' }}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-800 text-center">{{ $log->scan_in }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800 text-center">{{ $log->scan_start }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 text-center">{{ $log->scan_out }}</td>
                             <td class="px-4 py-3 text-center text-center">
                                 <a href="{{ route('workshop.index', $log->id) }}"
                                    class="inline-block bg-blue-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
                                     View Details
+                                </a>
+
+                                <a href="{{ route('workshop.removeScanIn', $log->id) }}" 
+                                    class="inline-block bg-red-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 ml-2"
+                                    onclick="return confirmRemove();">
+                                        Remove 
                                 </a>
                             </td>
                         </tr>
@@ -49,4 +57,9 @@
             </table>
         </div>
     </div>
+    <script>
+        function confirmRemove() {
+        return confirm('Salah scan ya ?');
+    }
+    </script>
 </x-app-layout>
