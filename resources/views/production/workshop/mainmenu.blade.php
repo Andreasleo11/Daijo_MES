@@ -1,7 +1,7 @@
 <x-app-layout>
     <div class="container mx-auto px-4 py-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-4">
-            Jobs for {{ $user->name }}
+            Jobs for {{ $user->name }} , Hello <span class="text-3xl text-yellow-500">{{ $user->username }}</span>
         </h1>
         <div class="mb-6">
             <a href="{{ route('dashboard') }}"
