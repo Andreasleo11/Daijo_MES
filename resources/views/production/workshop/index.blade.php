@@ -44,11 +44,11 @@
                     <p><strong>Scan Out:</strong>
                     {{ $log->scan_out ? \Carbon\Carbon::parse($log->scan_out)->format('Y-m-d H:i:s') : 'Not Finished' }}
                 </p>
-                    <p><strong>Status:</strong> {{ $log->status }}</p>
-                    <p><strong>Created At:</strong>
+                    <!-- <p><strong>Status:</strong> {{ $log->status }}</p> -->
+                    <p><strong>Dibuat :</strong>
                     {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}
                 </p>
-                    <p><strong>Updated At:</strong> 
+                    <p><strong>Update:</strong> 
                     {{ \Carbon\Carbon::parse($log->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}
                 </p>
                 </div>
@@ -56,10 +56,10 @@
                 <!-- Child Data Section -->
                 @if($log->childData)
                     <hr class="my-4">
-                    <h3 class="text-lg font-semibold mb-2">Child Data</h3>
+                    <h3 class="text-lg font-semibold mb-2">Material Data</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <p><strong>Child ID:</strong> {{ $log->childData->id }}</p>
+                            <p><strong>ID:</strong> {{ $log->childData->id }}</p>
                             <p><strong>Item Code:</strong> {{ $log->childData->item_code }}</p>
                             <p><strong>Item Description:</strong> {{ $log->childData->item_description }}</p>
                             <p><strong>Quantity:</strong> {{ $log->childData->quantity }}</p>
@@ -70,11 +70,10 @@
                         <!-- Parent Data Section -->
                         @if($log->childData->parent)
                             <div>
-                                <h4 class="text-lg font-semibold mb-2">Parent Data</h4>
-                                <p><strong>Parent ID:</strong> {{ $log->childData->parent->id }}</p>
-                                <p><strong>Parent Item Code:</strong> {{ $log->childData->parent->item_code }}</p>
-                                <p><strong>Parent Item Description:</strong> {{ $log->childData->parent->item_description }}</p>
-                                <p><strong>Parent Type:</strong> {{ $log->childData->parent->type }}</p>
+                                <h4 class="text-lg font-semibold mb-2">BOM/Project Data</h4>
+                                <p><strong>BOM/Project code:</strong> {{ $log->childData->parent->code }}</p>
+                                <p><strong>BOM/Project Description:</strong> {{ $log->childData->parent->description }}</p>
+                                <p><strong>BOM/Project Type:</strong> {{ $log->childData->parent->type }}</p>
                             </div>
                         @else
                             <p>No parent data found for this child.</p>

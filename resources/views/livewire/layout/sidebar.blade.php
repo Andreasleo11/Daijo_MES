@@ -2,6 +2,8 @@
 
 use App\Livewire\Actions\Logout;
 use Livewire\Volt\Component;
+use App\Models\User;
+
 
 new class extends Component {
     /**
@@ -9,6 +11,11 @@ new class extends Component {
      */
     public function logout(Logout $logout): void
     {
+        if (auth()->user()->role_id === 1) {
+            // Set username to null for the logged-out user with the WORKSHOP role
+            User::where('role_id', 1)->update(['username' => null]);
+        }
+
         $logout();
 
         $this->redirect('/', navigate: true);

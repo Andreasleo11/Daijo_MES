@@ -14,6 +14,7 @@
                 <thead class="bg-gray-50 border-b-2 border-gray-200">
                     <tr>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">ID</th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">BOM/Project Code</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Material</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Scan Start</th>
                         <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600 text-center">Scan Finish</th>
@@ -24,6 +25,7 @@
                     @forelse($logs as $log)
                         <tr>
                             <td class="px-4 py-3 text-sm text-gray-800 text-center">{{ $log->id }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800 text-center">{{ $log->childData->parent->code }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 text-center">
                                 {{ $log->childData->item_description ?? 'N/A' }}
                             </td>
