@@ -38,12 +38,13 @@
                                    class="inline-block bg-blue-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
                                     View Details
                                 </a>
-
+                            @if(!$log->scan_out)
                                 <a href="{{ route('workshop.removeScanIn', $log->id) }}" 
                                     class="inline-block bg-red-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 ml-2"
                                     onclick="return confirmRemove();">
                                         Remove 
                                 </a>
+                            @endif
                             </td>
                         </tr>
                     @empty

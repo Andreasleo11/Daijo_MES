@@ -16,6 +16,16 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Models\Production\PRD_ListAllMasterItem;
 
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Label\Label;
+use Endroid\QrCode\Logo\Logo;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\ValidationException;
+
 class BillOfMaterialController extends Controller
 {
     public function index()
@@ -350,7 +360,7 @@ class BillOfMaterialController extends Controller
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
 
         // Generate the barcode PNG content
-        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 2, 70);
+        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 3, 10);
 
         // Define the file name and path
         $fileName = 'barcode_' . $child->item_code . '_' . $child->id . '.png';
@@ -364,8 +374,23 @@ class BillOfMaterialController extends Controller
 
         $image = File::where('item_code', $child->item_code)->first();
 
+        $qrCodeWriter = new PngWriter();
+        $qrcoded = null;
+
+        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::High, size: 100,
+                margin: 5);
+
+        $writer = new PngWriter();
+        $qrCodeResult = $writer->write($qrCode);
+              
+        // Get the PNG image as a string
+        $qrCodeImage = $qrCodeResult->getString();
+                
+        // Base64 encode the image to embed in HTML
+        $qrcoded = base64_encode($qrCodeImage);
+
         // Pass the data to the view
-        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image'));
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image', 'qrcoded'));
     }
 
     public function addBrokenQuantity(Request $request, $childId)

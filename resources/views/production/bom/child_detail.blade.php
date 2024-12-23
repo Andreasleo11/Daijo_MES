@@ -69,9 +69,14 @@
         @if (isset($barcodeUrl))
             <div class="bg-white shadow-md rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-semibold mb-4 text-gray-800">Generated Barcode</h3>
-                <img src="{{ $barcodeUrl }}" alt="Barcode" class="mx-auto">
+                <div class="flex justify-center space-x-6"> <!-- Flex container for side-by-side layout -->
+                    <img src="{{ $barcodeUrl }}" alt="Barcode" class="mx-auto" style="height: 30px; width: 200px;">
+                    <img src="data:image/png;base64, {{ $qrcoded }}" alt="QR Code">
+                </div>
             </div>
         @endif
+
+        
 
         <!-- Associated Processes Table (Hide on print) -->
         <div class="bg-white shadow-md rounded-lg p-6 print-hide">
