@@ -252,13 +252,13 @@
                 @if ($log->remark === null)
                     <!-- If remark is null, show the "Create" button -->
                     <p>No remark added yet.</p>
-                    <button type="button" class="btn btn-primary" data-modal-toggle="createRemarkModal">
+                    <button type="button" class="btn btn-primary bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700" data-modal-toggle="createRemarkModal">
                         Create Remark
                     </button>
                 @else
                     <!-- If remark is not null, show the "Edit" button -->
                     <p>{{ $log->remark }}</p>
-                    <button type="button" class="btn btn-secondary" data-modal-toggle="editRemarkModal">
+                    <button type="button" class="btn btn-secondary bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700" data-modal-toggle="editRemarkModal">
                         Edit Remark
                     </button>
                 @endif
