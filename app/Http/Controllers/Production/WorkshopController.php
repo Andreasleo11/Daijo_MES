@@ -10,6 +10,7 @@ use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_MouldingUserLog;
 use Carbon\Carbon;
 
+
 class WorkshopController extends Controller
 {
     function determineShift($clockIn): ?int
@@ -106,7 +107,6 @@ class WorkshopController extends Controller
         // If any materialProcess has scan_in not null, update the status to 'started'
             if ($anyScanIn) {
                 $data->status = 'Started';
-                
                 $data->save();  // Save the status update
             }
         } else {
@@ -127,7 +127,7 @@ class WorkshopController extends Controller
     {
         // Retrieve all processes associated with the given MaterialChild ID where status is 1 (finished)
         $allProcessesFinished = PRD_MaterialLog::where('child_id', $materialChildId)
-            ->where('status', 1) // Only check for finished status
+            ->where('status', 2) // Only check for finished status
             ->count() === PRD_MaterialLog::where('child_id', $materialChildId)->count(); // Check if all related processes are finished
 
         // If all processes are finished, update the MaterialChild status
