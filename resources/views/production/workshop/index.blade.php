@@ -172,6 +172,7 @@
                                                         required
                                                     />
                                                 </div>
+                                                @if($log->process_name === "MANUAL")
                                                 <!-- Job (if applicable) -->
                                                 <div class="mb-4">
                                                     <label for="job" class="block text-sm font-medium text-gray-700 mb-2">Job</label>
@@ -190,6 +191,7 @@
                                                         <option value="Weilding" {{ $worker->jobs === 'Weilding' ? 'selected' : '' }}>Weilding</option>
                                                     </select>
                                                 </div>
+                                                @endif
 
                                                 <!-- Remark -->
                                                 <div class="mb-4">
