@@ -110,7 +110,7 @@
                                 <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->scan_start }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->scan_out }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">
-                                    @if ($process->scan_in && $process->scan_out)
+                                    @if ($process->scan_start && $process->scan_out)
                                         {{ $hours }}h {{ $minutes }}m
                                     @else
                                         N/A
