@@ -151,7 +151,7 @@
                                         onclick="openEditModal({{$worker->id}})">
                                         Edit
                                     </button>
-
+                                
                                     <div id="edit-worker-modal-{{$worker->id}}" class="fixed inset-0 flex justify-center items-center bg-gray-900 bg-opacity-50 hidden">
                                         <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                                             <h3 class="text-xl font-semibold mb-4">Edit Worker</h3>
@@ -172,6 +172,7 @@
                                                         required
                                                     />
                                                 </div>
+                                                @if($log->process_name === "MANUAL")
                                                 <!-- Job (if applicable) -->
                                                 <div class="mb-4">
                                                     <label for="job" class="block text-sm font-medium text-gray-700 mb-2">Job</label>
@@ -190,6 +191,7 @@
                                                         <option value="Weilding" {{ $worker->jobs === 'Weilding' ? 'selected' : '' }}>Weilding</option>
                                                     </select>
                                                 </div>
+                                                @endif
 
                                                 <!-- Remark -->
                                                 <div class="mb-4">
