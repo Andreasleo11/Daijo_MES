@@ -17,21 +17,29 @@ class WorkshopController extends Controller
         // Convert the string $clockIn to a Carbon instance
         $clockIn = Carbon::parse($clockIn)->setTimezone('Asia/Jakarta');
 
+        $today = $clockIn->format('Y-m-d');
+         // Define shift start and end times
         $shiftStartTimes = [
-            1 => Carbon::parse($clockIn->format('Y-m-d') . ' 07:30:00')->setTimezone('Asia/Jakarta'),
-            2 => Carbon::parse($clockIn->format('Y-m-d') . ' 15:30:00')->setTimezone('Asia/Jakarta'),
-            3 => Carbon::parse($clockIn->format('Y-m-d') . ' 23:30:00')->setTimezone('Asia/Jakarta'),
+            1 => Carbon::parse("$today 07:30:00")->setTimezone('Asia/Jakarta'),
+            2 => Carbon::parse("$today 15:30:00")->setTimezone('Asia/Jakarta'),
+            3 => Carbon::parse("$today 23:30:00")->setTimezone('Asia/Jakarta'),
         ];
 
+        // Define shift end times
         $shiftEndTimes = [
-            1 => $shiftStartTimes[2]->copy(),
-            2 => $shiftStartTimes[3]->copy(),
-            3 => Carbon::parse($clockIn->format('Y-m-d') . ' 07:30:00')->setTimezone('Asia/Jakarta')->addDay(),
+            1 => Carbon::parse("$today 15:30:00")->setTimezone('Asia/Jakarta'),
+            2 => Carbon::parse("$today 23:30:00")->setTimezone('Asia/Jakarta'),
+            3 => Carbon::parse("$today 07:30:00")->setTimezone('Asia/Jakarta')->addDay(), // Shift 3 ends at 07:30 AM next day
         ];
+
+        // If the clock-in time is before 07:30 AM today, it's part of Shift 3
+        if ($clockIn->lt($shiftStartTimes[1])) {
+            return 3; // Shift 3
+        }
 
         foreach ($shiftStartTimes as $shift => $startTime) {
             $endTime = $shiftEndTimes[$shift];
-            if ($clockIn->between($startTime, $endTime, true)) { // Carbon's between() method is inclusive
+            if ($clockIn->between($startTime, $endTime, true)) { // 'true' makes the comparison inclusive
                 return $shift;
             }
         }
@@ -58,6 +66,8 @@ class WorkshopController extends Controller
     public function handleScanStart(Request $request)
     {   
         // dd($request->all());
+        //test
+        // $clockIn = Carbon::parse('05:00:00', 'Asia/Jakarta')->format('Y-m-d H:i:s');
         $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
         // Get the scanned barcode from the request
         $barcode = $request->input('barcode');
@@ -194,7 +204,9 @@ class WorkshopController extends Controller
 
     public function addWorker(Request $request)
     {
-       
+        //test
+        // $clockIn = Carbon::parse('23:40:00', 'Asia/Jakarta')->format('Y-m-d H:i:s');
+        // dd($clockIn);
         $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
         // Validate the incoming request data
         $request->validate([
