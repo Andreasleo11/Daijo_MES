@@ -14,5 +14,6 @@ class MachineJob extends Model
     protected $fillable = [
         'item_code',
         'shift',
+        'employee_name',
     ];
 }

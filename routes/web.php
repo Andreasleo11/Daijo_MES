@@ -42,8 +42,15 @@ Route::view('profile', 'profile')
     ->name('profile');
 
 Route::middleware('auth')->group(function (){
-    Route::get('/production/bom/index', [BillOfMaterialController::class, 'index'])->name('production.bom.index');
+    Route::post('/dashboard/update-machine-job', [DashboardController::class, 'updateMachineJob'])->name('update.machine_job');
+    Route::get('/generate-barcode/{item_code}/{quantity}', [DashboardController::class, 'itemCodeBarcode'])->name('generate.itemcode.barcode');
+    Route::post('/process/itemproduction', [DashboardController::class, 'procesProductionBarcodes'])->name('process.productionbarcode');
+    Route::get('/reset-jobs', [DashboardController::class, 'resetJobs'])->name('reset.jobs');
+    Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
+    Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);
+    Route::get('/reset-job', [DashboardController::class, 'resetJob'])->name('reset.job');
 
+    Route::get('/production/bom/index', [BillOfMaterialController::class, 'index'])->name('production.bom.index');
     Route::get('/production/bill-of-material/{id}', [BillOfMaterialController::class, 'show'])->name('production.bom.show');
     Route::delete('/production/delete-bill-of-material/{id}', [BillOfMaterialController::class, 'destroy'])->name('production.bom.destroy');
     Route::put('/production/edit-bill-of-material/{id}', [BillOfMaterialController::class, 'update'])->name('production.bom.update');

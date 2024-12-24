@@ -3,7 +3,7 @@
 use App\Livewire\Actions\Logout;
 use Livewire\Volt\Component;
 use App\Models\User;
-
+use App\Models\MachineJob;
 
 new class extends Component {
     /**
@@ -11,11 +11,14 @@ new class extends Component {
      */
     public function logout(Logout $logout): void
     {
-        if (auth()->user()->role_id === 1) {
-            // Set username to null for the logged-out user with the WORKSHOP role
-            User::where('role_id', 1)->update(['username' => null]);
+        if (auth()->user()->role->name === 'WORKSHOP') {
+            auth()
+                ->user()
+                ->update(['username' => null]);
+        } elseif (auth()->user()->role->name === 'OPERATOR') {
+            MachineJob::where('user_id', auth()->user()->id)->update(['employee_name' => null]);
         }
-
+        // Reset machine_job employee name to null
         $logout();
 
         $this->redirect('/', navigate: true);
