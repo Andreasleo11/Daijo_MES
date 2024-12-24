@@ -614,6 +614,15 @@ class UsersTableSeeder extends Seeder
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
             ],
+            [
+                'name' => 'GUNDRILL',
+                'email' => 'gundrill@daijo.co.id',
+                'role_id' => Role::where('name', 'WORKSHOP')->first()->id,
+                'password' => Hash::make('daijo123'),
+                'remember_token' => null,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ],
         ]);
     }
 }

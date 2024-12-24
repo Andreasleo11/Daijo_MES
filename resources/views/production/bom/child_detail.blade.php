@@ -31,6 +31,10 @@
                     class="bg-blue-100 text-blue-700 px-4 py-2 rounded-md hover:bg-blue-200 text-sm border-blue-500 border">
                     Print Page
                 </button>
+
+                <button
+    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer"
+        onclick="openModal('{{ $child->item_code }}')">Upload Files</button>
             </div>
         </div>
 
@@ -65,9 +69,14 @@
         @if (isset($barcodeUrl))
             <div class="bg-white shadow-md rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-semibold mb-4 text-gray-800">Generated Barcode</h3>
-                <img src="{{ $barcodeUrl }}" alt="Barcode" class="mx-auto">
+                <div class="flex justify-center space-x-6"> <!-- Flex container for side-by-side layout -->
+                    <img src="{{ $barcodeUrl }}" alt="Barcode" class="mx-auto" style="height: 30px; width: 200px;">
+                    <img src="data:image/png;base64, {{ $qrcoded }}" alt="QR Code">
+                </div>
             </div>
         @endif
+
+        
 
         <!-- Associated Processes Table (Hide on print) -->
         <div class="bg-white shadow-md rounded-lg p-6 print-hide">
@@ -78,6 +87,7 @@
                         <tr class="bg-gray-100">
                             <th class="px-4 py-2 border text-left font-medium text-gray-700">Process Name</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Scan In</th>
+                            <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Scan Start</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Scan Out</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Duration</th>
                             <th class="print-hidden px-4 py-2 border text-left font-medium text-gray-700">Pic</th>
@@ -91,10 +101,10 @@
                             @php
                                 $hours = 0;
                                 $minutes = 0;
-                                if ($process->scan_in && $process->scan_out) {
-                                    $scanIn = \Carbon\Carbon::parse($process->scan_in);
+                                if ($process->scan_start && $process->scan_out) {
+                                    $scanStart = \Carbon\Carbon::parse($process->scan_start);
                                     $scanOut = \Carbon\Carbon::parse($process->scan_out);
-                                    $totalMinutes = $scanOut->diffInMinutes($scanIn);
+                                    $totalMinutes = $scanOut->diffInMinutes($scanStart);
                                     $hours = intdiv($totalMinutes, 60);
                                     $minutes = $totalMinutes % 60;
                                 }
@@ -102,9 +112,10 @@
                             <tr>
                                 <td class="px-4 py-2 border text-gray-700">{{ $process->process_name }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->scan_in }}</td>
+                                <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->scan_start }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->scan_out }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">
-                                    @if ($process->scan_in && $process->scan_out)
+                                    @if ($process->scan_start && $process->scan_out)
                                         {{ $hours }}h {{ $minutes }}m
                                     @else
                                         N/A
@@ -144,4 +155,76 @@
             </div>
         </div>
     </div>
+
+    @if($image && $image->name)
+    <img src="{{ asset('storage/files/' . $image->name) }}" alt="Image" class="mx-auto h-32 object-contain">
+    @else
+        <img src="{{ asset('storage/files/placeholder.png') }}" alt="Placeholder Image" class="mx-auto h-32 object-contain">
+    @endif
+
+
+    <div id="uploadModal" class="fixed inset-0 items-center justify-center bg-black bg-opacity-50 hidden">
+            <div class="w-full max-w-lg mx-auto mt-12">
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                    <div class="px-6 py-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Upload Files</h2>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-medium mb-2" for="files">Select Files</label>
+                            <div class="flex items-center justify-center w-full">
+                                <label
+                                    class="flex flex-col items-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md cursor-pointer hover:border-gray-400 hover:bg-gray-50">
+                                    <span class="flex items-center space-x-2">
+                                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M7 16V8m10 8V8m-5 8V8m-5 8h10"></path>
+                                        </svg>
+                                        <span class="font-medium text-gray-600">Drop files here or <span
+                                                class="text-blue-600 underline">browse</span></span>
+                                    </span>
+                                    <form action="{{ route('file.upload') }}" method="post"
+                                        enctype="multipart/form-data" id="formUploadFile">
+                                        @csrf
+                                        <input type="hidden" name="item_code" id="item_code">
+                                        <input id="files" type="file" name="files[]" class="hidden" multiple>
+                                    </form>
+                                </label>
+                            </div>
+                            <div id="fileList" class="mt-4 text-sm text-gray-600"></div>
+                        </div>
+                        <div class="flex justify-center">
+                            <button type="submit"
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+                                onclick="document.getElementById('formUploadFile').submit()">
+                                Upload
+                            </button>
+                            <button
+                                class="ml-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full"
+                                onclick="closeModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+<script>
+        function openModal(item_code) {
+                console.log(item_code);
+                document.getElementById('item_code').value = item_code;
+                document.getElementById('uploadModal').classList.remove('hidden');
+            }
+
+            function closeModal() {
+                document.getElementById('uploadModal').classList.add('hidden');
+            }
+
+            document.getElementById('files').addEventListener('change', function() {
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+                for (let i = 0; i < this.files.length; i++) {
+                    const listItem = document.createElement('div');
+                    listItem.textContent = this.files[i].name;
+                    fileList.appendChild(listItem);
+                }
+            });
+</script>
 </x-print-layout>
