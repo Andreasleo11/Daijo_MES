@@ -1,62 +1,69 @@
 <x-app-layout>
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             <!-- Breadcrumb -->
             <nav class="flex text-gray-500 text-sm mb-6" aria-label="Breadcrumb">
-                <a href="{{ route('dashboard') }}" class="hover:text-blue-500">
+                <a href="{{ route('dashboard') }}" class="hover:text-blue-500 transition">
                     Dashboard
                 </a>
                 <span class="mx-2">/</span>
-                <a href="{{ route('production.bom.index') }}" class="hover:text-blue-500">
+                <a href="{{ route('production.bom.index') }}" class="hover:text-blue-500 transition">
                     Bill of Materials
                 </a>
                 <span class="mx-2">/</span>
                 <span class="text-gray-800 font-semibold">{{ $bomParent->code }}</span>
             </nav>
             <!-- Report Header -->
-            <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div class="bg-gradient-to-l from-gray-100 to-gray-50 shadow-md rounded-lg p-6">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h1 class="text-3xl font-medium">{{ $bomParent->code }}</h1>
-                        <h3 class="text-lg">{{ $bomParent->description }}</h3>
-                        <h3 class="text-lg">{{ $bomParent->customer }}</h3>
-                        <p class="text-sm text-gray-600">Generated on: {{ now()->format('Y-m-d H:i') }}</p>
-                        <p class="text-sm text-gray-600">Type: {{ ucfirst($bomParent->type) }}</p>
+                        <h1 class="text-3xl font-semibold text-gray-700">{{ $bomParent->code }}</h1>
+                        <h3 class="text-lg text-gray-600">{{ $bomParent->description }}</h3>
+                        <h3 class="text-lg text-gray-600">{{ $bomParent->customer }}</h3>
+                        <p class="text-sm text-gray-500 mt-1">Generated on: {{ now()->format('Y-m-d H:i') }}</p>
+                        <p class="text-sm text-gray-500">Type: {{ ucfirst($bomParent->type) }}</p>
                     </div>
                     <div>
-                        {{-- <button onclick="window.print()"
-                            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                            Print/Export Report
-                        </button> --}}
                         @if ($user->role->name === 'ADMIN')
                             <button onclick="toggleModal('editParentModal', true)"
-                                class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
+                                class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md shadow hover:bg-green-600 transition">
                                 Edit BOM Parent
                             </button>
-                            
                         @endif
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-between mt-4 space-x-4">
-            `                <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
-                                <p class="text-lg font-semibold text-gray-700">Buy Finish</p>
-                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('buyfinish', 0) }}</p>
-                            </div>
-                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
-                                <p class="text-lg font-semibold text-gray-700">Buy Process</p>
-                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('buyprocess', 0) }}</p>
-                            </div>
-                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
-                                <p class="text-lg font-semibold text-gray-700">Stock Finish</p>
-                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('stockfinish', 0) }}</p>
-                            </div>
-                            <div class="bg-white flex-1 p-4 border border-gray-300 rounded shadow">
-                                <p class="text-lg font-semibold text-gray-700">Stock Process</p>
-                                <p class="text-lg text-gray-600">{{ $actionTypeCounts->get('stockprocess', 0) }}</p>
-                            </div>
-                        </div>`
+            <!-- Cards Section -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+                @if ($user->role->name === 'WAREHOUSE')
+                    <div
+                        class="bg-gradient-to-r from-blue-500 to-blue-400 flex-1 p-6 border border-blue-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Buy Finish</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('buyfinish', 0) }}</p>
+                    </div>
+                    <div
+                        class="bg-gradient-to-r from-green-500 to-green-400 flex-1 p-6 border border-green-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Buy Process</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('buyprocess', 0) }}</p>
+                    </div>
+                @else
+                    <div
+                        class="bg-gradient-to-r from-purple-500 to-purple-400 flex-1 p-6 border border-purple-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Stock Finish</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('stockfinish', 0) }}
+                        </p>
+                    </div>
+                    <div
+                        class="bg-gradient-to-r from-red-500 to-red-400 flex-1 p-6 border border-red-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Stock Process</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('stockprocess', 0) }}
+                        </p>
+                    </div>
+                @endif
+            </div>
+
+
             <div class="bg-white overflow-hidden shadow-md sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <div class="flex justify-between items center">
@@ -71,243 +78,227 @@
                     <!-- Child Items Table -->
                     <h4 class="text-lg font-semibold mb-4">Child Items</h4>
                     <div class="mt-4 overflow-x-auto h-dvh">
-                        <table class="min-w-full table-auto border-black border-2">
-                            <thead>
+                        <table class="min-w-full table-auto border-black border-2 bg-white shadow-md">
+                            <thead class="bg-gray-200 text-gray-600 text-sm uppercase font-semibold">
                                 <tr>
-                                    <th class="px-4 py-2 border-black border-2">Item Code</th>
-                                    <th class="px-4 py-2 border-black border-2">Item Description</th>
-                                    <th class="px-4 py-2 border-black border-2">Quantity</th>
+                                    <th class="py-3 px-4 text-left">Item Code</th>
+                                    <th class="px-4 py-2 text-left">Item Description</th>
+                                    <th class="px-4 py-2 text-left">Quantity</th>
                                     @if ($user->role->name === 'ADMIN')
-                                    <th class="px-4 py-2 border-black border-2">Broken Quantity</th>
+                                        <th class="px-4 py-2 text-left">Broken Quantity</th>
                                     @endif
-                                    <th class="px-4 py-2 border-black border-2">Measure</th>
-                                    <th class="px-4 py-2 border-black border-2">Created At</th>
-                                    <th class="px-4 py-2 border-black border-2">Action Type</th>
-                                    <th class="px-4 py-2 border-black border-2">Action</th>
-                                    <th class="px-4 py-2 border-black border-2">Advance Actions</th>
-                                    <th class="px-4 py-2 border-black border-2">Status</th>
+                                    <th class="px-4 py-2 text-left">Measure</th>
+                                    <th class="px-4 py-2 text-left">Created At</th>
+                                    <th class="px-4 py-2 text-left">Action Type</th>
+                                    <th class="px-4 py-2 text-left">Action</th>
+                                    <th class="px-4 py-2 text-left">Advance Actions</th>
+                                    <th class="px-4 py-2 text-left">Status</th>
                                     @if ($user->role->name === 'ADMIN')
-                                        <th class="px-4 py-2 border-black border-2">Process Count</th>
+                                        <th class="px-4 py-2 text-left">Process Count</th>
                                     @endif
                                 </tr>
                             </thead>
-                            @if ($user->role->name === 'WAREHOUSE')
-                                <tbody>
-                                    <div class="max-height: 400px; overflow-y: auto;">
-                                        @foreach ($bomParent->child as $child)
-                                            @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
-                                                <tr>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
-                                                    <td class="px-4 py-2 border-black border-2">
-                                                        {{ $child->created_at->format('Y-m-d H:i') }}</td>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}
-                                                    </td>
-                                                    <td class="px-4 py-2 border-black border-2"></td>
-                                                    <td class="px-4 py-2 border-black border-2">
-                                                        @if ($child->status === 'Finished' || $child->status === 'Available')
-                                                            <span class="text-green-500 font-bold">Item Arrived</span>
-                                                        @else
+                            <tbody class="text-gray-700">
+                                <div class="max-height: 400px; overflow-y: auto;">
+                                    @foreach ($children as $child)
+                                        <tr>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->item_code }}
+                                            </td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->item_description }}</td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->quantity }}
+                                            </td>
+                                            @if ($user->role->name === 'ADMIN')
+                                                <td class="px-4 py-2 border-black border-2">
+                                                    {{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}
+                                                </td>
+                                            @endif
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->measure }}
+                                            </td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->created_at->format('Y-m-d H:i') }}</td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                {{ $child->action_type ?? 'Unknown' }}
+                                            </td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                @if ($user->role->name === 'ADMIN')
+                                                    <div class="space-2 space-x-2 flex flex-auto items-center">
+                                                        @if ($child->status === 'Canceled')
+                                                            <span
+                                                                class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                                                {{ $child->status }}
+                                                            </span>
+                                                        @elseif ($child->status === 'Finished')
+                                                            <!-- Show only the Cancel button -->
+                                                            <button
+                                                                onclick="toggleModal('modal-{{ $child->id }}', true)"
+                                                                class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
+                                                                Edit
+                                                            </button>
                                                             <form
-                                                                action="{{ route('production.bom.child.updateStatus', $child->id) }}"
-                                                                method="POST" class="inline-block ml-2">
+                                                                action="{{ route('production.bom.child.cancel', $child->id) }}"
+                                                                method="POST">
                                                                 @csrf
                                                                 @method('PUT')
                                                                 <button type="submit"
-                                                                    onclick="return confirm('Mark item as arrived and available?')"
-                                                                    class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
-                                                                    Mark as Arrived
+                                                                    onclick="return confirm('Are you sure you want to cancel this material?')"
+                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                                    Cancel
                                                                 </button>
                                                             </form>
-                                                        @endif
-                                                    </td>
-                                                    <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
-                                                </tr>
-
-                                                <!-- Edit Modal for Each Child -->
-                                                @include('includes.edit-child-modal', ['child' => $child])
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                </tbody>
-                            @else
-                                <tbody>
-                                <div class="max-height: 400px; overflow-y: auto;">
-                                    @foreach ($bomParent->child as $child)
-                                        <tr>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
-                                            <td class="px-4 py-2 border-black border-2">{{ collect($child->brokenChild)->sum('broken_quantity') ?? 0 }}</td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
-                                            <td class="px-4 py-2 border-black border-2">
-                                                {{ $child->created_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
-                                            </td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}</td>
-                                            <td class="px-4 py-2 border-black border-2">
-                                                <div class="space-2 space-x-2 flex flex-auto items-center">
-                                                    @if ($child->status === 'Canceled')
-                                                        <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
-                                                            {{ $child->status }}
-                                                        </span>
-                                                    @elseif ($child->status === 'Finished')
-                                                        <!-- Show only the Cancel button -->
-                                                        <button
-                                                            onclick="toggleModal('modal-{{ $child->id }}', true)"
-                                                            class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
-                                                            Edit
-                                                        </button>
-                                                        <form
-                                                            action="{{ route('production.bom.child.cancel', $child->id) }}"
-                                                            method="POST">
-                                                            @csrf
-                                                            @method('PUT')
-                                                            <button type="submit"
-                                                                onclick="return confirm('Are you sure you want to cancel this material?')"
-                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                Cancel
+                                                        @else
+                                                            <button
+                                                                onclick="toggleModal('modal-{{ $child->id }}', true)"
+                                                                class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
+                                                                Edit
                                                             </button>
-                                                        </form>
-                                                    @else
-                                                        <button
-                                                            onclick="toggleModal('modal-{{ $child->id }}', true)"
-                                                            class="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600">
-                                                            Edit
-                                                        </button>
-                                                        @if (!in_array($child->status, ['Started', 'Finished']))
+                                                            @if (!in_array($child->status, ['Started', 'Finished']))
+                                                                <form
+                                                                    action="{{ route('production.bom.child.destroy', $child->id) }}"
+                                                                    method="POST">
+                                                                    @csrf
+                                                                    @method('DELETE')
+                                                                    <button type="submit"
+                                                                        onclick="return confirm('Are you sure you want to delete this item?')"
+                                                                        class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
+                                                                        Delete
+                                                                    </button>
+                                                                </form>
+                                                            @endif
                                                             <form
-                                                                action="{{ route('production.bom.child.destroy', $child->id) }}"
+                                                                action="{{ route('production.bom.child.cancel', $child->id) }}"
                                                                 method="POST">
                                                                 @csrf
-                                                                @method('DELETE')
+                                                                @method('PUT')
                                                                 <button type="submit"
-                                                                    onclick="return confirm('Are you sure you want to delete this item?')"
-                                                                    class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
-                                                                    Delete
+                                                                    onclick="return confirm('Are you sure you want to cancel this material?')"
+                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                                    Cancel
                                                                 </button>
                                                             </form>
                                                         @endif
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2 border-black border-2">
+                                                @if ($user->role->name === 'WAREHOUSE')
+                                                    @if ($child->status === 'Finished' || $child->status === 'Available')
+                                                        <span class="text-green-500 font-bold">Item Arrived</span>
+                                                    @else
                                                         <form
-                                                            action="{{ route('production.bom.child.cancel', $child->id) }}"
-                                                            method="POST">
+                                                            action="{{ route('production.bom.child.updateStatus', $child->id) }}"
+                                                            method="POST" class="inline-block ml-2">
                                                             @csrf
                                                             @method('PUT')
                                                             <button type="submit"
-                                                                onclick="return confirm('Are you sure you want to cancel this material?')"
-                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                Cancel
+                                                                onclick="return confirm('Mark item as arrived and available?')"
+                                                                class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
+                                                                Mark as Arrived
                                                             </button>
                                                         </form>
                                                     @endif
-                                                </div>
-                                            </td>
-                                            <td class="px-4 py-2 border-black border-2">
-                                                <div class="space-2 flex flex-auto items-center">
-                                                    @if ($child->status === 'Canceled')
-                                                        <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
-                                                            {{ $child->status }}
-                                                        </span>
-                                                    @elseif ($child->status === 'Finished')
-                                                        @if ($child->materialProcess->isNotEmpty())
-                                                            <a href="{{ route('production.child.detail.material', $child->id) }}"
-                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                                Show Detail
-                                                            </a>
-                                                        @endif
-                                                        <button
-                                                            onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
-                                                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                            Add Broken Qty
-                                                        </button>
-                                                    @else
-                                                        @if (is_null($child->action_type))
-                                                            <!-- Show "Assign Type" button if action_type is null -->
+                                                @else
+                                                    <div class="space-2 flex flex-auto items-center">
+                                                        @if ($child->status === 'Canceled')
+                                                            <span
+                                                                class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                                                {{ $child->status }}
+                                                            </span>
+                                                        @elseif ($child->status === 'Finished')
+                                                            @if ($child->materialProcess->isNotEmpty())
+                                                                <a href="{{ route('production.child.detail.material', $child->id) }}"
+                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                                    Show Detail
+                                                                </a>
+                                                            @endif
                                                             <button
-                                                                onclick="toggleModal('assign-item-type-{{ $child->id }}', true)"
-                                                                class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
-                                                                Assign Type
+                                                                onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
+                                                                class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                                Add Broken Qty
                                                             </button>
-                                                        @elseif ($child->action_type == 'buyfinish' || $child->action_type == 'stockfinish')
-                                                            <!-- Add any specific handling for 'buy' if needed -->
-                                                        @elseif($child->action_type == 'buyprocess')
-                                                            @if ($child->status == 'Available' || $child->status == 'Started')
+                                                        @else
+                                                            @if (is_null($child->action_type))
+                                                                <!-- Show "Assign Type" button if action_type is null -->
+                                                                <button
+                                                                    onclick="toggleModal('assign-item-type-{{ $child->id }}', true)"
+                                                                    class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                                                                    Assign Type
+                                                                </button>
+                                                            @elseif ($child->action_type == 'buyfinish' || $child->action_type == 'stockfinish')
+                                                                <!-- Add any specific handling for 'buy' if needed -->
+                                                            @elseif($child->action_type == 'buyprocess')
+                                                                @if ($child->status == 'Available' || $child->status == 'Started')
+                                                                    <button
+                                                                        onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
+                                                                        class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                                        Add Process
+                                                                    </button>
+                                                                @else
+                                                                    Barang belom Sampai
+                                                                @endif
+                                                            @else
+                                                                <!-- Show "Assign Process" button if action_type is not null -->
                                                                 <button
                                                                     onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
                                                                     class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
                                                                     Add Process
                                                                 </button>
-                                                            @else
-                                                                Barang belom Sampai
                                                             @endif
-                                                        @else
-                                                            <!-- Show "Assign Process" button if action_type is not null -->
+
+                                                            @if ($child->materialProcess->isNotEmpty())
+                                                                <form
+                                                                    action="{{ route('production.child.detail.material', $child->id) }}"
+                                                                    method="get">
+                                                                    <button type="submit"
+                                                                        class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                                        Detail
+                                                                    </button>
+                                                                </form>
+                                                            @endif
+
                                                             <button
-                                                                onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
-                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                Add Process
+                                                                onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
+                                                                class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                                Add Broken Qty
                                                             </button>
                                                         @endif
-
-                                                        @if ($child->materialProcess->isNotEmpty())
-                                                            <form
-                                                                action="{{ route('production.child.detail.material', $child->id) }}"
-                                                                method="get">
-                                                                <button type="submit"
-                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                                    Detail
-                                                                </button>
-                                                            </form>
-                                                        @endif
-
-                                                        <button
-                                                            onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
-                                                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                            Add Broken Qty
-                                                        </button>
-                                                    @endif
-                                                </div>
+                                                    </div>
+                                                @endif
                                             </td>
-                                            <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
-                                            <td class="px-4 py-2 border-black border-2">
-                                                {{-- Styled Total / Finished / Not Finished --}}
-                                                <span
-                                                    style="color: blue;">{{ $child->materialProcess->count() }}</span>
-                                                /
-                                                <span
-                                                    style="color: green;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out !== null)->count() }}</span>
-                                                /
-                                                <span
-                                                    style="color: red;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out === null)->count() }}</span>
+                                            <td class="px-4 py-2 border-black border-2">{{ $child->status }}
                                             </td>
+                                            @if ($user->role->name === 'ADMIN')
+                                                <td class="px-4 py-2 border-black border-2">
+                                                    {{-- Styled Total / Finished / Not Finished --}}
+                                                    <span
+                                                        style="color: blue;">{{ $child->materialProcess->count() }}</span>
+                                                    /
+                                                    <span
+                                                        style="color: green;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out !== null)->count() }}</span>
+                                                    /
+                                                    <span
+                                                        style="color: red;">{{ $child->materialProcess->filter(fn($process) => $process->scan_out === null)->count() }}</span>
+                                                </td>
+                                            @endif
                                         </tr>
 
-                                        @include('includes.add-child-process-modal', ['child' => $child])
-
-                                        <!-- Edit Modal for Each Child -->
                                         @include('includes.edit-child-modal', ['child' => $child])
-
-
-                                        @include('includes.assign-item-type-modal', ['child' => $child])
-
                                         @include('includes.add-broken-child-item-modal', [
                                             'child' => $child,
                                         ])
+                                        @include('includes.add-child-process-modal', ['child' => $child])
                                     @endforeach
-                                        </div>
-                                </tbody>
-                            @endif
+                                </div>
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-
-
-
 
     @include('includes.edit-parent-modal', ['bomParent' => $bomParent])
 

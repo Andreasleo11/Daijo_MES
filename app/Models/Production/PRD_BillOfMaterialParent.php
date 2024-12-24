@@ -18,7 +18,7 @@ class PRD_BillOfMaterialParent extends Model
         'customer',
     ];
 
-    public function child()
+    public function children()
     {
         return $this->hasMany(PRD_BillOfMaterialChild::class, 'parent_id');
     }
