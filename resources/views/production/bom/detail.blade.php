@@ -209,7 +209,7 @@
                                                         <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
                                                             {{ $child->status }}
                                                         </span>
-                                                    @elseif ($child->status === 'Finished')
+                                                    @elseif ($child->status === 'Finished' || $child->status === 'Finished - Modified')
                                                         @if ($child->materialProcess->isNotEmpty())
                                                             <a href="{{ route('production.child.detail.material', $child->id) }}"
                                                                 class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
@@ -220,6 +220,12 @@
                                                             onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
                                                             class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
                                                             Add Broken Qty
+                                                        </button>
+
+                                                        <button
+                                                                onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
+                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                                Add Process
                                                         </button>
                                                     @else
                                                         @if (is_null($child->action_type))
