@@ -184,89 +184,76 @@
                                                 @endif
                                             </td>
                                             <td class="px-4 py-2 border-black border-2">
-                                                @if ($user->role->name === 'WAREHOUSE')
-                                                    @if ($child->status === 'Finished' || $child->status === 'Available')
-                                                        <span class="text-green-500 font-bold">Item Arrived</span>
+                                                <div class="space-2 flex flex-auto items-center">
+                                                    @if ($child->status === 'Canceled')
+                                                        <span class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
+                                                            {{ $child->status }}
+                                                        </span>
+                                                    @elseif ($child->status === 'Finished' || $child->status === 'Finished - Modified')
+                                                        @if ($child->materialProcess->isNotEmpty())
+                                                            <a href="{{ route('production.child.detail.material', $child->id) }}"
+                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                                Show Detail
+                                                            </a>
+                                                        @endif
+                                                        <button
+                                                            onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
+                                                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                            Add Broken Qty
+                                                        </button>
+
+                                                        <button
+                                                            onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
+                                                            class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                            Add Process
+                                                        </button>
                                                     @else
-                                                        <form
-                                                            action="{{ route('production.bom.child.updateStatus', $child->id) }}"
-                                                            method="POST" class="inline-block ml-2">
-                                                            @csrf
-                                                            @method('PUT')
-                                                            <button type="submit"
-                                                                onclick="return confirm('Mark item as arrived and available?')"
-                                                                class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
-                                                                Mark as Arrived
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                @else
-                                                    <div class="space-2 flex flex-auto items-center">
-                                                        @if ($child->status === 'Canceled')
-                                                            <span
-                                                                class="px-2 py-1 rounded bg-yellow-200 text-yellow-800">
-                                                                {{ $child->status }}
-                                                            </span>
-                                                        @elseif ($child->status === 'Finished')
-                                                            @if ($child->materialProcess->isNotEmpty())
-                                                                <a href="{{ route('production.child.detail.material', $child->id) }}"
-                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                                    Show Detail
-                                                                </a>
-                                                            @endif
+                                                        @if (is_null($child->action_type))
+                                                            <!-- Show "Assign Type" button if action_type is null -->
                                                             <button
-                                                                onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
-                                                                class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                                Add Broken Qty
+                                                                onclick="toggleModal('assign-item-type-{{ $child->id }}', true)"
+                                                                class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                                                                Assign Type
                                                             </button>
-                                                        @else
-                                                            @if (is_null($child->action_type))
-                                                                <!-- Show "Assign Type" button if action_type is null -->
-                                                                <button
-                                                                    onclick="toggleModal('assign-item-type-{{ $child->id }}', true)"
-                                                                    class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
-                                                                    Assign Type
-                                                                </button>
-                                                            @elseif ($child->action_type == 'buyfinish' || $child->action_type == 'stockfinish')
-                                                                <!-- Add any specific handling for 'buy' if needed -->
-                                                            @elseif($child->action_type == 'buyprocess')
-                                                                @if ($child->status == 'Available' || $child->status == 'Started')
-                                                                    <button
-                                                                        onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
-                                                                        class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                                                                        Add Process
-                                                                    </button>
-                                                                @else
-                                                                    Barang belom Sampai
-                                                                @endif
-                                                            @else
-                                                                <!-- Show "Assign Process" button if action_type is not null -->
+                                                        @elseif ($child->action_type == 'buyfinish' || $child->action_type == 'stockfinish')
+                                                            <!-- Add any specific handling for 'buy' if needed -->
+                                                        @elseif($child->action_type == 'buyprocess')
+                                                            @if ($child->status == 'Available' || $child->status == 'Started')
                                                                 <button
                                                                     onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
                                                                     class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
                                                                     Add Process
                                                                 </button>
+                                                            @else
+                                                                Barang belom Sampai
                                                             @endif
-
-                                                            @if ($child->materialProcess->isNotEmpty())
-                                                                <form
-                                                                    action="{{ route('production.child.detail.material', $child->id) }}"
-                                                                    method="get">
-                                                                    <button type="submit"
-                                                                        class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
-                                                                        Detail
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-
+                                                        @else
+                                                            <!-- Show "Assign Process" button if action_type is not null -->
                                                             <button
-                                                                onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
-                                                                class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
-                                                                Add Broken Qty
+                                                                onclick="toggleModal('add-child-process-modal-{{ $child->id }}', true)"
+                                                                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                                                Add Process
                                                             </button>
                                                         @endif
-                                                    </div>
-                                                @endif
+
+                                                        @if ($child->materialProcess->isNotEmpty())
+                                                            <form
+                                                                action="{{ route('production.child.detail.material', $child->id) }}"
+                                                                method="get">
+                                                                <button type="submit"
+                                                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ml-2">
+                                                                    Detail
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        <button
+                                                            onclick="toggleModal('add-broken-child-modal-{{ $child->id }}', true)"
+                                                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ml-2">
+                                                            Add Broken Qty
+                                                        </button>
+                                                    @endif
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2 border-black border-2">{{ $child->status }}
                                             </td>

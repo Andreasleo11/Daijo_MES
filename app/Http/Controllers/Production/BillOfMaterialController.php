@@ -340,6 +340,12 @@ class BillOfMaterialController extends Controller
             return redirect()->back()->with('error', 'No processes were selected.');
         }
 
+        $child = PRD_BillOfMaterialChild::find($id);
+        if ($child->status === 'Finished') {
+            $child->status = 'Finished - Modified';
+            $child->save(); // Save the updated status
+        }
+
         // Loop through each process and insert it into the PRD_MaterialLog table
         foreach ($processes as $process) {
             PRD_MaterialLog::create([
