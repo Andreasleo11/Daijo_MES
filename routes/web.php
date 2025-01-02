@@ -10,6 +10,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\InitialBarcodeController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MasterItemController;
+use App\Http\Controllers\NotificationRecepientController;
 use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Http\Controllers\WaitingPurchaseOrderController;
@@ -136,6 +137,8 @@ Route::middleware('auth')->group(function (){
     Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
 
     Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
+
+    Route::resource('notification_recipients', NotificationRecepientController::class);
 
     Route::get('/daily-waiting-purchase-orders/notification', function(){
         $waitingPurchaseOrders = \App\Models\WaitingPurchaseOrder::all();

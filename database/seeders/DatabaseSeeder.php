@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RolesTableSeeder::class,
             UsersTableSeeder::class,
             MachineJobsTableSeeder::class,
+            NotificationTypesTableSeeder::class,
         ]);
     }
 }

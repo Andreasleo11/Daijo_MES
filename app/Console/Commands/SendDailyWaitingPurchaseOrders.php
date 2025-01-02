@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Mail\DailyWaitingPurchaseOrders as DailyWaitingPurchaseOrdersMail;
+use App\Models\NotificationRecipient;
+use App\Models\NotificationType;
 use App\Models\WaitingPurchaseOrder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -36,11 +38,20 @@ class SendDailyWaitingPurchaseOrders extends Command
             return 0;
         }
 
-        // List of email addresses to notify
-        $emails = ['tina@daijo.co.id', 'andriani@daijo.co.id', 'mumu@daijo.co.id']; // Replace with real emails
+        $notificationType = NotificationType::where('name', 'daily-waiting-purchase-orders')->first();
 
-        // Send email to each address
-        foreach ($emails as $email) {
+        $recipients = NotificationRecipient::where('notification_type_id', $notificationType->id)
+                                        ->where('active', true)
+                                        ->pluck('email')
+                                        ->toArray();
+
+        if (empty($recipients)) {
+            $this->info('No recipients configured for this notification type.');
+            return 0;
+        }
+
+        // Send email to each recipient
+        foreach ($recipients as $email) {
             Mail::to($email)->send(new DailyWaitingPurchaseOrdersMail($waitingOrders));
         }
 

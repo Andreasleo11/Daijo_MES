@@ -1,10 +1,9 @@
 <x-mail::message>
 # Daily Reminder: Waiting Purchase Orders
-
 <x-mail::panel>
 This email is a daily reminder of pending purchase orders. Please review and take necessary action.
 </x-mail::panel>
-
+<br>
 <x-mail::table>
 | Mold Name       | Process         | Price         | Quotation No    | Remark       | Photo Preview  |
 | --------------- | --------------- | ------------- | --------------- | ------------ | --------------- |

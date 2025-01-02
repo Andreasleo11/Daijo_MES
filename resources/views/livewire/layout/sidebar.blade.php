@@ -60,6 +60,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
                         label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('notification_recipients.index') }}"
+                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate />
                 @endif
 
                 <!-- PE Links -->
@@ -92,8 +95,8 @@ new class extends Component {
                 @endif
 
                 @if (auth()->user()->can('view-second-process-links'))
-                    <livewire:sidebar-link href="{{ route('second.daily.process.create') }}" label="Plan Second Process"
-                        :active="request()->routeIs('second.daily.process.create')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('second.daily.process.create') }}"
+                        label="Plan Second Process" :active="request()->routeIs('second.daily.process.create')" wire:navigate />
                 @endif
 
             </div>
