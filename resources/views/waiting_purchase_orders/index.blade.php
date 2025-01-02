@@ -1,7 +1,7 @@
 <x-app-layout>
     <div class="container mx-auto mt-10 px-10">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">Waiting Purchase Orders</h1>
-        <div class="flex justify-end mb-4">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl font-bold text-gray-800">Waiting Purchase Orders</h1>
             <a href="{{ route('waiting_purchase_orders.create') }}"
                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">Create New Order</a>
         </div>
