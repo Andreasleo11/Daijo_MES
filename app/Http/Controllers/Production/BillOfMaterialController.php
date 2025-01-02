@@ -30,19 +30,24 @@ class BillOfMaterialController extends Controller
 {
     public function index()
     {
-        $bomParents = PRD_BillOfMaterialParent::all();
+        $bomParentsQuery = PRD_BillOfMaterialParent::with('children');
         // dd($datas);
         $user = auth()->user();
-      
 
-        
+        if($user->role->name === 'WAREHOUSE'){
+            $bomParentsQuery->whereHas('children', function($query){
+                $query->where('action_type', 'buyfinish')->orWhere('action_type', 'buyprocess');
+            });
+        }
+
+        $bomParents = $bomParentsQuery->get();
         return view('production.bom.index', compact('bomParents', 'user'));
     }
 
     public function create()
     {
         $datas = PRD_ListAllMasterItem::get();
-        
+
         return view('production.bom.create', compact('datas'));
     }
 
@@ -62,17 +67,24 @@ class BillOfMaterialController extends Controller
 
     public function show($id)
     {
-        // Find the BOM parent by ID
-        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess', 'child.brokenChild')->findOrFail($id);
-        // dd($bomParent);
         $user = auth()->user();
-        $actionTypeCounts = $bomParent->child->groupBy('action_type')->map(function ($group) {
+        $bomParent = PRD_BillOfMaterialParent::with('children', 'children.materialProcess', 'children.brokenChild')->findOrFail($id);
+        $actionTypeCounts = $bomParent->children->groupBy('action_type')->map(function ($group) {
             return $group->count();
         });
-        
-        // dd($user);
-        // Pass the data to the view
-        return view('production.bom.detail', compact('bomParent','user', 'actionTypeCounts'));
+
+        $childrenQuery = PRD_BillOfMaterialChild::with('materialProcess', 'brokenChild')->where('parent_id', $bomParent->id);
+        if($user->role->name === 'WAREHOUSE'){
+            $childrenQuery->where(function($query){
+                $query->where('action_type', 'buyfinish')
+                    ->orWhere('action_type', 'buyprocess');
+            });
+        }
+
+        $children = $childrenQuery->get();
+        // dd($nonWarehouseChildren);)
+
+        return view('production.bom.detail', compact('bomParent','user', 'actionTypeCounts', 'children'));
     }
 
     public function update(Request $request, $id)
@@ -303,7 +315,7 @@ class BillOfMaterialController extends Controller
     {
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
-       
+
         if($child->action_type === "buyfinish")
         {
             $child->status = "Finished";
@@ -388,10 +400,10 @@ class BillOfMaterialController extends Controller
 
         $writer = new PngWriter();
         $qrCodeResult = $writer->write($qrCode);
-              
+
         // Get the PNG image as a string
         $qrCodeImage = $qrCodeResult->getString();
-                
+
         // Base64 encode the image to embed in HTML
         $qrcoded = base64_encode($qrCodeImage);
 
