@@ -480,19 +480,19 @@ class BillOfMaterialController extends Controller
 
     public function dashboardTv()
     {
-        $parents = PRD_BillOfMaterialParent::with(['child.materialProcess.workers'])->get();
+        $parents = PRD_BillOfMaterialParent::with(['children.materialProcess.workers'])->get();
 
         $projectProgress = [];
         $distinctUsers = [];
 
         // Loop through each parent project
         foreach ($parents as $parent) {
-            $totalChildren = $parent->child->count(); // Total children in the parent project
+            $totalChildren = $parent->children->count(); // Total children in the parent project
             $completedChildren = 0;
             $usersInvolved = [];
 
             // Loop through each child project
-            foreach ($parent->child as $child) {
+            foreach ($parent->children as $child) {
                 // Check if the child status is 'Finished' or 'Finished - Modified'
                 if ($child->status === 'Finished' || $child->status === 'Finished - Modified') {
                     // Consider the child as completed if the status is Finished or Finished - Modified
