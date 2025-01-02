@@ -465,4 +465,80 @@ class BillOfMaterialController extends Controller
         return redirect()->back()->with('success', 'Process deleted successfully.');
     }
 
+
+    public function dashboardTv()
+    {
+        $parents = PRD_BillOfMaterialParent::with(['child.materialProcess.workers'])->get();
+
+        $projectProgress = [];
+        $distinctUsers = [];
+
+        // Loop through each parent project
+        foreach ($parents as $parent) {
+            $totalChildren = $parent->child->count(); // Total children in the parent project
+            $completedChildren = 0;
+            $usersInvolved = [];
+
+            // Loop through each child project
+            foreach ($parent->child as $child) {
+                // Check if the child status is 'Finished' or 'Finished - Modified'
+                if ($child->status === 'Finished' || $child->status === 'Finished - Modified') {
+                    // Consider the child as completed if the status is Finished or Finished - Modified
+                    $completedChildren++;
+                    
+                    // Collect distinct users involved in this child's processes (if it's already marked as completed)
+                    foreach ($child->materialProcess as $materialLog) {
+                        foreach ($materialLog->workers as $worker) {
+                            // Ensure to store distinct usernames
+                            $usersInvolved[$worker->username] = $worker->username; 
+                        }
+                    }
+                    continue; // Skip the process counting for this child, since it's already considered completed
+                }
+
+                // If the child status is not 'Finished' or 'Finished - Modified', continue with the process count
+                $totalProcesses = $child->materialProcess->count(); // Total processes (material logs) for the child
+                $completedProcesses = $child->materialProcess->filter(function ($log) {
+                    // Assuming you have a 'status' or 'completed' field in the material log to determine completion
+                    return $log->status == '2'; 
+                })->count();
+
+                // Calculate child completion percentage
+                if ($totalProcesses > 0) {
+                    $childCompletion = ($completedProcesses / $totalProcesses) * 100;
+                } else {
+                    $childCompletion = 0;
+                }
+
+                // Increment completed children counter if all processes are completed
+                if ($childCompletion == 100) {
+                    $completedChildren++;
+                }
+
+                // Collect distinct users involved in this child's processes
+                foreach ($child->materialProcess as $materialLog) {
+                    foreach ($materialLog->workers as $worker) {
+                        // Ensure to store distinct usernames
+                        $usersInvolved[$worker->username] = $worker->username; 
+                    }
+                }
+            }
+
+            // Calculate the overall project completion
+            $projectCompletion = ($completedChildren / $totalChildren) * 100;
+
+            // Store the progress for each parent project
+            $projectProgress[] = [
+                'parent_id' => $parent->id,
+                'project_name' => $parent->code,
+                'completion' => $projectCompletion,
+            ];
+
+            // Store the distinct number of users for each parent project
+            $distinctUsers[$parent->id] = count($usersInvolved); // Count the unique users involved
+        }
+
+        // Pass the data to the view
+        return view('dashboard-tv', compact('projectProgress', 'distinctUsers'));
+    }
 }
