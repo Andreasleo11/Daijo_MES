@@ -12,6 +12,7 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MasterItemController;
 use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
+use App\Http\Controllers\WaitingPurchaseOrderController;
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -133,6 +134,14 @@ Route::middleware('auth')->group(function (){
     Route::post('/second-daily-process/store', [SecondDailyController::class, 'store'])->name('second.daily.process.store');
     Route::get('/api/items', [SecondDailyController::class, 'searchItems'])->name('api.items');
     Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
+
+    Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
+
+    Route::get('/daily-waiting-purchase-orders/notification', function(){
+        $waitingPurchaseOrders = \App\Models\WaitingPurchaseOrder::all();
+        return new \App\Mail\DailyWaitingPurchaseOrders($waitingPurchaseOrders);
+    });
 });
+
 
 require __DIR__.'/auth.php';

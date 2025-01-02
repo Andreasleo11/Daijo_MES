@@ -57,6 +57,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('so.index') }}" label="DO Index" :active="request()->routeIs('so.index')"
                         wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
+                        label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
                 @endif
 
                 <!-- PE Links -->

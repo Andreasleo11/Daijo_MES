@@ -65,7 +65,7 @@ class WorkshopController extends Controller
     }
 
     public function handleScanStart(Request $request)
-    {   
+    {
         // dd($request->all());
         //test
         // $clockIn = Carbon::parse('05:00:00', 'Asia/Jakarta')->format('Y-m-d H:i:s');
@@ -82,14 +82,14 @@ class WorkshopController extends Controller
         $scanTime = now('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         $user = auth()->user();
-        
+
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
-      
+
         if ($data->status === 'Canceled') {
             return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
         }
-        
+
         $materialProcess = $data->materialProcess()
         ->where('process_name', $user->name)
         ->whereNull('scan_in')  // Ensure scan_in is null
@@ -112,14 +112,14 @@ class WorkshopController extends Controller
         } else {
             return back()->with('error', 'No matching material process found.');
         }
-        
+
         $worker = PRD_MouldingUserLog::create([
             'material_log_id' => $materialProcess->id,
             'username' => $user->username,
             'shift' => $this->determineShift($clockIn),
         ]);
 
-        
+
         return redirect()->route('workshop.main.menu');
     }
 
@@ -134,7 +134,7 @@ class WorkshopController extends Controller
         if (!$allProcessesFinished) {
             return; // Skip the update and exit early
         }
-    
+
         // If all processes are finished, update the MaterialChild status
         PRD_BillOfMaterialChild::where('id', $materialChildId)
             ->update(['status' => 'Finished']);
@@ -166,7 +166,7 @@ class WorkshopController extends Controller
 
         $log = PRD_MaterialLog::find($logId);
 
-        $log->scan_out = $scanOutTime; 
+        $log->scan_out = $scanOutTime;
         $log->status = '2';
         $log->save();
 
@@ -177,15 +177,15 @@ class WorkshopController extends Controller
 
     public function index($id)
     {
-        
+
         $user = auth()->user();
 
         $log = PRD_MaterialLog::with('childData', 'childData.parent', 'childData.materialProcess')->find($id);
         // Initialize an array to hold the process names and statuses
-        
+
         $allprocess = $log->childData->materialProcess;
-       
-        
+
+
         $workers = PRD_MouldingUserLog::where('material_log_id', $id)->get();
 
         return view('production.workshop.index', compact('log', 'workers', 'allprocess'));
@@ -200,7 +200,6 @@ class WorkshopController extends Controller
         $this->updateAllMaterialChildrenStatus();
         return view('production.workshop.mainmenu', compact('logs', 'user'));
     }
-
 
     public function addWorker(Request $request)
     {
@@ -228,12 +227,11 @@ class WorkshopController extends Controller
         // Redirect back with a success message
         return redirect()->back()->with('success', 'Worker added successfully.');
     }
-   
 
     public function summaryDashboard()
     {
         $datas = PRD_MaterialLog::with('childData', 'workers', 'childData.parent')->paginate(10);
-       
+
         return view('production.workshop.summarydashboard', compact('datas'));
     }
 
@@ -266,10 +264,8 @@ class WorkshopController extends Controller
         return redirect()->route('workshop.index', ['id' => $log->id]);
     }
 
-
     public function updateWorker(Request $request)
     {
-      
         // Validate the input data
         $request->validate([
             'worker_id' => 'required|exists:prd_moulding_user_logs,id', // Ensure worker exists
@@ -277,7 +273,7 @@ class WorkshopController extends Controller
             'job' => 'nullable|string|max:255',
             'remark' => 'nullable|string|max:255',
         ]);
-        
+
         // Find the worker by ID and update the details
         $worker = PRD_MouldingUserLog::find($request->worker_id);
         $worker->username = $request->username;
@@ -288,12 +284,11 @@ class WorkshopController extends Controller
         // Redirect back with a success message
         return redirect()->back()->with('success', 'Worker details updated successfully.');
     }
-    
 
     public function removeScanIn($id)
     {
         $log = PRD_MaterialLog::find($id);
-        
+
         // Your logic to remove the scan_in goes here
         // For example:
         $log->scan_in = null;  // Remove scan_in or reset as needed

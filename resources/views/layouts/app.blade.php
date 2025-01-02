@@ -23,6 +23,7 @@
 
         <!-- Page Content -->
         <div class="flex-1 ml-64 min-h-screen bg-gray-100">
+            <livewire:alert />
             {{-- <livewire:layout.navigation /> --}}
             <!-- Page Heading -->
             @if (isset($header))
