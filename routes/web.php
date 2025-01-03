@@ -68,6 +68,8 @@ Route::middleware('auth')->group(function (){
     Route::post('/production/bom/child/{childId}/addBrokenQuantity', [BillOfMaterialController::class, 'addBrokenQuantity'])->name('production.bom.child.addBrokenQuantity');
     Route::delete('/production/process-delete/{id}', [BillOfMaterialController::class, 'destroyProcess'])->name('production.process.delete');
 
+    Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv']);
+
     Route::get('/production/bom/create', [BillOfMaterialController::class, 'create'])->name('production.bom.create');
     Route::get('/get-item-codes', [BillOfMaterialController::class, 'getItemCodes'])->name('get-item-codes');
 
