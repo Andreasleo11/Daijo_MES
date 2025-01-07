@@ -35,8 +35,8 @@
             </div>
 
             <!-- Cards Section -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
-                @if ($user->role->name === 'WAREHOUSE')
+            @if ($user->role->name === 'WAREHOUSE' )
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
                     <div
                         class="bg-gradient-to-r from-blue-500 to-blue-400 flex-1 p-6 border border-blue-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
                         <p class="text-lg font-semibold text-white">Buy Finish</p>
@@ -47,7 +47,19 @@
                         <p class="text-lg font-semibold text-white">Buy Process</p>
                         <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('buyprocess', 0) }}</p>
                     </div>
-                @else
+                </div>
+            @else
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div
+                        class="bg-gradient-to-r from-blue-500 to-blue-400 flex-1 p-6 border border-blue-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Buy Finish</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('buyfinish', 0) }}</p>
+                    </div>
+                    <div
+                        class="bg-gradient-to-r from-green-500 to-green-400 flex-1 p-6 border border-green-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <p class="text-lg font-semibold text-white">Buy Process</p>
+                        <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('buyprocess', 0) }}</p>
+                    </div>
                     <div
                         class="bg-gradient-to-r from-purple-500 to-purple-400 flex-1 p-6 border border-purple-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
                         <p class="text-lg font-semibold text-white">Stock Finish</p>
@@ -60,9 +72,8 @@
                         <p class="text-2xl font-bold text-white mt-2">{{ $actionTypeCounts->get('stockprocess', 0) }}
                         </p>
                     </div>
-                @endif
-            </div>
-
+                </div>
+            @endif
 
             <div class="bg-white overflow-hidden shadow-md sm:rounded-lg">
                 <div class="p-6 text-gray-900">
@@ -98,6 +109,49 @@
                                     @endif
                                 </tr>
                             </thead>
+                            @if ($user->role->name === 'WAREHOUSE')
+                                <tbody>
+                                    <div class="max-height: 400px; overflow-y: auto;">
+                                        @foreach ($bomParent->children as $child)
+                                            @if ($child->action_type === 'buyfinish' || $child->action_type === 'buyprocess')
+                                                <tr>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_code }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->item_description }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->quantity }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->measure }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">
+                                                        {{ $child->created_at->format('Y-m-d H:i') }}</td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->action_type ?? 'Unknown' }}
+                                                    </td>
+                                                    <td class="px-4 py-2 border-black border-2"></td>
+                                                    <td class="px-4 py-2 border-black border-2">
+                                                        @if ($child->status === 'Finished' || $child->status === 'Available')
+                                                            <span class="text-green-500 font-bold">Item Arrived</span>
+                                                        @else
+                                                            <form
+                                                                action="{{ route('production.bom.child.updateStatus', $child->id) }}"
+                                                                method="POST" class="inline-block ml-2">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <button type="submit"
+                                                                    onclick="return confirm('Mark item as arrived and available?')"
+                                                                    class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
+                                                                    Mark as Arrived
+                                                                </button>
+                                                            </form>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-2 border-black border-2">{{ $child->status }}</td>
+                                                </tr>
+
+                                                <!-- Edit Modal for Each Child -->
+                                                @include('includes.edit-child-modal', ['child' => $child])
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </tbody>
+                            @endif
+                            @if($user->role->name === 'ADMIN')
                             <tbody class="text-gray-700">
                                 <div class="max-height: 400px; overflow-y: auto;">
                                     @foreach ($children as $child)
@@ -277,9 +331,11 @@
                                             'child' => $child,
                                         ])
                                         @include('includes.add-child-process-modal', ['child' => $child])
+                                        @include('includes.assign-item-type-modal', ['child' => $child])
                                     @endforeach
                                 </div>
-                            </tbody>
+                            </tbody> 
+                            @endif
                         </table>
                     </div>
                 </div>

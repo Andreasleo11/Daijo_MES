@@ -37,6 +37,16 @@
                     onclick="openModal('{{ $child->item_code }}')">Upload Files</button>
             </div>
         </div>
+           <!-- Barcode Section (if available) (Will print if exists) -->
+        @if (isset($barcodeUrl))
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6 flex justify-center items-center" style="display: inline-block;">
+            <h3 class="text-lg font-semibold mb-4 text-gray-800 text-center w-full">Generated Barcode</h3>
+                <div class="p-4 bg-gray-100 rounded-lg inline-block" style="display: inline-block;">
+                    <img src="data:image/png;base64, {{ $qrcoded }}" alt="QR Code" class="block">
+                </div>
+        </div>
+        @endif
+
 
         <!-- Project & Child Information Section (Will print) -->
         <div class="grid gap-6 mb-6 md:grid-cols-2">
@@ -64,18 +74,6 @@
                 <p class="text-sm text-gray-700"><strong>Status:</strong> {{ $child->status }}</p>
             </div>
         </div>
-
-        <!-- Barcode Section (if available) (Will print if exists) -->
-        @if (isset($barcodeUrl))
-            <div class="bg-white shadow-md rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-semibold mb-4 text-gray-800">Generated Barcode</h3>
-                <div class="flex justify-center space-x-6"> <!-- Flex container for side-by-side layout -->
-                    {{-- <img src="{{ $barcodeUrl }}" alt="Barcode" class="mx-auto" style="height: 30px; width: 200px;"> --}}
-                    <img src="data:image/png;base64, {{ $qrcoded }}" alt="QR Code">
-                </div>
-            </div>
-        @endif
-
 
 
         <!-- Associated Processes Table (Hide on print) -->

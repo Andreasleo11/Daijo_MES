@@ -141,6 +141,17 @@ Route::middleware('auth')->group(function (){
     Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
     Route::put('waiting_purchase_orders/{waiting_purchase_order}', [WaitingPurchaseOrderController::class, 'changeStatus'])->name('waiting_purchase_orders.changeStatus');
 
+    Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
+    Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
+    Route::get('deliveryschedule/wip', [DeliveryScheduleController::class, 'indexfinal'])->name('indexfinalwip');
+    Route::get("delsched/start1", [DeliveryScheduleController::class, "step1"])->name("deslsched.step1");
+    Route::get("delsched/start2", [DeliveryScheduleController::class, "step2"])->name("deslsched.step2");
+    Route::get("delsched/start3", [DeliveryScheduleController::class, "step3"])->name("deslsched.step3");
+    Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
+    Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
+    Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
+
+
     Route::resource('notification_recipients', NotificationRecepientController::class);
 
     Route::get('/daily-waiting-purchase-orders/notification', function(){
