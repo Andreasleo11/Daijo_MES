@@ -12,7 +12,7 @@ class WaitingPurchaseOrderController extends Controller
      */
     public function index()
     {
-        $orders = WaitingPurchaseOrder::all();
+        $orders = WaitingPurchaseOrder::orderBy('status', 'asc')->get();
         return view('waiting_purchase_orders.index', compact('orders'));
     }
 
@@ -130,5 +130,18 @@ class WaitingPurchaseOrderController extends Controller
         $waitingPurchaseOrder->delete();
 
         return redirect()->route('waiting_purchase_orders.index')->with('success', 'Purchase Order deleted successfully.');
+    }
+
+    /**
+     * Change the specified resource status.
+     */
+
+    public function changeStatus(Request $request, string $id)
+    {
+        $waitingPurchaseOrder = WaitingPurchaseOrder::find($id);
+        $waitingPurchaseOrder->status = $request->status;
+        $waitingPurchaseOrder->save();
+
+        return redirect()->route('waiting_purchase_orders.index')->with('success', 'Status changed successfully!');
     }
 }

@@ -1,56 +1,58 @@
-<div class="mb-4">
-    <label for="mold_name" class="block font-bold mb-1">Mold Name</label>
-    <input type="text" name="mold_name" id="mold_name" class="w-full border border-gray-300 p-2 rounded"
-        value="{{ old('mold_name', $waitingPurchaseOrder->mold_name ?? '') }}" required>
-    @error('mold_name')
-        <span class="text-red-500 text-sm">{{ $message }}</span>
-    @enderror
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div>
+        <label for="mold_name" class="block font-bold mb-1">Mold Name</label>
+        <input type="text" name="mold_name" id="mold_name" class="w-full border border-gray-300 p-2 rounded"
+            value="{{ old('mold_name', $waitingPurchaseOrder->mold_name ?? '') }}" required>
+        @error('mold_name')
+            <span class="text-red-500 text-sm">{{ $message }}</span>
+        @enderror
+    </div>
+
+    <div>
+        <label for="quotation_no" class="block font-bold mb-1">Quotation No</label>
+        <input type="text" name="quotation_no" id="quotation_no" class="w-full border border-gray-300 p-2 rounded"
+            value="{{ old('quotation_no', $waitingPurchaseOrder->quotation_no ?? '') }}" required>
+        @error('quotation_no')
+            <span class="text-red-500 text-sm">{{ $message }}</span>
+        @enderror
+    </div>
 </div>
-
-<div class="mb-4">
+<div class="mb-6">
     <label for="capture_photo" class="block font-bold mb-1">Capture Photo</label>
-    <input type="file" name="capture_photo" id="capture_photo" class="w-full border border-gray-300 p-2 rounded"
-        {{ isset($waitingPurchaseOrder) ? '' : 'required' }} accept="image/*" onchange="previewImage(event)">
-
-    <div class="mt-2">
+    <div class="my-2">
         <img id="photo_preview"
             src="{{ old('capture_photo') ? asset('storage/uploads/' . old('capture_photo')) : (isset($waitingPurchaseOrder) ? asset('storage/uploads/' . $waitingPurchaseOrder->capture_photo_path) : '#') }}"
             alt="Preview"
             class="h-36 object-contain max-w-sm rounded shadow-md {{ old('capture_photo') || isset($waitingPurchaseOrder) ? '' : 'hidden' }}">
     </div>
+    <input type="file" name="capture_photo" id="capture_photo" class="w-full border border-gray-300 p-2 rounded"
+        {{ isset($waitingPurchaseOrder) ? '' : 'required' }} accept="image/*" onchange="previewImage(event)">
 
     @error('capture_photo')
         <span class="text-red-500 text-sm">{{ $message }}</span>
     @enderror
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div>
+        <label for="process" class="block font-bold mb-1">Process <span
+                class="text-gray-400">(Description)</span></label>
+        <input type="text" name="process" id="process" class="w-full border border-gray-300 p-2 rounded"
+            value="{{ old('process', $waitingPurchaseOrder->process ?? '') }}" required>
+        @error('process')
+            <span class="text-red-500 text-sm">{{ $message }}</span>
+        @enderror
+    </div>
 
-<div class="mb-4">
-    <label for="process" class="block font-bold mb-1">Process</label>
-    <input type="text" name="process" id="process" class="w-full border border-gray-300 p-2 rounded"
-        value="{{ old('process', $waitingPurchaseOrder->process ?? '') }}" required>
-    @error('process')
-        <span class="text-red-500 text-sm">{{ $message }}</span>
-    @enderror
-</div>
-
-<div class="mb-4">
-    <label for="price" class="block font-bold mb-1">Price</label>
-    <input type="text" name="price" id="price" class="w-full border border-gray-300 p-2 rounded"
-        value="{{ old('price', isset($waitingPurchaseOrder) ? number_format($waitingPurchaseOrder->price, 2) : '') }}"
-        required oninput="formatPrice(event)">
-    @error('price')
-        <span class="text-red-500 text-sm">{{ $message }}</span>
-    @enderror
-</div>
-
-<div class="mb-4">
-    <label for="quotation_no" class="block font-bold mb-1">Quotation No</label>
-    <input type="text" name="quotation_no" id="quotation_no" class="w-full border border-gray-300 p-2 rounded"
-        value="{{ old('quotation_no', $waitingPurchaseOrder->quotation_no ?? '') }}" required>
-    @error('quotation_no')
-        <span class="text-red-500 text-sm">{{ $message }}</span>
-    @enderror
+    <div>
+        <label for="price" class="block font-bold mb-1">Price</label>
+        <input type="text" name="price" id="price" class="w-full border border-gray-300 p-2 rounded"
+            value="{{ old('price', isset($waitingPurchaseOrder) ? number_format($waitingPurchaseOrder->price, 2) : '') }}"
+            required oninput="formatPrice(event)">
+        @error('price')
+            <span class="text-red-500 text-sm">{{ $message }}</span>
+        @enderror
+    </div>
 </div>
 
 <div class="mb-4">

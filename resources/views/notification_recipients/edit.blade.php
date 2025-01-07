@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="container mx-auto mt-10 px-10">
+    <div class="container mx-auto pt-10 px-10">
         <h1 class="text-2xl font-bold mb-5">Edit Notification Recipient</h1>
 
         <form action="{{ route('notification_recipients.update', $notificationRecipient->id) }}" method="POST"

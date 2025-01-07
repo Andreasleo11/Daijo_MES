@@ -139,6 +139,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
 
     Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
+    Route::put('waiting_purchase_orders/{waiting_purchase_order}', [WaitingPurchaseOrderController::class, 'changeStatus'])->name('waiting_purchase_orders.changeStatus');
 
     Route::resource('notification_recipients', NotificationRecepientController::class);
 

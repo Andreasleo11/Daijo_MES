@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="container mx-auto mt-5 px-10">
+    <div class="container mx-auto pt-5 px-10">
         <h1 class="text-2xl font-bold mb-5">Create New Waiting Purchase Order</h1>
         <form action="{{ route('waiting_purchase_orders.store') }}" method="POST" enctype="multipart/form-data"
             class="bg-white p-6 rounded shadow-md">
