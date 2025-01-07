@@ -34,7 +34,7 @@
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $loop->iteration }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $order->mold_name }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $order->process }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-700">${{ number_format($order->price) }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">Rp. {{ number_format($order->price) }}</td>
                                 <td class="px-6 py-4 text-sm">
                                     @if ($order->status === 1)
                                         <span
@@ -58,9 +58,7 @@
                                         class="text-red-600 hover:underline">Delete</button>
                                     <span class="text-gray-500 mx-2">|</span>
                                     <button type="button" onclick="confirmChangeStatus({{ $order }})"
-                                        class="text-cyan-600 hover:underline">
-                                        Change
-                                        Status</button>
+                                        class="text-cyan-600 hover:underline">Change Status</button>
                                 </td>
                             </tr>
                         @empty
@@ -71,6 +69,13 @@
                             </tr>
                         @endforelse
                     </tbody>
+                    <tfoot class="bg-gray-50">
+                        <tr>
+                            <td colspan="3" class="px-6 py-3 text-right text-sm font-bold text-gray-700">Total:</td>
+                            <td class="px-6 py-3 text-sm font-bold text-gray-700">Rp. {{ number_format($total) }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
