@@ -11,8 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('notification_recipients', function (Blueprint $table) {
-            $table->dropColumn('notification_type');
+        Schema::create('sap_lineproduction', function (Blueprint $table) {
+            $table->string("item_code");
+            $table->string("line_production")->nullable();
+            $table->integer("priority" )->nullable();
         });
     }
 
@@ -21,8 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('notification_recipients', function (Blueprint $table) {
-            $table->string('notification_type')->after('email');
-        });
+        Schema::dropIfExists('sap_lineproduction');
     }
 };

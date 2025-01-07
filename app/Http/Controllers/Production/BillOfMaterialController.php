@@ -57,7 +57,7 @@ class BillOfMaterialController extends Controller
         $parent = PRD_BillOfMaterialParent::findOrFail($id);
 
         // Delete all associated child records
-        $parent->child()->delete(); // Assuming you have a relationship defined in the model
+        $parent->children()->delete(); // Assuming you have a relationship defined in the model
 
         // Delete the parent record
         $parent->delete();
@@ -245,7 +245,7 @@ class BillOfMaterialController extends Controller
             $childData['parent_id'] = $bomParent->id;
 
             // Create the child record
-            $bomParent->child()->create($childData);
+            $bomParent->children()->create($childData);
         }
 
         return redirect()->route('production.bom.show', $bomParent)->with('success', 'Child items added successfully!');
@@ -395,8 +395,8 @@ class BillOfMaterialController extends Controller
         $qrCodeWriter = new PngWriter();
         $qrcoded = null;
 
-        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::High, size: 100,
-                margin: 5);
+        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70,
+                margin: 2);
 
         $writer = new PngWriter();
         $qrCodeResult = $writer->write($qrCode);
