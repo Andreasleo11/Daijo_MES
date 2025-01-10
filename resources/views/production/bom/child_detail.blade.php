@@ -123,7 +123,13 @@
                                 <td class="print-hidden px-4 py-2 border text-gray-700">{{ $process->pic }}</td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">
                                     @foreach ($process->workers as $worker)
-                                        <div>{{ $worker->username }} - {{ $worker->shift }}</div>
+                                        <div>{{ $worker->username }} - {{ $worker->shift }}
+                                        @if ($worker->jobs)
+                                            - {{ $worker->jobs }}
+                                        @else
+                                            - No job assigned
+                                        @endif
+                                        </div>
                                     @endforeach
                                 </td>
                                 <td class="print-hidden px-4 py-2 border text-gray-700">

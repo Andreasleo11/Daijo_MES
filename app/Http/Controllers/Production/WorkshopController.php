@@ -214,7 +214,11 @@ class WorkshopController extends Controller
         $logs = PRD_MaterialLog::with('childData')->where('process_name', $user->name)->whereNotNull('scan_in')->get();
         // dd($jobs);
         $this->updateAllMaterialChildrenStatus();
-        return view('production.workshop.mainmenu', compact('logs', 'user'));
+        if($user->username === null){
+            return redirect()->route('dashboard');
+        } else {
+            return view('production.workshop.mainmenu', compact('logs', 'user'));
+        }
     }
 
     public function addWorker(Request $request)

@@ -395,8 +395,8 @@ class BillOfMaterialController extends Controller
         $qrCodeWriter = new PngWriter();
         $qrcoded = null;
 
-        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70,
-                margin: 2);
+        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::High, size: 100,
+                margin: 5);
 
         $writer = new PngWriter();
         $qrCodeResult = $writer->write($qrCode);
