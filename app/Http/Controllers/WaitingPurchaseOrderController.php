@@ -13,7 +13,8 @@ class WaitingPurchaseOrderController extends Controller
     public function index()
     {
         $orders = WaitingPurchaseOrder::orderBy('status', 'asc')->get();
-        return view('waiting_purchase_orders.index', compact('orders'));
+        $total = $orders->sum('price');
+        return view('waiting_purchase_orders.index', compact('orders', 'total'));
     }
 
     /**
