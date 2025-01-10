@@ -84,6 +84,11 @@
                                 class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
                                 Add Child
                             </button>
+
+                            <button onclick="window.location.href='{{ route('printAllMaterial', ['id' => $bomParent->id]) }}'"
+                                class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
+                                Print All Material
+                            </button>
                         @endif
                     </div>
                     <!-- Child Items Table -->

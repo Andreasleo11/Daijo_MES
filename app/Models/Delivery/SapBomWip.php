@@ -7,5 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class SapBomWip extends Model
 {
-    use HasFactory;
+    protected $table = 'sap_bom_wip';
+    public $timestamps = false;
+    public $incrementing = false;
+    protected $primaryKey = null;
+
+    protected $fillable = [
+        'fg_code',
+        'semi_first',
+        'qty_first',
+        'semi_second',
+        'qty_second',
+        'semi_third',
+        'qty_third',
+        'level',
+        'item_group',
+    ];
 }

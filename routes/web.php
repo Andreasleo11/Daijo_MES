@@ -10,6 +10,8 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\InitialBarcodeController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MasterItemController;
+use App\Http\Controllers\DeliveryScheduleController;
+use App\Http\Controllers\UpdateDailyController;
 use App\Http\Controllers\NotificationRecepientController;
 use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
@@ -67,6 +69,11 @@ Route::middleware('auth')->group(function (){
     Route::get('/production/material-detail-child/{id}/show', [BillOfMaterialController::class, 'materialDetail'])->name('production.child.detail.material');
     Route::post('/production/bom/child/{childId}/addBrokenQuantity', [BillOfMaterialController::class, 'addBrokenQuantity'])->name('production.bom.child.addBrokenQuantity');
     Route::delete('/production/process-delete/{id}', [BillOfMaterialController::class, 'destroyProcess'])->name('production.process.delete');
+    Route::post('/production/process/accept/{id}', [BillOfMaterialController::class, 'accept'])->name('production.process.accept');
+    Route::delete('/production/process/{id}/delete', [BillOfMaterialController::class, 'delete'])->name('production.process.delete');
+
+    Route::get('/print-all-material/{id}', [BillOfMaterialController::class, 'printAllMaterial'])->name('printAllMaterial');
+
 
     Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv']);
 
@@ -141,6 +148,7 @@ Route::middleware('auth')->group(function (){
     Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
     Route::put('waiting_purchase_orders/{waiting_purchase_order}', [WaitingPurchaseOrderController::class, 'changeStatus'])->name('waiting_purchase_orders.changeStatus');
 
+    Route::get('deliveryschedule/averagemonth', [DeliveryScheduleController::class, 'averageschedule'])->name('delsched.averagemonth');
     Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
     Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
     Route::get('deliveryschedule/wip', [DeliveryScheduleController::class, 'indexfinal'])->name('indexfinalwip');
@@ -151,6 +159,8 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
 
+    Route::get("updatepage/index", [UpdateDailyController::class, "index"])->name("indexupdatepage");
+    Route::post("/processdailydata", [UpdateDailyController::class, 'update'])->name("updatedata");
 
     Route::resource('notification_recipients', NotificationRecepientController::class);
 

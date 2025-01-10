@@ -411,6 +411,38 @@ class BillOfMaterialController extends Controller
         return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image', 'qrcoded'));
     }
 
+    public function printAllMaterial($id)
+    {
+        $bomParent = PRD_BillOfMaterialParent::with('children')->findOrFail($id);
+      
+        $writer = new PngWriter();
+
+
+        $childrenWithDetails = $bomParent->children->map(function($child) use ($writer) {
+
+            $barcodeData = $child->item_code . '~' . $child->id;
+            // Fetch the image for the child using item_code
+            $image = File::where('item_code', $child->item_code)->first();
+
+            // Generate QR code for the child (using item_code or any other relevant data)
+            $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70, margin: 2);
+            $qrCodeResult = $writer->write($qrCode);
+
+            // Get the PNG image as a string and base64 encode it for embedding in HTML
+            $qrCodeImage = $qrCodeResult->getString();
+            $qrcoded = base64_encode($qrCodeImage);
+
+            // Add the image to the child data (if it exists)
+            $child->barcode = $qrcoded;
+            $child->image_url = $image ? asset('storage/files/' . $image->name) : null; // Assuming 'path' holds the file path
+
+            return $child;
+        });
+        // dd($childrenWithDetails);
+        
+        return view('production.bom.allmaterialsprint', compact('bomParent', 'childrenWithDetails'));
+    }
+
     public function addBrokenQuantity(Request $request, $childId)
     {
         $request->validate([
@@ -553,4 +585,33 @@ class BillOfMaterialController extends Controller
         // Pass the data to the view
         return view('dashboard-tv', compact('projectProgress', 'distinctUsers'));
     }
+
+    public function accept($id)
+    {
+        $process = PRD_MaterialLog::findOrFail($id);
+
+        if ($process->is_draft) {
+            $process->is_draft = false; // Mark as accepted
+            $process->save();
+
+            return back()->with('success', 'Process accepted successfully.');
+        }
+
+        return back()->with('error', 'Process is not in draft status.');
+    }
+
+    public function delete($id)
+    {
+        $process = PRD_MaterialLog::findOrFail($id);
+
+        if (is_null($process->scan_start)) {
+            $process->delete();
+
+            return back()->with('success', 'Process has been deleted successfully.');
+        }
+
+        return back()->with('error', 'Cannot delete the process. It has already started.');
+    }
+
+    
 }

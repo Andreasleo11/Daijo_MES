@@ -150,6 +150,27 @@
                                         <span class="text-gray-500 text-sm">Cannot delete - Process already
                                             started</span>
                                     @endif
+
+                                    @if ($process->is_draft)
+                                        <form action="{{ route('production.process.accept', $process->id) }}" method="POST" class="inline ml-2">
+                                            @csrf
+                                            <button type="submit"
+                                                class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 text-sm">
+                                                Accept
+                                            </button>
+                                        </form>
+
+                                        @if (is_null($process->scan_start))
+                                            <form action="{{ route('production.process.delete', $process->id) }}" method="POST" class="inline ml-2">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                                                    Delete Process
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

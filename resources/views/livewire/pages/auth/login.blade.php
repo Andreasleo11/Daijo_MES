@@ -33,8 +33,14 @@ new #[Layout('layouts.guest')] class extends Component {
         $this->form->authenticate();
 
         Session::regenerate();
+        $user = auth()->user();
+        if ($user->role_id === 3) {
+            // Redirect to the production.bom.index route if role_id is 3
+            $this->redirect(route('production.bom.index'), navigate: true);
+        } else {
 
         $this->redirectIntended(default: RouteServiceProvider::HOME, navigate: true);
+        }
     }
 
     /**

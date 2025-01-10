@@ -86,6 +86,10 @@ class WorkshopController extends Controller
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
 
+        if (!$data) {
+            return redirect()->back()->withErrors(['error' => 'Barcode data not found or invalid.']);
+        }
+
         if ($data->status === 'Canceled') {
             return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
         }
@@ -110,15 +114,27 @@ class WorkshopController extends Controller
                 $data->save();  // Save the status update
             }
         } else {
-            return back()->with('error', 'No matching material process found.');
+            $barcodeElements = explode('~', $barcode); // Split barcode into elements
+            $childId = $barcodeElements[1] ?? null; // Get the second element (child ID)
+            if ($childId) {
+                // Create a new material process using PRD_MaterialLog model
+                $newMaterialProcess = new \App\Models\Production\PRD_MaterialLog();
+                $newMaterialProcess->child_id = $childId;
+                $newMaterialProcess->process_name = auth()->user()->name; // Use the authenticated user's name
+                $newMaterialProcess->scan_in = $scanTime; // Use the current scan time
+                $newMaterialProcess->scan_start = null;
+                $newMaterialProcess->scan_out = null;
+                $newMaterialProcess->status = 0; // Default status
+                $newMaterialProcess->pic = $user->username; // Assign the user's username
+                $newMaterialProcess->remark = 'Proses Tambahan'; // Optional remark
+                $newMaterialProcess->is_draft = true; // Set is_draft to true
+                $newMaterialProcess->save(); // Save the new record
+                
+                return redirect()->route('workshop.main.menu');
+            }else {
+                    return back()->with('error', 'Invalid barcode format.');
+                }
         }
-
-        $worker = PRD_MouldingUserLog::create([
-            'material_log_id' => $materialProcess->id,
-            'username' => $user->username,
-            'shift' => $this->determineShift($clockIn),
-        ]);
-
 
         return redirect()->route('workshop.main.menu');
     }
@@ -292,6 +308,8 @@ class WorkshopController extends Controller
         // Your logic to remove the scan_in goes here
         // For example:
         $log->scan_in = null;  // Remove scan_in or reset as needed
+        $log->pic = null;
+        $log->remark = null;
         $log->save();
 
         return redirect()->route('workshop.main.menu')->with('status', 'Scan In removed successfully!');
