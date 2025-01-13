@@ -58,7 +58,7 @@
             const barcodeForm = document.getElementById('barcodeForm');
 
             barcodeInput.addEventListener('input', function() {
-                if (barcodeInput.value.includes('-')) {
+                if (barcodeInput.value.includes('~')) {
                     barcodeForm.submit();
                 }
             });

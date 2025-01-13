@@ -165,7 +165,7 @@
                                         Edit
                                     </button>
 
-                                    @include('edit-worker-modal', ['worker' => $worker, 'log' => $log])
+                                    @include('includes.edit-worker-modal', ['worker' => $worker, 'log' => $log])
                                 </td>
                             </tr>
                         @endforeach

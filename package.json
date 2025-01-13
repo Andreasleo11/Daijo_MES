@@ -16,9 +16,13 @@
     },
     "dependencies": {
         "@fancyapps/ui": "^5.0.36",
+        "datatables.net": "^2.2.1",
+        "datatables.net-dt": "^2.2.1",
         "flatpickr": "^4.6.13",
+        "jquery": "^3.7.1",
         "laravel-echo": "^1.17.1",
         "pusher-js": "^8.4.0-rc2",
+        "select2": "^4.1.0-rc.0",
         "tom-select": "^2.3.1"
     }
 }
