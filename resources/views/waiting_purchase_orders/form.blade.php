@@ -29,23 +29,21 @@
     @enderror
 </div>
 
-<div class="mb-6">
-    <label for="capture_photo" class="block font-bold mb-1">Capture Photo</label>
-    <div class="my-2">
-        <img id="photo_preview"
-            src="{{ old('capture_photo') ? asset('storage/uploads/' . old('capture_photo')) : (isset($waitingPurchaseOrder) ? asset('storage/uploads/' . $waitingPurchaseOrder->capture_photo_path) : '#') }}"
-            alt="Preview"
-            class="h-36 object-contain max-w-sm rounded shadow-md {{ old('capture_photo') || isset($waitingPurchaseOrder) ? '' : 'hidden' }}">
+@if (!isset($waitingPurchaseOrder))
+    <div class="mb-6">
+        <label for="attached_files" class="block font-bold mb-1">Attach Files</label>
+        <div id="file_list" class="my-2">
+        </div>
+        <input type="file" name="attached_files[]" id="attached_files"
+            class="w-full border border-gray-300 p-2 rounded" accept="*/*" multiple onchange="previewFiles(event)">
+        <span class="text-gray-500 text-sm my-1">
+            Maximum file size per file is 4 MB.
+        </span>
+        @error('attached_files')
+            <span class="text-red-500 text-sm">{{ $message }}</span>
+        @enderror
     </div>
-    <input type="file" name="capture_photo" id="capture_photo" class="w-full border border-gray-300 p-2 rounded"
-        {{ isset($waitingPurchaseOrder) ? '' : 'required' }} accept="image/*" onchange="previewImage(event)">
-    <span class="text-gray-500 text-sm my-1">
-        Maximum file size 4 MB.
-    </span>
-    @error('capture_photo')
-        <span class="text-red-500 text-sm">{{ $message }}</span>
-    @enderror
-</div>
+@endif
 
 <div class="mb-6">
     <label for="price" class="block font-bold mb-1">Price</label>
@@ -70,17 +68,33 @@
 </div>
 
 <script>
-    function previewImage(event) {
-        const file = event.target.files[0];
-        const preview = document.getElementById('photo_preview');
+    function previewFiles(event) {
+        const files = event.target.files; // Get the files from the input
+        const fileList = document.getElementById('file_list'); // Target the file list container
+        fileList.innerHTML = ''; // Clear previous file list
 
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                preview.classList.remove('hidden');
+        if (files.length > 0) {
+            for (const file of files) {
+                // Create a list item for each file
+                const fileItem = document.createElement('div');
+                fileItem.classList.add('mb-2', 'flex', 'items-center', 'gap-2');
+
+                const fileIcon = document.createElement('span');
+                fileIcon.textContent = '📄'; // A generic icon for files
+
+                const fileName = document.createElement('span');
+                fileName.textContent = file.name;
+
+                const fileSize = document.createElement('span');
+                fileSize.textContent = `(${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                fileSize.classList.add('text-gray-500', 'text-sm');
+
+                fileItem.appendChild(fileIcon);
+                fileItem.appendChild(fileName);
+                fileItem.appendChild(fileSize);
+
+                fileList.appendChild(fileItem);
             }
-            reader.readAsDataURL(file);
         }
     }
 

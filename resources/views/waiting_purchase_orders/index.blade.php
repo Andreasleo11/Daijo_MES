@@ -1,10 +1,34 @@
 <x-app-layout>
     <div class="container mx-auto pt-10 px-10">
-        <div class="flex justify-between items-center mb-4">
+        <!-- Breadcrumb -->
+        <nav class="flex mb-4 text-gray-700 text-sm font-medium" aria-label="Breadcrumb">
+            <ol class="list-reset flex">
+                <li>
+                    <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Dashboard</a>
+                </li>
+                <li>
+                    <span class="mx-2 text-gray-500">/</span>
+                </li>
+                <li>
+                    <a href="{{ route('waiting_purchase_orders.index') }}" class="text-blue-600 hover:underline">
+                        Waiting Purchase Orders
+                    </a>
+                </li>
+                <li>
+                    <span class="mx-2 text-gray-500">/</span>
+                </li>
+                <li class="text-gray-800">List</li>
+            </ol>
+        </nav>
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Waiting Purchase Orders</h1>
             <a href="{{ route('waiting_purchase_orders.create') }}"
                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">Create New Order</a>
         </div>
+
+        <!-- Table and Modals -->
         <div class="overflow-hidden shadow rounded-lg bg-white">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -12,6 +36,9 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#
                             </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Doc
+                                Num</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Mold
                                 Name</th>
@@ -32,6 +59,7 @@
                         @forelse ($orders as $order)
                             <tr class="hover:bg-gray-100">
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $loop->iteration }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ $order->doc_num }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $order->mold_name }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-700">{{ $order->process }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-700">Rp. {{ number_format($order->price) }}</td>
@@ -46,7 +74,7 @@
                                             PO</span>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-700">{{ $order->remark }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ $order->remark ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm text-right">
                                     <a href="{{ route('waiting_purchase_orders.show', $order->id) }}"
                                         class="text-blue-600 hover:underline">View</a>
@@ -71,9 +99,9 @@
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
-                            <td colspan="3" class="px-6 py-3 text-right text-sm font-bold text-gray-700">Total:</td>
+                            <td colspan="4" class="px-6 py-3 text-right text-sm font-bold text-gray-700">Total:</td>
                             <td class="px-6 py-3 text-sm font-bold text-gray-700">Rp. {{ number_format($total) }}</td>
-                            <td colspan="3"></td>
+                            <td colspan="6"></td>
                         </tr>
                     </tfoot>
                 </table>

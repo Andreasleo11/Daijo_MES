@@ -5,10 +5,10 @@ This email is a daily reminder of pending purchase orders. Please review and tak
 </x-mail::panel>
 <br>
 <x-mail::table>
-| Mold Name       | Process         | Price         | Quotation No    | Remark       | Photo Preview  |
-| --------------- | --------------- | ------------- | --------------- | ------------ | --------------- |
+| Mold Name       | Process         | Price         | Quotation No    | Remark       |
+| --------------- | --------------- | ------------- | --------------- | ------------ |
 @foreach ($orders as $order)
-| {{ $order->mold_name }} | {{ $order->process }} | Rp. {{ number_format($order->price, 2) }} | {{ $order->quotation_no }} | {{ $order->remark ?? '-' }} | <img src="{{ asset('storage/uploads/' . $order->capture_photo_path) }}" alt="Preview" style="height: 50px; width: auto; border-radius: 5px;"> |
+| {{ $order->mold_name }} | {{ $order->process }} | Rp. {{ number_format($order->price, 2) }} | {{ $order->quotation_no }} | {{ $order->remark ?? '-' }} |
 @endforeach
 </x-mail::table>
 

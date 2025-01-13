@@ -4,9 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\WaitingPurchaseOrder;
 use Illuminate\Http\Request;
+use App\Services\FileService;
 
 class WaitingPurchaseOrderController extends Controller
 {
+
+    protected $fileService;
+
+    public function __construct(FileService $fileService)
+    {
+        $this->fileService = $fileService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -32,32 +41,31 @@ class WaitingPurchaseOrderController extends Controller
     {
         $request->validate([
             'mold_name' => 'required|string|max:255',
-            'capture_photo' => 'required|file|mimes:jpg,jpeg,png,gif|max:4096',
             'process' => 'required|string|max:255',
             'price' => 'required|string',
             'quotation_no' => 'required|string|max:255',
             'remark' => 'nullable|string',
+            'attached_files.*' => 'file|max:4096',
         ]);
 
-        // Handle file upload
-        if ($request->hasFile('capture_photo')) {
-            $file = $request->file('capture_photo');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $file->storeAs('public/uploads', $fileName); // Save file to storage/app/public/uploads
-        }
+        // dd($request->attached_files);
 
         // Convert price to numeric format
         $price = str_replace(',', '', $request->input('price'));
 
         // Create the record
-        WaitingPurchaseOrder::create([
+        $waitingPurchaseOrder = WaitingPurchaseOrder::create([
             'mold_name' => $request->mold_name,
-            'capture_photo_path' => $fileName,
             'process' => $request->process,
             'price' => $price,
             'quotation_no' => $request->quotation_no,
             'remark' => $request->remark,
         ]);
+
+        // Use the FileService to handle attached files
+        if ($request->hasFile('attached_files')) {
+            $this->fileService->uploadFiles($request->file('attached_files'), $waitingPurchaseOrder->doc_num);
+        }
 
         return redirect()->route('waiting_purchase_orders.index')->with('success', 'Purchase Order created successfully.');
     }
@@ -87,7 +95,6 @@ class WaitingPurchaseOrderController extends Controller
     {
         $request->validate([
             'mold_name' => 'required|string|max:255',
-            'capture_photo' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:4096', // Optional for updates
             'process' => 'required|string|max:255',
             'price' => 'required|string',
             'quotation_no' => 'required|string|max:255',
@@ -96,14 +103,6 @@ class WaitingPurchaseOrderController extends Controller
 
         // Find the existing record
         $waitingPurchaseOrder = WaitingPurchaseOrder::findOrFail($id);
-
-        // Handle file upload
-        if ($request->hasFile('capture_photo')) {
-            $file = $request->file('capture_photo');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $file->storeAs('public/uploads', $fileName); // Save file to storage/app/public/uploads
-            $waitingPurchaseOrder->capture_photo_path = $fileName; // Update file path in the record
-        }
 
         // Convert price to numeric format
         $price = str_replace(',', '', $request->input('price'));
@@ -115,12 +114,10 @@ class WaitingPurchaseOrderController extends Controller
             'price' => $price,
             'quotation_no' => $request->quotation_no,
             'remark' => $request->remark,
-            'capture_photo_path' => $waitingPurchaseOrder->capture_photo_path, // Retain old file if no new file uploaded
         ]);
 
         return redirect()->route('waiting_purchase_orders.index')->with('success', 'Purchase Order updated successfully.');
     }
-
 
     /**
      * Remove the specified resource from storage.

@@ -102,7 +102,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/generate-barcode', [InitialBarcodeController::class, 'generateBarcode'])->name('generate.barcode');
 
     Route::post('file/upload', [FileController::class, 'upload'])->name('file.upload');
-    Route::delete('file/{id}/delete', [FileController::class, 'destroy'])->name('file.delete');
+    Route::delete('/file/{id}', [FileController::class, 'destroy'])->name('file.delete');
 
     Route::get('master-item', [MasterItemController::class, 'index'])->middleware(['auth', 'verified'])->name('master-item.index');
 
@@ -139,18 +139,17 @@ Route::middleware('auth')->group(function (){
     Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
 
     Route::resource('waiting_purchase_orders', WaitingPurchaseOrderController::class);
-    Route::put('waiting_purchase_orders/{waiting_purchase_order}', [WaitingPurchaseOrderController::class, 'changeStatus'])->name('waiting_purchase_orders.changeStatus');
+    Route::patch('waiting_purchase_orders/{waiting_purchase_order}/change-status', [WaitingPurchaseOrderController::class, 'changeStatus'])->name('waiting_purchase_orders.changeStatus');
 
-    Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
-    Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
-    Route::get('deliveryschedule/wip', [DeliveryScheduleController::class, 'indexfinal'])->name('indexfinalwip');
-    Route::get("delsched/start1", [DeliveryScheduleController::class, "step1"])->name("deslsched.step1");
-    Route::get("delsched/start2", [DeliveryScheduleController::class, "step2"])->name("deslsched.step2");
-    Route::get("delsched/start3", [DeliveryScheduleController::class, "step3"])->name("deslsched.step3");
-    Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
-    Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
-    Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
-
+    // Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
+    // Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
+    // Route::get('deliveryschedule/wip', [DeliveryScheduleController::class, 'indexfinal'])->name('indexfinalwip');
+    // Route::get("delsched/start1", [DeliveryScheduleController::class, "step1"])->name("deslsched.step1");
+    // Route::get("delsched/start2", [DeliveryScheduleController::class, "step2"])->name("deslsched.step2");
+    // Route::get("delsched/start3", [DeliveryScheduleController::class, "step3"])->name("deslsched.step3");
+    // Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
+    // Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
+    // Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
 
     Route::resource('notification_recipients', NotificationRecepientController::class);
 

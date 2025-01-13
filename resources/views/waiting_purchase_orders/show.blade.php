@@ -1,5 +1,25 @@
 <x-app-layout>
-    <div class="container mx-auto mt-10 px-10">
+    <div class="container mx-auto pt-10 px-10">
+        <!-- Breadcrumb -->
+        <nav class="flex mb-4 text-gray-700 text-sm font-medium" aria-label="Breadcrumb">
+            <ol class="list-reset flex">
+                <li>
+                    <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Dashboard</a>
+                </li>
+                <li>
+                    <span class="mx-2 text-gray-500">/</span>
+                </li>
+                <li>
+                    <a href="{{ route('waiting_purchase_orders.index') }}" class="text-blue-600 hover:underline">
+                        Waiting Purchase Orders
+                    </a>
+                </li>
+                <li>
+                    <span class="mx-2 text-gray-500">/</span>
+                </li>
+                <li class="text-gray-800">Details</li>
+            </ol>
+        </nav>
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Purchase Order Details</h1>
         <div class="bg-white p-8 rounded-lg shadow-lg flex flex-col md:flex-row items-center md:items-start">
             <!-- Details Section -->
@@ -40,19 +60,33 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-gray-500 uppercase">Remark</p>
-                        <p class="text-lg font-medium text-gray-800">{{ $waitingPurchaseOrder->remark }}</p>
+                        <p class="text-lg font-medium text-gray-800">{{ $waitingPurchaseOrder->remark ?? '-' }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Image Section -->
-            @if ($waitingPurchaseOrder->capture_photo_path)
-                <div class="flex-shrink-0">
-                    <img src="{{ asset('storage/uploads/' . $waitingPurchaseOrder->capture_photo_path) }}"
-                        alt="Capture Photo" class="rounded-lg shadow-md max-w-xs md:max-w-sm object-contain">
+            <!-- Files Section -->
+            <div class="flex-shrink-0 md:pl-8">
+                <p class="text-sm font-semibold text-gray-500 uppercase mb-4">Attached Files</p>
+                <div class="grid gap-4">
+                    @if ($waitingPurchaseOrder->files && $waitingPurchaseOrder->files->count() > 0)
+                        @foreach ($waitingPurchaseOrder->files as $file)
+                            <div class="flex items-center gap-4 bg-gray-50 p-4 rounded shadow">
+                                <span>📄</span>
+                                <a href="{{ asset('storage/files/' . $file->name) }}" target="_blank"
+                                    class="text-blue-500 underline">{{ $file->name }}</a>
+                                <span class="text-gray-500 text-sm">
+                                    ({{ number_format($file->size / 1024 / 1024, 2) }} MB)
+                                </span>
+                            </div>
+                        @endforeach
+                    @else
+                        <p class="text-gray-500">No files attached.</p>
+                    @endif
                 </div>
-            @endif
+            </div>
         </div>
+
         <div class="flex justify-start mt-6">
             <a href="{{ route('waiting_purchase_orders.index') }}"
                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow">
