@@ -45,6 +45,9 @@ new class extends Component {
                 <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                     wire:navigate />
 
+                <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
+                    wire:navigate />
+
                 @if (auth()->user()->can('view-warehouse-links'))
                     <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
                         :active="request()->routeIs('production.bom.index')" wire:navigate />
