@@ -28,6 +28,8 @@ use App\Models\Delivery\DelschedFinalWip;
 use App\DataTables\DeliveryNewTableDataTable;
 use App\DataTables\WipFinalDsDataTable;
 use App\DataTables\SapDelschedDataTable;
+use App\Exports\DelschedFinalExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DeliveryScheduleController extends Controller
 {
@@ -727,5 +729,10 @@ class DeliveryScheduleController extends Controller
 		 // Output the updated data for verification
 		 return redirect()->route('indexfinalwip');
 	}
+
+	public function exportToExcel()
+    {
+        return Excel::download(new DelschedFinalExport, 'delschedfinal.xlsx');
+    }
 }
 

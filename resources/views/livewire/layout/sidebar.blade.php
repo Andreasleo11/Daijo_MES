@@ -45,40 +45,55 @@ new class extends Component {
                 <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                     wire:navigate />
 
+                <!-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
+                    wire:navigate /> -->
+                
+
+                <livewire:parent-dropdown label="Business" :childRoutes="[
+                        ['name' => 'indexds', 'label' => 'Delivery Schedule'],
+                    ]" />
+
+                
                 @if (auth()->user()->can('view-warehouse-links'))
-                    <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
+
+                <livewire:parent-dropdown label="Moulding" :childRoutes="[
+                        ['name' => 'production.bom.index', 'label' => 'Production BOM'],
+                        ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
+                        ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
+                    ]" />
+                    <!-- <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
                         :active="request()->routeIs('production.bom.index')" wire:navigate />
-                @endif
-
-                <!-- Admin Links -->
-                @if (auth()->user()->can('view-admin-links'))
-                    <livewire:sidebar-link href="{{ route('barcode.index') }}" label="Generate Master Barcode"
-                        :active="request()->routeIs('barcode.index')" wire:navigate />
-
-                    <livewire:sidebar-link href="{{ route('so.index') }}" label="DO Index" :active="request()->routeIs('so.index')"
-                        wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
                         label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('notification_recipients.index') }}"
-                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate />
+                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> -->
+                @endif
+
+                <!-- Admin Links -->
+                @if (auth()->user()->can('view-admin-links') && auth()->user()->role->id == 99)
+                    <livewire:sidebar-link href="{{ route('barcode.index') }}" label="Generate Master Barcode"
+                        :active="request()->routeIs('barcode.index')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('so.index') }}" label="DO Index" :active="request()->routeIs('so.index')"
+                        wire:navigate />
                 @endif
 
                 <!-- PE Links -->
-                @if (auth()->user()->can('view-pe-links'))
+                @if (auth()->user()->can('view-pe-links') && auth()->user()->role->id  == 99)
                     <livewire:sidebar-link href="{{ route('master-item.index') }}" label="Master Item" :active="request()->routeIs('master-item.index')"
                         wire:navigate />
                 @endif
 
                 <!-- PPIC Links -->
-                @if (auth()->user()->can('view-ppic-links'))
+                @if (auth()->user()->can('view-ppic-links')  && auth()->user()->role->id  == 99)
                     <livewire:sidebar-link href="{{ route('daily-item-code.index') }}" label="Daily Production Plan"
                         :active="request()->routeIs('daily-item-code.index')" wire:navigate />
                 @endif
 
                 <!-- Store Links -->
-                @if (auth()->user()->can('view-store-links'))
+                @if (auth()->user()->can('view-store-links')  && auth()->user()->role->id  == 99)
                     <livewire:parent-dropdown label="Store" :childRoutes="[
                         ['name' => 'barcodeindex', 'label' => 'Create Barcode'],
                         ['name' => 'inandout.index', 'label' => 'Scan Barcode'],
@@ -89,12 +104,12 @@ new class extends Component {
                 @endif
                 <hr>
                 <!-- Maintenance Links -->
-                @if (auth()->user()->can('view-maintenance-links'))
+                @if (auth()->user()->can('view-maintenance-links')  && auth()->user()->role->id  == 99)
                     <livewire:sidebar-link href="{{ route('maintenance.index') }}" label="Maintenance Index"
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
-                @if (auth()->user()->can('view-second-process-links'))
+                @if (auth()->user()->can('view-second-process-links')  && auth()->user()->role->id  == 99)
                     <livewire:sidebar-link href="{{ route('second.daily.process.create') }}"
                         label="Plan Second Process" :active="request()->routeIs('second.daily.process.create')" wire:navigate />
                 @endif

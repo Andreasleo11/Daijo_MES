@@ -50,15 +50,15 @@ class DeliveryNewTableDataTable extends DataTable
                     ->setTableId('deliverynewtable-table')
                     ->columns($this->getColumns())
                     ->minifiedAjax()
-                    ->dom('<"flex justify-between items-center mb-4"lf>t<"flex justify-between items-center mt-4"ip>')
+                    ->dom('<"flex justify-between items-center mb-4"lfB>t<"flex justify-between items-center mt-4"ip>')
                     ->orderBy(1,'asc')
                     ->buttons([
-                        Button::make('excel'),
-                        Button::make('csv'),
-                        Button::make('pdf'),
-                        Button::make('print'),
-                        Button::make('reset'),
-                        Button::make('reload')
+                        Button::make('excel')->text('<i class="bi bi-file-earmark-excel"></i> Excel'),
+                        Button::make('csv')->text('<i class="bi bi-file-earmark-spreadsheet"></i> CSV'),
+                        Button::make('pdf')->text('<i class="bi bi-file-earmark-pdf"></i> PDF'),
+                        Button::make('print')->text('<i class="bi bi-printer"></i> Print'),
+                        Button::make('reset')->text('<i class="bi bi-arrow-counterclockwise"></i> Reset'),
+                        Button::make('reload')->text('<i class="bi bi-arrow-repeat"></i> Reload')
                     ])
                     ->language([
                         'paginate' => [
@@ -72,7 +72,7 @@ class DeliveryNewTableDataTable extends DataTable
                     ->parameters([
                         'columnDefs' => [
                             ['className' => 'px-4 py-2 border', 'targets' => '_all'], // Tailwind padding for all columns
-                        ],
+                        ]
                     ]);
     }
 

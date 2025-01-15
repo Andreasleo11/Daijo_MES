@@ -47,6 +47,9 @@
     <div class="container mx-auto my-4">
         <h1 class="header text-3xl font-bold text-center mb-2">Materials for {{ $bomParent->code }}</h1>
         <h1 class="header text-xl text-gray-600 font-medium text-center mb-8">{{ $bomParent->description }}</h1>
+    <div class="container mx-auto my-4">
+        <h1 class="header text-3xl font-bold text-center mb-2">Materials for {{ $bomParent->code }}</h1>
+        <h1 class="header text-xl text-gray-600 font-medium text-center mb-8">{{ $bomParent->description }}</h1>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 print:grid-cols-2">
             @foreach ($childrenWithDetails as $index => $child)
@@ -68,9 +71,12 @@
                         <div>
                             <h3 class="text-base font-medium mb-2">Material Image:</h3>
                             <img src="{{ $child->image_url }}" alt="Material Image" class="h-24 object-contain">
+                            <h3 class="text-base font-medium mb-2">Material Image:</h3>
+                            <img src="{{ $child->image_url }}" alt="Material Image" class="h-24 object-contain">
                         </div>
                     @else
                         <div>
+                            <h3 class="text-base font-medium mb-2">Material Image:</h3>
                             <h3 class="text-base font-medium mb-2">Material Image:</h3>
                             <p>No image available</p>
                         </div>
@@ -79,6 +85,7 @@
             @endforeach
         </div>
 
+        <div class="print-button mt-6 text-center">
         <div class="print-button mt-6 text-center">
             <button onclick="window.print()" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
                 Print

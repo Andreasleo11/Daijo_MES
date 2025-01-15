@@ -159,6 +159,8 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
 
+    Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
+
     Route::get("updatepage/index", [UpdateDailyController::class, "index"])->name("indexupdatepage");
     Route::post("/processdailydata", [UpdateDailyController::class, 'update'])->name("updatedata");
 
