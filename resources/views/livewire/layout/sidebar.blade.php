@@ -45,19 +45,30 @@ new class extends Component {
                 <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                     wire:navigate />
 
-                <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
-                    wire:navigate />
+                <!-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
+                    wire:navigate /> -->
+                
+
+                <livewire:parent-dropdown label="Business" :childRoutes="[
+                        ['name' => 'indexds', 'label' => 'Delivery Schedule'],
+                    ]" />
 
                 
                 @if (auth()->user()->can('view-warehouse-links'))
-                    <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
+
+                <livewire:parent-dropdown label="Moulding" :childRoutes="[
+                        ['name' => 'production.bom.index', 'label' => 'Production BOM'],
+                        ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
+                        ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
+                    ]" />
+                    <!-- <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
                         :active="request()->routeIs('production.bom.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
                         label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('notification_recipients.index') }}"
-                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate />
+                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> -->
                 @endif
 
                 <!-- Admin Links -->
