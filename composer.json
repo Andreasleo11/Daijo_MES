@@ -21,7 +21,8 @@
         "omines/datatables-bundle": "^0.9.1",
         "phpoffice/phpspreadsheet": "^1.29",
         "pusher/pusher-php-server": "^7.2",
-        "yajra/laravel-datatables": "10.0"
+        "yajra/laravel-datatables": "10.0",
+        "yajra/laravel-datatables-buttons": "10.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
