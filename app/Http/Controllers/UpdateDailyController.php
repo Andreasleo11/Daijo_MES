@@ -144,6 +144,7 @@ class UpdateDailyController extends Controller
         elseif ($selectedOption === 'sap_reject') {
             DB::table('sap_reject')->truncate();
             $excelFileName = $this->processSapRejectFiles($uploadedFiles);
+            $this->importSapRejectFile($excelFileName);
             try {
                 $this->importSapRejectFile($excelFileName);
             } catch (\Throwable $th) {
@@ -563,6 +564,14 @@ class UpdateDailyController extends Controller
             // Remove the first column
            foreach ($data[0] as &$row) {
                array_shift($row);
+
+               $totalRejectIndex = count($row) - 1;
+               if (isset($row[$totalRejectIndex])) {
+                   // Ensure the value is numeric before applying the formatting
+                   if (is_numeric($row[$totalRejectIndex])) {
+                       $row[$totalRejectIndex] = number_format((float)$row[$totalRejectIndex], 0, '.', '');
+                   }
+               }
            }
 
            // Append data from this file to the allData array
