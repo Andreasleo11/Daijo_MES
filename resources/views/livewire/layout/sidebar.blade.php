@@ -58,6 +58,8 @@ new class extends Component {
                         ['name' => 'production.bom.index', 'label' => 'Production BOM'],
                         ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
                         ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
+                        ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses'],
+                        ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project'],
                     ]" />
                     {{-- <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
                         :active="request()->routeIs('production.bom.index')" wire:navigate />

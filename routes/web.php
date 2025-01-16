@@ -76,7 +76,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/print-all-material/{id}', [BillOfMaterialController::class, 'printAllMaterial'])->name('printAllMaterial');
 
 
-    Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv']);
+    Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv'])->name('dashboard.moulding.tv');
 
     Route::get('/production/bom/create', [BillOfMaterialController::class, 'create'])->name('production.bom.create');
     Route::get('/get-item-codes', [BillOfMaterialController::class, 'getItemCodes'])->name('get-item-codes');
