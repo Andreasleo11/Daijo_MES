@@ -15,28 +15,26 @@ class WorkshopController extends Controller
 {
     function determineShift($clockIn): ?int
     {
-        // Convert the string $clockIn to a Carbon instance
-        $clockIn = Carbon::parse($clockIn)->setTimezone('Asia/Jakarta');
+        $clockIn = Carbon::parse($clockIn);
 
         $today = $clockIn->format('Y-m-d');
          // Define shift start and end times
         $shiftStartTimes = [
-            1 => Carbon::parse("$today 07:30:00")->setTimezone('Asia/Jakarta'),
-            2 => Carbon::parse("$today 15:30:00")->setTimezone('Asia/Jakarta'),
-            3 => Carbon::parse("$today 23:30:00")->setTimezone('Asia/Jakarta'),
+            1 => Carbon::parse("$today 07:30:00"),
+            2 => Carbon::parse("$today 15:30:00"),
+            3 => Carbon::parse("$today 23:30:00"),
         ];
 
         // Define shift end times
         $shiftEndTimes = [
-            1 => Carbon::parse("$today 15:30:00")->setTimezone('Asia/Jakarta'),
-            2 => Carbon::parse("$today 23:30:00")->setTimezone('Asia/Jakarta'),
-            3 => Carbon::parse("$today 07:30:00")->setTimezone('Asia/Jakarta')->addDay(), // Shift 3 ends at 07:30 AM next day
+            1 => Carbon::parse("$today 15:30:00"),
+            2 => Carbon::parse("$today 23:30:00"),
+            3 => Carbon::parse("$today 07:30:00")->addDay(), // Shift 3 ends at 07:30 AM next day
         ];
 
-        // If the clock-in time is before 07:30 AM today, it's part of Shift 3
-        if ($clockIn->lt($shiftStartTimes[1])) {
-            return 3; // Shift 3
-        }
+        // // If the clock-in time is before 07:30 AM today, it's part of Shift 3
+        
+        
 
         foreach ($shiftStartTimes as $shift => $startTime) {
             $endTime = $shiftEndTimes[$shift];
@@ -45,6 +43,12 @@ class WorkshopController extends Controller
             }
         }
 
+
+        if ($clockIn->lt($shiftStartTimes[1])) {
+            return 3; // Shift 3
+        }
+
+        
         return null; // Return null if no shift matches
     }
 
