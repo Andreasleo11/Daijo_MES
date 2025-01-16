@@ -49,7 +49,8 @@ new class extends Component {
                     wire:navigate /> --}}
 
 
-                <livewire:parent-dropdown label="Business" :childRoutes="[['name' => 'indexds', 'label' => 'Delivery Schedule']]" />
+                <livewire:parent-dropdown label="Business" :childRoutes="[['name' => 'indexds', 'label' => 'Delivery Schedule'],
+                ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],]" />
 
 
                 @if (auth()->user()->can('view-warehouse-links'))

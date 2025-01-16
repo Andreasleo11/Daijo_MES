@@ -5,6 +5,7 @@ use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
+use App\Http\Controllers\Production\ForecastProductionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\InitialBarcodeController;
@@ -160,6 +161,9 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
 
     Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
+
+
+    Route::get('production/forecast', [ForecastProductionController::class, 'index'])->name('production.forecast.index');
 
     Route::get("updatepage/index", [UpdateDailyController::class, "index"])->name("indexupdatepage");
     Route::post("/processdailydata", [UpdateDailyController::class, 'update'])->name("updatedata");

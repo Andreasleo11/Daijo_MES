@@ -35,7 +35,9 @@ class DeliveryScheduleController extends Controller
 {
     public function index(DeliveryNewTableDataTable $dataTable)
     {
-        return $dataTable->render("business.dsnewindex");
+		$utiDateList = DB::table('uti_date_list')->find(13);
+		
+        return $dataTable->render("business.dsnewindex", compact('utiDateList'));
     }
 
     public function indexfinal(WipFinalDsDataTable $dataTable)
