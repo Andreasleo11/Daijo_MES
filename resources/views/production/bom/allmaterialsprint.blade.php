@@ -71,8 +71,6 @@
                         <div>
                             <h3 class="text-base font-medium mb-2">Material Image:</h3>
                             <img src="{{ $child->image_url }}" alt="Material Image" class="h-24 object-contain">
-                            <h3 class="text-base font-medium mb-2">Material Image:</h3>
-                            <img src="{{ $child->image_url }}" alt="Material Image" class="h-24 object-contain">
                         </div>
                     @else
                         <div>
