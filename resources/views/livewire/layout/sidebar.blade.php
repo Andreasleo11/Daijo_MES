@@ -71,6 +71,8 @@ new class extends Component {
                         label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> --}}
                 @endif
 
+                <livewire:parent-dropdown label="Setting" :childRoutes="[['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule'],]" />
+
                 <!-- Admin Links -->
                 @if (auth()->user()->can('view-admin-links') && auth()->user()->role->id == 99)
                     <livewire:sidebar-link href="{{ route('barcode.index') }}" label="Generate Master Barcode"

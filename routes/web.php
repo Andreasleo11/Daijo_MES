@@ -17,6 +17,7 @@ use App\Http\Controllers\NotificationRecepientController;
 use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Http\Controllers\WaitingPurchaseOrderController;
+use App\Http\Controllers\Setting\HolidayScheduleController;
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -162,6 +163,7 @@ Route::middleware('auth')->group(function (){
 
     Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
 
+    Route::delete('/image/{id}', [BillOfMaterialController::class, 'destroyImage'])->name('image.delete');
 
     Route::get('production/forecast', [ForecastProductionController::class, 'index'])->name('production.forecast.index');
 
@@ -169,6 +171,17 @@ Route::middleware('auth')->group(function (){
     Route::post("/processdailydata", [UpdateDailyController::class, 'update'])->name("updatedata");
 
     Route::resource('notification_recipients', NotificationRecepientController::class);
+
+    Route::get('setting/holiday-schedule', [HolidayScheduleController::class, 'index'])->name('setting.holiday-schedule.index');
+    Route::get('setting/holiday-schedule/create', [HolidayScheduleController::class, 'create'])->name('holiday-schedule.create');
+    Route::post('setting/holiday-schedule/store', [HolidayScheduleController::class, 'store'])->name('holiday-schedule.store');
+
+    Route::put('/holiday-schedule/{id}', [HolidayScheduleController::class, 'update'])->name('holiday-schedule.update');
+    Route::get('holiday-schedule/export', [HolidayScheduleController::class, 'export'])->name('holiday-schedule.export');
+    Route::post('holiday-schedule/import', [HolidayScheduleController::class, 'import'])->name('holiday-schedule.import');
+
+
+
 
     Route::get('/daily-waiting-purchase-orders/notification', function(){
         $waitingPurchaseOrders = \App\Models\WaitingPurchaseOrder::all();

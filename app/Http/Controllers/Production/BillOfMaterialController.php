@@ -390,7 +390,7 @@ class BillOfMaterialController extends Controller
         // Get the URL for the barcode image
         $barcodeUrl = asset('storage/barcode/' . $fileName);
 
-        $image = File::where('item_code', $child->item_code)->first();
+        $image = File::where('item_code', $child->item_code)->get();
 
         $qrCodeWriter = new PngWriter();
         $qrcoded = null;
@@ -406,7 +406,7 @@ class BillOfMaterialController extends Controller
 
         // Base64 encode the image to embed in HTML
         $qrcoded = base64_encode($qrCodeImage);
-
+            
         // Pass the data to the view
         return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image', 'qrcoded'));
     }
@@ -611,6 +611,19 @@ class BillOfMaterialController extends Controller
         }
 
         return back()->with('error', 'Cannot delete the process. It has already started.');
+    }
+
+    public function destroyImage($id)
+    {
+        $img = File::findOrFail($id);
+
+        // Delete the file from storage
+        Storage::delete('files/' . $img->name);
+
+        // Delete the image record from the database
+        $img->delete();
+
+        return redirect()->back()->with('success', 'File deleted successfully');
     }
 
     

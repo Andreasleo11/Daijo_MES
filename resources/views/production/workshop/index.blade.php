@@ -21,6 +21,30 @@
             </a>
         </div>
     </div>
+
+    <div class="file-downloads">
+    @foreach ($image as $file)
+        <div class="file-item">
+            <!-- Check mime_type to display the correct file name and type -->
+            <a href="{{ asset('storage/files/' . $file->name) }}" download="{{ $file->name }}" class="file-link">
+                @if ($file->mime_type === 'application/pdf')
+                    <img src="{{ asset('storage/icons/pdf-icon.png') }}" alt="PDF Icon" class="h-6 inline-block mr-2">
+                    {{ $file->name }} (PDF)
+                @elseif ($file->mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || $file->mime_type === 'application/vnd.ms-excel')
+                    <img src="{{ asset('storage/icons/excel-icon.png') }}" alt="Excel Icon" class="h-6 inline-block mr-2">
+                    {{ $file->name }} (Excel)
+                @elseif (strpos($file->mime_type, 'image') === 0)
+                    <img src="{{ asset('storage/icons/image-icon.png') }}" alt="Image Icon" class="h-6 inline-block mr-2">
+                    {{ $file->name }} (Image)
+                @else
+                    <img src="{{ asset('storage/icons/default-icon.png') }}" alt="File Icon" class="h-6 inline-block mr-2">
+                    {{ $file->name }} (File)
+                @endif
+            </a>
+        </div>
+    @endforeach
+</div>
+
     <div class="py-6 container mx-auto space-y-8">
 
         <!-- Status Cards -->

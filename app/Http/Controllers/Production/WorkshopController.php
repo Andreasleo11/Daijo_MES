@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_MouldingUserLog;
+use App\Models\File;
 use Carbon\Carbon;
 
 
@@ -205,10 +206,10 @@ class WorkshopController extends Controller
 
         $allprocess = $log->childData->materialProcess;
 
-
+        $image = File::where('item_code', $log->childData->item_code)->get();
         $workers = PRD_MouldingUserLog::where('material_log_id', $id)->get();
-
-        return view('production.workshop.index', compact('log', 'workers', 'allprocess'));
+       
+        return view('production.workshop.index', compact('log', 'workers', 'allprocess', 'image'));
 
     }
 

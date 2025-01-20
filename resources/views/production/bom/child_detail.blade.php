@@ -186,13 +186,36 @@
         </div>
     </div>
 
-    @if ($image && $image->name)
-        <img src="{{ asset('storage/files/' . $image->name) }}" alt="Image" class="mx-auto h-32 object-contain">
-    @else
-        <img src="{{ asset('storage/files/placeholder.png') }}" alt="Placeholder Image"
-            class="mx-auto h-32 object-contain">
-    @endif
+    <div class="image-gallery grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    @forelse ($image as $img)
+        <div class="image-item flex flex-col items-center justify-center bg-white p-4 rounded-lg shadow-lg hover:shadow-xl transition duration-300">
+            @if ($img->mime_type === 'application/pdf')
+                <!-- PDF Icon -->
+                <img src="{{ asset('storage/icons/pdf-icon.png') }}" alt="PDF Icon" class="w-24 h-24 object-contain mb-4">
+            @elseif ($img->mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || $img->mime_type === 'application/vnd.ms-excel')
+                <!-- Excel Icon -->
+                <img src="{{ asset('storage/icons/excel-icon.png') }}" alt="Excel Icon" class="w-24 h-24 object-contain mb-4">
+            @elseif (strpos($img->mime_type, 'image') === 0)
+                <!-- Image -->
+                <img src="{{ asset('storage/files/' . $img->name) }}" alt="Image" class="w-full h-32 object-contain mb-4 rounded-lg">
+            @else
+                <!-- Default Icon for other file types -->
+                <img src="{{ asset('storage/icons/default-icon.png') }}" alt="File Icon" class="w-24 h-24 object-contain mb-4">
+            @endif
 
+            <!-- Delete Button -->
+            <form action="{{ route('image.delete', $img->id) }}" method="POST" class="mt-2 w-full flex justify-center">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="bg-red-500 text-white py-1 px-4 rounded-lg hover:bg-red-600 transition duration-300">Delete</button>
+            </form>
+        </div>
+    @empty
+        <div class="flex justify-center items-center bg-white p-4 rounded-lg shadow-lg">
+            <img src="{{ asset('storage/files/placeholder.png') }}" alt="Placeholder Image" class="w-24 h-24 object-contain">
+        </div>
+    @endforelse
+</div>
 
     <div id="uploadModal" class="fixed inset-0 items-center justify-center bg-black bg-opacity-50 hidden">
         <div class="w-full max-w-lg mx-auto mt-12">
