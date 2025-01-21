@@ -17,7 +17,7 @@ class HolidayScheduleExport implements FromCollection, WithHeadings
     {
         return collect([
             [
-                'date' => '2024-12-01',
+                'date' => '01/12/2024`',
                 'description' => 'Example Holiday 1',
                 'injection' => 'Full',
                 'second_process' => 'Full',
