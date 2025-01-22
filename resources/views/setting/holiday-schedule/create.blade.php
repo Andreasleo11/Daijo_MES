@@ -7,7 +7,7 @@
         <!-- Date Field -->
         <div class="flex flex-col">
             <label for="date" class="text-lg font-medium text-gray-700">Date</label>
-            <input type="datetime-local" name="date" id="date" required class="mt-2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="date" name="date" id="date" required class="mt-2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <!-- Description Field -->

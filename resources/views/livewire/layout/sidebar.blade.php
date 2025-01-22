@@ -47,7 +47,10 @@ new class extends Component {
 
                 {{-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
                     wire:navigate /> --}}
-
+                
+                <livewire:parent-dropdown label="Dashboard All" :childRoutes="[['name' => 'delschedfinal.dashboard', 'label' => 'Dashboard Delivery Schedule'],
+                    ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses Moulding'],
+                    ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project Moulding'],]" />
 
                 <livewire:parent-dropdown label="Business" :childRoutes="[['name' => 'indexds', 'label' => 'Delivery Schedule'],
                 ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],]" />

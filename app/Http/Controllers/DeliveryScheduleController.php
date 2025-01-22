@@ -736,5 +736,38 @@ class DeliveryScheduleController extends Controller
     {
         return Excel::download(new DelschedFinalExport, 'delschedfinal.xlsx');
     }
+
+	public function dashboardUser(Request $request)
+	{
+		// Get today's date
+		$today = Carbon::today();
+
+		// Get user input (days from today)
+		$daysFromToday = $request->input('days');  // Assuming the input is sent as 'days'
+
+		// Calculate the end date (today + user input days)
+		$endDate = $today->copy()->addDays($daysFromToday);
+
+		// Query the database
+		// Get all records where the delivery_date is within the range from today to the end date
+		// And include records with status "warning" or "danger" with delivery_date before today
+		$datas = DelschedFinal::where(function($query) use ($today, $endDate) {
+				// Delivery dates between today and end date
+				$query->whereBetween('delivery_date', [$today, $endDate]);
+			})
+			->orWhere(function($query) use ($today) {
+				// Delivery dates before today with status "warning" or "danger"
+				$query->where('delivery_date', '<', $today)
+					->whereIn('status', ['warning', 'danger']);
+			})
+			// Order results by custom status priority: "danger" first, then "warning", then the rest
+			->orderByRaw("FIELD(status, 'danger', 'warning') DESC")
+			->orderBy('delivery_date')  // You can also order by delivery_date if needed
+			->get();
+
+		// Debugging: Display the fetched data
+		
+		return view('business.dashboard', compact('datas'));
+	}
 }
 

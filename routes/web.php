@@ -162,6 +162,9 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
 
     Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
+    Route::get('delschedfinal/dashboard', [DeliveryScheduleController::class, 'dashboardUser'])->name('delschedfinal.dashboard');
+
+
 
     Route::delete('/image/{id}', [BillOfMaterialController::class, 'destroyImage'])->name('image.delete');
 
