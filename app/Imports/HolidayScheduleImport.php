@@ -26,6 +26,7 @@ class HolidayScheduleImport implements ToModel, WithHeadingRow
             'second_process' => $row['second_process'],
             'assembly' => $row['assembly'],
             'moulding' => $row['moulding'],
+            'half_day' => $row['half_day'],
         ]);
     }
 }

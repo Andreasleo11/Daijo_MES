@@ -60,6 +60,15 @@
             </select>
         </div>
 
+        <div class="flex flex-col">
+            <label for="half_day" class="text-lg font-medium text-gray-700">Half Day</label>
+            <select name="half_day" id="half_day" required class="mt-2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+        
+
         <!-- Submit Button -->
         <button type="submit" class="w-full py-3 mt-6 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
             Add Holiday Schedule

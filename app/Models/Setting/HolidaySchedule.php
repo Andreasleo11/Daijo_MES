@@ -16,6 +16,7 @@ class HolidaySchedule extends Model
         'second_process',
         'assembly',
         'moulding',
+        'half_day',
     ];
     
 }

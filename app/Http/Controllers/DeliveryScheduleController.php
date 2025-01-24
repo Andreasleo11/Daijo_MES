@@ -743,10 +743,12 @@ class DeliveryScheduleController extends Controller
 		$today = Carbon::today();
 
 		// Get user input (days from today)
-		$daysFromToday = $request->input('days');  // Assuming the input is sent as 'days'
+		$daysFromToday = $request->input('days', 0); // Assuming the input is sent as 'days'
 
 		// Calculate the end date (today + user input days)
 		$endDate = $today->copy()->addDays($daysFromToday);
+
+		// dd($today, $endDate);
 
 		// Query the database
 		// Get all records where the delivery_date is within the range from today to the end date
@@ -763,7 +765,8 @@ class DeliveryScheduleController extends Controller
 			// Order results by custom status priority: "danger" first, then "warning", then the rest
 			->orderByRaw("FIELD(status, 'danger', 'warning') DESC")
 			->orderBy('delivery_date')  // You can also order by delivery_date if needed
-			->get();
+			->paginate(10)
+			->appends(['days' => $daysFromToday]);
 
 		// Debugging: Display the fetched data
 		

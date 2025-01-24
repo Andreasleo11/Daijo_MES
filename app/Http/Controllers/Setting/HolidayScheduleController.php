@@ -35,6 +35,7 @@ class HolidayScheduleController extends Controller
             'second_process' => 'required|string|max:255',
             'assembly' => 'required|string|max:255',
             'moulding' => 'required|string|max:255',
+            'half_day' => 'required|in:0,1',
         ]);
 
         HolidaySchedule::create($request->all());
@@ -51,6 +52,7 @@ class HolidayScheduleController extends Controller
             'second_process' => 'required|string',
             'assembly' => 'required|string',
             'moulding' => 'required|string',
+            'half_day' => 'required|in:0,1',
         ]);
 
         $data = HolidaySchedule::findOrFail($id);
@@ -60,6 +62,7 @@ class HolidayScheduleController extends Controller
             'second_process' => $request->second_process,
             'assembly' => $request->assembly,
             'moulding' => $request->moulding,
+            'half_day' => (int) $request->half_day,
         ]);
 
         return redirect()->route('setting.holiday-schedule.index')->with('success', 'Holiday schedule updated successfully');

@@ -23,6 +23,7 @@ class HolidayScheduleExport implements FromCollection, WithHeadings
                 'second_process' => 'Full',
                 'assembly' => 'Full',
                 'moulding' => 'Full',
+                'half_day' => 0,
             ],
         ]);
     }
@@ -41,6 +42,7 @@ class HolidayScheduleExport implements FromCollection, WithHeadings
             'Second Process',
             'Assembly',
             'Moulding',
+            'Half Day',
         ];
     }
 }

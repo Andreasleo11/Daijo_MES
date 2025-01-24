@@ -48,6 +48,7 @@
                     <th class="px-6 py-3 border-b font-medium">Second Process</th>
                     <th class="px-6 py-3 border-b font-medium">Assembly</th>
                     <th class="px-6 py-3 border-b font-medium">Moulding</th>
+                    <th class="px-6 py-3 border-b font-medium">Half Day</th> 
                     <th class="px-6 py-3 border-b font-medium">Actions</th>
                 </tr>
             </thead>
@@ -60,6 +61,9 @@
                         <td class="px-6 py-4">{{ $data->second_process }}</td>
                         <td class="px-6 py-4">{{ $data->assembly }}</td>
                         <td class="px-6 py-4">{{ $data->moulding }}</td>
+                        <td class="px-6 py-4">
+                            {{ $data->half_day == 1 ? 'Yes' : 'No' }} <!-- Displaying Yes/No for Half Day -->
+                        </td>
                         <td class="px-6 py-4 text-blue-500 hover:text-blue-700">
                             <!-- Edit Button -->
                             <button 
@@ -127,6 +131,14 @@
                     </select>
                 </div>
 
+                <div class="mb-4">
+                    <label for="half_day" class="block text-sm font-medium text-gray-700">Half Day</label>
+                    <select id="half_day" name="half_day" class="mt-1 px-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <option value="1">Yes</option>
+                        <option value="0">No</option>
+                    </select>
+                </div>
+
                 <div class="mt-6 flex justify-end">
                     <button type="submit" class="bg-blue-500 text-white py-2 px-6 rounded-md hover:bg-blue-600">Save Changes</button>
                     <button type="button" onclick="closeEditModal()" class="ml-4 bg-gray-300 text-gray-700 py-2 px-6 rounded-md hover:bg-gray-400">Cancel</button>
@@ -145,6 +157,7 @@
             document.getElementById("second_process").value = second_process;
             document.getElementById("assembly").value = assembly;
             document.getElementById("moulding").value = moulding;
+            document.getElementById("half_day").value = half_day;
         }
 
         // Close the modal

@@ -52,8 +52,19 @@ new class extends Component {
                     ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses Moulding'],
                     ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project Moulding'],]" />
 
+                
+                
+                <livewire:parent-dropdown label="Inventory" :childRoutes="[['name' => 'inventory.mtr', 'label' => 'Master MTR'],
+                    ['name' => 'inventory.fg', 'label' => 'Master FG'],
+                    ['name' => 'invlinelist', 'label' => 'Machine List'],]" />
+
+
                 <livewire:parent-dropdown label="Business" :childRoutes="[['name' => 'indexds', 'label' => 'Delivery Schedule'],
                 ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],]" />
+
+
+                <livewire:parent-dropdown label="Production" :childRoutes="[['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
+                ]" />
 
 
                 @if (auth()->user()->can('view-warehouse-links'))

@@ -17,7 +17,10 @@ use App\Http\Controllers\NotificationRecepientController;
 use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Http\Controllers\WaitingPurchaseOrderController;
+use App\Http\Controllers\InvLineListController;
 use App\Http\Controllers\Setting\HolidayScheduleController;
+use App\Http\Controllers\CapacityByForecastController;
+use App\Http\Controllers\InventoryController;
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -182,6 +185,33 @@ Route::middleware('auth')->group(function (){
     Route::put('/holiday-schedule/{id}', [HolidayScheduleController::class, 'update'])->name('holiday-schedule.update');
     Route::get('holiday-schedule/export', [HolidayScheduleController::class, 'export'])->name('holiday-schedule.export');
     Route::post('holiday-schedule/import', [HolidayScheduleController::class, 'import'])->name('holiday-schedule.import');
+
+
+    Route::get('/inventory/mtr', [InventoryController::class, 'showMtrInventory'])->name('inventory.mtr');
+    Route::get('/inventory/fg', [InventoryController::class, 'showFgInventory'])->name('inventory.fg');
+    Route::get('/inventory/line-list',  [InvLineListController::class, "index"])->name('invlinelist');
+    Route::post("/add/line", [InvLineListController::class, "addline"])->name('addline');
+    Route::put("/edit/line/{id}", [InvLineListController::class, "editline"])->name('editline');
+    Route::delete("/delete/line/{linecode}", [InvLineListController::class, "deleteline"])->name('deleteline');
+
+
+
+
+    Route::get("/production/capacity-forecast", [CapacityByForecastController::class, "index"])->name('capacityforecastindex');
+    Route::get("/production/capacity-line", [CapacityByForecastController::class, "line"])->name('capacityforecastline');
+    Route::get("/production/capacity-distribution", [CapacityByForecastController::class, "distribution"])->name('capacityforecastdistribution');
+    Route::get("/production/capacity-detail", [CapacityByForecastController::class, "detail"])->name('capacityforecastdetail');
+
+    Route::get("/production/capacity-forecast/view-step", [CapacityByForecastController::class, "viewstep1"])->name('viewstep1');
+    Route::get("/production/capacity-forecast/step1", [CapacityByForecastController::class, "step1"])->name('step1');
+    Route::get("/production/capacity-forecast/step1second", [CapacityByForecastController::class, "step1_second"])->name('step1second');
+
+    Route::get("/production/capacity-forecast/step2", [CapacityByForecastController::class, "step2"])->name('step2');
+    Route::get("/production/capacity-forecast/step2logic", [CapacityByForecastController::class, "step2logic"])->name('step2logic');
+
+    Route::get("/production/capacity-forecast/step3", [CapacityByForecastController::class, "step3"])->name('step3');
+    Route::get("/production/capacity-forecast/step3logic", [CapacityByForecastController::class, "step3logic"])->name('step3logic');
+    Route::get("/production/capacity-forecast/step3last", [CapacityByForecastController::class, "step3logiclast"])->name('step3logiclast');
 
 
 
