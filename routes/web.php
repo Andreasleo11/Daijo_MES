@@ -34,6 +34,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
+Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
+
 Route::redirect('/', '/login');
 
 // Route::view('dashboard', 'dashboard')
@@ -42,6 +44,7 @@ Route::redirect('/', '/login');
 
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
+    
 
 
 // Route::get('/login', LivewireLoginSwitcher::class)->name('login');

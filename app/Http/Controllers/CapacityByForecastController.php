@@ -40,6 +40,18 @@ class CapacityByForecastController extends Controller
         return $dataTable->render("production.capacity_forecast.index", compact('time'));
     }
 
+	public function dashboard(CapLineSummaryDataTable $dataTable)
+    {
+		
+        // $data = CapLineSummary::get();
+        $time = UtiDateList::find(8);
+        // $startdate = $time->start_date;    	
+		// dd($time);    
+
+        // return view("production.capacity_forecast.index", compact( "data","startdate"));
+        return $dataTable->render("production.capacity_forecast.dashboard", compact('time'));
+    }
+
     public function line(CapLineCapacityDataTable $dataTable)
     {
         return $dataTable->render("production.capacity_forecast.line");
@@ -223,7 +235,7 @@ class CapacityByForecastController extends Controller
 			}
 						
 			$tab_fct_inventory_fg = DB::table('sap_fct_inventory_fgs')->where('item_code',$val_item_code_srt)->first();	
-            
+           //MASI ADA BUG JIKA DATRA tidak correct cycletime pasti akan null
 			$val_cycle_time_raw = $tab_fct_inventory_fg->cycle_time;
 			
 			$val_process_owner = $tab_fct_inventory_fg->process_owner;

@@ -25,6 +25,18 @@
                         <input type="text" name="line_name" class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" id="line_name">
                     </div>
 
+                    <div class="flex items-center">
+                        <label for="line_category" class="w-1/3 text-lg text-gray-700">Line Category(Ganti dengan T di belakang):</label>
+                        <input type="text" name="line_category" class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" id="line_category">
+                    </div>
+
+
+                    <div class="flex items-center">
+                        <label for="area" class="w-1/3 text-lg text-gray-700">Area :</label>
+                        <input type="text" name="area" class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" id="area">
+                    </div>
+
+
                     <!-- Department -->
                     <div class="flex items-center">
                         <label for="departement" class="w-1/3 text-lg text-gray-700">Department:</label>

@@ -1,5 +1,6 @@
-<div x-data="{ open: false }" x-show="open" @keydown.escape.window="open = false" x-ref="editModal" id="edit-line-modal-{{ str_replace(' ', '', $data->line_code) }}" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center hidden">
+<div x-data="{ open: false }" x-show="open" @keydown.escape.window="open = false" x-ref="editModal" id="edit-line-modal{{ str_replace(' ', '', $data->line_code) }}" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center hidden">
     <div class="modal-content bg-white rounded-lg p-6">
+    <span @click="open = false">&times;</span>
         <form method="POST" action="{{ route('editline', $data->line_code) }}">
             @csrf
             @method('PUT')

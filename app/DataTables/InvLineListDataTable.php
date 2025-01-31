@@ -24,16 +24,19 @@ class InvLineListDataTable extends DataTable
     {
         return (new EloquentDataTable($query))
         ->addColumn('action', function ($data) {
-            // Generate dynamic modal IDs
-            $editModalId = 'edit-line-modal-' . str_replace(' ', '', $data->line_code);
+            // Generate dynamic modal IDs based on line_code
+            $editModalId = 'edit-line-modal' . str_replace(' ', '', $data->line_code);
             $deleteModalId = 'delete-confirmation-modal-' . str_replace(' ', '', $data->line_code);
         
-            return '<button onclick="openEditModal(\'' . $editModalId . '\')" class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">
-                        <i class="bx bx-edit"></i>
-                    </button>
-                    <button onclick="openDeleteModal(\'' . $deleteModalId . '\')" class="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 ml-2">
-                        <i class="bx bx-trash"></i>
-                    </button>';
+            // Generate buttons with the dynamic modal IDs
+            return '
+                <button onclick="openEditModal(\'' . $editModalId . '\')" class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">
+                    <i class="bx bx-edit">Edit</i>
+                </button>
+                <button onclick="openDeleteModal(\'' . $deleteModalId . '\')" class="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 ml-2">
+                    <i class="bx bx-trash">Delete</i>
+                </button>
+                ';
         })
         ->setRowId('id');
     }

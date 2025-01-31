@@ -72,7 +72,9 @@ class CapLineSummaryDataTable extends DataTable
                     ->parameters([
                         'columnDefs' => [
                             ['className' => 'px-4 py-2 border', 'targets' => '_all'], // Tailwind padding for all columns
-                        ]
+                        ],
+                        'pageLength' => 25, // Default to show 25 rows
+                        'lengthMenu' => [10, 25, 50, 100],
                     ]);
     }
 
