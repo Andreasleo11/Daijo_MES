@@ -47,9 +47,10 @@ class CapacityByForecastController extends Controller
         $time = UtiDateList::find(8);
         // $startdate = $time->start_date;    	
 		// dd($time);    
-
+		$lineSummaries = CapLineSummary::select('line_category', 'line_quantity', 'work_day', 'ready_time', 'efficiency', 'max_capacity', 'capacity_req_hour', 'capacity_req_percent')
+        ->get();
         // return view("production.capacity_forecast.index", compact( "data","startdate"));
-        return $dataTable->render("production.capacity_forecast.dashboard", compact('time'));
+        return $dataTable->render("production.capacity_forecast.dashboard", compact('time', 'lineSummaries'));
     }
 
     public function line(CapLineCapacityDataTable $dataTable)

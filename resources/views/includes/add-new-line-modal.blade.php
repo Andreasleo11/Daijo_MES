@@ -26,8 +26,8 @@
                     </div>
 
                     <div class="flex items-center">
-                        <label for="line_category" class="w-1/3 text-lg text-gray-700">Line Category(Ganti dengan T di belakang):</label>
-                        <input type="text" name="line_category" class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" id="line_category">
+                        <label for="category" class="w-1/3 text-lg text-gray-700"> Category(Ganti dengan T di belakang):</label>
+                        <input type="text" name="category" class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" id="category">
                     </div>
 
 

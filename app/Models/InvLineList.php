@@ -15,6 +15,8 @@ class InvLineList extends Model
     protected $fillable = [
         'line_code',
         'line_name',
+        'category',
+        'area',
         'departement',
         'daily_minutes',
     ];

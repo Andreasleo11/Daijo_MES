@@ -99,6 +99,8 @@ class InvLineListDataTable extends DataTable
         return [
             Column::make('line_code'),
             Column::make('line_name'),
+            Column::make('category'),
+            Column::make('area'),
             Column::make('departement'),
             Column::make('daily_minutes'),
             Column::computed('action')

@@ -43,6 +43,14 @@
                     <input type="text" name="line_name" class="form-control" id="line_name" value="{{ $data->line_name }}">
                 </div>
                 <div class="form-group mt-4">
+                    <label for="category" class="form-label">Category:</label>
+                    <input type="text" name="category" class="form-control" id="line_name" value="{{ $data->category }}">
+                </div>
+                <div class="form-group mt-4">
+                    <label for="area" class="form-label">Area:</label>
+                    <input type="text" name="area" class="form-control" id="line_name" value="{{ $data->area }}">
+                </div>
+                <div class="form-group mt-4">
                     <label for="departement" class="form-label">Department:</label>
                     <input type="text" name="departement" class="form-control" id="departement" value="{{ $data->departement }}">
                 </div>

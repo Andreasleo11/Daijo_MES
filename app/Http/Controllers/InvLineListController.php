@@ -26,7 +26,7 @@ class InvLineListController extends Controller
          $validatedData = $request->validate([
             'line_code' => 'required',
             'line_name' => 'required',
-            'line_category' => 'required',
+            'category' => 'required',
             'area' => 'required',
             'departement' => 'required',
             'daily_minutes' => 'required',
@@ -37,7 +37,7 @@ class InvLineListController extends Controller
          $line = InvLineList::create([
             'line_code' => $validatedData['line_code'],
             'line_name' => $validatedData['line_name'],
-            'line_category' => $validatedData['line_category'],
+            'category' => $validatedData['category'],
             'area' => $validatedData['area'],
             'departement' => $validatedData['departement'],
             'daily_minutes' => $validatedData['daily_minutes'],
@@ -55,6 +55,8 @@ class InvLineListController extends Controller
         // dd($newline)
         $newline->where('line_code', $request->line_code)->update([
             'line_name' => $request->line_name,
+            'category' => $request->category,
+            'area' => $request->area,
             'departement' => $request->departement,
             'daily_minutes' => $request->daily_minutes,
         ]);
