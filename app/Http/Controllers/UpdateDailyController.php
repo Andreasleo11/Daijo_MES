@@ -78,6 +78,7 @@ class UpdateDailyController extends Controller
         }
 
         elseif ($selectedOption === 'sap_delsched') {
+            DB::table('sap_delsched')->truncate();
             $excelFileName = $this->processDelschedFiles($uploadedFiles);
             try {
                 $this->importDelschedFile($excelFileName);
@@ -339,6 +340,7 @@ class UpdateDailyController extends Controller
 
     private function importDelschedFile($excelFileName)
     {
+
         // Get the file path
         $filePath = public_path('storage/AutomateFile/' . $excelFileName);
 
