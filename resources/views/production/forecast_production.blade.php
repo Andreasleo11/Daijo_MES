@@ -2,6 +2,10 @@
     <div class="container mx-auto p-6">
         <h1 class="text-4xl font-extrabold text-center text-gray-900 mb-12">Forecast Data</h1>
 
+        <div class="mb-6 text-center">
+            <h2 class="text-6xl font-extrabold text-gray-900">{{ \Carbon\Carbon::now()->year }}</h2>
+        </div>
+        
         <!-- Filter Dropdown -->
         <div class="mb-6">
             <form method="GET" action="{{ route('production.forecast.index') }}" class="flex justify-center items-center space-x-4">

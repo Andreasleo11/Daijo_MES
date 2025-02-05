@@ -34,6 +34,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
+Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
+
 Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
 
 Route::redirect('/', '/login');

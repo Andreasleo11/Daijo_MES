@@ -22,6 +22,7 @@ use App\Imports\LineProductionImport;
 use App\Imports\SapRejectImport;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Redirect;
 
@@ -596,4 +597,26 @@ class UpdateDailyController extends Controller
         return 'Excel file imported successfully.';
     }
 
+
+
+
+    public function getUsers()
+    {
+         // API URL of Project A
+         $apiUrl = 'http://192.168.6.100:2030/user-list';
+
+         // Make a GET request to the external API (Project A)
+         $response = Http::get($apiUrl);
+ 
+         // If the response is successful, return the data
+         if ($response->successful()) {
+             return response()->json($response->json(), 200);
+         }
+ 
+         // If something goes wrong, return an error response
+         return response()->json([
+             'error' => 'Failed to fetch data from Project A',
+             'details' => $response->body(),
+         ], 500);
+    }
 }
