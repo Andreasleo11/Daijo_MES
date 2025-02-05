@@ -170,7 +170,8 @@ Route::middleware('auth')->group(function (){
     Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
     Route::get('delschedfinal/dashboard', [DeliveryScheduleController::class, 'dashboardUser'])->name('delschedfinal.dashboard');
 
-
+    Route::get('management/delivery-schedule', [DeliveryScheduleController::class, 'deliveryManagement'])->name('management.delivery.index');
+    Route::get('delete/delivery-schedule-data',[DeliveryScheduleController::class, 'deleteDeliveryScheduleData'])->name('delete.delivery.data');
 
     Route::delete('/image/{id}', [BillOfMaterialController::class, 'destroyImage'])->name('image.delete');
 
