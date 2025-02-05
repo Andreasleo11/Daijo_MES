@@ -772,5 +772,35 @@ class DeliveryScheduleController extends Controller
 		
 		return view('business.dashboard', compact('datas'));
 	}
+
+	public function deliveryManagement()
+	{
+		return view('business.delivery_management');
+	}
+
+	public function deleteDeliveryScheduleData(Request $request)
+	{
+		// Get the month and year from the request
+		$selectedMonth = $request->input('month');
+		$selectedYear = $request->input('year');
+	
+		// Convert the selected month and year to a date (1st day of the selected month)
+		$startDate = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+		$endDate = $startDate->copy()->endOfMonth();
+	
+	
+		// Delete records from delsched_final based on the deliver_date range
+		\DB::table('delsched_final')
+			->whereBetween('delivery_date', [$startDate, $endDate])
+			->delete();
+	
+		// Delete records from sap_delsched based on the deliver_date range
+		\DB::table('sap_delsched')
+			->whereBetween('delivery_date', [$startDate, $endDate])
+			->delete();
+	
+		// Optionally, you can return a response or redirect
+		return redirect()->back()->with('success', 'Delivery schedules deleted successfully.');
+	}
 }
 

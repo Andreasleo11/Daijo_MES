@@ -60,7 +60,9 @@ new class extends Component {
 
 
                 <livewire:parent-dropdown label="Business" :childRoutes="[['name' => 'indexds', 'label' => 'Delivery Schedule'],
-                ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],]" />
+                ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],
+                ['name' => 'management.delivery.index', 'label' => 'Delivery Data Delete'],]" />
+
 
 
                 <livewire:parent-dropdown label="Production" :childRoutes="[['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
