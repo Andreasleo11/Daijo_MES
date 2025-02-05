@@ -23,6 +23,11 @@ class CapLineSummaryDataTable extends DataTable
     public function dataTable(QueryBuilder $query): EloquentDataTable
     {
         return (new EloquentDataTable($query))
+            ->addColumn('status', function ($row) {
+                return $row->capacity_req_percent > 100 
+                    ? 'Danger' 
+                    : 'Normal';
+            })
             ->addColumn('action', 'caplinesummary.action')
             ->setRowId('id');
     }
@@ -96,6 +101,7 @@ class CapLineSummaryDataTable extends DataTable
             Column::make('max_capacity'),
             Column::make('capacity_req_hour'),
             Column::make('capacity_req_percent'),
+            Column::make('status'),
         ];
     }
 
