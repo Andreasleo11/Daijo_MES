@@ -1,578 +1,644 @@
 <x-app-layout>
-    <section>
-        <div class="flex flex-col min-h-screen bg-gray-100 md:flex-row">
-            <!-- Main Calendar View -->
-            <div class="flex-1 p-6">
-                <!-- Top Navigation -->
-                <div class="flex flex-wrap items-center justify-between mb-6">
-                    <div class="flex items-center space-x-4 mb-4 md:mb-0">
-                        <button id="new-event-btn" class="px-4 py-2 text-blue-600 bg-blue-100 rounded-md">New
-                            Event</button>
-                        {{-- <button id="day-view-btn" class="px-4 py-2 text-gray-600 bg-white border rounded-md">Day</button>
-                        <button id="week-view-btn"
-                            class="px-4 py-2 text-gray-600 bg-white border rounded-md">Week</button>
-                        <button id="month-view-btn" class="px-4 py-2 bg-blue-500 text-white rounded-md">Month</button> --}}
-                    </div>
+    <!-- Display Success and Error Messages -->
+    @if (session('success'))
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong class="font-bold">Success!</strong>
+            <span class="block sm:inline">{{ session('success') }}</span>
+        </div>
+    @endif
 
-                    <!-- Month and Year Picker Button -->
-                    <div class="flex items-center space-x-4">
-                        <button id="today-btn"
-                            class="px-4 py-2 bg-gray-200 rounded-md transition ease-in-out delay-100 hover:bg-blue-500 duration-300 hover:text-white">Today</button>
-                        <div class="flex items-center">
-                            <button id="prev-month-btn" class="text-gray-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor" class="w-5 h-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
+    @if (session('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline">{{ session('error') }}</span>
+        </div>
+    @endif
 
-                            <button id="month-year-picker-btn"
-                                class="px-4 py-2 text-lg font-semibold bg-transparent hover:bg-gray-200 rounded-md transition duration-150">
-                                <span id="current-month">October 2024</span>
-                            </button>
-                            <button id="next-month-btn" class="text-gray-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor" class="w-5 h-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+    <!-- Display Validation Errors -->
+    @if ($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
+    <div class="py-12">
+        <div class="mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="mb-4">
+                    <nav class="flex" aria-label="Breadcrumb">
+                        <ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+                            <li class="inline-flex items-center">
+                                <a href="{{ route('daily-item-code.index') }}"
+                                    class="inline-flex items-center text-sm font-medium text-gray-400 hover:underline">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke-width="1.5" stroke="currentColor" class="w-3 h-3 me-2.5 size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                    </svg>
+                                    Daily Production Calendar
+                                </a>
+                            </li>
+                            <li aria-current="page">
+                                <div class="flex items-center">
+                                    <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="2" d="m1 9 4-4-4-4" />
+                                    </svg>
+                                    <a href="{{ route('daily-item-code.daily', ['date' => $selectedDate]) }}"
+                                        class="ms-1 text-sm font-medium md:ms-2 text-gray-400 hover:underline">Daily
+                                        Production Plan</a>
+                                </div>
+                            </li>
+                            <li aria-current="page">
+                                <div class="flex items-center">
+                                    <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="2" d="m1 9 4-4-4-4" />
+                                    </svg>
+                                    <span
+                                        class="ms-1 text-sm font-medium text-gray-500 md:ms-2 dark:text-gray-400">Assign</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </nav>
+                </div>
+                <h2 class="text-2xl mb-4">
+                    Assign Item Codes to <span class="font-semibold">{{ $selectedMachine->name }}</span>
+                </h2>
+                <div class="bg-white shadow-md rounded-lg mt-8 p-6">
+                    <form id="input-form" method="POST" action="{{ route('daily-item-code.store') }}">
+                        @csrf
 
-                    <!-- Month and Year Picker Modal -->
-                    <div id="month-year-modal"
-                        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-                        <div class="bg-white p-6 rounded-lg w-full max-w-sm">
-                            <h2 class="text-lg font-semibold mb-4">Select Month & Year</h2>
-                            <div class="grid grid-cols-3 gap-4 mb-4">
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="0">Jan</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="1">Feb</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="2">Mar</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="3">Apr</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="4">Mei</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="5">Jun</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="6">Jul</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="7">Aug</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="8">Sep</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="9">Oct</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="10">Nov</button>
-                                <button class="month-btn px-2 py-1 rounded-md hover:bg-blue-500 hover:text-white"
-                                    data-month="11">Dec</button>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Schedule Date -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    Schedule Date
+                                </label>
+                                <input type="date" name="schedule_date" id="schedule_date"
+                                    class="block w-full py-2 text-base border-gray-300 focus:outline-none sm:text-sm rounded-md bg-gray-100"
+                                    value="{{ old('schedule_date', $selectedDate) }}" required readonly />
+                                @error('schedule_date')
+                                    <div class="text-red-500 text-sm mt-1">
+                                        {{ $message }}
+                                    </div>
+                                @enderror
                             </div>
+
+                            <!-- Machine Selector -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    Machine Name
+                                </label>
+                                <select id="machine-selector" name="machine_id_display"
+                                    class="block w-full py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-gray-100"
+                                    disabled>
+                                    <option value="" selected disabled>
+                                        -- Select Machine Name --
+                                    </option>
+                                    @foreach ($machines as $machine)
+                                        <option value="{{ $machine->id }}"
+                                            data-tipe-mesin="{{ $machine->tipe_mesin }}"
+                                            {{ old('machine_id', $selectedMachine->id) == $machine->id ? 'selected' : '' }}>
+                                            {{ $machine->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="machine_id"
+                                    value="{{ old('machine_id', $selectedMachine->id) }}">
+                                @error('machine_id')
+                                    <div class="text-red-500 text-sm mt-1">
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+                            </div>
+
                         </div>
-                    </div>
 
-                </div>
-
-                <!-- Day Headers -->
-                <div class="grid grid-cols-7 gap-1 text-center text-gray-600 font-medium mb-2">
-                    <div>Sunday</div>
-                    <div>Monday</div>
-                    <div>Tuesday</div>
-                    <div>Wednesday</div>
-                    <div>Thursday</div>
-                    <div>Friday</div>
-                    <div>Saturday</div>
-                </div>
-
-                <!-- Main Calendar Grid -->
-                <div class="grid grid-cols-7 gap-1 text-center text-gray-800" id="calendar-grid">
-                    <!-- The day headers and calendar days will be populated dynamically -->
-                </div>
-            </div>
-
-            <!-- Sidebar for Event Details -->
-            <div id="sidebar"
-                class="md:w-1/3 bg-white border-l p-4 flex-col shadow-lg absolute inset-0 md:relative hidden">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-semibold" id="selected-date">Selected Date</h2>
-                    <button id="close-sidebar" class="text-gray-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            class="w-5 h-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Search Field for User Filtering -->
-                <div class="relative mt-4">
-                    <input type="text" id="user-search" class="w-full pl-10 pr-4 py-2 border rounded-md"
-                        placeholder="Search by machine or event...">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd"
-                                d="M9 3a7 7 0 105.663 11.751l4.686 4.686a1 1 0 01-1.414 1.414l-4.686-4.686A7 7 0 009 3zm0 2a5 5 0 100 10A5 5 0 009 5z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                </div>
-
-
-                <div id="event-list" class="mt-4 space-y-4">
-                    <!-- Event details will be dynamically populated here -->
-                </div>
-            </div>
-
-            <!-- Modal for Adding New Events -->
-            <div id="event-modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                <div class="bg-white p-6 rounded-lg w-full max-w-md">
-                    <h2 class="text-lg font-semibold mb-4">Add New Event</h2>
-                    <form id="event-form" class="space-y-4" method="GET">
-                        <div>
-                            <label for="event-date" class="block text-sm font-medium text-gray-700">Date</label>
-                            <input type="date" id="event-date"
-                                class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" name="date"
-                                required>
+                        <!-- Shift Checkboxes -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">
+                                Select Shifts
+                            </label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="shift-checkbox" name="shifts[]" value="1"
+                                        {{ is_array(old('shifts')) && in_array('1', old('shifts')) ? 'checked' : '' }} />
+                                    <span class="ml-2">Shift 1</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="shift-checkbox" name="shifts[]" value="2"
+                                        {{ is_array(old('shifts')) && in_array('2', old('shifts')) ? 'checked' : '' }} />
+                                    <span class="ml-2">Shift 2</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="shift-checkbox" name="shifts[]" value="3"
+                                        {{ is_array(old('shifts')) && in_array('3', old('shifts')) ? 'checked' : '' }} />
+                                    <span class="ml-2">Shift 3</span>
+                                </label>
+                            </div>
+                            @error('shifts')
+                                <div class="text-red-500 text-sm mt-1">
+                                    {{ $message }}
+                                </div>
+                            @enderror
                         </div>
-                        <div class="flex justify-end space-x-4">
-                            <button type="button" id="close-modal"
-                                class="px-4 py-2 bg-gray-300 rounded-md">Cancel</button>
+
+                        <div id="max-quantity-display" class="max-quantity-display">
+
+                        </div>
+
+                        <!-- Dynamic Shift Inputs -->
+                        <div id="shift-container">
+
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="flex justify-end mt-6">
                             <button type="submit"
-                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">Add
-                                Event</button>
+                                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                                Submit
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Modal for Editing DailyItemCode -->
-            <div id="edit-event-modal"
-                class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                <div class="bg-white p-6 rounded-lg w-full max-w-md">
-                    <h2 class="text-lg font-semibold mb-4">Edit Daily Item Code</h2>
-                    <form id="edit-event-form" class="space-y-4" method="POST">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" id="edit-daily-item-id" name="id">
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const shiftContainer = document.getElementById('shift-container');
+            const checkboxes = document.querySelectorAll('.shift-checkbox');
+            const maxShifts = 3; // Limit to 3 shifts max
 
+            // Function to initialize Tom Select on dynamically added select elements
+            function initializeTomSelectForNewElements() {
+                document.querySelectorAll('.item-code-selector').forEach((selectElement) => {
+                    // Check if Tom Select is already initialized on this element
+                    if (!selectElement.tomselect) {
+                        try {
+                            new TomSelect(selectElement, {
+                                create: false,
+                                sortField: {
+                                    field: "text",
+                                    direction: 'asc',
+                                },
+                                maxOptions: 1000,
+                                placeholder: "Select item code",
+                            });
+                        } catch (error) {
+                            console.error("Error initializing TomSelect: ", error);
+                        }
+                    }
+                });
+            }
+
+            const itemCodeMaxQuantities = {}; // Store max quantities for each item code
+            const shiftQuantities = {}; // Store quantities for each shift and item code
+
+            const form = document.getElementById('input-form');
+
+            let formChanged = false;
+            let formSubmitting = false;
+
+            form.addEventListener('input', function() {
+                formChanged = true;
+            });
+
+            // Beforeunload event to show confirmation dialog
+            window.addEventListener('beforeunload', function(event) {
+                if (formChanged && !formSubmitting) {
+                    // Standard message for modern browsers
+                    event.preventDefault();
+                    event.returnValue = '';
+
+                    // Custom message won't always show in all browsers but can still be used
+                    return "Changes you made may not be saved.";
+                }
+            });
+
+            // Disable the alert when the form is submitted
+            form.addEventListener('submit', function() {
+                formSubmitting = true; // Set this to true to prevent the alert from showing
+            });
+
+            const maxQuantityDisplay = document.getElementById('max-quantity-display');
+
+            // Clear the container and add shift inputs dynamically
+            function updateShiftInputs() {
+                shiftContainer.innerHTML = ''; // Clear the shift container
+
+                // Assuming checkboxes is a NodeList or HTMLCollection, convert it to an array
+                const checkboxesArray = Array.from(checkboxes);
+
+                // Get the max-quantity-display element
+                const maxQuantityDisplay = document.getElementById('max-quantity-display');
+
+                // Check if any checkbox is checked
+                const anyCheckboxChecked = checkboxesArray.some(checkbox => checkbox.checked);
+
+                // Show or hide the max-quantity-display based on the checkbox status
+                if (anyCheckboxChecked) {
+                    maxQuantityDisplay.style.display = 'block'; // Show the element
+                } else {
+                    maxQuantityDisplay.style.display = 'none'; // Hide the element
+                }
+
+
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        const shift = checkbox.value;
+                        const selectedDate = new Date("{{ $selectedDate }}");
+
+                        // Get the current date
+                        const today = new Date(selectedDate);
+
+                        // Get tomorrow's date
+                        const tomorrow = new Date(today);
+                        tomorrow.setDate(today.getDate() + 1);
+
+                        // Define default values for each shift based on the current date
+                        const defaultStartDates = {
+                            'shift1': formatDate(today),
+                            'shift2': formatDate(today),
+                            'shift3': formatDate(today)
+                        };
+
+                        const defaultEndDates = {
+                            'shift1': formatDate(today),
+                            'shift2': formatDate(today),
+                            'shift3': formatDate(tomorrow)
+                        };
+
+                        const defaultStartTimes = {
+                            'shift1': '07:30',
+                            'shift2': '16:30',
+                            'shift3': '23:30'
+                        };
+
+                        const defaultEndTimes = {
+                            'shift1': '15:30',
+                            'shift2': '22:30',
+                            'shift3': '07:30'
+                        };
+
+                        // Retrieve the default values for this shift from the backend (blade syntax)
+                        const defaultStartDate = defaultStartDates['shift' + shift];
+                        const defaultEndDate = defaultEndDates['shift' + shift];
+                        const defaultStartTime = defaultStartTimes['shift' + shift];
+                        const defaultEndTime = defaultEndTimes['shift' + shift];
+
+                        const shiftHtml = `
+                            <div class="shift-wrapper space-y-4 mb-6 border border-gray-400 rounded-md p-3" data-shift="${shift}">
+                                <h3 class="text-md font-bold">Shift ${shift}</h3>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Item Code</label>
+                                    <select name="item_codes[${shift}][]" required
+                                        class="item-code-selector mt-1 block w-full bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                        <option value="" selected disabled>-- Select Item Code --</option>
+                                        @foreach ($masterListItem as $masterItem)
+                                            <option value="{{ $masterItem->item_code }}" data-tipe-mesin="{{ $masterItem->tipe_mesin }}">
+                                                {{ $masterItem->item_code }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Quantity</label>
+                                    <input type="number" name="quantities[${shift}][]" id="quantity-input-${shift}" required
+                                        class="quantity-input mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <!-- Start Date and End Date -->
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                                        <input type="date" name="start_dates[${shift}][]" value="${defaultStartDate}" required
+                                            class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">End Date</label>
+                                        <input type="date" name="end_dates[${shift}][]" value="${defaultEndDate}" required
+                                            class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                </div>
+
+                                <!-- Start Time and End Time -->
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Start Time</label>
+                                        <input type="time" name="start_times[${shift}][]" value="${defaultStartTime}" required
+                                            class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">End Time</label>
+                                        <input type="time" name="end_times[${shift}][]" value="${defaultEndTime}" required
+                                            class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                </div>
+                                <button type="button" class="add-more-button-${shift} bg-indigo-500 text-white px-4 py-2 mt-4 rounded-md">Add Another Item</button>
+                            </div>
+                            `;
+                        shiftContainer.insertAdjacentHTML('beforeend', shiftHtml);
+
+                        // Initialize Tom Select after elements are dynamically added
+                        initializeTomSelectForNewElements();
+
+                        // Add the event listener for "Add Another Item" button
+                        document.querySelectorAll(`.add-more-button-${shift}`).forEach(button => {
+                            button.addEventListener('click', function() {
+                                const shiftWrapper = this.closest('.shift-wrapper');
+                                addAdditionalInputs(shiftWrapper, shift);
+                            });
+                        });
+                    }
+                });
+
+                // Add event listeners for item code changes and quantity inputs
+                addItemCodeAndQuantityListeners();
+            }
+
+            // Helper function to format date as YYYY-MM-DD
+            function formatDate(date) {
+                const year = date.getFullYear();
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const day = ('0' + date.getDate()).slice(-2);
+                return `${year}-${month}-${day}`;
+            }
+
+            // Function to add additional inputs dynamically
+            function addAdditionalInputs(shiftWrapper, shift) {
+                const selectedDate = new Date("{{ $selectedDate }}");
+
+                // Get the current date
+                const today = new Date(selectedDate);
+
+                // Get tomorrow's date
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+
+                // Define default values for each shift based on the current date
+                const defaultStartDates = {
+                    'shift1': formatDate(today),
+                    'shift2': formatDate(today),
+                    'shift3': formatDate(today)
+                };
+
+                const defaultEndDates = {
+                    'shift1': formatDate(today),
+                    'shift2': formatDate(today),
+                    'shift3': formatDate(tomorrow)
+                };
+
+                const defaultStartTimes = {
+                    'shift1': '07:30',
+                    'shift2': '16:30',
+                    'shift3': '23:30'
+                };
+
+                const defaultEndTimes = {
+                    'shift1': '15:30',
+                    'shift2': '22:30',
+                    'shift3': '07:30'
+                };
+
+                const defaultStartDate = defaultStartDates['shift' + shift];
+                const defaultEndDate = defaultEndDates['shift' + shift];
+                const defaultStartTime = defaultStartTimes['shift' + shift];
+                const defaultEndTime = defaultEndTimes['shift' + shift];
+
+                const additionalHtml = `
+                    <div class="additional-inputs space-y-4 border border-gray-300 rounded-md p-3 mt-4">
                         <div>
-                            <label for="edit-item-code" class="block text-sm font-medium text-gray-700">Item
-                                Code</label>
-                            <select name="item_code" id="edit-item-code" class="w-full mt-1" required>
-                                @foreach ($itemCodes as $itemCode)
-                                    <option value="{{ $itemCode }}">{{ $itemCode }}</option>
+                            <label class="block text-sm font-medium text-gray-700">Item Code</label>
+                            <select name="item_codes[${shift}][]" required
+                                class="item-code-selector mt-1 block w-full bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="" selected disabled>-- Select Item Code --</option>
+                                @foreach ($masterListItem as $masterItem)
+                                    <option value="{{ $masterItem->item_code }}" data-tipe-mesin="{{ $masterItem->tipe_mesin }}">
+                                        {{ $masterItem->item_code }}</option>
                                 @endforeach
                             </select>
                         </div>
-
                         <div>
-                            <label for="edit-quantity"
-                                class="block text-sm font-medium text-gray-700">Quantity</label>
-                            <input type="number" id="edit-quantity" name="quantity"
-                                class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                            <label class="block text-sm font-medium text-gray-700">Quantity</label>
+                            <input type="number" name="quantities[${shift}][]" required
+                                class="quantity-input mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                         </div>
-
-                        <div>
-                            <label for="edit-shift" class="block text-sm font-medium text-gray-700">Shift</label>
-                            <input type="number" id="edit-shift" name="shift"
-                                class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
-                        </div>
-
-                        <!-- Start Date and Start Time (2:1 grid) -->
-                        <div class="grid grid-cols-3 gap-4">
-                            <div class="col-span-2">
-                                <label for="edit-start-date" class="block text-sm font-medium text-gray-700">Start
-                                    Date</label>
-                                <input type="date" id="edit-start-date" name="start_date"
-                                    class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                        <!-- Start Date and End Date -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                                <input type="date" name="start_dates[${shift}][]" value="${defaultStartDate}" required
+                                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
-                                <label for="edit-start-time" class="block text-sm font-medium text-gray-700">Start
-                                    Time</label>
-                                <input type="time" id="edit-start-time" name="start_time"
-                                    class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                                <label class="block text-sm font-medium text-gray-700">End Date</label>
+                                <input type="date" name="end_dates[${shift}][]" value="${defaultEndDate}" required
+                                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                         </div>
 
-                        <!-- End Date and End Time (2:1 grid) -->
-                        <div class="grid grid-cols-3 gap-4">
-                            <div class="col-span-2">
-                                <label for="edit-end-date" class="block text-sm font-medium text-gray-700">End
-                                    Date</label>
-                                <input type="date" id="edit-end-date" name="end_date"
-                                    class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                        <!-- Start Time and End Time -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Start Time</label>
+                                <input type="time" name="start_times[${shift}][]" value="${defaultStartTime}" required
+                                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
-                                <label for="edit-end-time" class="block text-sm font-medium text-gray-700">End
-                                    Time</label>
-                                <input type="time" id="edit-end-time" name="end_time"
-                                    class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                                <label class="block text-sm font-medium text-gray-700">End Time</label>
+                                <input type="time" name="end_times[${shift}][]" value="${defaultEndTime}" required
+                                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                         </div>
+                    </div>
+                    `;
 
-                        <div class="flex justify-end space-x-4">
-                            <button type="button" id="close-edit-modal"
-                                class="px-4 py-2 bg-gray-300 rounded-md">Cancel</button>
-                            <button type="submit"
-                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">Save</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                shiftWrapper.insertAdjacentHTML('beforeend', additionalHtml);
 
-        </div>
+                // Reinitialize any necessary event listeners or plugins for the new inputs
+                initializeTomSelectForNewElements();
+                addItemCodeAndQuantityListeners();
+            }
 
-        <script>
-            // Initialize Tom Select on the select element
-            document.addEventListener('DOMContentLoaded', function() {
-                const editItemCodeTomSelect = new TomSelect("#edit-item-code", {
-                    plugins: ['dropdown_input'],
-                    create: false, // Prevent adding new options
-                    sortField: {
-                        field: "text",
-                        direction: "asc"
-                    },
-                    maxOptions: 1000, // Customize how many options to show
-                    placeholder: "Select Item Code"
-                });
-            });
+            // Function to add event listeners to item code and quantity inputs
+            function addItemCodeAndQuantityListeners() {
+                // Add event listener for item code change
+                document.querySelectorAll('.item-code-selector').forEach(selector => {
+                    selector.addEventListener('change', function() {
+                        const itemCode = this.value;
+                        const shift = this.name.match(/\d+/)[
+                            0]; // Extract shift number from name attribute
+                        const quantityInput = document.querySelector(
+                            `input[name="quantities[${shift}]"]`);
 
-            const dailyItemCodes = @json($dailyItemCodes);
-            const userList =
-                @json($users); // Assuming you have a list of users passed in from your Laravel controller
+                        // Clear the quantity input when item code changes
+                        if (quantityInput) {
+                            quantityInput.value = '';
+                        }
 
-            document.addEventListener("DOMContentLoaded", function() {
-                const calendarGrid = document.getElementById("calendar-grid");
-                const currentMonthLabel = document.getElementById("current-month");
-                const sidebar = document.getElementById("sidebar");
-                const closeSidebarButton = document.getElementById("close-sidebar");
-                const selectedDateDisplay = document.getElementById("selected-date");
-                const eventList = document.getElementById("event-list");
-                const userSearchInput = document.getElementById("user-search");
-
-                let currentDate = new Date();
-                let selectedDate = null;
-                let events = {};
-                let filteredEvents = {};
-
-                // Process events to group by user
-                dailyItemCodes.forEach(item => {
-                    const eventDate = item.schedule_date;
-                    if (!events[eventDate]) {
-                        events[eventDate] = {};
-                    }
-                    const userName = userList.find(user => user.id === item.user_id).name;
-                    if (!events[eventDate][userName]) {
-                        events[eventDate][userName] = [];
-                    }
-                    events[eventDate][userName].push({
-                        time: item.start_time + ' - ' + item.end_time,
-                        title: item.item_code + ' (Shift ' + item.shift + ')',
-                        id: item.id
+                        // Trigger AJAX to fetch max quantity when the item code is selected
+                        if (itemCode) {
+                            triggerAjax(shift, itemCode);
+                        }
                     });
                 });
 
-                // Populate the calendar and handle user interaction
-                function populateCalendar(date) {
-                    calendarGrid.innerHTML = "";
-                    const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-                    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-                    const today = new Date();
+                // Add event listener for quantity inputs
+                document.querySelectorAll('.quantity-input').forEach(input => {
+                    let typingTimer; // Timer identifier
+                    const doneTypingInterval = 500; // Time in ms, 0.5 seconds
 
-                    for (let i = 0; i < firstDayOfMonth; i++) {
-                        const emptyCell = document.createElement("div");
-                        emptyCell.className = "py-12 bg-gray-50";
-                        calendarGrid.appendChild(emptyCell);
-                    }
+                    input.addEventListener('keyup', function() {
+                        clearTimeout(typingTimer);
+                        typingTimer = setTimeout(() => {
+                            const shift = this.name.match(/\d+/)[
+                                0]; // Extract shift number from name attribute
+                            const itemCode = document.querySelector(
+                                `select[name="item_codes[${shift}][]"]`).value;
+                            const quantity = this.value;
 
-                    for (let i = 1; i <= daysInMonth; i++) {
-                        const dayCell = document.createElement("div");
-                        const cellDate = new Date(date.getFullYear(), date.getMonth(), i);
-                        const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000))
-                            .toISOString().split('T')[0];
+                            // Trigger AJAX and check max quantity for the input value
+                            if (itemCode && quantity) {
+                                triggerAjax(shift, itemCode, quantity);
+                            }
+                        }, doneTypingInterval);
+                    });
 
-                        dayCell.className =
-                            "relative py-12 border cursor-pointer text-left pl-2 bg-white hover:bg-blue-100";
-                        if (today.getFullYear() === cellDate.getFullYear() && today.getMonth() === cellDate
-                            .getMonth() && today.getDate() === i) {
-                            const todayCircle = document.createElement("span");
-                            todayCircle.className =
-                                "w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-lg";
-                            todayCircle.style.position = "absolute";
-                            todayCircle.style.top = "0.25rem";
-                            todayCircle.style.left = "0.25rem";
-                            todayCircle.innerText = i;
-                            dayCell.appendChild(todayCircle);
-                        } else {
-                            const dayText = document.createElement("span");
-                            dayText.className = "text-gray-800 absolute left-2 top-1 text-lg";
-                            dayText.innerText = i;
-                            dayCell.appendChild(dayText);
-                        }
+                    input.addEventListener('keydown', function() {
+                        clearTimeout(typingTimer);
+                    });
+                });
+            }
 
-                        if (selectedDate && selectedDate.getFullYear() === cellDate.getFullYear() && selectedDate
-                            .getMonth() === cellDate.getMonth() && selectedDate.getDate() === i) {
-                            dayCell.classList.add("border-blue-500", "border-2", "bg-blue-100");
-                        }
+            // Function to trigger AJAX call for max quantity
+            function triggerAjax(shift, itemCode, quantity = 0) {
+                // Check if we already have a max_quantity stored for this item_code
+                let maxQuantity = itemCodeMaxQuantities[itemCode] || null;
 
-                        if (events[dateString]) {
-                            const eventBadge = document.createElement("div");
-                            let userAssignedCount = Object.keys(events[dateString]).length;
-                            let color = 'bg-black text-white';
-                            let text =
-                                `${userAssignedCount} /${userList.length} ${userAssignedCount > 1 ? 'Machines' : 'Machine'}`;
-
-                            if (userAssignedCount == userList.length) {
-                                color = 'bg-green-500 text-white';
-                                text = 'All Assigned';
-                            } else if (userAssignedCount < userList.length) {
-                                color = 'bg-yellow-500 text-white';
+                // If no max quantity is stored, fetch it from the server
+                if (!maxQuantity) {
+                    fetch("{{ route('calculate.item') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                item_code: itemCode
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert(data.error);
                             } else {
-                                color = 'bg-red-500 text-white';
-                                text = 'Not assigned'
+                                itemCodeMaxQuantities[itemCode] = data.max_quantity; // Store the max quantity
+                                updateQuantityCheck(shift, itemCode, quantity);
                             }
-
-                            eventBadge.className =
-                                `absolute bottom-1 right-1 ${color} text-xs px-2 py-1 rounded-full`;
-                            eventBadge.innerText = text;
-                            dayCell.appendChild(eventBadge);
-                        }
-
-                        dayCell.addEventListener("click", function() {
-                            selectedDate = cellDate;
-                            const day = String(cellDate.getDate()).padStart(2, '0');
-                            const month = String(cellDate.getMonth() + 1).padStart(2,
-                                '0'); // getMonth() is zero-indexed
-                            const year = cellDate.getFullYear();
-                            const formattedDate = `${day}/${month}/${year}`;
-
-                            selectedDateDisplay.innerText = formattedDate;
-                            showEventsForDate(dateString);
-                            sidebar.classList.remove("hidden");
-                            populateCalendar(currentDate);
+                        })
+                        .catch(error => {
+                            console.error('Error fetching max quantity:', error);
                         });
-
-                        calendarGrid.appendChild(dayCell);
-                    }
-
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August",
-                        "September", "October", "November", "December"
-                    ];
-                    currentMonthLabel.innerText = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-
-                    const currentMonthText = currentMonthLabel.innerText.split(' ');
-                    const currentMonth = currentMonthText[0];
-                    const currentYear = parseInt(currentMonthText[1]);
-                    const displayedMonthIndex = monthNames.indexOf(currentMonth);
-
-                    // Check if the displayed month is the current month
-                    if (today.getFullYear() === currentYear && today.getMonth() === displayedMonthIndex) {
-                        document.getElementById("today-btn").classList.add('bg-blue-500', 'text-white');
-                        document.getElementById("today-btn").classList.remove('bg-gray-200', 'text-gray-800');
-                    } else {
-                        document.getElementById("today-btn").classList.add('bg-gray-200', 'text-gray-800');
-                        document.getElementById("today-btn").classList.remove('bg-blue-500', 'text-white');
-                    }
+                } else {
+                    updateQuantityCheck(shift, itemCode, quantity); // Use stored max quantity
                 }
+            }
 
-                // Re-populate the calendar and update button state when Today is clicked
-                document.getElementById("today-btn").addEventListener("click", function() {
-                    currentDate = new Date();
-                    populateCalendar(currentDate);
-                });
+            // Function to check and update quantity for the same item code across shifts
+            function updateQuantityCheck(currentShift, itemCode, quantity) {
+                const quantityInputs = document.querySelectorAll(`input[name^="quantities"]`);
+                let totalQuantity = 0;
 
-                // Show events for the selected date and group by user
-                function showEventsForDate(date) {
-                    eventList.innerHTML = "";
-                    const searchTerm = userSearchInput.value.toLowerCase();
+                // Track the input field for the current shift
+                const currentQuantityInput = document.querySelector(`input[name="quantities[${currentShift}]"]`);
 
-                    if (events[date]) {
-                        Object.keys(events[date]).forEach(userName => {
-                            // Check if user name matches the search term
-                            if (userName.toLowerCase().includes(searchTerm) || searchTerm === '') {
-                                const userDiv = document.createElement("div");
-                                userDiv.className = "mb-4";
+                // Sum the quantities for the same item code across shifts
+                quantityInputs.forEach(input => {
+                    const shift = input.name.match(/\d+/)[0]; // Get the shift number
+                    const selectedItemCode = document.querySelector(`select[name="item_codes[${shift}][]"]`)
+                        .value;
 
-                                const userHeader = document.createElement("h3");
-                                userHeader.className =
-                                    "font-medium text-lg cursor-pointer text-blue-600 border rounded-md py-2 px-4 border-blue-600 hover:bg-blue-600 hover:border-transparent hover:text-white";
-                                userHeader.innerText = userName;
-
-                                const userEventsDiv = document.createElement("div");
-                                userEventsDiv.className = "hidden mt-2 px-4 py-2 border rounded-md";
-
-                                userHeader.addEventListener("click", function() {
-                                    userEventsDiv.classList.toggle("hidden");
-                                });
-
-                                // Filter events by title based on the search term
-                                events[date][userName].forEach(event => {
-                                    if (event.title.toLowerCase().includes(searchTerm) || searchTerm ===
-                                        '') {
-                                        const eventDiv = document.createElement("div");
-                                        eventDiv.className = "mb-4 flex justify-between items-center";
-
-                                        const eventInfo = document.createElement("div");
-                                        eventInfo.innerHTML =
-                                            `<h3 class="font-medium">${event.time}</h3><p class="text-gray-500">${event.title}</p>`;
-                                        eventDiv.appendChild(eventInfo);
-
-                                        const editButton = document.createElement("button");
-                                        editButton.className =
-                                            "ml-2 text-blue-600 bg-blue-100 px-2 py-1 rounded-md text-sm";
-                                        editButton.innerText = "Edit";
-                                        editButton.onclick = function() {
-                                            editEvent(event.id);
-                                        };
-
-                                        eventDiv.appendChild(editButton);
-                                        userEventsDiv.appendChild(eventDiv);
-                                    }
-                                });
-
-                                userDiv.appendChild(userHeader);
-                                userDiv.appendChild(userEventsDiv);
-                                eventList.appendChild(userDiv);
-                            }
-                        });
-                    } else {
-                        eventList.innerHTML = "<p>No events for this date</p>"
-                    }
-                    const addEventButton = document.createElement("button");
-                    addEventButton.className = "mt-4 text-white bg-blue-600 px-4 py-2 rounded-md";
-                    addEventButton.innerText = "Add Event";
-                    addEventButton.onclick = function() {
-                        const localDateString = selectedDate.toLocaleDateString('en-CA');
-                        window.location.href = `/daily-item-codes/daily?date=${localDateString}`;
-                    };
-                    eventList.appendChild(addEventButton);
-                }
-
-                // Filter events when typing in the search box
-                userSearchInput.addEventListener("input", function() {
-                    if (selectedDate) {
-                        showEventsForDate(selectedDate.toISOString().split('T')[0]);
+                    if (selectedItemCode === itemCode) {
+                        const shiftQuantity = parseFloat(input.value) || 0;
+                        totalQuantity += shiftQuantity;
                     }
                 });
 
-                function editEvent(eventId) {
-                    // Find the event data using the event ID from dailyItemCodes
-                    const eventData = dailyItemCodes.find(item => item.id === eventId);
+                // Get the max quantity for the item code
+                const maxQuantity = itemCodeMaxQuantities[itemCode];
 
-                    // Get the existing TomSelect instance
-                    const editItemCodeTomSelect = document.getElementById("edit-item-code").tomselect;
+                // Compare the total quantity to the max quantity
+                if (totalQuantity > maxQuantity) {
+                    alert(
+                        `The total quantity for item code ${itemCode} exceeds the max quantity of ${maxQuantity}.`
+                    );
 
-                    // Populate the form with the event data
-                    document.getElementById("edit-daily-item-id").value = eventData.id;
-                    editItemCodeTomSelect.setValue(eventData.item_code); // Set TomSelect value
-                    document.getElementById("edit-quantity").value = eventData.quantity;
-                    document.getElementById("edit-shift").value = eventData.shift;
-                    document.getElementById("edit-start-date").value = eventData.start_date;
-                    document.getElementById("edit-start-time").value = eventData.start_time;
-                    document.getElementById("edit-end-date").value = eventData.end_date;
-                    document.getElementById("edit-end-time").value = eventData.end_time;
+                    // Reset the quantity input for the current shift if exceeded
+                    if (currentQuantityInput) {
+                        const remainingQuantity = maxQuantity - (totalQuantity -
+                            quantity); // Calculate remaining quantity before the current input
+                        currentQuantityInput.value = remainingQuantity > 0 ? remainingQuantity :
+                            ''; // Set to remaining quantity or empty if none
+                    }
 
-                    // Set the form action to the correct update URL (assuming a RESTful route exists)
-                    const editEventForm = document.getElementById("edit-event-form");
-                    editEventForm.action = `/daily-item-codes/${eventData.id}`;
-
-                    // Show the modal
-                    document.getElementById("edit-event-modal").classList.remove("hidden");
+                    // After the alert is dismissed, reset the max quantity display for this item code
+                    updateMaxQuantityDisplay(currentShift, itemCode, maxQuantity);
+                } else {
+                    // Update the display of remaining quantity if no alert is shown
+                    updateMaxQuantityDisplay(currentShift, itemCode, maxQuantity - totalQuantity);
                 }
 
-                closeSidebarButton.addEventListener("click", function() {
-                    sidebar.classList.add("hidden");
-                });
+                // Handle when maxQuantity is 0 gracefully, still allow displaying shift container
+                if (maxQuantity === 0) {
+                    alert(`The item code ${itemCode} has no available quantity.`);
+                    updateMaxQuantityDisplay(currentShift, itemCode, 0);
+                }
+                // Update the display of remaining quantity or alert if exceeded
+            }
 
-                document.getElementById("prev-month-btn").addEventListener("click", function() {
-                    currentDate.setMonth(currentDate.getMonth() - 1);
-                    populateCalendar(currentDate);
-                });
+            // Function to update the max quantity display based on the selected item code and shift
+            function updateMaxQuantityDisplay(shift, itemCode, maxQuantity) {
+                const displayContainer = document.getElementById('max-quantity-display');
 
-                document.getElementById("next-month-btn").addEventListener("click", function() {
-                    currentDate.setMonth(currentDate.getMonth() + 1);
-                    populateCalendar(currentDate);
-                });
-
-                document.getElementById("today-btn").addEventListener("click", function() {
-                    currentDate = new Date();
-                    populateCalendar(currentDate);
-                });
-
-                document.getElementById("close-edit-modal").addEventListener("click", function() {
-                    document.getElementById("edit-event-modal").classList.add("hidden");
-                });
-
-                const eventForm = document.getElementById("event-form");
-                const eventModal = document.getElementById("event-modal");
-                const closeModalButton = document.getElementById("close-modal");
-                const eventDateInput = document.getElementById("event-date");
-
-                // Function to open the modal and pre-populate it with the selected date
-                function openModalWithDate(date) {
-                    eventDateInput.value = date; // Set the selected date in the input field
-                    eventModal.classList.remove("hidden");
+                // Clear the previous max quantity for this shift by targeting the specific id
+                let existingDisplay = document.getElementById(`item-max-quantity-display-${shift}`);
+                if (existingDisplay) {
+                    existingDisplay.remove(); // Remove old display for this shift
                 }
 
-                // Example function to handle opening the modal with a selected date from the calendar
-                document.getElementById("new-event-btn").addEventListener("click", function() {
-                    const selectedDate = new Date().toISOString().split('T')[
-                        0]; // Use today's date for demo purposes
-                    openModalWithDate(selectedDate); // Open modal with selected date
-                });
+                // Show the new max quantity for the selected item code
+                const itemDisplay = document.createElement('div');
+                itemDisplay.id = `item-max-quantity-display-${shift}`; // Assign dynamic ID
+                itemDisplay.setAttribute('data-shift', shift); // Associate display with the shift
+                itemDisplay.textContent = `Shift: ${shift} -- Max Quantity of ${itemCode}: ${maxQuantity}`;
 
-                // Set the form action dynamically
-                eventForm.addEventListener("submit", function(e) {
-                    e.preventDefault(); // Prevent default submission behavior
-                    const selectedDate = eventDateInput.value;
+                // Append the new div to the container
+                displayContainer.appendChild(itemDisplay);
+            }
 
-                    // Set the action URL to include the selected date as a query parameter
-                    eventForm.action = `{{ route('daily-item-code.daily', '') }}?date=${selectedDate}`;
-                    eventForm.submit(); // Submit the form after setting the action dynamically
-                });
-
-                // Close the modal when "Cancel" is clicked
-                closeModalButton.addEventListener("click", function() {
-                    eventModal.classList.add("hidden");
-                });
-
-                // Initial population of calendar
-                populateCalendar(currentDate);
-
-                // Initialize Flatpickr on button click
-                document.getElementById("month-year-picker-btn").addEventListener("click", function() {
-                    flatpickr("#month-year-picker-btn", {
-                        dateFormat: "Y-m", // Only show month and year
-                        defaultDate: currentDate, // Set the default date to the current date
-                        enableTime: false,
-                        plugins: [monthSelectPlugin({ // month selection plugin
-                            shorthand: true, // Show abbreviated month names
-                            dateFormat: "Y-m", // Format for output value
-                        })],
-                        onChange: function(selectedDates, dateStr) {
-                            // Update the calendar based on the selected month and year
-                            const [year, month] = dateStr.split("-");
-                            currentDate = new Date(year, month - 1, 1);
-                            populateCalendar(currentDate);
-                            updateSelectedMonthYear(currentDate);
-                        }
-                    }).open(); // Automatically open the picker when button is clicked
-                });
-
-                function updateSelectedMonthYear(date) {
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August",
-                        "September", "October", "November", "December"
-                    ];
-                    document.getElementById("current-month").textContent =
-                        `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+            // Function to clear max quantity display when item code is changed or cleared
+            function clearMaxQuantityDisplay(shift) {
+                let existingDisplay = document.querySelector(`[data-shift="${shift}"]`);
+                if (existingDisplay) {
+                    existingDisplay.remove();
                 }
+            }
 
+            // Update shift inputs on checkbox change
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateShiftInputs();
+                });
             });
-        </script>
-    </section>
+        });
+    </script>
+
 </x-app-layout>
