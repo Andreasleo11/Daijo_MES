@@ -342,6 +342,7 @@ class DeliveryScheduleController extends Controller
 						'outstanding' => 0,
 						'outstanding_stk' => 0,
 						'status' => 'success',
+						'remark' => 'finished'
 					]);
 
 				} else {
@@ -394,6 +395,7 @@ class DeliveryScheduleController extends Controller
 		foreach($tab_delsched_final as $delsched_final){
 
 			$date_now = Carbon::now();
+			$date_now_plus = Carbon::now()->addDays(2);
 
 			$val_final_id = $delsched_final->id;
 			$val_item_code_final = $delsched_final->item_code;
@@ -421,10 +423,12 @@ class DeliveryScheduleController extends Controller
 					$cal_outstanding_st = $val_outstanding_st;
 					$cal_total_after_now = $val_total_after - $val_outstanding_st;
 
-					if($val_delivery_date <= $date_now){
+					if($val_delivery_date <= $date_now_plus){
 						$rcd_status = 'danger';
+						$rcd_remark = '';
 					} else {
-						$rcd_status = 'light';
+						$rcd_status = 'light';	
+						$rcd_remark = 'far - no stock';				
 					}
 
 				} else {
@@ -434,10 +438,12 @@ class DeliveryScheduleController extends Controller
 						$cal_outstanding_st = 0;
 						$cal_total_after_now = $val_total_after - $val_outstanding_st;
 
-						if($val_delivery_date <= $date_now){
+						if($val_delivery_date <= $date_now_plus){
 							$rcd_status = 'warning';
+							$rcd_remark = '';
 						} else {
 							$rcd_status = 'light';
+							$rcd_remark = 'far - stock available';
 						}
 
 					} else {
@@ -445,10 +451,12 @@ class DeliveryScheduleController extends Controller
 						$cal_outstanding_st = $val_outstanding_st-$val_total_after;
 						$cal_total_after_now = $val_total_after-$val_outstanding_st;
 
-						if($val_delivery_date <= $date_now){
+						if($val_delivery_date <= $date_now_plus){
 							$rcd_status = 'danger';
+							$rcd_remark = '';
 						} else {
 							$rcd_status = 'light';
+							$rcd_remark = 'date still far';
 						}
 
 					}
@@ -463,6 +471,7 @@ class DeliveryScheduleController extends Controller
 					'balance' => $cal_total_after_now,
 					'outstanding_stk' => $cal_outstanding_st,
 					'status' => $rcd_status,
+					'remark' => $rcd_remark,
 				]);
 
 			}
@@ -688,7 +697,7 @@ class DeliveryScheduleController extends Controller
 				$data->status = 'Warning';
 			} else {
 				// For all other conditions, set the status to 'Warning'
-				$data->status = 'Warning';
+				$data->status = 'Open';
 			}
 
 

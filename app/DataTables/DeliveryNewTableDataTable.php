@@ -115,6 +115,7 @@ class DeliveryNewTableDataTable extends DataTable
             Column::make('standar_pack'),
             Column::make('packaging_qty'),
             Column::make('doc_status'),
+            Column::make('remark'),
         ];
     }
 
