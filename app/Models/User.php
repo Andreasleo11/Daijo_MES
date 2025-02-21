@@ -48,6 +48,16 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function dailyItemCode()
+    {
+        return $this->hasMany(DailyItemCode::class);
+    }
+
+    public function jobs()
+    {
+        return $this->hasOne(MachineJob::class, 'user_id');
+    }
+
     public function specification()
     {
         return $this->belongsTo(Specification::class);

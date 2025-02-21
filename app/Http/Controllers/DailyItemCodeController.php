@@ -22,7 +22,10 @@ class DailyItemCodeController extends Controller
 
     public function create(Request $request)
     {
-        $machines = User::where('specification_id', 2)
+
+        $machines = User::whereHas('role', function ($query){
+            $query->where('name', 'OPERATOR');
+        })
             ->with([
                 'dailyItemCode' => function ($query) {
                     $query->where(function ($query) {
@@ -42,8 +45,9 @@ class DailyItemCodeController extends Controller
 
         // Use the transformed machine name to query the MasterListItem
         $masterListItem = MasterListItem::get();
+        $dailyItemCodes = DailyItemCode::all();
 
-        return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine'));
+        return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine', 'dailyItemCodes'));
     }
 
     private function transformUsername($username) {
@@ -210,7 +214,9 @@ class DailyItemCodeController extends Controller
     public function daily(Request $request)
     {
         $selectedDate = $request->query('date'); // Get the date from the query parameter
-        $machines = User::where('specification_id', 2)
+        $machines = User::whereHas('role', function ($query){
+            $query->where('name', 'OPERATOR');
+        })
             ->with([
                 'dailyItemCode' => function ($query) {
                     $query->where(function ($query) {

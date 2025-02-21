@@ -113,10 +113,10 @@
                                     <div class="font-bold text-2xl">Files</div>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
                                         @foreach ($files as $file)
-                                            <a href="{{ asset('files/' . $file->name) }}" data-fancybox="gallery"
-                                                data-caption="{{ $file->name }}">
+                                            <a href="{{ asset('storage/files/' . $file->name) }}"
+                                                data-fancybox="gallery" data-caption="{{ $file->name }}">
                                                 <img class="w-full h-auto rounded-lg shadow-lg hover:shadow-2xl transition-transform transform hover:scale-105"
-                                                    src="{{ asset('files/' . $file->name) }}"
+                                                    src="{{ asset('storage/files/' . $file->name) }}"
                                                     alt="{{ $file->name }}" />
                                             </a>
                                         @endforeach

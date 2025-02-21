@@ -80,7 +80,7 @@ class DashboardController extends Controller
                 //    dd($quantity);
                 // Check if the user has a related dailyItemCode and retrieve the item_code
                 $itemCode = $user->jobs->item_code ?? null;
-                // $machineJobShift = $user->jobs->shift;
+                $machineJobShift = $user->jobs->shift;
 
                 // If an item_code exists, retrieve all files with the same item_code
                 if ($itemCode) {
