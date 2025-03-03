@@ -15,6 +15,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Models\Production\PRD_ListAllMasterItem;
+use App\Imports\BillOfMaterialChildImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Encoding\Encoding;
@@ -626,5 +628,19 @@ class BillOfMaterialController extends Controller
         return redirect()->back()->with('success', 'File deleted successfully');
     }
 
+    public function uploadExcelBom(Request $request)
+    {
+   
+        $request->validate([
+            'excel_file' => 'required|mimes:xls,xlsx',
+            'bom_parent_id' => 'required|integer'
+        ]);
+    
+        $bomParentId = $request->bom_parent_id;
+        
+        Excel::import(new BillOfMaterialChildImport($bomParentId), $request->file('excel_file'));
+    
+        return back()->with('success', 'Excel file imported successfully!');
+    }
     
 }

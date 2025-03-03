@@ -89,6 +89,19 @@
                                 class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
                                 Print All Material
                             </button>
+
+                            <form action="{{ route('excel.bom.upload') }}" method="POST" enctype="multipart/form-data" class="mt-2">
+                                @csrf
+                                <input type="hidden" name="bom_parent_id" value="{{ $bomParent->id }}">
+                                
+                                <input type="file" name="excel_file" accept=".xls,.xlsx" required
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
+                                
+                                <button type="submit"
+                                    class="mt-2 inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">
+                                    Upload Excel
+                                </button>
+                            </form>
                         @endif
                     </div>
                     <!-- Child Items Table -->

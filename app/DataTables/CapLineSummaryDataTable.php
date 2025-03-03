@@ -29,7 +29,13 @@ class CapLineSummaryDataTable extends DataTable
                     : 'Normal';
             })
             ->addColumn('action', 'caplinesummary.action')
-            ->setRowId('id');
+            ->setRowId('id')
+            ->rawColumns(['status'])
+            ->setRowAttr([
+                'class' => function ($row) {
+                    return $row->capacity_req_percent > 100 ? 'text-red-500' : 'text-green-500';
+                }
+            ]);
     }
 
     /**

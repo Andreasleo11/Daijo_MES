@@ -29,4 +29,6 @@
  
 {{ $dataTable->scripts() }}
 
+
+
 </x-app-layout>
