@@ -22,6 +22,8 @@ use App\Http\Controllers\InvLineListController;
 use App\Http\Controllers\Setting\HolidayScheduleController;
 use App\Http\Controllers\CapacityByForecastController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\ProductionDashboardController;
+
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -34,6 +36,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+Route::get('/djoni-dashboard', [ProductionDashboardController::class, 'index']);
 
 Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 
@@ -61,6 +65,10 @@ Route::middleware('auth')->group(function (){
     Route::post('/process/itemproduction', [DashboardController::class, 'procesProductionBarcodes'])->name('process.productionbarcode');
     Route::get('/reset-jobs', [DashboardController::class, 'resetJobs'])->name('reset.jobs');
     Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
+
+    Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
+    Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
+
 
     Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);
     Route::get('/reset-job', [DashboardController::class, 'resetJob'])->name('reset.job');

@@ -28,6 +28,20 @@
         @endif
     </div>
 
+    @php
+    $userId = auth()->id();
+    $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
+    @endphp
+
+    @if($activeMouldChange)
+        <!-- Show End Mould Change if there's an active log -->
+        <button id="endMouldChange" class="btn btn-success">Complete Change Mould</button>
+    @else
+        <!-- Show Start Mould Change if no active log -->
+        <button id="startMouldChange" class="btn btn-warning">Change Mould</button>
+    @endif
+
+
     @if (is_null($machinejobid->employee_name))
         <div class="flex items-center justify-center">
             <form action="{{ route('updateEmployeeName') }}" method="POST" x-data="{ focus: true }"
@@ -58,6 +72,18 @@
                 <button x-on:click="toggleScanMode()" x-text="scanMode ? 'Deactivate Scan Mode' : 'Activate Scan Mode'"
                     :class="scanMode ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'"
                     class="py-2 px-4 text-white font-semibold rounded-md transition">
+                </button>
+            </div>
+
+            <div x-show="scanMode && !verified" class="mt-4 px-6">
+                <label for="nik" class="block font-semibold">Enter Your NIK:</label>
+                <input type="text" id="nik" x-model="nikInput"
+                    class="border border-gray-300 rounded-md w-full p-2 mt-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Scan or enter your NIK"/>
+
+                <button x-on:click="verifyNIK()" 
+                    class="mt-2 py-2 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition">
+                    Verify NIK
                 </button>
             </div>
 
@@ -201,7 +227,7 @@
             </div>
 
             <!-- Scan Barcode Section -->
-            <div x-show="scanMode" class="mx-auto sm:px-4 lg:px-6 pt-6" x-cloak>
+            <div x-show="scanMode && verified" class="mx-auto sm:px-4 lg:px-6 pt-6" x-cloak>
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-4">
                     <span class="text-xl font-bold">SPK</span>
                     <table class="min-w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
@@ -245,6 +271,7 @@
                         <input type="hidden" id="uniqueData" name="uniqueData"
                             value="{{ json_encode($uniquedata) }}" />
                         <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
+                        <input type="hidden" id="nik" name="nik" x-model="nikInput" />
 
                         <!-- Grid Layout for 2 Columns -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -303,12 +330,52 @@
             },
             transitionEffect: "fade",
         });
+
+        
+        $(document).ready(function() {
+            $('#startMouldChange').click(function() {
+                $.ajax({
+                    url: "{{ route('mould.change.start') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    success: function(response) {
+                        alert(response.message);
+                        $('#startMouldChange').hide(); // Hide start button
+                        $('#endMouldChange').show();  // Show end button
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
+
+            $('#endMouldChange').click(function() {
+                $.ajax({
+                    url: "{{ route('mould.change.end') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    success: function(response) {
+                        alert(response.message);
+                        $('#startMouldChange').show(); // Show start button again
+                        $('#endMouldChange').hide();  // Hide end button
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+
     </script>
 
     <script>
         function scanModeHandler(deactivateScanModeFlag) {
             return {
                 scanMode: true,
+                verified: false, // Verification flag
+                nikInput: '', 
                 initialize() {
                     if (deactivateScanModeFlag == true) {
                         this.scanMode = false;
@@ -319,6 +386,10 @@
 
                     // Automatically focus on spk_code input if scanMode is active
                     if (this.scanMode) {
+                        if (!this.verified) {
+                            alert("Please verify your NIK before activating Scan Mode.");
+                            return;
+                        }
                         this.focusOnSPKCode();
                     }
                 },
@@ -329,6 +400,15 @@
                     // Focus on spk_code input when scanMode is activated
                     if (this.scanMode) {
                         this.focusOnSPKCode();
+                    }
+                },
+
+                verifyNIK() {
+                    if (this.nikInput.trim() !== '') {
+                        this.verified = true;
+                        alert("NIK Verified Successfully!");
+                    } else {
+                        alert("NIK cannot be empty.");
                     }
                 },
                 focusOnSPKCode() {

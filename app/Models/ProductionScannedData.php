@@ -19,4 +19,9 @@ class ProductionScannedData extends Model
         'quantity',
         'label',
     ];
+
+    public function ParentDailyItemCode()
+    {
+        return $this->hasOne(DailyItemCode::class, 'id', 'dic_id');
+    }
 }

@@ -14,12 +14,14 @@ use App\Models\Production\PRD_MouldingJob;
 use App\Models\Production\PRD_MouldingUserLog;
 use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
+use App\Models\MouldChangeLog;
 use App\Models\SpkMaster;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Milon\Barcode\DNS1D;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -75,8 +77,9 @@ class DashboardController extends Controller
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem')
                 ->get();
+            
             foreach ($datas as $data) {
-                $quantity = $data->first()->quantity;
+                $quantity = $data->quantity;
                 //    dd($quantity);
                 // Check if the user has a related dailyItemCode and retrieve the item_code
                 $itemCode = $user->jobs->item_code ?? null;
@@ -96,7 +99,9 @@ class DashboardController extends Controller
                     $start_label = null; // Variable to store start_label for each SPK
                     // dd($datasnew);
                     foreach ($datasnew as $data) {
+                      
                         $available_quantity = $data->planned_quantity - $data->completed_quantity;
+                       
                         if ($quantity <= $available_quantity) {
                             $available_quantity = $quantity;
                         }
@@ -111,7 +116,7 @@ class DashboardController extends Controller
                             $available_quantity -= $deficit;
                             $deficit = 0;
                         }
-
+                        // dd($available_quantity);
                         while ($available_quantity > 0) {
                             if ($available_quantity >= $perpack) {
                                 // Assign a full label to this SPK
@@ -488,7 +493,12 @@ class DashboardController extends Controller
         // dd($request->all());
         $datas = json_decode($request->input('datas'));
         $uniquedata = json_decode($request->input('uniqueData'));
-        $firstData = $datas[0];
+
+        $uniqueItemCodes = collect($uniquedata)->pluck('item_code')->unique();
+        $firstData = collect($datas)->firstWhere(function ($data) use ($uniqueItemCodes) {
+            return $uniqueItemCodes->contains($data->item_code);
+        });
+        
         // dd($uniquedata);
         // dd($datas);
         // dd($uniquedata);
@@ -571,7 +581,7 @@ class DashboardController extends Controller
             'label' => $label,
         ]);
 
-        return redirect()->back();
+        return redirect()->route('dashboard')->with('deactivateScanMode', true);
     }
 
     public function finishJob(Request $request){
@@ -673,5 +683,69 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Job has been resetted!');
+    }
+
+    public function startMouldChange()
+    {
+        $userId = Auth::id();
+        $today = Carbon::now()->format('Y-m-d');
+
+        $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
+        
+        // Get all item_codes for today, ordered by shift or time
+        $dailyItems = DailyItemCode::where('user_id', $userId)
+        ->whereDate('start_date', $today) // Match today's records
+        ->orderBy('start_time', 'asc') // Order by shift timing
+        ->pluck('item_code')
+        ->toArray(); // Convert to an array for easier processing
+
+        // Find the next item_code in sequence
+        $nextItemCode = null;
+        $currentIndex = array_search($currentItemCode, $dailyItems);
+
+        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+            $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
+        }else {
+            // Special case: Find the first item_code of the next day
+            $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
+            $nextDayItem = DailyItemCode::where('user_id', $userId)
+                ->whereDate('start_date', $nextDay)
+                ->orderBy('start_time', 'asc')
+                ->value('item_code'); // Get the first record of the next day
+    
+            $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
+        }
+      
+        // Create a new mould change log entry
+        $mouldChange = MouldChangeLog::create([
+            'user_id' => $userId,
+            'item_code' => $nextItemCode,
+            'created_at' => Carbon::now(), // Start time
+        ]);
+
+        // Set machine job user_id to NULL (machine is inactive)
+        MachineJob::where('user_id', $userId)->update(['item_code' => null,
+        'shift' => null,]);
+
+        return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id]);
+    }
+
+    public function endMouldChange()
+    {
+        $userId = Auth::id();
+
+        // Update the last mould change log where user_id matches
+        $mouldChange = MouldChangeLog::where('user_id', $userId)
+            ->whereNull('end_time') // Find an ongoing mould change
+            ->latest()
+            ->first();
+
+        if ($mouldChange) {
+            $mouldChange->update(['end_time' => Carbon::now()]);
+
+            return response()->json(['message' => 'Mould change completed']);
+        }
+
+        return response()->json(['error' => 'No active mould change found'], 400);
     }
 }
