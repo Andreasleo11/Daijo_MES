@@ -563,6 +563,7 @@ class DashboardController extends Controller
         $quantity = $request->input('quantity');
         $warehouse = $request->input('warehouse');
         $label = $request->input('label');
+        $user = $request->input('nik');
 
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)->where('item_code', $item_code)->where('label', $label)->first();
 
@@ -579,6 +580,7 @@ class DashboardController extends Controller
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,
+            'user' => $user,
         ]);
 
         return redirect()->route('dashboard')->with('deactivateScanMode', true);

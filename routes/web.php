@@ -37,7 +37,7 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
-Route::get('/djoni-dashboard', [ProductionDashboardController::class, 'index']);
+Route::get('/djoni-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
 
 Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 
