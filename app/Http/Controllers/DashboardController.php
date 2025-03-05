@@ -714,6 +714,10 @@ class DashboardController extends Controller
                 ->value('item_code'); // Get the first record of the next day
     
             $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
+
+            if ($nextItemCode === null) {
+                return response()->json(['message' => 'Belom Diassign bos ']);
+            }
         }
       
         // Create a new mould change log entry
