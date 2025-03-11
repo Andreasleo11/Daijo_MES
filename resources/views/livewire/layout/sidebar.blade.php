@@ -48,31 +48,6 @@ new class extends Component {
                 {{-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
                     wire:navigate /> --}}
 
-                <livewire:parent-dropdown label="Dashboard All" :childRoutes="[
-                    ['name' => 'delschedfinal.dashboard', 'label' => 'Dashboard Delivery Schedule'],
-                    ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses Moulding'],
-                    ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project Moulding'],
-                ]" />
-
-
-
-                <livewire:parent-dropdown label="Inventory" :childRoutes="[
-                    ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
-                    ['name' => 'inventory.fg', 'label' => 'Master FG'],
-                    ['name' => 'invlinelist', 'label' => 'Machine List'],
-                ]" />
-
-
-                <livewire:parent-dropdown label="Business" :childRoutes="[
-                    ['name' => 'indexds', 'label' => 'Delivery Schedule'],
-                    ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],
-                    ['name' => 'management.delivery.index', 'label' => 'Delivery Data Delete'],
-                ]" />
-
-
-
-                <livewire:parent-dropdown label="Production" :childRoutes="[['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast']]" />
-
 
                 @if (auth()->user()->can('view-warehouse-links'))
                     <livewire:parent-dropdown label="Moulding" :childRoutes="[
@@ -92,8 +67,6 @@ new class extends Component {
                         label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> --}}
                 @endif
 
-                <livewire:parent-dropdown label="Setting" :childRoutes="[['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule']]" />
-
                 <!-- Admin Links -->
                 @if (auth()->user()->can('view-admin-links'))
                     <livewire:sidebar-link href="{{ route('barcode.index') }}" label="Generate Master Barcode"
@@ -101,6 +74,31 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('so.index') }}" label="DO Index" :active="request()->routeIs('so.index')"
                         wire:navigate />
+
+                    <livewire:parent-dropdown label="Dashboard All" :childRoutes="[
+                        ['name' => 'delschedfinal.dashboard', 'label' => 'Dashboard Delivery Schedule'],
+                        ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses Moulding'],
+                        ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project Moulding'],
+                    ]" />
+
+
+
+                    <livewire:parent-dropdown label="Inventory" :childRoutes="[
+                        ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
+                        ['name' => 'inventory.fg', 'label' => 'Master FG'],
+                        ['name' => 'invlinelist', 'label' => 'Machine List'],
+                    ]" />
+
+
+                    <livewire:parent-dropdown label="Business" :childRoutes="[
+                        ['name' => 'indexds', 'label' => 'Delivery Schedule'],
+                        ['name' => 'production.forecast.index', 'label' => 'Forecast Production'],
+                        ['name' => 'management.delivery.index', 'label' => 'Delivery Data Delete'],
+                    ]" />
+
+                    <livewire:parent-dropdown label="Production" :childRoutes="[['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast']]" />
+
+                    <livewire:parent-dropdown label="Setting" :childRoutes="[['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule']]" />
                 @endif
 
                 <!-- PE Links -->
