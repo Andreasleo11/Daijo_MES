@@ -38,7 +38,7 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
-Route::get('/djoni-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
 
 Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
 
