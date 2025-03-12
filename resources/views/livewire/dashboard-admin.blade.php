@@ -6,7 +6,7 @@
         <div class="grid grid-cols-4 gap-4">
             <div class="p-4 bg-white rounded shadow">
                 <h2 class="text-lg font-semibold">Total BOM</h2>
-                <p class="text-2xl">{{ count($parents) }}</p>
+                <p class="text-2xl">{{ $parents->total() }}</p>
             </div>
             <div class="p-4 bg-white rounded shadow">
                 <h2 class="text-lg font-semibold">Overall Completion Percentage</h2>
@@ -24,8 +24,6 @@
 
         <div class="mt-8">
             <h2 class="text-lg font-semibold mb-4">BOM</h2>
-
-
             @foreach ($parents as $parent)
                 <!-- Parent Card -->
                 <div class="mb-6 p-4 rounded shadow-lg bg-white border">
@@ -64,11 +62,11 @@
                                             $finishedChildren++;
                                         } else {
                                             if ($processCount > 0) {
-                                                    $finishedChildren += $finishedCount / $processCount;
-                                                } else {
-                                                    // Handle the case where processCount is 0
-                                                    $finishedChildren += 0; // or handle it as per your requirement
-                                                }
+                                                $finishedChildren += $finishedCount / $processCount;
+                                            } else {
+                                                // Handle the case where processCount is 0
+                                                $finishedChildren += 0; // or handle it as per your requirement
+                                            }
                                         }
                                     }
                                 }
@@ -218,6 +216,10 @@
                     </div>
                 </div>
             @endforeach
+        </div>
+        <!-- Livewire Pagination Links -->
+        <div class="mt-4">
+            {{ $parents->links() }}
         </div>
     </div>
 </div>

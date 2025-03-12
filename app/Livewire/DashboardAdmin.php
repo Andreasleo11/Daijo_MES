@@ -6,18 +6,21 @@ use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_MouldingUserLog;
-use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class DashboardAdmin extends Component
 {
-    public $parents;
+    use WithPagination;
+
     public $childs;
     public $materialLogs;
     public $mouldingUserLogs;
     public $completedItems = 0;
     public $overallCompletionPercentage = 0;
     public $totalPendingChildren = 0;
+
+    protected $paginationTheme = 'tailwind'; // Use Tailwind styling
 
     public function mount()
     {
@@ -26,7 +29,7 @@ class DashboardAdmin extends Component
 
     public function loadData()
     {
-        $this->parents = PRD_BillOfMaterialParent::all();
+        // Remove `$this->parents` because we will paginate it in `render()`
         $this->childs = PRD_BillOfMaterialChild::all();
         $this->materialLogs = PRD_MaterialLog::all();
         $this->mouldingUserLogs = PRD_MouldingUserLog::all();
@@ -45,7 +48,7 @@ class DashboardAdmin extends Component
             fn($child) => in_array($child->action_type, ['stockfinish']) || $child->status === 'Finished'
         )->count();
 
-        $this->overallCompletionPercentage = $this->parents->map(function ($parent) {
+        $this->overallCompletionPercentage = PRD_BillOfMaterialParent::all()->map(function ($parent) {
             $totalChildren = $this->childs->where('parent_id', $parent->id)->count();
             $finishedChildren = 0;
 
@@ -64,24 +67,13 @@ class DashboardAdmin extends Component
             }
 
             return $totalChildren > 0 ? ($finishedChildren / $totalChildren) * 100 : 0;
-        })->average();
-    }
-
-    public function updateDashboard($parents, $childs, $materialLogs, $mouldingUserLogs)
-    {
-        // Convert arrays into collections of models
-        $this->parents = PRD_BillOfMaterialParent::hydrate($parents);
-        $this->childs = PRD_BillOfMaterialChild::hydrate($childs);
-        $this->materialLogs = PRD_MaterialLog::hydrate($materialLogs);
-        $this->mouldingUserLogs = PRD_MouldingUserLog::hydrate($mouldingUserLogs);
-
-        $this->calculateStatistics();
+        })->average() ?? 0; // Prevent null error
     }
 
     public function render()
     {
         return view('livewire.dashboard-admin', [
-            'parents' => $this->parents,
+            'parents' => PRD_BillOfMaterialParent::paginate(1), // Paginate parents (5 per page)
             'childs' => $this->childs,
             'materialLogs' => $this->materialLogs,
             'mouldingUserLogs' => $this->mouldingUserLogs,
