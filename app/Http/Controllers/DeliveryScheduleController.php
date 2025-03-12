@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Redirect;
 use DateTime;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Exports\DeliveryScheduleExport;
+use App\Imports\DeliveryScheduleImport;
 
 use App\Models\Delivery\delsched_delfilter;
 use App\Models\Delivery\delsched_delsum;
@@ -22,6 +24,7 @@ use App\Models\Delivery\SapDelsched;
 use App\Models\Delivery\SapInventoryMtr;
 use App\Models\Delivery\SapInventoryFg;
 use App\Models\Delivery\SapReject;
+use App\Models\Delivery\DeliveryScheduleNew;
 
 use App\Models\Delivery\DelschedFinal;
 use App\Models\Delivery\DelschedFinalWip;
@@ -811,5 +814,116 @@ class DeliveryScheduleController extends Controller
 		// Optionally, you can return a response or redirect
 		return redirect()->back()->with('success', 'Delivery schedules deleted successfully.');
 	}
+
+	public function deliveryScheduleNewIndex(Request $request)
+	{
+		// Get filters from request
+		$selectedYear = $request->input('year', date('Y'));
+		$selectedMonth = $request->input('month', date('m'));
+		$customerCode = $request->input('customer_code', '');
+
+		// Get the number of days in the selected month
+		$daysInMonth = Carbon::create($selectedYear, $selectedMonth)->daysInMonth;
+
+		// Get unique customers for the selected month & year
+		$customers = DeliveryScheduleNew::whereYear('delivery_date', $selectedYear)
+			->whereMonth('delivery_date', $selectedMonth)
+			->distinct()
+			->pluck('customer_code');
+
+		// Query delivery data
+		$query = DeliveryScheduleNew::whereYear('delivery_date', $selectedYear)
+			->whereMonth('delivery_date', $selectedMonth);
+
+		// Apply customer filter if selected
+		if (!empty($customerCode)) {
+			$query->where('customer_code', $customerCode);
+		}
+
+		$deliveries = $query->get();
+
+		// Group data by item_code and day
+		$deliveryData = [];
+		foreach ($deliveries as $delivery) {
+			$itemCode = $delivery->item_code;
+			$day = Carbon::parse($delivery->delivery_date)->day;
+			
+			if (!isset($deliveryData[$itemCode])) {
+				$deliveryData[$itemCode] = array_fill(1, $daysInMonth, null);
+			}
+
+			// Sum quantities if same item_code and day
+			$deliveryData[$itemCode][$day] = ($deliveryData[$itemCode][$day] ?? 0) + $delivery->delivery_quantity;
+		}
+
+		return view('business.newdeliveryindex', compact('selectedYear', 'selectedMonth', 'customerCode', 'customers', 'daysInMonth', 'deliveryData'));
+	}
+
+	public function exportDeliverySchedule(Request $request)
+	{
+		// dd($request->all());
+		$selectedYear = $request->input('year');
+		$selectedMonth = $request->input('month');
+		$customerCode = $request->input('customer_code', '');
+
+		// Export the data with two sheets
+		return Excel::download(new DeliveryScheduleExport($selectedYear, $selectedMonth, $customerCode), 'delivery_schedule.xlsx');
+	}
+
+	public function exportTemplate(Request $request)
+    {
+        // Define the headings for the template
+        $headings = [
+            'SO Number',
+            'Customer Code',
+            'Delivery Date',
+            'Item Code',
+            'Delivery Quantity',
+        ];
+
+        // Create an array with example data
+        $data = [
+            // Example data row
+            ['200412', '', '2024-04-01', 'GCOVA4521231', 200],
+        ];
+
+        // Use Laravel Excel to generate the Excel file
+        return Excel::download(new class($data, $headings) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithTitle {
+            private $data;
+            private $headings;
+
+            public function __construct($data, $headings)
+            {
+                $this->data = $data;
+                $this->headings = $headings;
+            }
+
+            public function array(): array
+            {
+                return $this->data;
+            }
+
+            public function headings(): array
+            {
+                return $this->headings;
+            }
+
+            public function title(): string
+            {
+                return 'Delivery Schedule Template';
+            }
+        }, 'delivery_schedule_template.xlsx');
+    }
+
+	public function importDeliverySchedule(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls'
+        ]);
+
+        Excel::import(new DeliveryScheduleImport, $request->file('file'));
+
+        return redirect()->back()->with('success', 'Delivery schedule imported successfully.');
+    }
 }
 

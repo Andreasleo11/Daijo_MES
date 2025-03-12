@@ -16,6 +16,7 @@ use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
 use App\Models\MouldChangeLog;
 use App\Models\SpkMaster;
+use App\Models\OperatorUser;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -73,135 +74,96 @@ class DashboardController extends Controller
             } else {
                 $dataWithSpkNo = null;
             }
+            
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem')
                 ->get();
-            
-            foreach ($datas as $data) {
-                $quantity = $data->quantity;
-                //    dd($quantity);
-                // Check if the user has a related dailyItemCode and retrieve the item_code
-                $itemCode = $user->jobs->item_code ?? null;
-                $machineJobShift = $user->jobs->shift;
 
-                // If an item_code exists, retrieve all files with the same item_code
+         
+                
+            $itemCollections = [];
+
+            foreach ($datas as $data) {
+                $itemCode = $user->jobs->item_code ?? null;
+             
+
                 if ($itemCode) {
                     $files = File::where('item_code', $itemCode)->get();
-                    // $this->scanFromProduction($itemCode, $datas);
-                    $datasnew = SpkMaster::where('item_code', $itemCode)->get();
-                    $masteritem = MasterListItem::where('item_code', $itemCode)->get()->first();
-                    $perpack = $masteritem->standart_packaging_list;
-                    $label = (int) ceil($quantity / $perpack);
-                    $uniquedata = [];
-                    $labelstart = 0;
-                    $previous_spk = null; // Variable to track the previous SPK
-                    $start_label = null; // Variable to store start_label for each SPK
-                    // dd($datasnew);
-                    foreach ($datasnew as $data) {
-                      
-                        $available_quantity = $data->planned_quantity - $data->completed_quantity;
-                       
-                        if ($quantity <= $available_quantity) {
-                            $available_quantity = $quantity;
-                        }
-                        $deficit = 0;
-                        if ($data->completed_quantity === 0) {
-                            $labelstart = 0;
+                }
+
+
+                $itemCodeall = $data->item_code;
+                $quantity = $data->quantity;
+
+                // Create an array for each unique item_code
+                if (!isset($itemCollections[$itemCodeall])) {
+                    $itemCollections[$itemCodeall] = [];
+                }
+
+                // Get all SPK records for the current item_code
+                $spkRecords = SpkMaster::where('item_code', $itemCodeall)->get();
+                $masterItem = MasterListItem::where('item_code', $itemCodeall)->first();
+                $perpack = $masterItem->standart_packaging_list ?? 1; // Avoid division by zero
+
+                $labelstart = 0;
+                $previous_spk = null;
+                $start_label = null;
+
+                foreach ($spkRecords as $spk) {
+                    $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
+
+                    if ($quantity <= 0) {
+                        break; // Move to the next item_code once the quantity is fulfilled
+                    }
+
+                    if ($quantity <= $available_quantity) {
+                        $available_quantity = $quantity;
+                    }
+
+                    if ($spk->completed_quantity === 0) {
+                        $labelstart = 0;
+                    } else {
+                        $labelstart = ceil($spk->completed_quantity / $perpack);
+                    }
+
+                    while ($available_quantity > 0) {
+                        $labelstart++;
+                        $pack_quantity = min($perpack, $available_quantity);
+                        $key = $spk->spk_number . '|' . $spk->item_code;
+
+                        if (isset($itemCollections[$itemCodeall][$key])) {
+                            $itemCollections[$itemCodeall][$key]['count']++;
+                            $itemCollections[$itemCodeall][$key]['end_label'] = $labelstart;
                         } else {
-                            $labelstart = ceil($data->completed_quantity / $perpack);
+                            $itemCollections[$itemCodeall][$key] = [
+                                'spk' => $spk->spk_number,
+                                'item_code' => $spk->item_code,
+                                'item_perpack' => $perpack,
+                                'available_quantity' => $available_quantity,
+                                'count' => 1,
+                                'start_label' => $labelstart,
+                                'end_label' => $labelstart,
+                                'scannedData' => 0, // Will be updated later
+                            ];
                         }
 
-                        if ($deficit != 0) {
-                            $available_quantity -= $deficit;
-                            $deficit = 0;
-                        }
-                        // dd($available_quantity);
-                        while ($available_quantity > 0) {
-                            if ($available_quantity >= $perpack) {
-                                // Assign a full label to this SPK
-                                $labelstart++;
-                                $labels[] = [
-                                    'spk' => $data->spk_number,
-                                    'item_code' => $data->item_code,
-                                    'warehouse' => 'FG',
-                                    'quantity' => $perpack,
-                                    'label' => $labelstart,
-                                ];
-
-                                // Check if SPK has changed
-                                if ($previous_spk !== $data->spk_number) {
-                                    // If SPK has changed, set start_label and reset end_label
-                                    $start_label = $labelstart;
-                                    $previous_spk = $data->spk_number;
-                                }
-
-                                $key = $data->spk_number . '|' . $data->item_code;
-                                if (isset($uniquedata[$key])) {
-                                    $uniquedata[$key]['count']++;
-                                    $uniquedata[$key]['end_label'] = $labelstart; // Update end_label as it progresses
-                                } else {
-                                    $uniquedata[$key] = [
-                                        'spk' => $data->spk_number,
-                                        'item_code' => $data->item_code,
-                                        'item_perpack' => $perpack,
-                                        'available_quantity' => $available_quantity,
-                                        'count' => 1,
-                                        'start_label' => $start_label, // Set start_label for this SPK
-                                        'end_label' => $labelstart, // Initially, end_label is the same as start_label
-                                    ];
-                                }
-
-                                $available_quantity -= $perpack;
-                                $quantity -= $perpack;
-                            } else {
-                                // Assign a partial label to this SPK and move to the next
-                                $labelstart++;
-                                $labels[] = [
-                                    'spk' => $data->spk_number,
-                                    'item_code' => $data->item_code,
-                                    'warehouse' => 'FG',
-                                    'quantity' => $perpack,
-                                    'label' => $labelstart,
-                                ];
-
-                                $key = $data->spk_number . '|' . $data->item_code;
-                                if (isset($uniquedata[$key])) {
-                                    $uniquedata[$key]['count']++;
-                                    $uniquedata[$key]['end_label'] = $labelstart; // Update end_label for partial labels
-                                } else {
-                                    $uniquedata[$key] = [
-                                        'spk' => $data->spk_number,
-                                        'item_code' => $data->item_code,
-                                        'item_perpack' => $perpack,
-                                        'available_quantity' => $available_quantity,
-                                        'count' => 1,
-                                        'start_label' => $start_label,
-                                        'end_label' => $labelstart,
-                                    ];
-                                }
-                                $deficit = $available_quantity;
-                                $available_quantity = 0;
-                            }
-                        }
+                        $available_quantity -= $pack_quantity;
+                        $quantity -= $pack_quantity;
                     }
-
-                    // Convert uniquedata to array format
-                    $uniquedata = array_values($uniquedata);
-                    // dd($uniquedata);
-                    foreach ($uniquedata as &$data) {
-                        // Query the production_scanned_data table for matching spk and item_code
-                        $scannedCount = ProductionScannedData::where('spk_code', $data['spk'])
-                            ->where('item_code', $data['item_code'])
-                            ->count();
-
-                        // Add the scannedData count to the current $data array
-                        $data['scannedData'] = $scannedCount;
-                    }
-                    // dd($uniquedata);
                 }
             }
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid'));
+
+            // Fetch scanned data for all collected SPKs
+            foreach ($itemCollections as $itemCodeall => &$spkList) {
+                foreach ($spkList as &$spkData) {
+                    $spkData['scannedData'] = ProductionScannedData::where('spk_code', $spkData['spk'])
+                        ->where('item_code', $spkData['item_code'])
+                        ->count();
+                }
+            }
+            dd($itemCollections);
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections'));
         } elseif($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
@@ -246,10 +208,10 @@ class DashboardController extends Controller
 
         // Find the DailyItemCode records for the user
         $verified_data = DailyItemCode::where('user_id', $user->id)->get();
-
+        
         // Check if the item code exists for the user
         $itemCodeExists = $verified_data->contains('item_code', $itemCode);
-
+     
         if ($itemCodeExists) {
             // Retrieve the specific DailyItemCode for the item code
             $dailyItemCode = DailyItemCode::where('item_code', $itemCode)->first();
@@ -257,18 +219,18 @@ class DashboardController extends Controller
             // Get the current time
             $currentTime = now();
 
-            // Check if the current time is not within the range of start_time and end_time
-            if ($currentTime->lt($dailyItemCode->start_time) && $currentTime->gt($dailyItemCode->end_time)) {
-                $startTime = \Carbon\Carbon::parse($dailyItemCode->start_time)->format('H:i');
-                $endTime = \Carbon\Carbon::parse($dailyItemCode->end_time)->format('H:i');
+            // // Check if the current time is not within the range of start_time and end_time
+            // if ($currentTime->lt($dailyItemCode->start_time) && $currentTime->gt($dailyItemCode->end_time)) {
+            //     $startTime = \Carbon\Carbon::parse($dailyItemCode->start_time)->format('H:i');
+            //     $endTime = \Carbon\Carbon::parse($dailyItemCode->end_time)->format('H:i');
 
-                // Return with an error message if the current time is outside the range
-                return redirect()
-                    ->back()
-                    ->withErrors(['item_code' => 'The item code is not valid for the current time.'])
-                    ->withInput()
-                    ->with('error', "The current time is outside the shift time range ($startTime-$endTime) for this item code.");
-            }
+            //     // Return with an error message if the current time is outside the range
+            //     return redirect()
+            //         ->back()
+            //         ->withErrors(['item_code' => 'The item code is not valid for the current time.'])
+            //         ->withInput()
+            //         ->with('error', "The current time is outside the shift time range ($startTime-$endTime) for this item code.");
+            // }
 
 
 
@@ -489,102 +451,116 @@ class DashboardController extends Controller
     }
 
     public function procesProductionBarcodes(Request $request)
-    {
-        // dd($request->all());
-        $datas = json_decode($request->input('datas'));
-        $uniquedata = json_decode($request->input('uniqueData'));
-
-        $uniqueItemCodes = collect($uniquedata)->pluck('item_code')->unique();
-        $firstData = collect($datas)->firstWhere(function ($data) use ($uniqueItemCodes) {
-            return $uniqueItemCodes->contains($data->item_code);
-        });
-        
-        // dd($uniquedata);
-        // dd($datas);
-        // dd($uniquedata);
-        $request->validate([
-            'spk_code' => 'required|string',
-            'item_code' => 'required|string',
-            'warehouse' => 'required|string',
-            'quantity' => 'required|integer',
-            'label' => 'required|string',
-        ]);
-
-        // Perform initial validation
-        $validator = Validator::make($request->all(), [
-            'spk_code' => 'required|string',
-            'item_code' => 'required|string',
-            'warehouse' => 'required|string',
-            'quantity' => 'required|integer',
-            'label' => 'required|string',
-        ]);
-
-        // Add additional validation after the main validation
-        $validator->after(function ($validator) use ($request, $uniquedata) {
-            $spk_code = $request->input('spk_code');
-            $item_code = $request->input('item_code');
-            $quantity = $request->input('quantity');
-            $label = $request->input('label');
-
-            // Check if spk_code and item_code exist in $uniquedata
-            $found = null;
-            foreach ($uniquedata as $data) {
-                if ($data->spk === $spk_code && $data->item_code === $item_code) {
-                    $found = $data;
-                    // dd($found);
-                    break;
-                }
-            }
-
-            // If not found, add validation error
-            if (!$found) {
-                $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
-            } else {
-                // dd('masuk sini');
-                // Check if the label is within the valid range
-                $start_label = (int) $found->start_label;
-                $end_label = (int) $found->end_label;
-                // dd($start_label);
-                // dd($end_label);
-                if ($label < $start_label || $label > $end_label) {
-                    // dd('out dari label');
-                    $validator->errors()->add('label', "The label must be between $start_label and $end_label for SPK $spk_code and item code $item_code.");
-                }
-                // dd('dalam range label');
-            }
-        });
-        // dd('pass');
-        // If validation fails, return errors
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
+{
+    // dd($request->all());
+    // Decode the JSON input from the request
+    $datas = json_decode($request->input('datas'), true);
+    $uniquedata = json_decode($request->input('uniqueData'));
+    // dd($datas);
+    // Restructure the unique data based on item_code
+    $restructureduniquedata = [];
+    foreach ($uniquedata as $itemCode => $spkData) {
+        foreach ($spkData as $key => $data) {
+            // Ensure each item code maps to the correct spk data
+            $restructureduniquedata[$itemCode] = $data;  // This will overwrite existing entry, making it the last one
         }
+    }
+    
+    $dic_id = null;
+    foreach ($datas as $data) {
+        // dd($data);
+        if ($data['item_code'] === $request->input('item_code')) {
+            $dic_id = $data['id'];  // Set dic_id to the matched data's id
+      
+            break; // Exit the loop once the match is found
+        }
+
+    }
+    // Validate that a matching dic_id was found
+    if (!$dic_id) {
+        return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
+    }
+
+    
+
+    // Validate incoming request data
+    $request->validate([
+        'spk_code' => 'required|string',
+        'item_code' => 'required|string',
+        'warehouse' => 'required|string',
+        'quantity' => 'required|integer',
+        'label' => 'required|string',
+    ]);
+    
+   
+    // Validation logic for SPK code and label ranges
+    $validator = Validator::make($request->all(), [
+        'spk_code' => 'required|string',
+        'item_code' => 'required|string',
+        'warehouse' => 'required|string',
+        'quantity' => 'required|integer',
+        'label' => 'required|string',
+    ]);
+    
+    // After validation, custom validation for SPK and label range
+    $validator->after(function ($validator) use ($request, $restructureduniquedata) {
         $spk_code = $request->input('spk_code');
         $item_code = $request->input('item_code');
-        $quantity = $request->input('quantity');
-        $warehouse = $request->input('warehouse');
         $label = $request->input('label');
-        $user = $request->input('nik');
+        
+        // Check if the provided SPK and item_code exist in restructureduniquedata
+        $found = $restructureduniquedata[$item_code] ?? null;
 
-        $existingScan = ProductionScannedData::where('spk_code', $spk_code)->where('item_code', $item_code)->where('label', $label)->first();
+        if (!$found) {
+            $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
+        } else {
+            // Validate if the label is within the valid range for the SPK and item code
+            $start_label = (int) $found->start_label;
+            $end_label = (int) $found->end_label;
 
-        if ($existingScan) {
-            return redirect()
-                ->back()
-                ->withErrors(['error' => 'Data already scanned']);
+            if ($label < $start_label || $label > $end_label) {
+                $validator->errors()->add('label', "The label must be between $start_label and $end_label for SPK $spk_code and item code $item_code.");
+            }
         }
-        // dd('aman sampe sini ?');
-        ProductionScannedData::create([
-            'spk_code' => $spk_code,
-            'dic_id' => $firstData->id,
-            'item_code' => $item_code,
-            'quantity' => $quantity,
-            'warehouse' => $warehouse,
-            'label' => $label,
-            'user' => $user,
-        ]);
-
-        return redirect()->route('dashboard')->with('deactivateScanMode', true);
+    });
+    
+    // Return validation errors if validation fails
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
     }
+
+    // Retrieve the values from the request for creating scanned data
+    $spk_code = $request->input('spk_code');
+    $item_code = $request->input('item_code');
+    $quantity = $request->input('quantity');
+    $warehouse = $request->input('warehouse');
+    $label = $request->input('label');
+    $user = $request->input('nik');
+
+    // Check if the same scan already exists in the database
+    $existingScan = ProductionScannedData::where('spk_code', $spk_code)
+        ->where('item_code', $item_code)
+        ->where('label', $label)
+        ->first();
+
+    if ($existingScan) {
+        return redirect()->back()->withErrors(['error' => 'Data already scanned']);
+    }
+
+    // Create a new ProductionScannedData entry
+    ProductionScannedData::create([
+        'spk_code' => $spk_code,
+        'dic_id' => $dic_id,  // The associated data ID
+        'item_code' => $item_code,
+        'quantity' => $quantity,
+        'warehouse' => $warehouse,
+        'label' => $label,
+        'user' => $user,
+    ]);
+
+    // Redirect back to the dashboard with a success message
+    return redirect()->route('dashboard')->with('deactivateScanMode', true);
+}
 
     public function finishJob(Request $request){
 
@@ -592,7 +568,9 @@ class DashboardController extends Controller
 
     public function resetJobs(Request $request)
     {
+        dd($request->all());
         $uniquedata = json_decode($request->input('uniqueData'), true);
+       
         $datas = json_decode($request->input('datas'));
 
         // dd($uniquedata);
@@ -624,10 +602,33 @@ class DashboardController extends Controller
             }
         }
 
+        // Get the current time (or a specific time if needed)
+        $currentTime = now();  // For current time, or you can use Carbon::parse('specific-time')
+        dd($currentTime);
+        // Define shift times
+        $shift1Start = Carbon::parse('07:30:00');
+        $shift1End = Carbon::parse('15:30:00');
+        $shift2Start = Carbon::parse('15:31:00');
+        $shift2End = Carbon::parse('23:30:00');
+        $shift3Start = Carbon::parse('23:31:00');
+        $shift3End = Carbon::parse('07:29:59');
+
+        // Determine the shift based on the current time
+        $shift = null;
+
+        if ($currentTime->between($shift1Start, $shift1End)) {
+            $shift = 1;
+        } elseif ($currentTime->between($shift2Start, $shift2End)) {
+            $shift = 2;
+        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
+            $shift = 3;
+        }
+        dd($shift);
         // Reset the machine job
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
         $machineJob->update([
             'item_code' => null,
+            'shift' => $shift,
         ]);
 
         return redirect()->back()->with([
@@ -679,9 +680,30 @@ class DashboardController extends Controller
 
     public function resetJob()
     {
+        $currentTime = now();  // For current time, or you can use Carbon::parse('specific-time')
+        // Define shift times
+        $shift1Start = Carbon::parse('07:30:00');
+        $shift1End = Carbon::parse('15:30:00');
+        $shift2Start = Carbon::parse('15:31:00');
+        $shift2End = Carbon::parse('23:30:00');
+        $shift3Start = Carbon::parse('23:31:00');
+        $shift3End = Carbon::parse('07:29:59');
+
+        // Determine the shift based on the current time
+        $shift = null;
+
+        if ($currentTime->between($shift1Start, $shift1End)) {
+            $shift = 1;
+        } elseif ($currentTime->between($shift2Start, $shift2End)) {
+            $shift = 2;
+        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
+            $shift = 3;
+        }
+
+        // Reset the machine job
         MachineJob::where('user_id', auth()->user()->id)->update([
             'item_code' => null,
-            'shift' => null,
+            'shift' => $shift,
         ]);
 
         return redirect()->back()->with('success', 'Job has been resetted!');
@@ -700,6 +722,7 @@ class DashboardController extends Controller
         ->orderBy('start_time', 'asc') // Order by shift timing
         ->pluck('item_code')
         ->toArray(); // Convert to an array for easier processing
+        
 
         // Find the next item_code in sequence
         $nextItemCode = null;
@@ -753,5 +776,29 @@ class DashboardController extends Controller
         }
 
         return response()->json(['error' => 'No active mould change found'], 400);
+    }
+
+
+    public function verifyNIKPassword(Request $request)
+    {
+        $nik = $request->input('nik');
+        $password = $request->input('password');
+
+        // Validate the incoming data
+        $validated = $request->validate([
+            'nik' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        // Attempt to find the operator user by NIK
+        $operatorUser = OperatorUser::where('name', $nik)->first();
+
+        if ($operatorUser && $password === $operatorUser->password) {
+            // If user exists and password matches, return success
+            return response()->json(['success' => true, 'message' => 'NIK and password are verified']);
+        }
+
+        // If the NIK or password doesn't match, return an error
+        return response()->json(['success' => false, 'message' => 'Invalid NIK or Password'], 400);
     }
 }
