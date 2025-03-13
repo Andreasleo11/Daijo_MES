@@ -27,41 +27,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $parents = PRD_BillOfMaterialParent::get();
-        $childs = PRD_BillOfMaterialChild::get();
-        $materialLogs = PRD_MaterialLog::get();
-        $mouldingUserLogs = PRD_MouldingUserLog::get();
         $user = auth()->user();
-        $totalPendingChildren = $childs->filter(function ($child) {
-            return $child->action_type !== 'stockfinish' &&
-                   ($child->action_type !== 'buyfinish' || $child->status !== 'Finished');
-        })->count();
-        $completedItems = $childs->filter(
-            fn($child) => in_array($child->action_type, ['stockfinish']) || $child->status === 'Finished'
-        )->count();
-        $overallCompletionPercentage = $parents->map(function ($parent) use ($childs, $materialLogs) {
-            $totalChildren = $childs->where('parent_id', $parent->id)->count();
-            $finishedChildren = 0;
-
-            foreach ($childs->where('parent_id', $parent->id) as $child) {
-                $processCount = $materialLogs->where('child_id', $child->id)->count();
-                $finishedCount = $materialLogs
-                    ->where('child_id', $child->id)
-                    ->filter(fn($log) => $log->status == 2)
-                    ->count();
-
-                if (($child->action_type === 'buyfinish' && $child->status === 'Finished') || $child->action_type === 'stockfinish') {
-                    $finishedChildren++;
-                } elseif ($processCount > 0 && $finishedCount === $processCount) {
-                    $finishedChildren++;
-                }
-            }
-
-            return $totalChildren > 0 ? ($finishedChildren / $totalChildren) * 100 : 0;
-        })->average();
-
         if($user->role->name === 'ADMIN'){
-            return view('dashboards.dashboard-admin', compact('parents', 'childs', 'materialLogs', 'mouldingUserLogs', 'completedItems', 'overallCompletionPercentage', 'totalPendingChildren'));
+            return view('dashboards.dashboard-admin');
         } elseif($user->role->name === 'OPERATOR') {
             $files = collect();
             $machineJobShift = null;
@@ -77,7 +45,7 @@ class DashboardController extends Controller
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem')
                 ->get();
-            
+
             foreach ($datas as $data) {
                 $quantity = $data->quantity;
                 //    dd($quantity);
@@ -99,9 +67,9 @@ class DashboardController extends Controller
                     $start_label = null; // Variable to store start_label for each SPK
                     // dd($datasnew);
                     foreach ($datasnew as $data) {
-                      
+
                         $available_quantity = $data->planned_quantity - $data->completed_quantity;
-                       
+
                         if ($quantity <= $available_quantity) {
                             $available_quantity = $quantity;
                         }
@@ -498,7 +466,7 @@ class DashboardController extends Controller
         $firstData = collect($datas)->firstWhere(function ($data) use ($uniqueItemCodes) {
             return $uniqueItemCodes->contains($data->item_code);
         });
-        
+
         // dd($uniquedata);
         // dd($datas);
         // dd($uniquedata);
@@ -693,7 +661,7 @@ class DashboardController extends Controller
         $today = Carbon::now()->format('Y-m-d');
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
-        
+
         // Get all item_codes for today, ordered by shift or time
         $dailyItems = DailyItemCode::where('user_id', $userId)
         ->whereDate('start_date', $today) // Match today's records
@@ -714,14 +682,14 @@ class DashboardController extends Controller
                 ->whereDate('start_date', $nextDay)
                 ->orderBy('start_time', 'asc')
                 ->value('item_code'); // Get the first record of the next day
-    
+
             $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
 
             if ($nextItemCode === null) {
                 return response()->json(['message' => 'Belom Diassign bos ']);
             }
         }
-      
+
         // Create a new mould change log entry
         $mouldChange = MouldChangeLog::create([
             'user_id' => $userId,

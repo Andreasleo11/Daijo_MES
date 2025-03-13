@@ -1,5 +1,30 @@
 <div class="p-4">
     <div class="p-6 bg-gray-100">
+        <!-- Filter Section -->
+        <div class="grid grid-cols-2 md:grid-cols-2 gap-4 mb-8">
+            <!-- Child Status Filter -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-1">Filter by Child Status</label>
+                <select wire:model.defer="childStatus" wire:change="applyFilters"
+                    class="w-full p-2 border border-gray-300 rounded-lg">
+                    <option value="">All</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="Finished">Finished</option>
+                </select>
+            </div>
+
+            <!-- Parent Process Filter -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-1">Filter by Process</label>
+                <select wire:model.defer="selectedProcess" wire:change="applyFilters"
+                    class="w-full p-2 border border-gray-300 rounded-lg">
+                    <option value="">All</option>
+                    @foreach ($availableProcesses as $process)
+                        <option value="{{ $process }}">{{ $process }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
         <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
 
         <!-- Summary Cards -->
@@ -23,10 +48,13 @@
         </div>
 
         <div class="mt-8">
-            <h2 class="text-lg font-semibold mb-4">BOM</h2>
+            <h2 class="text-lg font-semibold my-4">BOM</h2>
+            <div class="my-4">
+                {{ $parents->links('vendor.livewire.custom-pagination', ['parentCodes' => $parentCodes]) }}
+            </div>
             @foreach ($parents as $parent)
                 <!-- Parent Card -->
-                <div class="mb-6 p-4 rounded shadow-lg bg-white border">
+                <div wire:key="parent-{{ $parent->id }}" class="mb-6 p-4 rounded shadow-lg bg-white border">
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="text-xl font-bold">{{ $parent->code }}</h3>
@@ -35,50 +63,11 @@
                             <p class="text-sm text-gray-500">{{ $parent->customer }}</p>
                         </div>
                         <div>
-                            <!-- Completion Percentage for Parent -->
-                            @php
-                                $finishedChildren = 0; // Count of children considered fully finished
-                                $totalChildren = $childs->where('parent_id', $parent->id)->count(); // Total children under the parent
-
-                                foreach ($childs->where('parent_id', $parent->id) as $child) {
-                                    $processCount = $materialLogs->where('child_id', $child->id)->count();
-                                    $finishedCount = $materialLogs
-                                        ->where('child_id', $child->id)
-                                        ->filter(fn($log) => $log->status == 2)
-                                        ->count();
-
-                                    // Check if child is fully finished
-                                    if (
-                                        ($child->action_type === 'buyfinish' && $child->status === 'Finished') ||
-                                        $child->action_type === 'stockfinish'
-                                    ) {
-                                        $finishedChildren++;
-                                    } elseif (
-                                        $child->action_type === 'stockprocess' ||
-                                        $child->action_type === 'buyprocess'
-                                    ) {
-                                        // For children in progress, count as finished only if all processes are done
-                                        if ($processCount > 0 && $finishedCount === $processCount) {
-                                            $finishedChildren++;
-                                        } else {
-                                            if ($processCount > 0) {
-                                                $finishedChildren += $finishedCount / $processCount;
-                                            } else {
-                                                // Handle the case where processCount is 0
-                                                $finishedChildren += 0; // or handle it as per your requirement
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Calculate the completion percentage for the parent
-                                $parentCompletionPercentage =
-                                    $totalChildren > 0 ? ($finishedChildren / $totalChildren) * 100 : 0;
-                            @endphp
-
                             <div class="text-right">
-                                <p class="text-lg font-semibold">{{ round($parentCompletionPercentage, 2) }}%
-                                    Completed
+                                @php
+                                    $parentCompletionPercentage = $this->calculateParentCompletion($parent);
+                                @endphp
+                                <p class="text-lg font-semibold">{{ round($parentCompletionPercentage, 2) }}% Completed
                                 </p>
                                 <div class="w-48 bg-gray-300 h-4 rounded-full overflow-hidden">
                                     <div class="bg-green-500 h-4" style="width: {{ $parentCompletionPercentage }}%;">
@@ -92,7 +81,7 @@
                     <div class="mt-4">
                         <h4 class="text-md font-semibold mb-2">Item Codes</h4>
                         <div class="grid grid-cols-1 gap-4">
-                            @foreach ($childs->where('parent_id', $parent->id) as $child)
+                            @foreach ($parent->children as $child)
                                 <!-- Progress Calculation for Each Child -->
                                 @php
                                     $childProgress = 0;
@@ -217,14 +206,10 @@
                 </div>
             @endforeach
         </div>
-        <!-- Livewire Pagination Links -->
-        <div class="mt-4">
-            {{ $parents->links() }}
-        </div>
     </div>
 </div>
 @script
-    <script>
+    <script type="module">
         // Listen for the "ParentDataUpdated" event on the Laravel Echo channel
         Echo.channel('dashboard-data')
             .listen('ParentDataUpdated', (event) => {
