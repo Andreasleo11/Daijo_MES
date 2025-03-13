@@ -81,6 +81,11 @@
                     class="border border-gray-300 rounded-md w-full p-2 mt-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Scan or enter your NIK"/>
 
+                <label for="password" class="block font-semibold mt-4">Enter Your Password:</label>
+                <input type="password" id="password" x-model="passwordInput"
+                    class="border border-gray-300 rounded-md w-full p-2 mt-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter your password"/>
+
                 <button x-on:click="verifyNIK()" 
                     class="mt-2 py-2 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition">
                     Verify NIK
@@ -239,15 +244,19 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse ($uniquedata as $data)
+                        @if ($itemCode && isset($itemCollections[$itemCode]))
+                            @foreach ($itemCollections[$itemCode] as $data)
                                 <tr class="bg-white text-center">
                                     <td class="py-2 px-3">{{ $data['spk'] }}</td>
                                     <td class="py-2 px-3">{{ $data['item_code'] }}</td>
                                     <td class="py-2 px-3">{{ $data['scannedData'] }}/{{ $data['count'] }}</td>
                                 </tr>
-                            @empty
-                                No unique data
-                            @endforelse
+                            @endforeach
+                        @else
+                            <tr>
+                                <td colspan="3" class="text-center text-gray-500 py-2">No data for selected item code</td>
+                            </tr>
+                        @endif
                         </tbody>
                     </table>
 
@@ -269,7 +278,7 @@
                         class="space-y-3" x-data="autoSubmitForm()">
                         @csrf
                         <input type="hidden" id="uniqueData" name="uniqueData"
-                            value="{{ json_encode($uniquedata) }}" />
+                            value="{{ json_encode($itemCollections) }}" />
                         <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
                         <input type="hidden" id="nik" name="nik" x-model="nikInput" />
 
@@ -376,6 +385,7 @@
                 scanMode: true,
                 verified: false, // Verification flag
                 nikInput: '', 
+                passwordInput: '',
                 initialize() {
                     if (deactivateScanModeFlag == true) {
                         this.scanMode = false;
@@ -404,11 +414,30 @@
                 },
 
                 verifyNIK() {
-                    if (this.nikInput.trim() !== '') {
-                        this.verified = true;
-                        alert("NIK Verified Successfully!");
+                    if (this.nikInput.trim() !== '' && this.passwordInput.trim() !== '') {
+                        // Call backend to verify NIK and password
+                        $.ajax({
+                            url: "{{ route('verify.nik.password') }}", // Update with your route
+                            type: "POST",
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                            data: {
+                                nik: this.nikInput,
+                                password: this.passwordInput
+                            },
+                            success: (response) => {
+                                if (response.success) {
+                                    this.verified = true;
+                                    alert("NIK Verified Successfully!");
+                                } else {
+                                    alert("Invalid NIK or Password.");
+                                }
+                            },
+                            error: function(xhr) {
+                                alert("An error occurred while verifying your NIK.");
+                            }
+                        });
                     } else {
-                        alert("NIK cannot be empty.");
+                        alert("Please enter both NIK and password.");
                     }
                 },
                 focusOnSPKCode() {

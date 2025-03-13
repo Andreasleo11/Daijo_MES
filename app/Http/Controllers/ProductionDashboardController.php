@@ -20,7 +20,7 @@ class ProductionDashboardController extends Controller
         $machineName = $request->input('machine_name', '');
 
         $machineId = User::where('name', $machineName)->pluck('id')->first();
-        
+
         $machineJobs = MachineJob::with([
             'user', // Get user details (machine operator)
             'dailyItemCode' => function ($query) use ($today) {
@@ -29,21 +29,23 @@ class ProductionDashboardController extends Controller
                         'scannedData' // Get production scanned data per daily item
                     ]);
             },
-            'mouldChangeLogs' // Get mould change logs for the machine job
+            'mouldChangeLogs' => function ($query) use ($today) {
+            $query->whereDate('created_at', $today); // Only get today's mould change logs
+        }
         ])
         ->when($machineId, function ($query) use ($machineId) {
             // Filter by machine name if it's provided
-            return $query->whereHas('mouldChangeLogs', function ($query) use ($machineId) {
-                $query->where('user_id', $machineId);
+            return $query->whereHas('user', function ($query) use ($machineId) {
+                $query->where('id', $machineId);
             });
         })
         ->get();
-
+     
         $structuredData = [];
-
+        // dd($machineJobs);
         foreach ($machineJobs as $machineJob) {
             $userName = $machineJob->user->name ?? 'Unknown User';
-
+            
             // Initialize user in the array if not exists
             if (!isset($structuredData[$userName])) {
                 $structuredData[$userName] = [
@@ -53,89 +55,94 @@ class ProductionDashboardController extends Controller
                 ];
             }
 
-            // Process mould change logs
-            foreach ($machineJob->mouldChangeLogs as $mouldChange) {
-                $setupTimeMinute = $mouldChange->masterListItem->setup_time_minute ?? 0;
-                $startTime = Carbon::parse($mouldChange->created_at);
-                $endTime = Carbon::parse($mouldChange->end_time);
-                $actualTime = $startTime->diffInMinutes($endTime);
+            // Process mould change logs if they exist
+            if ($machineJob->mouldChangeLogs->isNotEmpty()) {
+                foreach ($machineJob->mouldChangeLogs as $mouldChange) {
+                    $setupTimeMinute = $mouldChange->masterListItem->setup_time_minute ?? 0;
+                    $startTime = Carbon::parse($mouldChange->created_at);
+                    $endTime = Carbon::parse($mouldChange->end_time);
+                    $actualTime = $startTime->diffInMinutes($endTime);
 
-                $structuredData[$userName]['mould_change_log'][] = [
-                    'id' => $mouldChange->id,
-                    'machine_name' => $mouldChange->user->name,
-                    'item_code' => $mouldChange->item_code,
-                    'start_time' => $startTime->format('Y-m-d H:i:s'),
-                    'end_time' => $endTime->format('Y-m-d H:i:s'),
-                    'predicted_time' => $setupTimeMinute,
-                    'actual_time' => $actualTime,
-                    'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
-                ];
+                    $structuredData[$userName]['mould_change_log'][] = [
+                        'id' => $mouldChange->id,
+                        'machine_name' => $mouldChange->user->name,
+                        'item_code' => $mouldChange->item_code,
+                        'start_time' => $startTime->format('Y-m-d H:i:s'),
+                        'end_time' => $endTime->format('Y-m-d H:i:s'),
+                        'predicted_time' => $setupTimeMinute,
+                        'actual_time' => $actualTime,
+                        'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
+                    ];
+                }
             }
 
-            // Process daily item codes
-            foreach ($machineJob->dailyItemCode as $dailyItem) {
-                $formattedDailyItem = [
-                    'id' => $dailyItem->id,
-                    'item_code' => $dailyItem->item_code,
-                    'quantity' => $dailyItem->quantity,
-                    'final_quantity' => $dailyItem->final_quantity,
-                    'loss_package_quantity' => $dailyItem->loss_package_quantity,
-                    'actual_quantity' => $dailyItem->actual_quantity,
-                    'shift' => $dailyItem->shift,
-                    'start_date' => Carbon::parse($dailyItem->start_date)->format('Y-m-d'),
-                    'start_time' => Carbon::parse($dailyItem->start_time)->timezone('Asia/Jakarta')->format('H:i:s'),
-                    'end_date' => Carbon::parse($dailyItem->end_date)->format('Y-m-d'),
-                    'end_time' => Carbon::parse($dailyItem->end_time)->timezone('Asia/Jakarta')->format('H:i:s'),
-                    'scanned_data' => []
-                ];
-
-                // Hourly production array
-                $hourlyProduction = [];
-
-                foreach ($dailyItem->scannedData as $scan) {
-                    $hour = Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('H:00'); // Convert to Indonesia time
-                    $scanUser = $scan->user ?? 'Unknown';
-
-                    // Initialize hourly production entry for this user and hour
-                    if (!isset($hourlyProduction[$hour])) {
-                        $hourlyProduction[$hour] = [];
-                    }
-                    if (!isset($hourlyProduction[$hour][$scanUser])) {
-                        $hourlyProduction[$hour][$scanUser] = 0;
-                    }
-
-                    // Add quantity
-                    $hourlyProduction[$hour][$scanUser] += $scan->quantity;
-
-                    // Append scanned data
-                    $formattedDailyItem['scanned_data'][] = [
-                        'id' => $scan->id,
-                        'spk_code' => $scan->spk_code,
-                        'warehouse' => $scan->warehouse,
-                        'quantity' => $scan->quantity,
-                        'label' => $scan->label,
-                        'user' => $scanUser,
-                        'scanned_at' => Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+            // Process daily item codes if they exist
+            if ($machineJob->dailyItemCode->isNotEmpty()) {
+                foreach ($machineJob->dailyItemCode as $dailyItem) {
+                    $formattedDailyItem = [
+                        'id' => $dailyItem->id,
+                        'item_code' => $dailyItem->item_code,
+                        'quantity' => $dailyItem->quantity,
+                        'final_quantity' => $dailyItem->final_quantity,
+                        'loss_package_quantity' => $dailyItem->loss_package_quantity,
+                        'actual_quantity' => $dailyItem->actual_quantity,
+                        'shift' => $dailyItem->shift,
+                        'start_date' => Carbon::parse($dailyItem->start_date)->format('Y-m-d'),
+                        'start_time' => Carbon::parse($dailyItem->start_time)->timezone('Asia/Jakarta')->format('H:i:s'),
+                        'end_date' => Carbon::parse($dailyItem->end_date)->format('Y-m-d'),
+                        'end_time' => Carbon::parse($dailyItem->end_time)->timezone('Asia/Jakarta')->format('H:i:s'),
+                        'scanned_data' => []
                     ];
-                }
 
-                // Append hourly production to the user
-                foreach ($hourlyProduction as $hour => $userData) {
-                    $structuredData[$userName]['hourly_production'][] = [
-                        'hour' => $hour,
-                        'users' => $userData
-                    ];
-                }
+                    // Hourly production array
+                    $hourlyProduction = [];
 
-                // Append the formatted daily item
-                $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
+                    foreach ($dailyItem->scannedData as $scan) {
+                        $hour = Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('H:00'); // Convert to Indonesia time
+                        $scanUser = $scan->user ?? 'Unknown';
+
+                        // Initialize hourly production entry for this user and hour
+                        if (!isset($hourlyProduction[$hour])) {
+                            $hourlyProduction[$hour] = [];
+                        }
+                        if (!isset($hourlyProduction[$hour][$scanUser])) {
+                            $hourlyProduction[$hour][$scanUser] = 0;
+                        }
+
+                        // Add quantity
+                        $hourlyProduction[$hour][$scanUser] += $scan->quantity;
+
+                        // Append scanned data
+                        $formattedDailyItem['scanned_data'][] = [
+                            'id' => $scan->id,
+                            'spk_code' => $scan->spk_code,
+                            'warehouse' => $scan->warehouse,
+                            'quantity' => $scan->quantity,
+                            'label' => $scan->label,
+                            'user' => $scanUser,
+                            'scanned_at' => Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+                        ];
+                    }
+
+                    // Append hourly production to the user
+                    foreach ($hourlyProduction as $hour => $userData) {
+                        $structuredData[$userName]['hourly_production'][] = [
+                            'hour' => $hour,
+                            'users' => $userData
+                        ];
+                    }
+
+                    // Append the formatted daily item
+                    $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
+                }
             }
         }
-        $machines = User::distinct()
-        ->whereIn('id', MachineJob::pluck('user_id')) // Get user IDs (machine IDs) from MachineJob
-        ->pluck('name', 'id'); // Get the machine name and user_id (machine ID)
-     
         // dd($structuredData);
+        // Fetch the machine names
+        $machines = User::distinct()
+            ->whereIn('id', MachineJob::pluck('user_id')) // Get user IDs (machine IDs) from MachineJob
+            ->pluck('name', 'id'); // Get the machine name and user_id (machine ID)
+
         return view('dashboards.dashboard-master-production', compact('structuredData', 'machines'));
     }
 

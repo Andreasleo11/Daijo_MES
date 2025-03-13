@@ -22,6 +22,7 @@ use App\Http\Controllers\InvLineListController;
 use App\Http\Controllers\Setting\HolidayScheduleController;
 use App\Http\Controllers\CapacityByForecastController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\OperatorUserController;
 use App\Http\Controllers\ProductionDashboardController;
 
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
@@ -37,11 +38,14 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
-Route::get('/djoni-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+
+Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
 
 Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 
 Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
+
 
 Route::redirect('/', '/login');
 
@@ -52,7 +56,6 @@ Route::redirect('/', '/login');
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-// Route::get('/login', LivewireLoginSwitcher::class)->name('login');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
@@ -65,6 +68,9 @@ Route::middleware('auth')->group(function (){
     Route::post('/process/itemproduction', [DashboardController::class, 'procesProductionBarcodes'])->name('process.productionbarcode');
     Route::get('/reset-jobs', [DashboardController::class, 'resetJobs'])->name('reset.jobs');
     Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
+    Route::post('/verify-nik-password', [DashboardController::class, 'verifyNIKPassword'])->name('verify.nik.password');
+
+
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
     Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
@@ -193,6 +199,19 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
     Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
+
+
+        
+    Route::get('new-delivery-schedule', [DeliveryScheduleController::class, 'deliveryScheduleNewIndex'])->name('testnewdelivery');
+    // Route::get('/login', LivewireLoginSwitcher::class)->name('login');
+
+    Route::get('/export-delivery-schedule', [DeliveryScheduleController::class, 'exportDeliverySchedule'])->name('export.delivery.schedule');
+    Route::get('/export-delivery-schedule-template', [DeliveryScheduleController::class, 'exportTemplate'])
+        ->name('export.delivery.schedule.template');
+
+    Route::post('/import-delivery-schedule', [DeliveryScheduleController::class, 'importDeliverySchedule'])
+        ->name('import.delivery.schedule');
+
 
     Route::get('export-delschedfinal', [DeliveryScheduleController::class, 'exportToExcel'])->name('export.delschedfinal');
     Route::get('delschedfinal/dashboard', [DeliveryScheduleController::class, 'dashboardUser'])->name('delschedfinal.dashboard');
