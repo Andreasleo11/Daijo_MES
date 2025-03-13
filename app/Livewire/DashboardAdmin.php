@@ -36,18 +36,15 @@ class DashboardAdmin extends Component
 
     public function calculateStatistics($childs, $materialLogs)
     {
-        $this->totalPendingChildren = $childs->filter(function ($child) {
-            return $child->action_type !== 'stockfinish' &&
-                   ($child->action_type !== 'buyfinish' || $child->status !== 'Finished');
-        })->count();
+        $this->totalPendingChildren = $childs
+            ->filter(function ($child) {
+                return $child->action_type !== 'stockfinish' && ($child->action_type !== 'buyfinish' || $child->status !== 'Finished');
+            })
+            ->count();
 
-        $this->completedItems = $childs->filter(
-            fn($child) => in_array($child->action_type, ['stockfinish']) || $child->status === 'Finished'
-        )->count();
+        $this->completedItems = $childs->filter(fn($child) => in_array($child->action_type, ['stockfinish']) || $child->status === 'Finished')->count();
 
-        $this->overallCompletionPercentage = $childs->count() > 0
-            ? ($this->completedItems / $childs->count()) * 100
-            : 0;
+        $this->overallCompletionPercentage = $childs->count() > 0 ? ($this->completedItems / $childs->count()) * 100 : 0;
     }
 
     public function applyFilters()
@@ -57,21 +54,22 @@ class DashboardAdmin extends Component
 
     public function calculateParentCompletion($parent)
     {
-        $finishedChildren = $parent->children->filter(function ($child) {
-            $processCount = $child->materialProcess->count();
-            $finishedCount = $child->materialProcess->where('status', 2)->count();
+        $finishedChildren = $parent->children
+            ->filter(function ($child) {
+                $processCount = $child->materialProcess->count();
+                $finishedCount = $child->materialProcess->where('status', 2)->count();
 
-            if (($child->action_type === 'buyfinish' && $child->status === 'Finished') || $child->action_type === 'stockfinish') {
-                return true;
-            } elseif (in_array($child->action_type, ['stockprocess', 'buyprocess'])) {
-                return $processCount > 0 && $finishedCount === $processCount;
-            }
-            return false;
-        })->count();
+                if (($child->action_type === 'buyfinish' && $child->status === 'Finished') || $child->action_type === 'stockfinish') {
+                    return true;
+                } elseif (in_array($child->action_type, ['stockprocess', 'buyprocess'])) {
+                    return $processCount > 0 && $finishedCount === $processCount;
+                }
+                return false;
+            })
+            ->count();
 
         return $parent->children->count() > 0 ? ($finishedChildren / $parent->children->count()) * 100 : 0;
     }
-
 
     public function render()
     {
@@ -81,7 +79,7 @@ class DashboardAdmin extends Component
             },
             'children.materialProcess' => function ($query) {
                 $query->select(['id', 'child_id', 'process_name', 'status']);
-            }
+            },
         ])->take(1);
 
         // Apply Parent and Child Status Filters
