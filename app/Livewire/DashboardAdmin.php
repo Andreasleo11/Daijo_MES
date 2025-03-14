@@ -76,27 +76,49 @@ class DashboardAdmin extends Component
         $query = PRD_BillOfMaterialParent::with([
             'children' => function ($query) {
                 $query->select(['id', 'parent_id', 'item_code', 'item_description', 'quantity', 'measure', 'action_type', 'status']);
+
+                // Apply childStatus filter inside the children query
+                if (!empty($this->childStatus)) {
+                    if ($this->childStatus == "Not Started") {
+                        $query->where('status', '!=', 'Finished');
+                    } elseif ($this->childStatus == "Finished") {
+                        $query->where('status', 'Finished');
+                    }
+                }
+
+                // Apply selectedProcess filter to ensure only children with a process are shown
+                if (!empty($this->selectedProcess)) {
+                    $query->whereHas('materialProcess', function ($q) {
+                        $q->where('process_name', $this->selectedProcess);
+                    });
+                }
             },
             'children.materialProcess' => function ($query) {
                 $query->select(['id', 'child_id', 'process_name', 'status']);
-            },
-        ])->take(1);
 
-        // Apply Parent and Child Status Filters
+                // Apply selectedProcess filter inside the materialProcess query
+                if (!empty($this->selectedProcess)) {
+                    $query->where('process_name', $this->selectedProcess);
+                }
+            },
+        ]);
+
+        // If a parent has no matching children, it will still be included.
+        // To remove parents without filtered children, use whereHas()
+        if (!empty($this->childStatus)) {
+            $query->whereHas('children', function ($q) {
+                if ($this->childStatus == "Not Started") {
+                    $q->where('status', '!=', 'Finished');
+                } elseif ($this->childStatus == "Finished") {
+                    $q->where('status', 'Finished');
+                }
+            });
+        }
+
         if (!empty($this->selectedProcess)) {
             $query->whereHas('children.materialProcess', function ($q) {
                 $q->where('process_name', $this->selectedProcess);
             });
-        }
-
-        if (!empty($this->childStatus)) {
-            $query->whereHas('children', function ($q) {
-                $q->where('status', $this->childStatus);
-            });
-        }
-
-        if (!empty($this->selectedParent)) {
-            $query->where('id', $this->selectedParent);
         }
 
         $parents = $query->paginate(1); // Increase per-page to reduce queries
