@@ -151,8 +151,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/production/bom/child/{childId}/addBrokenQuantity', [BillOfMaterialController::class, 'addBrokenQuantity'])->name('production.bom.child.addBrokenQuantity');
     Route::delete('/production/process-delete/{id}', [BillOfMaterialController::class, 'destroyProcess'])->name('production.process.delete');
     Route::post('/production/process/accept/{id}', [BillOfMaterialController::class, 'accept'])->name('production.process.accept');
-    Route::delete('/production/process/{id}/delete', [BillOfMaterialController::class, 'delete'])->name('production.process.delete');
-    
+
     Route::post('/excel-bom-upload', [BillOfMaterialController::class, 'uploadExcelBom'])->name('excel.bom.upload');
 
 

@@ -28,42 +28,10 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $parents = PRD_BillOfMaterialParent::get();
-        $childs = PRD_BillOfMaterialChild::get();
-        $materialLogs = PRD_MaterialLog::get();
-        $mouldingUserLogs = PRD_MouldingUserLog::get();
         $user = auth()->user();
-        $totalPendingChildren = $childs->filter(function ($child) {
-            return $child->action_type !== 'stockfinish' &&
-                   ($child->action_type !== 'buyfinish' || $child->status !== 'Finished');
-        })->count();
-        $completedItems = $childs->filter(
-            fn($child) => in_array($child->action_type, ['stockfinish']) || $child->status === 'Finished'
-        )->count();
-        $overallCompletionPercentage = $parents->map(function ($parent) use ($childs, $materialLogs) {
-            $totalChildren = $childs->where('parent_id', $parent->id)->count();
-            $finishedChildren = 0;
-
-            foreach ($childs->where('parent_id', $parent->id) as $child) {
-                $processCount = $materialLogs->where('child_id', $child->id)->count();
-                $finishedCount = $materialLogs
-                    ->where('child_id', $child->id)
-                    ->filter(fn($log) => $log->status == 2)
-                    ->count();
-
-                if (($child->action_type === 'buyfinish' && $child->status === 'Finished') || $child->action_type === 'stockfinish') {
-                    $finishedChildren++;
-                } elseif ($processCount > 0 && $finishedCount === $processCount) {
-                    $finishedChildren++;
-                }
-            }
-
-            return $totalChildren > 0 ? ($finishedChildren / $totalChildren) * 100 : 0;
-        })->average();
-
-        if($user->role->name === 'ADMIN'){
-            return view('dashboards.dashboard-admin', compact('parents', 'childs', 'materialLogs', 'mouldingUserLogs', 'completedItems', 'overallCompletionPercentage', 'totalPendingChildren'));
-        } elseif($user->role->name === 'OPERATOR') {
+        if ($user->role->name === 'ADMIN') {
+            return view('dashboards.dashboard-admin');
+        } elseif ($user->role->name === 'OPERATOR') {
             $files = collect();
             $machineJobShift = null;
             $itemCode = null;
@@ -74,24 +42,21 @@ class DashboardController extends Controller
             } else {
                 $dataWithSpkNo = null;
             }
-            
+
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem')
                 ->get();
 
-         
-                
             $itemCollections = [];
 
             foreach ($datas as $data) {
                 $itemCode = $user->jobs->item_code ?? null;
-             
+
 
                 if ($itemCode) {
                     $files = File::where('item_code', $itemCode)->get();
                 }
-
 
                 $itemCodeall = $data->item_code;
                 $quantity = $data->quantity;
@@ -162,8 +127,9 @@ class DashboardController extends Controller
                         ->count();
                 }
             }
+
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections'));
-        } elseif($user->role->name === 'WORKSHOP') {
+        } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
             return view('dashboard', compact('user'));
@@ -207,10 +173,10 @@ class DashboardController extends Controller
 
         // Find the DailyItemCode records for the user
         $verified_data = DailyItemCode::where('user_id', $user->id)->get();
-        
+
         // Check if the item code exists for the user
         $itemCodeExists = $verified_data->contains('item_code', $itemCode);
-     
+
         if ($itemCodeExists) {
             // Retrieve the specific DailyItemCode for the item code
             $dailyItemCode = DailyItemCode::where('item_code', $itemCode)->first();
@@ -230,8 +196,6 @@ class DashboardController extends Controller
             //         ->withInput()
             //         ->with('error', "The current time is outside the shift time range ($startTime-$endTime) for this item code.");
             // }
-
-
 
             // Find the machine job record related to the user
             $machineJob = MachineJob::where('user_id', $user->id)->first();
@@ -257,8 +221,6 @@ class DashboardController extends Controller
                         break; // Exit the loop once a matching shift is found
                     }
                 }
-
-
 
                 // If no matching shift is found, you can set a default value if needed
                 if (!isset($machineJob->shift)) {
@@ -464,13 +426,13 @@ class DashboardController extends Controller
                 $restructureduniquedata[$itemCode] = $data;  // This will overwrite existing entry, making it the last one
             }
         }
-        
+
         $dic_id = null;
         foreach ($datas as $data) {
             // dd($data);
             if ($data['item_code'] === $request->input('item_code')) {
                 $dic_id = $data['id'];  // Set dic_id to the matched data's id
-        
+
                 break; // Exit the loop once the match is found
             }
 
@@ -480,7 +442,7 @@ class DashboardController extends Controller
             return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
         }
 
-        
+
 
         // Validate incoming request data
         $request->validate([
@@ -490,8 +452,8 @@ class DashboardController extends Controller
             'quantity' => 'required|integer',
             'label' => 'required|string',
         ]);
-        
-    
+
+
         // Validation logic for SPK code and label ranges
         $validator = Validator::make($request->all(), [
             'spk_code' => 'required|string',
@@ -500,13 +462,13 @@ class DashboardController extends Controller
             'quantity' => 'required|integer',
             'label' => 'required|string',
         ]);
-        
+
         // After validation, custom validation for SPK and label range
         $validator->after(function ($validator) use ($request, $restructureduniquedata) {
             $spk_code = $request->input('spk_code');
             $item_code = $request->input('item_code');
             $label = $request->input('label');
-            
+
             // Check if the provided SPK and item_code exist in restructureduniquedata
             $found = $restructureduniquedata[$item_code] ?? null;
 
@@ -522,7 +484,7 @@ class DashboardController extends Controller
                 }
             }
         });
-        
+
         // Return validation errors if validation fails
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -561,15 +523,13 @@ class DashboardController extends Controller
         return redirect()->route('dashboard')->with('deactivateScanMode', true);
     }
 
-    public function finishJob(Request $request){
-
-    }
+    public function finishJob(Request $request) {}
 
     public function resetJobs(Request $request)
     {
         dd($request->all());
         $uniquedata = json_decode($request->input('uniqueData'), true);
-       
+
         $datas = json_decode($request->input('datas'));
 
         // dd($uniquedata);
@@ -579,7 +539,7 @@ class DashboardController extends Controller
             $targetQuantity = $uniquedatum['count'];
             $actualProductionQuantity = $uniquedatum['scannedData'];
 
-            if($actualProductionQuantity < $targetQuantity){
+            if ($actualProductionQuantity < $targetQuantity) {
                 $dataSendToPpic = [
                     'machine_id' => auth()->user()->id,
                     'spk_no' => $uniquedatum['spk'],
@@ -589,9 +549,11 @@ class DashboardController extends Controller
                 ];
 
                 $dataWithSpkNo = ProductionReport::where('spk_no', $uniquedatum['spk'])->first();
-                if($dataWithSpkNo){
+                if ($dataWithSpkNo) {
                     $dataWithSpkNo->update($dataSendToPpic);
-                    return redirect()->back()->with('success', "Successfully updating spk number $dataWithSpkNo->spk_no");
+                    return redirect()
+                        ->back()
+                        ->with('success', "Successfully updating spk number $dataWithSpkNo->spk_no");
                 } else {
                     ProductionReport::create($dataSendToPpic);
                     // Send mail notification
@@ -602,7 +564,7 @@ class DashboardController extends Controller
         }
 
         // Get the current time (or a specific time if needed)
-        $currentTime = now();  // For current time, or you can use Carbon::parse('specific-time')
+        $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
         dd($currentTime);
         // Define shift times
         $shift1Start = Carbon::parse('07:30:00');
@@ -630,10 +592,12 @@ class DashboardController extends Controller
             'shift' => $shift,
         ]);
 
-        return redirect()->back()->with([
-            'success' => 'Data sent to PPIC!',
-            'deactivateScanMode' => true // Add this flag
-        ]);
+        return redirect()
+            ->back()
+            ->with([
+                'success' => 'Data sent to PPIC!',
+                'deactivateScanMode' => true, // Add this flag
+            ]);
 
         foreach ($uniquedata as $spk) {
             $real_spk = SpkMaster::where('spk_number', $spk['spk'])->first();
@@ -672,14 +636,14 @@ class DashboardController extends Controller
     public function dashboardPlastic()
     {
         $datas = DailyItemCode::with('machinerelation', 'user', 'scannedData')->get();
-    //    dd($datas);
+        //    dd($datas);
 
         return view('dashboard_plasticinjection', compact('datas'));
     }
 
     public function resetJob()
     {
-        $currentTime = now();  // For current time, or you can use Carbon::parse('specific-time')
+        $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
         // Define shift times
         $shift1Start = Carbon::parse('07:30:00');
         $shift1End = Carbon::parse('15:30:00');
@@ -718,14 +682,13 @@ class DashboardController extends Controller
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
-        
+
         // Get all item_codes for today, ordered by shift or time
         $dailyItems = DailyItemCode::where('user_id', $userId)
-        ->whereDate('start_date', $today) // Match today's records
-        ->orderBy('start_time', 'asc') // Order by shift timing
-        ->pluck('item_code')
-        ->toArray(); // Convert to an array for easier processing
-        
+            ->whereDate('start_date', $today) // Match today's records
+            ->orderBy('start_time', 'asc') // Order by shift timing
+            ->pluck('item_code')
+            ->toArray(); // Convert to an array for easier processing
 
         // Find the next item_code in sequence
         $nextItemCode = null;
@@ -733,21 +696,18 @@ class DashboardController extends Controller
 
         if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
             $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
-        }else {
+        } else {
             // Special case: Find the first item_code of the next day
             $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
-            $nextDayItem = DailyItemCode::where('user_id', $userId)
-                ->whereDate('start_date', $nextDay)
-                ->orderBy('start_time', 'asc')
-                ->value('item_code'); // Get the first record of the next day
-    
+            $nextDayItem = DailyItemCode::where('user_id', $userId)->whereDate('start_date', $nextDay)->orderBy('start_time', 'asc')->value('item_code'); // Get the first record of the next day
+
             $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
 
             if ($nextItemCode === null) {
                 return response()->json(['message' => 'Belom Diassign bos ']);
             }
         }
-      
+
         // Create a new mould change log entry
         $mouldChange = MouldChangeLog::create([
             'user_id' => $userId,
@@ -757,8 +717,7 @@ class DashboardController extends Controller
         ]);
 
         // Set machine job user_id to NULL (machine is inactive)
-        MachineJob::where('user_id', $userId)->update(['item_code' => null,
-        'shift' => null,]);
+        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
 
         return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id]);
     }
@@ -781,7 +740,6 @@ class DashboardController extends Controller
 
         return response()->json(['error' => 'No active mould change found'], 400);
     }
-
 
     public function verifyNIKPassword(Request $request)
     {
