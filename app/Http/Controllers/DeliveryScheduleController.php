@@ -7,6 +7,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 use DateTime;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -915,15 +918,62 @@ class DeliveryScheduleController extends Controller
         }, 'delivery_schedule_template.xlsx');
     }
 
+	// public function importDeliverySchedule(Request $request)
+    // {
+    //     $request->validate([
+    //         'file' => 'required|mimes:xlsx,xls'
+    //     ]);
+
+    //     Excel::import(new DeliveryScheduleImport, $request->file('file'));
+
+    //     return redirect()->back()->with('success', 'Delivery schedule imported successfully.');
+    // }
+
 	public function importDeliverySchedule(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
-        ]);
+	{
+		$request->validate([
+			'file' => 'required|mimes:xlsx,xls'
+		]);
 
-        Excel::import(new DeliveryScheduleImport, $request->file('file'));
+		// Store the uploaded file in storage/app/temp/
+		$uploadedFile = $request->file('file');
+		$fileName = $uploadedFile->getClientOriginalName();
+		$filePath = storage_path("app/temp/{$fileName}");
+		
+		// Ensure directories exist
+		if (!file_exists(storage_path('app/temp'))) {
+			mkdir(storage_path('app/temp'), 0777, true);
+		}
+		if (!file_exists(storage_path('app/temp/output'))) {
+			mkdir(storage_path('app/temp/output'), 0777, true);
+		}
 
-        return redirect()->back()->with('success', 'Delivery schedule imported successfully.');
-    }
+		// Move the uploaded file to storage
+		$uploadedFile->move(storage_path('app/temp/'), $fileName);
+
+		// Define paths
+		$pythonPath = "C:\\Users\\Andre\\AppData\\Local\\Programs\\Python\\Python312\\python.exe";
+		$scriptPath = base_path('scripts/process_excel.py'); // Your Python script path
+		$outputFilePath = storage_path("app/temp/output/processed_{$fileName}");
+
+		// Run Python script with Process
+		$process = new Process([$pythonPath, $scriptPath, $filePath, $outputFilePath]);
+		$process->run();
+
+		// Check for errors
+		if (!$process->isSuccessful()) {
+			throw new ProcessFailedException($process);
+		}
+
+		// Import the processed Excel file into the database using Laravel Excel
+		Excel::import(new DeliveryScheduleImport, $outputFilePath);
+
+		// Delete the processed file so next upload generates new data
+		if (file_exists($outputFilePath)) {
+			unlink($outputFilePath);
+		}
+
+		return redirect()->back()->with('success', 'Delivery schedule imported successfully.');
+	}
 }
 

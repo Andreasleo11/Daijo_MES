@@ -33,14 +33,44 @@
     $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
     @endphp
 
-    @if($activeMouldChange)
-        <!-- Show End Mould Change if there's an active log -->
-        <button id="endMouldChange" class="btn btn-success">Complete Change Mould</button>
-    @else
-        <!-- Show Start Mould Change if no active log -->
-        <button id="startMouldChange" class="btn btn-warning">Change Mould</button>
-    @endif
+    @php
+    $userId = auth()->id();
+    $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
+@endphp
 
+        <!-- Start Mould Change Button -->
+        <button id="startMouldChange" class="btn btn-warning" @if($activeMouldChange) style="display: none;" @endif>
+            Change Mould
+        </button>
+
+        <!-- End Mould Change Button -->
+        <button id="endMouldChange" class="btn btn-success" @if(!$activeMouldChange) style="display: none;" @endif>
+            Complete Change Mould
+        </button>
+
+        <!-- PIC Input Modal -->
+        <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
+                <h2 class="text-lg font-bold mb-4">Enter PIC Name</h2>
+                <input type="text" id="pic_name" class="border p-2 w-full rounded" placeholder="Enter PIC name...">
+                <div class="flex justify-end mt-4">
+                    <button id="closeModal" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
+                    <button id="submitPic" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+                </div>
+            </div>
+        </div>
+
+
+    <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
+            <h2 class="text-xl font-semibold mb-4">Enter PIC Name</h2>
+            <input type="text" id="pic_name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter PIC name">
+            <div class="mt-4 flex justify-end space-x-2">
+                <button id="closeModal" class="px-4 py-2 bg-gray-400 text-white rounded-lg">Cancel</button>
+                <button id="submitPic" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Submit</button>
+            </div>
+        </div>
+    </div>
 
     @if (is_null($machinejobid->employee_name))
         <div class="flex items-center justify-center">
@@ -341,33 +371,56 @@
         });
 
         
+        let picName = '';
+
         $(document).ready(function() {
+            // Show PIC modal when starting mould change
             $('#startMouldChange').click(function() {
+                $('#picModal').removeClass('hidden'); // Show modal
+            });
+
+            // Close the modal
+            $('#closeModal').click(function() {
+                $('#picModal').addClass('hidden'); // Hide modal
+            });
+
+            // Handle PIC submission
+            $('#submitPic').click(function() {
+                let picName = $('#pic_name').val().trim();
+                if (picName === '') {
+                    alert('Please enter a PIC name.');
+                    return;
+                }
+
                 $.ajax({
                     url: "{{ route('mould.change.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { pic_name: picName },
                     success: function(response) {
                         alert(response.message);
-                        $('#startMouldChange').hide(); // Hide start button
-                        $('#endMouldChange').show();  // Show end button
+                        $('#startMouldChange').hide();
+                        $('#endMouldChange').show(); // Show Complete button
                         location.reload();
                     },
                     error: function(xhr) {
                         alert(xhr.responseJSON.error);
                     }
                 });
+
+                $('#picModal').addClass('hidden'); // Hide modal after submitting
             });
 
-            $('#endMouldChange').click(function() {
+            // Handle Complete Mould Change button
+            $(document).on('click', '#endMouldChange', function() {
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     success: function(response) {
                         alert(response.message);
-                        $('#startMouldChange').show(); // Show start button again
-                        $('#endMouldChange').hide();  // Hide end button
+                        $('#startMouldChange').show(); // Show Start button again
+                        $('#endMouldChange').hide();  // Hide Complete button
                         location.reload();
                     },
                     error: function(xhr) {

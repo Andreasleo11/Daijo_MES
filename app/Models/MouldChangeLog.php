@@ -15,6 +15,7 @@ class MouldChangeLog extends Model
         'user_id',
         'item_code',
         'end_time',
+        'pic',
     ];
 
     public function user()

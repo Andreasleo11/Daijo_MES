@@ -162,7 +162,6 @@ class DashboardController extends Controller
                         ->count();
                 }
             }
-            dd($itemCollections);
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections'));
         } elseif($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
@@ -451,116 +450,116 @@ class DashboardController extends Controller
     }
 
     public function procesProductionBarcodes(Request $request)
-{
-    // dd($request->all());
-    // Decode the JSON input from the request
-    $datas = json_decode($request->input('datas'), true);
-    $uniquedata = json_decode($request->input('uniqueData'));
-    // dd($datas);
-    // Restructure the unique data based on item_code
-    $restructureduniquedata = [];
-    foreach ($uniquedata as $itemCode => $spkData) {
-        foreach ($spkData as $key => $data) {
-            // Ensure each item code maps to the correct spk data
-            $restructureduniquedata[$itemCode] = $data;  // This will overwrite existing entry, making it the last one
-        }
-    }
-    
-    $dic_id = null;
-    foreach ($datas as $data) {
-        // dd($data);
-        if ($data['item_code'] === $request->input('item_code')) {
-            $dic_id = $data['id'];  // Set dic_id to the matched data's id
-      
-            break; // Exit the loop once the match is found
-        }
-
-    }
-    // Validate that a matching dic_id was found
-    if (!$dic_id) {
-        return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
-    }
-
-    
-
-    // Validate incoming request data
-    $request->validate([
-        'spk_code' => 'required|string',
-        'item_code' => 'required|string',
-        'warehouse' => 'required|string',
-        'quantity' => 'required|integer',
-        'label' => 'required|string',
-    ]);
-    
-   
-    // Validation logic for SPK code and label ranges
-    $validator = Validator::make($request->all(), [
-        'spk_code' => 'required|string',
-        'item_code' => 'required|string',
-        'warehouse' => 'required|string',
-        'quantity' => 'required|integer',
-        'label' => 'required|string',
-    ]);
-    
-    // After validation, custom validation for SPK and label range
-    $validator->after(function ($validator) use ($request, $restructureduniquedata) {
-        $spk_code = $request->input('spk_code');
-        $item_code = $request->input('item_code');
-        $label = $request->input('label');
-        
-        // Check if the provided SPK and item_code exist in restructureduniquedata
-        $found = $restructureduniquedata[$item_code] ?? null;
-
-        if (!$found) {
-            $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
-        } else {
-            // Validate if the label is within the valid range for the SPK and item code
-            $start_label = (int) $found->start_label;
-            $end_label = (int) $found->end_label;
-
-            if ($label < $start_label || $label > $end_label) {
-                $validator->errors()->add('label', "The label must be between $start_label and $end_label for SPK $spk_code and item code $item_code.");
+    {
+        // dd($request->all());
+        // Decode the JSON input from the request
+        $datas = json_decode($request->input('datas'), true);
+        $uniquedata = json_decode($request->input('uniqueData'));
+        // dd($datas);
+        // Restructure the unique data based on item_code
+        $restructureduniquedata = [];
+        foreach ($uniquedata as $itemCode => $spkData) {
+            foreach ($spkData as $key => $data) {
+                // Ensure each item code maps to the correct spk data
+                $restructureduniquedata[$itemCode] = $data;  // This will overwrite existing entry, making it the last one
             }
         }
-    });
+        
+        $dic_id = null;
+        foreach ($datas as $data) {
+            // dd($data);
+            if ($data['item_code'] === $request->input('item_code')) {
+                $dic_id = $data['id'];  // Set dic_id to the matched data's id
+        
+                break; // Exit the loop once the match is found
+            }
+
+        }
+        // Validate that a matching dic_id was found
+        if (!$dic_id) {
+            return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
+        }
+
+        
+
+        // Validate incoming request data
+        $request->validate([
+            'spk_code' => 'required|string',
+            'item_code' => 'required|string',
+            'warehouse' => 'required|string',
+            'quantity' => 'required|integer',
+            'label' => 'required|string',
+        ]);
+        
     
-    // Return validation errors if validation fails
-    if ($validator->fails()) {
-        return redirect()->back()->withErrors($validator)->withInput();
+        // Validation logic for SPK code and label ranges
+        $validator = Validator::make($request->all(), [
+            'spk_code' => 'required|string',
+            'item_code' => 'required|string',
+            'warehouse' => 'required|string',
+            'quantity' => 'required|integer',
+            'label' => 'required|string',
+        ]);
+        
+        // After validation, custom validation for SPK and label range
+        $validator->after(function ($validator) use ($request, $restructureduniquedata) {
+            $spk_code = $request->input('spk_code');
+            $item_code = $request->input('item_code');
+            $label = $request->input('label');
+            
+            // Check if the provided SPK and item_code exist in restructureduniquedata
+            $found = $restructureduniquedata[$item_code] ?? null;
+
+            if (!$found) {
+                $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
+            } else {
+                // Validate if the label is within the valid range for the SPK and item code
+                $start_label = (int) $found->start_label;
+                $end_label = (int) $found->end_label;
+
+                if ($label < $start_label || $label > $end_label) {
+                    $validator->errors()->add('label', "The label must be between $start_label and $end_label for SPK $spk_code and item code $item_code.");
+                }
+            }
+        });
+        
+        // Return validation errors if validation fails
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        // Retrieve the values from the request for creating scanned data
+        $spk_code = $request->input('spk_code');
+        $item_code = $request->input('item_code');
+        $quantity = $request->input('quantity');
+        $warehouse = $request->input('warehouse');
+        $label = $request->input('label');
+        $user = $request->input('nik');
+
+        // Check if the same scan already exists in the database
+        $existingScan = ProductionScannedData::where('spk_code', $spk_code)
+            ->where('item_code', $item_code)
+            ->where('label', $label)
+            ->first();
+
+        if ($existingScan) {
+            return redirect()->back()->withErrors(['error' => 'Data already scanned']);
+        }
+
+        // Create a new ProductionScannedData entry
+        ProductionScannedData::create([
+            'spk_code' => $spk_code,
+            'dic_id' => $dic_id,  // The associated data ID
+            'item_code' => $item_code,
+            'quantity' => $quantity,
+            'warehouse' => $warehouse,
+            'label' => $label,
+            'user' => $user,
+        ]);
+
+        // Redirect back to the dashboard with a success message
+        return redirect()->route('dashboard')->with('deactivateScanMode', true);
     }
-
-    // Retrieve the values from the request for creating scanned data
-    $spk_code = $request->input('spk_code');
-    $item_code = $request->input('item_code');
-    $quantity = $request->input('quantity');
-    $warehouse = $request->input('warehouse');
-    $label = $request->input('label');
-    $user = $request->input('nik');
-
-    // Check if the same scan already exists in the database
-    $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-        ->where('item_code', $item_code)
-        ->where('label', $label)
-        ->first();
-
-    if ($existingScan) {
-        return redirect()->back()->withErrors(['error' => 'Data already scanned']);
-    }
-
-    // Create a new ProductionScannedData entry
-    ProductionScannedData::create([
-        'spk_code' => $spk_code,
-        'dic_id' => $dic_id,  // The associated data ID
-        'item_code' => $item_code,
-        'quantity' => $quantity,
-        'warehouse' => $warehouse,
-        'label' => $label,
-        'user' => $user,
-    ]);
-
-    // Redirect back to the dashboard with a success message
-    return redirect()->route('dashboard')->with('deactivateScanMode', true);
-}
 
     public function finishJob(Request $request){
 
@@ -709,10 +708,14 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'Job has been resetted!');
     }
 
-    public function startMouldChange()
+    public function startMouldChange(Request $request)
     {
         $userId = Auth::id();
         $today = Carbon::now()->format('Y-m-d');
+
+        $request->validate([
+            'pic_name' => 'required|string|max:255',
+        ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         
@@ -748,6 +751,7 @@ class DashboardController extends Controller
         // Create a new mould change log entry
         $mouldChange = MouldChangeLog::create([
             'user_id' => $userId,
+            'pic' => $request->pic_name,
             'item_code' => $nextItemCode,
             'created_at' => Carbon::now(), // Start time
         ]);
