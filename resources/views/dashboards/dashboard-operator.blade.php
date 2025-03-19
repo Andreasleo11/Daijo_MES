@@ -271,6 +271,7 @@
                                 <th class="py-1 px-2">SPK Number</th>
                                 <th class="py-1 px-2">Item Code</th>
                                 <th class="py-1 px-2">Scanned Quantity</th>
+                                <th class="py-1 px-2">Total Quantity </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -280,6 +281,7 @@
                                     <td class="py-2 px-3">{{ $data['spk'] }}</td>
                                     <td class="py-2 px-3">{{ $data['item_code'] }}</td>
                                     <td class="py-2 px-3">{{ $data['scannedData'] }}/{{ $data['count'] }}</td>
+                                    <td class="py-2 px-3">{{ $data['totalquantity'] }}</td>
                                 </tr>
                             @endforeach
                         @else
@@ -319,12 +321,6 @@
                                 <input type="text" id="spk_code" name="spk_code" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
-                            </div>
-                            <div>
-                                <label for="item_code">Item Code</label>
-                                <input type="text" id="item_code" name="item_code" required
-                                    class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Item Code" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
                                 <label for="warehouse">Warehouse</label>
@@ -436,9 +432,11 @@
         function scanModeHandler(deactivateScanModeFlag) {
             return {
                 scanMode: true,
-                verified: false, // Verification flag
+                verified: localStorage.getItem('verified') === 'true', // Load verification state
                 nikInput: '', 
                 passwordInput: '',
+                idleTimeout: null,
+
                 initialize() {
                     if (deactivateScanModeFlag == true) {
                         this.scanMode = false;
@@ -447,7 +445,11 @@
                         this.scanMode = localStorage.getItem('scanMode') === 'true';
                     }
 
-                    // Automatically focus on spk_code input if scanMode is active
+                    // Restore verification state
+                    if (this.verified) {
+                        this.startIdleTimer(); // Restart the idle timer if already verified
+                    }
+
                     if (this.scanMode) {
                         if (!this.verified) {
                             alert("Please verify your NIK before activating Scan Mode.");
@@ -456,11 +458,11 @@
                         this.focusOnSPKCode();
                     }
                 },
+
                 toggleScanMode() {
                     this.scanMode = !this.scanMode;
                     localStorage.setItem('scanMode', this.scanMode);
 
-                    // Focus on spk_code input when scanMode is activated
                     if (this.scanMode) {
                         this.focusOnSPKCode();
                     }
@@ -468,9 +470,8 @@
 
                 verifyNIK() {
                     if (this.nikInput.trim() !== '' && this.passwordInput.trim() !== '') {
-                        // Call backend to verify NIK and password
                         $.ajax({
-                            url: "{{ route('verify.nik.password') }}", // Update with your route
+                            url: "{{ route('verify.nik.password') }}",
                             type: "POST",
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                             data: {
@@ -480,6 +481,9 @@
                             success: (response) => {
                                 if (response.success) {
                                     this.verified = true;
+                                    localStorage.setItem('verified', true); // Save state
+                                    localStorage.setItem('nik', this.nikInput);
+                                    this.startIdleTimer(); // Start the idle timer
                                     alert("NIK Verified Successfully!");
                                 } else {
                                     alert("Invalid NIK or Password.");
@@ -493,30 +497,59 @@
                         alert("Please enter both NIK and password.");
                     }
                 },
+
+                startIdleTimer() {
+                    if (this.idleTimeout) {
+                        clearTimeout(this.idleTimeout);
+                    }
+                    this.idleTimeout = setTimeout(() => {
+                        this.resetVerification(); // Reset verification after timeout
+                    }, 180000); // 3 minutes
+                },
+
+                resetVerification() {
+                    this.verified = false;
+                    localStorage.removeItem('verified');
+                    alert("Verification expired due to inactivity.");
+                },
+
                 focusOnSPKCode() {
-                    // Delay to ensure the element is rendered before focusing
                     setTimeout(() => {
                         document.getElementById('spk_code').focus();
-                    }, 100); // Small delay to ensure the input is available in the DOM
+                    }, 100);
                 }
             };
         }
 
         function autoSubmitForm() {
             return {
+                nikInput: localStorage.getItem('nik') || '',  // Load from localStorage
+
                 checkAndSubmitForm() {
+                    // Debugging logs
+                    console.log("LocalStorage NIK:", localStorage.getItem('nik'));
+                    console.log("Current NIK Input:", this.nikInput);
+
+                    // Ensure NIK is set before submitting
+                    if (!this.nikInput) {
+                        this.nikInput = localStorage.getItem('nik') || '';
+                        console.warn("NIK was empty, updated from localStorage:", this.nikInput);
+                    }
+
+                    // Update hidden input field
+                    document.getElementById('nik').value = this.nikInput;
+
+                    // Check if all required fields are filled
                     const inputs = document.querySelectorAll(
-                        '#scanForm input[type="text"], #scanForm input[type="number"]');
-                    let allFilled = true;
+                        '#scanForm input[type="text"], #scanForm input[type="number"]'
+                    );
+                    let allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
 
-                    inputs.forEach(input => {
-                        if (input.value.trim() === '') {
-                            allFilled = false;
-                        }
-                    });
-
-                    if (allFilled) {
+                    if (allFilled && this.nikInput) {
+                        console.log("✅ Form is valid. Submitting...");
                         document.getElementById('scanForm').submit();
+                    } else {
+                        console.warn("❌ Form not submitted. Missing required fields or NIK.");
                     }
                 }
             };

@@ -23,6 +23,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Milon\Barcode\DNS1D;
 use Illuminate\Support\Facades\Auth;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Label\Label;
+use Endroid\QrCode\Logo\Logo;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\ValidationException;
 
 class DashboardController extends Controller
 {
@@ -125,9 +134,13 @@ class DashboardController extends Controller
                     $spkData['scannedData'] = ProductionScannedData::where('spk_code', $spkData['spk'])
                         ->where('item_code', $spkData['item_code'])
                         ->count();
+
+                    $spkData['totalquantity'] = ProductionScannedData::where('spk_code', $spkData['spk'])
+                        ->where('item_code', $spkData['item_code'])
+                        ->sum('quantity'); // Summing the 'quantity' column
                 }
             }
-
+            // dd($itemCollections);
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
@@ -243,7 +256,6 @@ class DashboardController extends Controller
         }
     }
 
-    //generate barcode for each item_code
     public function itemCodeBarcode($item_code, $quantity)
     {
         try {
@@ -383,11 +395,13 @@ class DashboardController extends Controller
 
             // Generate barcodes
             $barcodeGenerator = new DNS1D();
+            $qrCodeWriter = new PngWriter();
             $barcodes = [];
+            $qrcodes = [];
             foreach ($labels as $labelData) {
                 // First barcode with all data
                 $barcodeData1 = implode("\t", [$labelData['spk'], $labelData['item_code'], $labelData['warehouse'], $labelData['quantity'], $labelData['label']]);
-
+                
                 // Second barcode with subset of data
                 $barcodeData2 = implode("\t", [$labelData['item_code'], $labelData['warehouse'], $labelData['quantity'], $labelData['label']]);
 
@@ -397,9 +411,26 @@ class DashboardController extends Controller
                     'first' => $barcodeGenerator->getBarcodeHTML($barcodeData1, 'C128', 1, 50),
                     'second' => $barcodeGenerator->getBarcodeHTML($barcodeData2, 'C128', 1, 55),
                 ];
+                $qrCodeData = implode("\t", [$labelData['spk'], $labelData['warehouse'], $labelData['quantity'], $labelData['label']]);
+                // dd($qrCodeData);
+                $qrCode = new QrCode(data: $qrCodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70,
+                margin: 5);
+              
+                
+    
+                // Create the QR code image with PngWriter
+                $writer = new PngWriter();
+                $qrCodeResult = $writer->write($qrCode);
+              
+                // Get the PNG image as a string
+                $qrCodeImage = $qrCodeResult->getString();
+                
+                // Base64 encode the image to embed in HTML
+                $qrcodes[] = base64_encode($qrCodeImage);
+
             }
 
-            return view('barcodeMachineJob', compact('labels', 'barcodes'));
+            return view('barcodeMachineJob', compact('labels', 'barcodes', 'qrcodes'));
         } catch (\Exception $e) {
             // Optionally log the error
             // Log::error('Error generating barcodes: ' . $e->getMessage());
@@ -411,26 +442,47 @@ class DashboardController extends Controller
         }
     }
 
+
     public function procesProductionBarcodes(Request $request)
     {
         // dd($request->all());
         // Decode the JSON input from the request
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
+        // dd($uniquedata);
+
+          // Retrieve the values from the request for creating scanned data
+          $spk_code = $request->input('spk_code');
+          $quantity = $request->input('quantity');
+          $warehouse = $request->input('warehouse');
+          $label = $request->input('label');
+          $user = $request->input('nik');
+          if (!$user) {
+              $user = session('verifiedNIK'); // Retrieve from session if not in request\
+          
+          }
+      
+     
+  
+  
+          $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
+  
         // dd($datas);
         // Restructure the unique data based on item_code
         $restructureduniquedata = [];
         foreach ($uniquedata as $itemCode => $spkData) {
             foreach ($spkData as $key => $data) {
-                // Ensure each item code maps to the correct spk data
-                $restructureduniquedata[$itemCode] = $data;  // This will overwrite existing entry, making it the last one
+                // Store each SPK entry in an array instead of overwriting
+                $restructureduniquedata[$itemCode][$key] = $data;
             }
         }
+
+        // dd($restructureduniquedata);
 
         $dic_id = null;
         foreach ($datas as $data) {
             // dd($data);
-            if ($data['item_code'] === $request->input('item_code')) {
+            if ($data['item_code'] === $item_code_spk->item_code) {
                 $dic_id = $data['id'];  // Set dic_id to the matched data's id
 
                 break; // Exit the loop once the match is found
@@ -447,7 +499,6 @@ class DashboardController extends Controller
         // Validate incoming request data
         $request->validate([
             'spk_code' => 'required|string',
-            'item_code' => 'required|string',
             'warehouse' => 'required|string',
             'quantity' => 'required|integer',
             'label' => 'required|string',
@@ -457,52 +508,57 @@ class DashboardController extends Controller
         // Validation logic for SPK code and label ranges
         $validator = Validator::make($request->all(), [
             'spk_code' => 'required|string',
-            'item_code' => 'required|string',
             'warehouse' => 'required|string',
             'quantity' => 'required|integer',
             'label' => 'required|string',
         ]);
 
-        // After validation, custom validation for SPK and label range
-        $validator->after(function ($validator) use ($request, $restructureduniquedata) {
+        $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {
             $spk_code = $request->input('spk_code');
-            $item_code = $request->input('item_code');
+            $item_code = $item_code_spk->item_code;
             $label = $request->input('label');
-
+        
             // Check if the provided SPK and item_code exist in restructureduniquedata
-            $found = $restructureduniquedata[$item_code] ?? null;
-
-            if (!$found) {
+            $foundSPKs = $restructureduniquedata[$item_code] ?? null;
+        
+            if (!$foundSPKs) {
                 $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
             } else {
-                // Validate if the label is within the valid range for the SPK and item code
-                $start_label = (int) $found->start_label;
-                $end_label = (int) $found->end_label;
-
-                if ($label < $start_label || $label > $end_label) {
-                    $validator->errors()->add('label', "The label must be between $start_label and $end_label for SPK $spk_code and item code $item_code.");
+                $isValidLabel = false;
+                
+                foreach ($foundSPKs as $spkKey => $spkData) {
+                    if ($spkData->spk === $spk_code) { // Use -> instead of []
+                        $start_label = (int) $spkData->start_label;
+                        $end_label = (int) $spkData->end_label;
+        
+                        if ($label >= $start_label && $label <= $end_label) {
+                            $isValidLabel = true;
+                            break;
+                        }
+                    }
+                }
+        
+                if (!$isValidLabel) {
+                    $validator->errors()->add('label', "The label must be within the valid range for SPK $spk_code and item code $item_code.");
                 }
             }
         });
+        
 
         // Return validation errors if validation fails
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        // Retrieve the values from the request for creating scanned data
-        $spk_code = $request->input('spk_code');
-        $item_code = $request->input('item_code');
-        $quantity = $request->input('quantity');
-        $warehouse = $request->input('warehouse');
-        $label = $request->input('label');
-        $user = $request->input('nik');
+      
+        
 
         // Check if the same scan already exists in the database
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-            ->where('item_code', $item_code)
+            ->where('item_code', $item_code_spk->item_code)
             ->where('label', $label)
             ->first();
+        
 
         if ($existingScan) {
             return redirect()->back()->withErrors(['error' => 'Data already scanned']);
@@ -512,7 +568,7 @@ class DashboardController extends Controller
         ProductionScannedData::create([
             'spk_code' => $spk_code,
             'dic_id' => $dic_id,  // The associated data ID
-            'item_code' => $item_code,
+            'item_code' => $item_code_spk->item_code,
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,
@@ -520,7 +576,7 @@ class DashboardController extends Controller
         ]);
 
         // Redirect back to the dashboard with a success message
-        return redirect()->route('dashboard')->with('deactivateScanMode', true);
+        return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
 
     public function finishJob(Request $request) {}
@@ -689,6 +745,8 @@ class DashboardController extends Controller
             ->orderBy('start_time', 'asc') // Order by shift timing
             ->pluck('item_code')
             ->toArray(); // Convert to an array for easier processing
+
+     
 
         // Find the next item_code in sequence
         $nextItemCode = null;
