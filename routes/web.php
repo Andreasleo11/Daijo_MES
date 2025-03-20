@@ -41,6 +41,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
 
 Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
+Route::get('/operator-users/upload', [OperatorUserController::class, 'uploadForm'])->name('operator-users.upload');
+Route::post('/operator-users/import', [OperatorUserController::class, 'import'])->name('operator-users.import');
 
 Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 

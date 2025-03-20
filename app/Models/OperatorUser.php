@@ -14,5 +14,7 @@ class OperatorUser extends Model
         'name',
         'password',
         'profile_picture',
+        'department',
+        'position',
     ];
 }

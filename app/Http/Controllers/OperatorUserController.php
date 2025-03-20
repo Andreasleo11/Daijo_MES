@@ -8,6 +8,9 @@ use Endroid\QrCode\QrCode;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Facades\Storage;
+use App\Imports\OperatorUsersImport;
+use Maatwebsite\Excel\Facades\Excel;
+
 
 class OperatorUserController extends Controller
 {
@@ -86,5 +89,22 @@ class OperatorUserController extends Controller
         }
 
         return back()->with('success', 'Profile picture updated successfully.');
+    }
+
+
+    public function uploadForm()
+    {
+        return view('uploadExcelOperator');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv',
+        ]);
+
+        Excel::import(new OperatorUsersImport, $request->file('file'));
+
+        return redirect()->back()->with('success', 'Users imported successfully!');
     }
 }
