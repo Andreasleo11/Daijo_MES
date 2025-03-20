@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
+use Illuminate\Support\Facades\Storage;
 
 class OperatorUserController extends Controller
 {
@@ -53,5 +54,37 @@ class OperatorUserController extends Controller
 
         // Pass the QR codes and user names to the view
         return view('barcode.qr_operator', ['qrCodes' => $qrCodes]);
+    }
+
+    public function index()
+    {
+        $users = OperatorUser::all();
+        return view('operator.index', compact('users'));
+    }
+
+    public function updateProfilePicture(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:operator_user,id',
+            'profile_picture' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = OperatorUser::findOrFail($request->user_id);
+
+        if ($request->hasFile('profile_picture')) {
+            $file = $request->file('profile_picture');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('profile_pictures', $filename, 'public');
+
+            // Delete old profile picture if exists
+            if ($user->profile_picture) {
+                Storage::disk('public')->delete($user->profile_picture);
+            }
+
+            // Update user's profile picture
+            $user->update(['profile_picture' => $path]);
+        }
+
+        return back()->with('success', 'Profile picture updated successfully.');
     }
 }

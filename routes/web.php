@@ -46,6 +46,9 @@ Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 
 Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
 
+Route::put('/operator/update-profile-picture', [OperatorUserController::class, 'updateProfilePicture'])->name('operator.updateProfilePicture');
+Route::get('/operator-users', [OperatorUserController::class, 'index'])->name('operator.index');
+
 
 Route::redirect('/', '/login');
 
@@ -69,7 +72,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/reset-jobs', [DashboardController::class, 'resetJobs'])->name('reset.jobs');
     Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
     Route::post('/verify-nik-password', [DashboardController::class, 'verifyNIKPassword'])->name('verify.nik.password');
-
+    Route::post('/verify-nik-mould-change', [DashboardController::class, 'verifyNik'])->name('verify.nik');
 
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');

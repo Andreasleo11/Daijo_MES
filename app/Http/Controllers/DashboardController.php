@@ -739,6 +739,8 @@ class DashboardController extends Controller
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
 
+        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
+        
         // Get all item_codes for today, ordered by shift or time
         $dailyItems = DailyItemCode::where('user_id', $userId)
             ->whereDate('start_date', $today) // Match today's records
@@ -777,7 +779,12 @@ class DashboardController extends Controller
         // Set machine job user_id to NULL (machine is inactive)
         MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
 
-        return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id]);
+        return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id,'operator' => [
+            'name' => $operatorUser->name,
+           'profile_path' => $operatorUser->profile_picture 
+            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
+            : asset('images/default_profile.jpg'),  // Default profile image
+    ],]);
     }
 
     public function endMouldChange()
@@ -814,11 +821,36 @@ class DashboardController extends Controller
         $operatorUser = OperatorUser::where('name', $nik)->first();
 
         if ($operatorUser && $password === $operatorUser->password) {
+            $profilePicture = $operatorUser->profile_picture ? asset('storage/' . $operatorUser->profile_picture) : asset('default-avatar.png');
             // If user exists and password matches, return success
-            return response()->json(['success' => true, 'message' => 'NIK and password are verified']);
+            return response()->json(['success' => true, 'message' => 'NIK and password are verified','profile_picture' => $profilePicture,
+            'operator_name' => $operatorUser->name,]);
         }
 
         // If the NIK or password doesn't match, return an error
         return response()->json(['success' => false, 'message' => 'Invalid NIK or Password'], 400);
+    }
+
+    public function verifyNik(Request $request)
+    {
+        $request->validate([
+            'nik' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $user = OperatorUser::where('name', $request->nik)->first();
+
+        if (!$user || $user->password !== $request->password) { // Direct string check
+            return response()->json(['error' => 'Invalid NIK or password'], 401);
+        }
+
+        return response()->json([
+            'message' => 'NIK Verified Successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name, // Pass the username
+                'profile_path' => $user->profile_path, // Include profile picture
+            ]
+        ]);
     }
 }

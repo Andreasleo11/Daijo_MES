@@ -34,9 +34,9 @@
     @endphp
 
     @php
-    $userId = auth()->id();
-    $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
-@endphp
+        $userId = auth()->id();
+        $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
+    @endphp
 
         <!-- Start Mould Change Button -->
         <button id="startMouldChange" class="btn btn-warning" @if($activeMouldChange) style="display: none;" @endif>
@@ -48,9 +48,30 @@
             Complete Change Mould
         </button>
 
+        <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
+                <h2 class="text-lg font-bold mb-4">Enter NIK & Password</h2>
+                <input type="text" id="nik" class="border p-2 w-full rounded" placeholder="Enter NIK...">
+                <input type="password" id="password" class="border p-2 w-full rounded mt-2" placeholder="Enter Password...">
+                <div class="flex justify-end mt-4">
+                    <button id="closeNikModal" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
+                    <button id="verifyNik" class="bg-blue-600 text-white px-4 py-2 rounded">Verify</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mouldChangeInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
+            <h2 class="text-lg font-bold mb-2">Mould Change in Progress</h2>
+            <div class="flex items-center">
+                <img id="currentUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
+                <span id="currentUserName" class="text-lg font-semibold"></span>
+            </div>
+        </div>
+        
+
         <!-- PIC Input Modal -->
-        <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-            <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
+        <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
                 <h2 class="text-lg font-bold mb-4">Enter PIC Name</h2>
                 <input type="text" id="pic_name" class="border p-2 w-full rounded" placeholder="Enter PIC name...">
                 <div class="flex justify-end mt-4">
@@ -59,18 +80,6 @@
                 </div>
             </div>
         </div>
-
-
-    <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
-            <h2 class="text-xl font-semibold mb-4">Enter PIC Name</h2>
-            <input type="text" id="pic_name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter PIC name">
-            <div class="mt-4 flex justify-end space-x-2">
-                <button id="closeModal" class="px-4 py-2 bg-gray-400 text-white rounded-lg">Cancel</button>
-                <button id="submitPic" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Submit</button>
-            </div>
-        </div>
-    </div>
 
     @if (is_null($machinejobid->employee_name))
         <div class="flex items-center justify-center">
@@ -263,46 +272,56 @@
 
             <!-- Scan Barcode Section -->
             <div x-show="scanMode && verified" class="mx-auto sm:px-4 lg:px-6 pt-6" x-cloak>
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-4">
-                    <span class="text-xl font-bold">SPK</span>
-                    <table class="min-w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="py-1 px-2">SPK Number</th>
-                                <th class="py-1 px-2">Item Code</th>
-                                <th class="py-1 px-2">Scanned Quantity</th>
-                                <th class="py-1 px-2">Total Quantity </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        @if ($itemCode && isset($itemCollections[$itemCode]))
-                            @foreach ($itemCollections[$itemCode] as $data)
-                                <tr class="bg-white text-center">
-                                    <td class="py-2 px-3">{{ $data['spk'] }}</td>
-                                    <td class="py-2 px-3">{{ $data['item_code'] }}</td>
-                                    <td class="py-2 px-3">{{ $data['scannedData'] }}/{{ $data['count'] }}</td>
-                                    <td class="py-2 px-3">{{ $data['totalquantity'] }}</td>
+                <div class="flex gap-6 items-start w-full">
+                    <!-- Profile Section -->
+                    <div id="dashboardSection" class="bg-white p-6 rounded-lg shadow-md w-[300px] flex flex-col items-center">
+                        <img id="profileImage" class="w-40 h-40 rounded-full border-2 border-gray-300 object-cover" 
+                            src="{{ asset('default-avatar.png') }}" alt="Profile Picture">
+                        <h2 class="mt-4 text-xl font-bold text-center">Welcome, <span id="operatorName"></span></h2>
+                    </div>
+
+                    <!-- SPK Table Section -->
+                    <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
+                        <span class="text-xl font-bold">SPK</span>
+                        <table class="w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-2 px-4">SPK Number</th>
+                                    <th class="py-2 px-4">Item Code</th>
+                                    <th class="py-2 px-4">Scanned Quantity</th>
+                                    <th class="py-2 px-4">Total Quantity</th>
                                 </tr>
-                            @endforeach
-                        @else
-                            <tr>
-                                <td colspan="3" class="text-center text-gray-500 py-2">No data for selected item code</td>
-                            </tr>
-                        @endif
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            @if ($itemCode && isset($itemCollections[$itemCode]))
+                                @foreach ($itemCollections[$itemCode] as $data)
+                                    <tr class="bg-white text-center">
+                                        <td class="py-2 px-4">{{ $data['spk'] }}</td>
+                                        <td class="py-2 px-4">{{ $data['item_code'] }}</td>
+                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['count'] }}</td>
+                                        <td class="py-2 px-4">{{ $data['totalquantity'] }}</td>
+                                    </tr>
+                                @endforeach
+                            @else
+                                <tr>
+                                    <td colspan="4" class="text-center text-gray-500 py-2">No data for selected item code</td>
+                                </tr>
+                            @endif
+                            </tbody>
+                        </table>
 
-                    <form method="GET" action="{{ route('reset.jobs') }}" id="resetJobsForm">
-                        <input type="hidden" id="uniqueData" name="uniqueData"
-                            value="{{ json_encode($uniquedata) }}" />
-                        <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
+                        <form method="GET" action="{{ route('reset.jobs') }}" id="resetJobsForm">
+                            <input type="hidden" id="uniqueData" name="uniqueData" value="{{ json_encode($uniquedata) }}" />
+                            <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
 
-                        <button type="submit" id="resetJobsButton"
-                            class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition mt-4">
-                            Submit
-                        </button>
-                    </form>
+                            <button type="submit" id="resetJobsButton"
+                                class="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition mt-4">
+                                Submit
+                            </button>
+                        </form>
+                    </div>
                 </div>
+
 
                 <div class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
                     <h3 class="text-xl font-bold">Scan Barcode</h3>
@@ -366,60 +385,100 @@
             transitionEffect: "fade",
         });
 
-        
-        let picName = '';
+        $(document).ready(function () {
+            let verifiedUser = null;
 
-        $(document).ready(function() {
-            // Show PIC modal when starting mould change
-            $('#startMouldChange').click(function() {
-                $('#picModal').removeClass('hidden'); // Show modal
+            // Check if a mould change is in progress on page load
+            let savedOperator = localStorage.getItem('mouldChangeOperator');
+            if (savedOperator) {
+                savedOperator = JSON.parse(savedOperator);
+                $('#mouldChangeInfo').removeClass('hidden');
+                $('#currentUserProfile').attr('src', savedOperator.profile_path);
+                $('#currentUserName').text(savedOperator.name);
+                $('#startMouldChange').hide();
+                $('#endMouldChange').show();
+            }
+
+            // Show NIK modal when clicking "Change Mould"
+            $('#startMouldChange').click(function () {
+                $('#nikModal').removeClass('hidden');
             });
 
             // Close the modal
-            $('#closeModal').click(function() {
-                $('#picModal').addClass('hidden'); // Hide modal
+            $('#closeNikModal').click(function () {
+                $('#nikModal').addClass('hidden');
             });
 
-            // Handle PIC submission
-            $('#submitPic').click(function() {
-                let picName = $('#pic_name').val().trim();
-                if (picName === '') {
-                    alert('Please enter a PIC name.');
+            // Verify NIK and password
+            $('#verifyNik').click(function () {
+                let nik = $('#nik').val().trim();
+                let password = $('#password').val().trim();
+
+                if (nik === '' || password === '') {
+                    alert('Please enter both NIK and password.');
                     return;
                 }
 
+                $.ajax({
+                    url: "{{ route('verify.nik') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { nik: nik, password: password },
+                    success: function (response) {
+                        alert(response.message);
+                        verifiedUser = response.user;
+                        $('#nikModal').addClass('hidden');
+                        startMouldChange(verifiedUser.name);
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
+
+            // Start Mould Change Process
+            function startMouldChange(picName) {
                 $.ajax({
                     url: "{{ route('mould.change.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
-                    success: function(response) {
+                    success: function (response) {
                         alert(response.message);
+
+                        // Store data in localStorage for persistence
+                        localStorage.setItem('mouldChangeOperator', JSON.stringify(response.operator));
+
+                        $('#mouldChangeInfo').removeClass('hidden');
+                        $('#currentUserProfile').attr('src', response.operator.profile_path);
+                        $('#currentUserName').text(response.operator.name);
+
                         $('#startMouldChange').hide();
-                        $('#endMouldChange').show(); // Show Complete button
-                        location.reload();
+                        $('#endMouldChange').show();
                     },
-                    error: function(xhr) {
+                    error: function (xhr) {
                         alert(xhr.responseJSON.error);
                     }
                 });
-
-                $('#picModal').addClass('hidden'); // Hide modal after submitting
-            });
+            }
 
             // Handle Complete Mould Change button
-            $(document).on('click', '#endMouldChange', function() {
+            $('#endMouldChange').click(function () {
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    success: function(response) {
+                    success: function (response) {
                         alert(response.message);
-                        $('#startMouldChange').show(); // Show Start button again
-                        $('#endMouldChange').hide();  // Hide Complete button
-                        location.reload();
+
+                        // Clear stored data when process is done
+                        localStorage.removeItem('mouldChangeOperator');
+
+                        $('#mouldChangeInfo').addClass('hidden');
+                        $('#startMouldChange').show();
+                        $('#endMouldChange').hide();
                     },
-                    error: function(xhr) {
+                    error: function (xhr) {
                         alert(xhr.responseJSON.error);
                     }
                 });
@@ -429,6 +488,22 @@
     </script>
 
     <script>
+          document.addEventListener("DOMContentLoaded", function () {
+                // Check if user is already verified (persistent login)
+                if (localStorage.getItem("verified")) {
+                    let savedProfile = localStorage.getItem("profile_picture");
+                    let savedNIK = localStorage.getItem("nik");
+                    let savedName = localStorage.getItem("operator_name");
+
+                    if (savedProfile && savedNIK && savedName) {
+                        $('#profileImage').attr('src', savedProfile);
+                        $('#operatorName').text(savedName);
+                        $('#dashboardSection').removeClass('hidden');
+                        $('#loginSection').addClass('hidden');
+                    }
+                }
+            });
+
         function scanModeHandler(deactivateScanModeFlag) {
             return {
                 scanMode: true,
@@ -484,6 +559,14 @@
                                     localStorage.setItem('verified', true); // Save state
                                     localStorage.setItem('nik', this.nikInput);
                                     this.startIdleTimer(); // Start the idle timer
+                                    localStorage.setItem('operator_name', response.operator_name);
+                                    localStorage.setItem('profile_picture', response.profile_picture);
+
+
+                                    $('#profileImage').attr('src', response.profile_picture);
+                                    $('#operatorName').text(response.operator_name);
+                                    $('#dashboardSection').removeClass('hidden'); // Show the dashboard
+                                    $('#loginSection').addClass('hidden'); // Hide the login form
                                     alert("NIK Verified Successfully!");
                                 } else {
                                     alert("Invalid NIK or Password.");
@@ -510,6 +593,16 @@
                 resetVerification() {
                     this.verified = false;
                     localStorage.removeItem('verified');
+
+                    localStorage.removeItem('nik');
+                    localStorage.removeItem('operator_name');
+                    localStorage.removeItem('profile_picture');
+
+                    // Reset UI elements
+                    $('#profileImage').attr('src', "{{ asset('default-avatar.png') }}"); // Default image
+                    $('#operatorName').text(""); // Clear operator name
+                    $('#dashboardSection').addClass('hidden');
+                    $('#loginSection').removeClass('hidden');
                     alert("Verification expired due to inactivity.");
                 },
 

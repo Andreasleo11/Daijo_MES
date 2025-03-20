@@ -13,5 +13,6 @@ class OperatorUser extends Model
     protected $fillable = [
         'name',
         'password',
+        'profile_picture',
     ];
 }

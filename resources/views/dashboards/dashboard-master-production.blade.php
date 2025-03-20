@@ -58,7 +58,8 @@
 
                             <!-- Button to show details -->
                             <button id="showDetails" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">View Details</button>
-                            
+
+
                             <div id="detailModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
                                 <div class="bg-white p-6 rounded-lg shadow-lg w-3/4">
                                     <h2 class="text-lg font-bold mb-4">Mould Change Details</h2>
@@ -73,7 +74,9 @@
                                                     <th class="border px-4 py-2">Predicted Time (min)</th>
                                                     <th class="border px-4 py-2">Actual Time (min)</th>
                                                     <th class="border px-4 py-2">PIC</th>
+                                                    <th class="border px-4 py-2">Photo</th>
                                                     <th class="border px-4 py-2">Status</th>
+                                                    <th class="border px-4 py-2">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -90,7 +93,17 @@
                                                         <td class="border px-4 py-2">{{ $log['predicted_time'] }} Min</td>
                                                         <td class="border px-4 py-2">{{ $log['actual_time'] }} Min</td>
                                                         <td class="border px-4 py-2">{{ $log['pic'] }}</td>
+                                                        <td class="border px-4 py-2">
+                                                            <img src="{{ $log['pic_profile_path'] ?? '/images/default-placeholder.png' }}" 
+                                                                alt="Mould Change Image" 
+                                                                class="w-16 h-16 rounded-lg">
+                                                        </td>
                                                         <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status']) }}</td>
+                                                        <td class="border px-4 py-2 text-center">
+                                                        <button class="show-photo bg-blue-500 text-white px-3 py-1 rounded" data-photo="{{ $log['pic_profile_path'] }}">
+                                                            Show Photo
+                                                        </button>
+                                                    </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -101,6 +114,18 @@
                             </div>
 
                             
+
+                            <div id="photoModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+                                <div class="bg-white p-6 rounded-lg shadow-lg relative">
+                                    <!-- Close Button -->
+                                    <button id="closePhotoModal" class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full">
+                                        &times;
+                                    </button>
+                                    
+                                    <!-- Image -->
+                                    <img id="modalPhoto" src="" alt="Mould Change Photo" class="max-w-full max-h-screen cursor-pointer transition-transform transform hover:scale-125">
+                                </div>
+                            </div>
                             
                             <!-- Hourly Production -->
                             <h4 class="text-lg font-semibold mt-6">Hourly Production</h4>
@@ -114,20 +139,20 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                        @php
+                                            $hourlySummary = [];
+                                            $hourlyDetails = [];
+                                        @endphp
+
+                                        @foreach ($data['hourly_production'] as $hourly)
                                             @php
-                                                $hourlySummary = [];
-                                                $hourlyDetails = [];
+                                                $hour = $hourly['hour'];
+                                                $totalQuantity = array_sum(array_column($hourly['users'], 'quantity')); // ✅ Extract "quantity" values and sum
+
+                                                $hourlySummary[$hour] = $totalQuantity;
+                                                $hourlyDetails[$hour] = $hourly['users']; // ✅ Keep full user data
                                             @endphp
-
-                                            @foreach ($data['hourly_production'] as $hourly)
-                                                @php
-                                                    $hour = $hourly['hour'];
-                                                    $totalQuantity = array_sum($hourly['users']);
-
-                                                    $hourlySummary[$hour] = $totalQuantity;
-                                                    $hourlyDetails[$hour] = $hourly['users'];
-                                                @endphp
-                                            @endforeach
+                                        @endforeach
 
                                             @foreach ($hourlySummary as $hour => $totalQuantity)
                                                 <tr>
@@ -149,10 +174,14 @@
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                @foreach ($hourlyDetails[$hour] as $user => $quantity)
+                                                            <tbody>
+                                                                @foreach ($hourlyDetails[$hour] as $user => $userData)
                                                                     <tr>
-                                                                        <td class="border px-4 py-2">{{ $user }}</td>
-                                                                        <td class="border px-4 py-2">{{ $quantity }}</td>
+                                                                        <td class="border px-4 py-2 flex items-center">
+                                                                            <img src="{{ $userData['user_profile_path'] }}" alt="{{ $user }}" class="w-20 h-20 rounded-full mr-2">
+                                                                            {{ $user }}
+                                                                        </td>
+                                                                        <td class="border px-4 py-2">{{ $userData['quantity'] }}</td>
                                                                     </tr>
                                                                 @endforeach
                                                             </tbody>
@@ -334,5 +363,40 @@
             });
         });
     });
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+    const photoModal = document.getElementById("photoModal");
+    const modalPhoto = document.getElementById("modalPhoto");
+    const closePhotoModal = document.getElementById("closePhotoModal");
+
+    document.querySelectorAll(".show-photo").forEach(button => {
+        button.addEventListener("click", function () {
+            let photoUrl = this.getAttribute("data-photo");
+            if (photoUrl) {
+                modalPhoto.src = photoUrl;
+                photoModal.classList.remove("hidden");
+            }
+        });
+    });
+
+    // Close when clicking the close button
+    closePhotoModal.addEventListener("click", function () {
+        photoModal.classList.add("hidden");
+    });
+
+    // Close when clicking outside the modal
+    photoModal.addEventListener("click", function (event) {
+        if (event.target === photoModal) {
+            photoModal.classList.add("hidden");
+        }
+    });
+
+    // Clicking the image zooms in
+    modalPhoto.addEventListener("click", function () {
+        this.classList.toggle("scale-150");
+    });
+});
+
 </script>
 </x-dashboard-layout>

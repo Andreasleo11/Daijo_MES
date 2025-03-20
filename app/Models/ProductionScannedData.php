@@ -19,6 +19,7 @@ class ProductionScannedData extends Model
         'quantity',
         'label',
         'user',
+        'processed',
     ];
 
     public function ParentDailyItemCode()
