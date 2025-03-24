@@ -79,7 +79,8 @@ Route::middleware('auth')->group(function (){
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
     Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
-
+    Route::post('/adjust-machine/start', [DashboardController::class, 'startAdjustMachine'])->name('adjust.machine.start');
+    Route::post('/adjust-machine/end', [DashboardController::class, 'endAdjustMachine'])->name('adjust.machine.end');
 
     Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);
     Route::get('/reset-job', [DashboardController::class, 'resetJob'])->name('reset.job');

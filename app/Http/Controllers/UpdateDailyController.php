@@ -374,6 +374,7 @@ class UpdateDailyController extends Controller
             ->unique()
             ->values()
             ->toArray();
+        // dd($uniqueCombination);
 
         // Get the existing records with the same item_code and delivery_date in a batch query
         $existingRecords = DB::table('sap_delsched')
@@ -394,7 +395,7 @@ class UpdateDailyController extends Controller
                 $insertData[] = $row;
             }
         }
-
+        dd($insertData);
         // Insert all the new records in one batch
         if (count($insertData) > 0) {
             DB::table('sap_delsched')->insert($insertData);

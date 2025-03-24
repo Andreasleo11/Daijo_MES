@@ -32,4 +32,9 @@ class MachineJob extends Model
     {
         return $this->hasMany(MouldChangeLog::class, 'user_id', 'user_id');
     }
+
+    public function adjustMachineLogs()
+{
+    return $this->hasMany(AdjustMachineLog::class, 'user_id', 'user_id');
+}
 }

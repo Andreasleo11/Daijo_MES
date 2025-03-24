@@ -15,6 +15,7 @@ use App\Models\Production\PRD_MouldingUserLog;
 use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
 use App\Models\MouldChangeLog;
+use App\Models\AdjustMachineLog;
 use App\Models\SpkMaster;
 use App\Models\OperatorUser;
 use App\Models\User;
@@ -764,7 +765,7 @@ class DashboardController extends Controller
             $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
 
             if ($nextItemCode === null) {
-                return response()->json(['message' => 'Belom Diassign bos ']);
+                return response()->json(['message' => 'Belum ada item yang diassign']);
             }
         }
 
@@ -776,8 +777,7 @@ class DashboardController extends Controller
             'created_at' => Carbon::now(), // Start time
         ]);
 
-        // Set machine job user_id to NULL (machine is inactive)
-        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
+      
 
         return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id,'operator' => [
             'name' => $operatorUser->name,
@@ -786,6 +786,69 @@ class DashboardController extends Controller
             : asset('images/default_profile.jpg'),  // Default profile image
     ],]);
     }
+
+
+
+    public function startAdjustMachine(Request $request)
+    {
+        $userId = Auth::id();
+        $today = Carbon::now()->format('Y-m-d');
+
+        $request->validate([
+            'pic_name' => 'required|string|max:255',
+        ]);
+
+        $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
+
+        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
+        
+        // Get all item_codes for today, ordered by shift or time
+        $dailyItems = DailyItemCode::where('user_id', $userId)
+            ->whereDate('start_date', $today) // Match today's records
+            ->orderBy('start_time', 'asc') // Order by shift timing
+            ->pluck('item_code')
+            ->toArray(); // Convert to an array for easier processing
+
+     
+
+        // Find the next item_code in sequence
+        $nextItemCode = null;
+        $currentIndex = array_search($currentItemCode, $dailyItems);
+
+        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+            $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
+        } else {
+            // Special case: Find the first item_code of the next day
+            $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
+            $nextDayItem = DailyItemCode::where('user_id', $userId)->whereDate('start_date', $nextDay)->orderBy('start_time', 'asc')->value('item_code'); // Get the first record of the next day
+
+            $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
+
+            if ($nextItemCode === null) {
+                return response()->json(['message' => 'Belum ada item yang diassign']);
+            }
+        }
+
+        // Create a new mould change log entry
+        $adjustMachine = AdjustMachineLog::create([
+            'user_id' => $userId,
+            'pic' => $request->pic_name,
+            'item_code' => $nextItemCode,
+            'created_at' => Carbon::now(), // Start time
+        ]);
+
+        // Set machine job user_id to NULL (machine is inactive)
+        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
+
+        return response()->json(['message' => 'Adjust Machine started', 'log_id' => $adjustMachine->id,'operator' => [
+            'name' => $operatorUser->name,
+           'profile_path' => $operatorUser->profile_picture 
+            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
+            : asset('images/default_profile.jpg'),  // Default profile image
+    ],]);
+    }
+
+
 
     public function endMouldChange()
     {
@@ -805,6 +868,27 @@ class DashboardController extends Controller
 
         return response()->json(['error' => 'No active mould change found'], 400);
     }
+
+
+    public function endAdjustMachine()
+    {
+        $userId = Auth::id();
+
+        // Update the last mould change log where user_id matches
+        $AdjustMachine = AdjustMachineLog::where('user_id', $userId)
+            ->whereNull('end_time') // Find an ongoing mould change
+            ->latest()
+            ->first();
+
+        if ($AdjustMachine) {
+            $AdjustMachine->update(['end_time' => Carbon::now()]);
+
+            return response()->json(['message' => 'Adjust Machine completed']);
+        }
+
+        return response()->json(['error' => 'No active mould change found'], 400);
+    }
+
 
     public function verifyNIKPassword(Request $request)
     {
