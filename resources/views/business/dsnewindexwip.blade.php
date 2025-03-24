@@ -12,6 +12,10 @@
         </div>
     </section>
 
+    <div class="mt-4 text-sm text-gray-600">
+                Terakhir Diupdate Pada : {{ $utiDateList->updated_at }}
+            </div>
+    
     <section>
         <div class="bg-white shadow-md rounded-lg p-6">
             <div class="overflow-x-auto">

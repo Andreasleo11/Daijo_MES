@@ -54,8 +54,8 @@ class DeliveryScheduleController extends Controller
         // {
         //     dd($data);
         // }
-
-        return $dataTable->render("business.dsnewindexwip");
+		$utiDateList = DB::table('uti_date_list')->find(13);
+        return $dataTable->render("business.dsnewindexwip", compact('utiDateList'));
     }
 
 
