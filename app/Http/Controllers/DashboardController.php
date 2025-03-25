@@ -517,20 +517,24 @@ class DashboardController extends Controller
         $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {
             $spk_code = $request->input('spk_code');
             $item_code = $item_code_spk->item_code;
-            $label = $request->input('label');
+            $label = (int) $request->input('label');
         
-            // Check if the provided SPK and item_code exist in restructureduniquedata
+            // Check if the provided item_code exists in restructureduniquedata
             $foundSPKs = $restructureduniquedata[$item_code] ?? null;
         
             if (!$foundSPKs) {
                 $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
             } else {
                 $isValidLabel = false;
-                
-                foreach ($foundSPKs as $spkKey => $spkData) {
+                $validRanges = [];
+        
+                foreach ($foundSPKs as $spkData) {
                     if ($spkData->spk === $spk_code) { // Use -> instead of []
                         $start_label = (int) $spkData->start_label;
                         $end_label = (int) $spkData->end_label;
+        
+                        // Store the valid ranges for error messages
+                        $validRanges[] = "$start_label - $end_label";
         
                         if ($label >= $start_label && $label <= $end_label) {
                             $isValidLabel = true;
@@ -540,7 +544,8 @@ class DashboardController extends Controller
                 }
         
                 if (!$isValidLabel) {
-                    $validator->errors()->add('label', "The label must be within the valid range for SPK $spk_code and item code $item_code.");
+                    $validRangesText = implode(', ', $validRanges);
+                    $validator->errors()->add('label', "The label must be within the valid range(s) for SPK $spk_code and item code $item_code. Valid range(s): $validRangesText.");
                 }
             }
         });

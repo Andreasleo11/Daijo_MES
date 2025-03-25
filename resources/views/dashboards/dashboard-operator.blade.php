@@ -240,7 +240,7 @@
                                             <th class="py-1 px-2 text-gray-700">Shift</th>
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th>
-                                            <th class="py-1 px-2 text-gray-700">Actual Quantity</th>
+                                            <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
                                             @if ($itemCode)
                                                 <th class="py-1 px-2 text-gray-700">Action</th>
                                             @endif
@@ -262,7 +262,7 @@
                                                     {{ $endTime }})</td>
                                                 <td class="py-1 px-2">{{ $data->quantity }}</td>
                                                 <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td>
-                                                <td class="py-1 px-2">{{ $data->actual_quantity }}</td>
+                                                <!-- <td class="py-1 px-2">{{ $data->actual_quantity }}</td> -->
                                                 @if ($itemCode)
                                                     @php
                                                         $disabled = $data->shift !== $machineJobShift;
@@ -370,16 +370,16 @@
                                     placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
-                                <label for="warehouse">Warehouse</label>
-                                <input type="text" id="warehouse" name="warehouse" required
-                                    class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Warehouse" x-on:input="checkAndSubmitForm()" />
-                            </div>
-                            <div>
                                 <label for="quantity">Quantity</label>
                                 <input type="number" id="quantity" name="quantity" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="Quantity" x-on:input="checkAndSubmitForm()" />
+                            </div>
+                            <div>
+                                <label for="warehouse">Warehouse</label>
+                                <input type="text" id="warehouse" name="warehouse" required
+                                    class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                    placeholder="Warehouse" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
                                 <label for="label">Label</label>

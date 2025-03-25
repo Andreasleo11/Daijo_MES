@@ -395,7 +395,7 @@ class UpdateDailyController extends Controller
                 $insertData[] = $row;
             }
         }
-        dd($insertData);
+        // dd($insertData);
         // Insert all the new records in one batch
         if (count($insertData) > 0) {
             DB::table('sap_delsched')->insert($insertData);

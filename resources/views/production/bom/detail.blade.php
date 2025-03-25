@@ -228,7 +228,7 @@
                                                                 Edit
                                                             </button>
                                                             @if (!in_array($child->status, ['Started', 'Finished']))
-                                                                <form
+                                                                <!-- <form
                                                                     action="{{ route('production.bom.child.destroy', $child->id) }}"
                                                                     method="POST">
                                                                     @csrf
@@ -238,7 +238,7 @@
                                                                         class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
                                                                         Delete
                                                                     </button>
-                                                                </form>
+                                                                </form> -->
                                                             @endif
                                                             <form
                                                                 action="{{ route('production.bom.child.cancel', $child->id) }}"

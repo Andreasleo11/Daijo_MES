@@ -74,7 +74,7 @@
 
                                         @if($user->role->name === "ADMIN")
                                         <!-- Delete -->
-                                        <form action="{{ route('production.bom.destroy', $parent->id) }}" method="POST"
+                                        <!-- <form action="{{ route('production.bom.destroy', $parent->id) }}" method="POST"
                                             class="inline-block"
                                             onsubmit="return confirm('Are you sure you want to delete this BOM?');">
                                             @csrf
@@ -87,7 +87,7 @@
                                                 </svg>
                                                 Delete
                                             </button>
-                                        </form>
+                                        </form> -->
                                         @endif
                                     </td>
                                 </tr>
