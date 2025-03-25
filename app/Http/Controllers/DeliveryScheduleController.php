@@ -54,8 +54,8 @@ class DeliveryScheduleController extends Controller
         // {
         //     dd($data);
         // }
-
-        return $dataTable->render("business.dsnewindexwip");
+		$utiDateList = DB::table('uti_date_list')->find(13);
+        return $dataTable->render("business.dsnewindexwip", compact('utiDateList'));
     }
 
 
@@ -354,6 +354,7 @@ class DeliveryScheduleController extends Controller
 				} else {
 
 					$cal_outstanding = $val_delivery_qty - $val_total_after;
+					$outstanding = $val_delivery_qty - $cal_outstanding;
 					$cal_total_after_now = 0;
 
 					if(empty($tab_delsched_delsum)){
@@ -366,8 +367,8 @@ class DeliveryScheduleController extends Controller
 
 					$update_final = DB::table('delsched_final')->where('id', $val_final_id)->update([
 						'delivered' => $cal_outstanding,
-						'outstanding' => $cal_outstanding,
-						'outstanding_stk' => $cal_outstanding,
+						'outstanding' => $outstanding,
+						'outstanding_stk' => $outstanding,
 						'status' => 'warning',
 					]);
 

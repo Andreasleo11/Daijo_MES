@@ -12,6 +12,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        $schedule->command('summary:generate')->everyFiveMinutes();
         $schedule->command('app:send-daily-waiting-purchase-orders')->dailyAt('01:00'); // Adjust time as needed
         $schedule->command('report:send-outstanding')
             ->dailyAt('09:00')

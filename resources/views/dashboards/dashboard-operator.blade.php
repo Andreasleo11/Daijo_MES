@@ -36,17 +36,38 @@
     @php
         $userId = auth()->id();
         $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
+        $activeAdjustMachine = \App\Models\AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->exists();
     @endphp
 
+    <div class="flex flex-wrap gap-4">
         <!-- Start Mould Change Button -->
-        <button id="startMouldChange" class="btn btn-warning" @if($activeMouldChange) style="display: none;" @endif>
+        <button id="startMouldChange" 
+            class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
+            @if($activeMouldChange) style="display: none;" @endif>
             Change Mould
         </button>
 
         <!-- End Mould Change Button -->
-        <button id="endMouldChange" class="btn btn-success" @if(!$activeMouldChange) style="display: none;" @endif>
+        <button id="endMouldChange" 
+            class="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-200 hidden">
             Complete Change Mould
         </button>
+
+        <!-- Start Adjust Machine Button -->
+        <button id="startAdjustMachine" 
+            class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
+            @if($activeAdjustMachine) style="display: none;" @endif>
+            Adjust Machine
+        </button>
+
+        <!-- End Adjust Machine Button -->
+        <button id="endAdjustMachine" 
+            class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
+            Complete Adjust Machine
+        </button>
+    </div>
+
+
 
         <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
             <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
@@ -67,19 +88,16 @@
                 <span id="currentUserName" class="text-lg font-semibold"></span>
             </div>
         </div>
-        
 
-        <!-- PIC Input Modal -->
-        <div id="picModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
-            <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
-                <h2 class="text-lg font-bold mb-4">Enter PIC Name</h2>
-                <input type="text" id="pic_name" class="border p-2 w-full rounded" placeholder="Enter PIC name...">
-                <div class="flex justify-end mt-4">
-                    <button id="closeModal" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
-                    <button id="submitPic" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
-                </div>
+        <div id="adjustMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
+            <h2 class="text-lg font-bold mb-2">Adjust Machine in Progress</h2>
+            <div class="flex items-center">
+                <img id="adjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
+                <span id="adjustUserName" class="text-lg font-semibold"></span>
             </div>
         </div>
+        
+
 
     @if (is_null($machinejobid->employee_name))
         <div class="flex items-center justify-center">
@@ -107,6 +125,8 @@
             </div>
 
             <!-- Toggle Scan Mode -->
+          
+
             <div class="flex justify-end px-6">
                 <button x-on:click="toggleScanMode()" x-text="scanMode ? 'Deactivate Scan Mode' : 'Activate Scan Mode'"
                     :class="scanMode ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'"
@@ -134,6 +154,7 @@
             <!-- Other Sections to be Hidden in Scan Mode -->
             <div x-show="!scanMode" class="not-scan-section mt-2" x-cloak>
                 <!-- Active Job Section -->
+
                 <div class="mx-auto sm:px-4 lg:px-6 pt-2">
                     <div class="bg-white shadow-sm sm:rounded-lg p-4">
                         <div class="text-gray-900">
@@ -272,6 +293,12 @@
 
             <!-- Scan Barcode Section -->
             <div x-show="scanMode && verified" class="mx-auto sm:px-4 lg:px-6 pt-6" x-cloak>
+            <button 
+                @click="resetVerification()" 
+                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200">
+                Reset Verification
+            </button>
+            
                 <div class="flex gap-6 items-start w-full">
                     <!-- Profile Section -->
                     <div id="dashboardSection" class="bg-white p-6 rounded-lg shadow-md w-[300px] flex flex-col items-center">
@@ -279,6 +306,7 @@
                             src="{{ asset('default-avatar.png') }}" alt="Profile Picture">
                         <h2 class="mt-4 text-xl font-bold text-center">Welcome, <span id="operatorName"></span></h2>
                     </div>
+                  
 
                     <!-- SPK Table Section -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
@@ -389,19 +417,35 @@
             let verifiedUser = null;
 
             // Check if a mould change is in progress on page load
-            let savedOperator = localStorage.getItem('mouldChangeOperator');
-            if (savedOperator) {
-                savedOperator = JSON.parse(savedOperator);
+            let savedMouldOperator = localStorage.getItem('mouldChangeOperator');
+            if (savedMouldOperator) {
+                savedMouldOperator = JSON.parse(savedMouldOperator);
                 $('#mouldChangeInfo').removeClass('hidden');
-                $('#currentUserProfile').attr('src', savedOperator.profile_path);
-                $('#currentUserName').text(savedOperator.name);
+                $('#currentUserProfile').attr('src', savedMouldOperator.profile_path);
+                $('#currentUserName').text(savedMouldOperator.name);
                 $('#startMouldChange').hide();
                 $('#endMouldChange').show();
             }
 
+            // Check if an adjust machine process is in progress on page load
+            let savedAdjustOperator = localStorage.getItem('adjustMachineOperator');
+            if (savedAdjustOperator) {
+                savedAdjustOperator = JSON.parse(savedAdjustOperator);
+                $('#adjustMachineInfo').removeClass('hidden');
+                $('#currentAdjustUserProfile').attr('src', savedAdjustOperator.profile_path);
+                $('#currentAdjustUserName').text(savedAdjustOperator.name);
+                $('#startAdjustMachine').hide();
+                $('#endAdjustMachine').show();
+            }
+
             // Show NIK modal when clicking "Change Mould"
             $('#startMouldChange').click(function () {
-                $('#nikModal').removeClass('hidden');
+                $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
+            });
+
+            // Show NIK modal when clicking "Adjust Machine"
+            $('#startAdjustMachine').click(function () {
+                $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
             });
 
             // Close the modal
@@ -413,6 +457,7 @@
             $('#verifyNik').click(function () {
                 let nik = $('#nik').val().trim();
                 let password = $('#password').val().trim();
+                let actionType = $('#nikModal').attr('data-action');
 
                 if (nik === '' || password === '') {
                     alert('Please enter both NIK and password.');
@@ -428,7 +473,12 @@
                         alert(response.message);
                         verifiedUser = response.user;
                         $('#nikModal').addClass('hidden');
-                        startMouldChange(verifiedUser.name);
+
+                        if (actionType === 'mould') {
+                            startMouldChange(verifiedUser.name);
+                        } else if (actionType === 'adjust') {
+                            startAdjustMachine(verifiedUser.name);
+                        }
                     },
                     error: function (xhr) {
                         alert(xhr.responseJSON.error);
@@ -445,8 +495,6 @@
                     data: { pic_name: picName },
                     success: function (response) {
                         alert(response.message);
-
-                        // Store data in localStorage for persistence
                         localStorage.setItem('mouldChangeOperator', JSON.stringify(response.operator));
 
                         $('#mouldChangeInfo').removeClass('hidden');
@@ -462,7 +510,7 @@
                 });
             }
 
-            // Handle Complete Mould Change button
+            // Complete Mould Change Process
             $('#endMouldChange').click(function () {
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
@@ -470,8 +518,6 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     success: function (response) {
                         alert(response.message);
-
-                        // Clear stored data when process is done
                         localStorage.removeItem('mouldChangeOperator');
 
                         $('#mouldChangeInfo').addClass('hidden');
@@ -483,11 +529,93 @@
                     }
                 });
             });
+
+            // Start Adjust Machine Process
+            function startAdjustMachine(picName) {
+                $.ajax({
+                    url: "{{ route('adjust.machine.start') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { pic_name: picName },
+                    success: function (response) {
+                        alert(response.message);
+                        localStorage.setItem('adjustMachineOperator', JSON.stringify(response.operator));
+
+                        $('#adjustMachineInfo').removeClass('hidden');
+                        $('#currentAdjustUserProfile').attr('src', response.operator.profile_path);
+                        $('#currentAdjustUserName').text(response.operator.name);
+
+                        $('#startAdjustMachine').hide();
+                        $('#endAdjustMachine').show();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            }
+
+            // Complete Adjust Machine Process
+            $('#endAdjustMachine').click(function () {
+                $.ajax({
+                    url: "{{ route('adjust.machine.end') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    success: function (response) {
+                        alert(response.message);
+                        localStorage.removeItem('adjustMachineOperator');
+
+                        $('#adjustMachineInfo').addClass('hidden');
+                        $('#startAdjustMachine').show();
+                        $('#endAdjustMachine').hide();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
         });
+
 
     </script>
 
     <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const startMouldChange = document.getElementById("startMouldChange");
+        const endMouldChange = document.getElementById("endMouldChange");
+        const startAdjustMachine = document.getElementById("startAdjustMachine");
+        const endAdjustMachine = document.getElementById("endAdjustMachine");
+
+        // Handle Mould Change Start
+        startMouldChange.addEventListener("click", function () {
+            startMouldChange.style.display = "none";
+            startAdjustMachine.style.display = "none"; // Hide adjust machine button
+            endMouldChange.style.display = "inline-block";
+        });
+
+        // Handle Mould Change End
+        endMouldChange.addEventListener("click", function () {
+            startMouldChange.style.display = "inline-block";
+            startAdjustMachine.style.display = "inline-block"; // Show adjust machine button again
+            endMouldChange.style.display = "none";
+        });
+
+        // Handle Adjust Machine Start
+        startAdjustMachine.addEventListener("click", function () {
+            startMouldChange.style.display = "none"; // Hide mould change button
+            startAdjustMachine.style.display = "none";
+            endAdjustMachine.style.display = "inline-block";
+        });
+
+        // Handle Adjust Machine End
+        endAdjustMachine.addEventListener("click", function () {
+            startMouldChange.style.display = "inline-block"; // Show mould change button again
+            startAdjustMachine.style.display = "inline-block";
+            endAdjustMachine.style.display = "none";
+        });
+    });
+
+
           document.addEventListener("DOMContentLoaded", function () {
                 // Check if user is already verified (persistent login)
                 if (localStorage.getItem("verified")) {

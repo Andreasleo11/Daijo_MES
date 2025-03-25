@@ -56,13 +56,12 @@
                             
                             </div>
 
-                            <!-- Button to show details -->
+                           <!-- Button to show details -->
                             <button id="showDetails" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">View Details</button>
-
 
                             <div id="detailModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
                                 <div class="bg-white p-6 rounded-lg shadow-lg w-3/4">
-                                    <h2 class="text-lg font-bold mb-4">Mould Change Details</h2>
+                                    <h2 class="text-lg font-bold mb-4">Mould Change & Adjusting Machine Details</h2>
                                     <div class="overflow-x-auto">
                                         <table class="w-full border-collapse border border-gray-300">
                                             <thead class="bg-gray-200">
@@ -76,12 +75,18 @@
                                                     <th class="border px-4 py-2">PIC</th>
                                                     <th class="border px-4 py-2">Photo</th>
                                                     <th class="border px-4 py-2">Status</th>
+                                                    <th class="border px-4 py-2">Type</th>
                                                     <th class="border px-4 py-2">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach ($data['mould_change_log'] as $log)
-                                                    <tr class="{{ $log['status'] == 'problem' ? 'bg-red-200' : 'bg-green-200' }}">
+                                                @php
+                                                    $combinedLogs = array_merge($data['mould_change_log'], $data['adjust_machine_logs']);
+                                                    usort($combinedLogs, fn($a, $b) => strcmp($a['item_code'], $b['item_code']));
+                                                @endphp
+
+                                                @foreach ($combinedLogs as $log)
+                                                    <tr class="{{ isset($log['status']) && $log['status'] == 'problem' ? 'bg-red-200' : 'bg-green-200' }}">
                                                         <td class="border px-4 py-2">{{ $log['machine_name'] }}</td>
                                                         <td class="border px-4 py-2">{{ $log['item_code'] }}</td>
                                                         <td class="border px-4 py-2">
@@ -95,15 +100,18 @@
                                                         <td class="border px-4 py-2">{{ $log['pic'] }}</td>
                                                         <td class="border px-4 py-2">
                                                             <img src="{{ $log['pic_profile_path'] ?? '/images/default-placeholder.png' }}" 
-                                                                alt="Mould Change Image" 
+                                                                alt="Log Image" 
                                                                 class="w-16 h-16 rounded-lg">
                                                         </td>
-                                                        <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status']) }}</td>
+                                                        <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status'] ?? 'N/A') }}</td>
+                                                        <td class="border px-4 py-2 font-bold">
+                                                            {{ in_array($log, $data['mould_change_log'], true) ? 'Mould Change' : 'Adjusting Machine' }}
+                                                        </td>
                                                         <td class="border px-4 py-2 text-center">
-                                                        <button class="show-photo bg-blue-500 text-white px-3 py-1 rounded" data-photo="{{ $log['pic_profile_path'] }}">
-                                                            Show Photo
-                                                        </button>
-                                                    </td>
+                                                            <button class="show-photo bg-blue-500 text-white px-3 py-1 rounded" data-photo="{{ $log['pic_profile_path'] }}">
+                                                                Show Photo
+                                                            </button>
+                                                        </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
