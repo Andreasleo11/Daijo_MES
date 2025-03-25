@@ -5,21 +5,21 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class DailyWaitingPurchaseOrders extends Mailable implements ShouldQueue
+class SendOutstandingReport extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
-    public $orders;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($orders)
+    public function __construct()
     {
-        $this->orders = $orders;
+        //
     }
 
     /**
@@ -28,7 +28,7 @@ class DailyWaitingPurchaseOrders extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Daily Waiting Purchase Orders',
+            subject: 'Outstanding Report',
         );
     }
 
@@ -38,11 +38,7 @@ class DailyWaitingPurchaseOrders extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            markdown: 'mail.daily_waiting_purchase_order',
-            with: [
-                'url' => route('waiting_purchase_orders.index'),
-                'orders' => $this->orders,
-            ]
+            markdown: 'mail.outstanding_report',
         );
     }
 
@@ -53,6 +49,8 @@ class DailyWaitingPurchaseOrders extends Mailable implements ShouldQueue
      */
     public function attachments(): array
     {
-        return [];
+        return [
+            Attachment::fromStorage('outstanding_report.xlsx'),
+        ];
     }
 }
