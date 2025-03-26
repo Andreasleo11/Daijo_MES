@@ -98,22 +98,6 @@
         </div>
         
 
-
-    @if (is_null($machinejobid->employee_name))
-        <div class="flex items-center justify-center">
-            <form action="{{ route('updateEmployeeName') }}" method="POST" x-data="{ focus: true }"
-                x-init="$nextTick(() => $refs.employeeName.focus())">
-                @csrf
-                <!-- Text field for user to input their name -->
-                <input x-ref="employeeName" type="text" name="employee_name" placeholder="Enter your name"
-                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    required>
-                <!-- Submit button -->
-                <button type="submit"
-                    class="text-indigo-400 border-indigo-400 bg-indigo-50 hover:bg-indigo-600 hover:text-white border py-1 px-2 rounded-md ">Submit</button>
-            </form>
-        </div>
-    @else
         <div x-data="scanModeHandler({{ session('deactivateScanMode') ? 'true' : 'false' }})" x-init="initialize()" class="py-4">
             <!-- Scan Mode Toggle Section -->
             <div class="px-6">
@@ -398,7 +382,7 @@
                 </div>
             </div>
         </div>
-    @endif
+    
 
 
 
@@ -523,6 +507,8 @@
                         $('#mouldChangeInfo').addClass('hidden');
                         $('#startMouldChange').show();
                         $('#endMouldChange').hide();
+
+                        location.reload();
                     },
                     error: function (xhr) {
                         alert(xhr.responseJSON.error);
@@ -567,6 +553,8 @@
                         $('#adjustMachineInfo').addClass('hidden');
                         $('#startAdjustMachine').show();
                         $('#endAdjustMachine').hide();
+
+                        location.reload();
                     },
                     error: function (xhr) {
                         alert(xhr.responseJSON.error);

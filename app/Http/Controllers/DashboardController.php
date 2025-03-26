@@ -942,4 +942,22 @@ class DashboardController extends Controller
             ]
         ]);
     }
+
+    public function autoLogin($user, Request $request)
+    {
+        // Find the user in the database
+        $userData = User::where('name', $user)->first();
+
+        if (!$userData) {
+            return redirect('/login')->with('error', 'User not found.');
+        }
+
+        // Log in the user
+        Auth::login($userData);
+
+        // Redirect to dashboard
+        return redirect()->route('dashboard');
+    }
+
+
 }

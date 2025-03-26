@@ -24,6 +24,8 @@ use App\Http\Controllers\CapacityByForecastController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OperatorUserController;
 use App\Http\Controllers\ProductionDashboardController;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
@@ -37,6 +39,11 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+// Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
+
+
+
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
 
@@ -60,11 +67,24 @@ Route::redirect('/', '/login');
 
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
-
+    
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
+
+// Auto-login route (must not interfere with other routes)
+Route::get('/auto-login/{user_id}', function ($user_id) {
+    // dd($user_id);
+    $user = User::where('name', $user_id)->first();
+
+    if ($user) {
+        Auth::login($user);
+        return redirect()->route('dashboard');
+    }
+
+    return redirect('/login')->withErrors(['error' => 'User not found']);
+})->where('user_id', '[0-9A-Za-z]+'); // Ensure only valid user IDs
 
 Route::middleware('auth')->group(function (){
     //-- Production project route
