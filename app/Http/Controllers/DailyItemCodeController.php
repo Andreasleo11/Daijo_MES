@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDailyItemCodeRequest;
 use App\Models\DailyItemCode;
 use App\Models\MasterListItem;
+use App\Models\delivery\sapLineProduction;
 use App\Models\SpkMaster;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class DailyItemCodeController extends Controller
 
     public function create(Request $request)
     {
-
+        // dd('test');
         $machines = User::whereHas('role', function ($query){
             $query->where('name', 'OPERATOR');
         })
@@ -44,7 +45,8 @@ class DailyItemCodeController extends Controller
         $transformedMachineName = $this->transformUsername($selectedMachine->name);
 
         // Use the transformed machine name to query the MasterListItem
-        $masterListItem = MasterListItem::get();
+        // $masterListItem = sapLineProduction::where('line_production', $selectedMachine->name)->get();
+        $masterListItem = sapLineProduction::get(['item_code']);
         $dailyItemCodes = DailyItemCode::all();
 
         return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine', 'dailyItemCodes'));

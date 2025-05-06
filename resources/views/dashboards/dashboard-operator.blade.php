@@ -37,6 +37,7 @@
         $userId = auth()->id();
         $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
         $activeAdjustMachine = \App\Models\AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->exists();
+        $activeRepairMachine = \App\Models\RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->exists();
     @endphp
 
     <div class="flex flex-wrap gap-4">
@@ -65,8 +66,33 @@
             class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
             Complete Adjust Machine
         </button>
-    </div>
 
+        
+          <!-- Start Repair Machine Button -->
+        <button id="startRepairMachine" 
+            class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200"
+            @if($activeRepairMachine) style="display: none;" @endif>
+            Repair Machine
+        </button>
+
+        <!-- Finish Repair Machine Button -->
+        <button id="endRepairMachine" 
+            class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
+            Finish Repair Machine
+        </button>
+    </div>
+    
+        <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">
+            <div>
+                <div class="text-sm text-gray-500 font-medium uppercase">Tanggal Hari Ini</div>
+                <div class="text-lg font-semibold text-gray-800" id="tanggal-hari-ini"></div>
+            </div>
+            <div class="border-l border-gray-300 h-8"></div>
+            <div>
+                <div class="text-sm text-gray-500 font-medium uppercase">Waktu Sekarang (WIB)</div>
+                <div class="text-xl font-bold text-indigo-600" id="jam-hari-ini"></div>
+            </div>
+        </div>
 
 
         <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
@@ -92,13 +118,91 @@
         <div id="adjustMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
             <h2 class="text-lg font-bold mb-2">Adjust Machine in Progress</h2>
             <div class="flex items-center">
-                <img id="adjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="adjustUserName" class="text-lg font-semibold"></span>
+                <img id="currentAdjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
+                <span id="currentAdjustUserName" class="text-lg font-semibold"></span>
+            </div>
+        </div>
+
+        <div id="repairMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
+            <h2 class="text-lg font-bold mb-2">Repair Machine in Progress</h2>
+            <div class="flex items-center">
+                <img id="currentRepairUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
+                <span id="currentRepairUserName" class="text-lg font-semibold"></span>
+            </div>
+
+            <div class="mb-2">
+                <label for="repairProblem" class="block text-sm font-medium text-gray-700">Problem</label>
+                <input type="text" id="repairProblem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Describe the problem...">
+            </div>
+            <div class="mb-2">
+                <label for="repairRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
+                <textarea id="repairRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
+            </div>
+        </div>
+
+        <div class="container mx-auto py-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Mould Change Log Card -->
+                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Mould Change Log</h2>
+                    @if($mouldChangeLogs->isEmpty())
+                        <p class="text-gray-500">Tidak ada data</p>
+                    @else
+                        <ul>
+                            @foreach($mouldChangeLogs as $log)
+                                <li class="mb-2">
+                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>End Time:</strong> {{ \Carbon\Carbon::parse($log->end_time)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
+                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+
+                <!-- Adjust Machine Log Card -->
+                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Adjust Machine Log</h2>
+                    @if($adjustMachineLogs->isEmpty())
+                        <p class="text-gray-500">Tidak ada data</p>
+                    @else
+                        <ul>
+                            @foreach($adjustMachineLogs as $log)
+                                <li class="mb-2">
+                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>End Time:</strong> {{ \Carbon\Carbon::parse($log->end_time)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
+                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+
+                <!-- Repair Machine Log Card -->
+                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Repair Machine Log</h2>
+                    @if($repairMachineLogs->isEmpty())
+                        <p class="text-gray-500">Tidak ada data</p>
+                    @else
+                        <ul>
+                            @foreach($repairMachineLogs as $log)
+                                <li class="mb-2">
+                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>Finish Repair:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
+                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
             </div>
         </div>
         
 
-        <div x-data="scanModeHandler({{ session('deactivateScanMode') ? 'true' : 'false' }})" x-init="initialize()" class="py-4">
+        <div x-data="scanModeHandler({{ session('deactivateScanMode') ? 'true' : 'false' }})" x-init="initialize()" x-show="ready" x-cloak class="py-4">
             <!-- Scan Mode Toggle Section -->
             <div class="px-6">
                 <div x-show="scanMode" id="scanModeBanner"
@@ -256,8 +360,7 @@
                                                             action="{{ route('generate.itemcode.barcode', ['item_code' => $data->item_code, 'quantity' => $data->quantity]) }}"
                                                             method="get">
                                                             <button
-                                                                class="m-1 p-2 rounded text-white focus:outline-none transition ease-in-out duration-150 {{ $disabled ? 'bg-gray-500 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-800' }}"
-                                                                {{ $disabled ? 'disabled' : '' }}>
+                                                            >
                                                                 Generate Barcode
                                                             </button>
                                                         </form>
@@ -310,7 +413,7 @@
                                     <tr class="bg-white text-center">
                                         <td class="py-2 px-4">{{ $data['spk'] }}</td>
                                         <td class="py-2 px-4">{{ $data['item_code'] }}</td>
-                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['count'] }}</td>
+                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['available_quantity'] + $data['scannedData']}}</td>
                                         <td class="py-2 px-4">{{ $data['totalquantity'] }}</td>
                                     </tr>
                                 @endforeach
@@ -422,6 +525,17 @@
                 $('#endAdjustMachine').show();
             }
 
+            // Check if a repair machine process is in progress on page load
+            let savedRepairOperator = localStorage.getItem('repairMachineOperator');
+            if (savedRepairOperator) {
+                savedRepairOperator = JSON.parse(savedRepairOperator);
+                $('#repairMachineInfo').removeClass('hidden');
+                $('#currentRepairUserProfile').attr('src', savedRepairOperator.profile_path);
+                $('#currentRepairUserName').text(savedRepairOperator.name);
+                $('#startRepairMachine').hide();
+                $('#endRepairMachine').show();
+            }
+
             // Show NIK modal when clicking "Change Mould"
             $('#startMouldChange').click(function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
@@ -430,6 +544,11 @@
             // Show NIK modal when clicking "Adjust Machine"
             $('#startAdjustMachine').click(function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
+            });
+
+            // Show NIK modal when clicking "Repair Machine"
+            $('#startRepairMachine').click(function () {
+                $('#nikModal').removeClass('hidden').attr('data-action', 'repair');
             });
 
             // Close the modal
@@ -462,6 +581,8 @@
                             startMouldChange(verifiedUser.name);
                         } else if (actionType === 'adjust') {
                             startAdjustMachine(verifiedUser.name);
+                        } else if (actionType === 'repair') {
+                            startRepairMachine(verifiedUser.name);
                         }
                     },
                     error: function (xhr) {
@@ -561,6 +682,62 @@
                     }
                 });
             });
+
+
+            // Start Repair Machine Process
+            function startRepairMachine(picName) {
+                $.ajax({
+                    url: "{{ route('repair.machine.start') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { pic_name: picName },
+                    success: function (response) {
+                        alert(response.message);
+                        localStorage.setItem('repairMachineOperator', JSON.stringify(response.operator));
+
+                        $('#repairMachineInfo').removeClass('hidden');
+                        $('#currentRepairUserProfile').attr('src', response.operator.profile_path);
+                        $('#currentRepairUserName').text(response.operator.name);
+
+                        $('#startRepairMachine').hide();
+                        $('#endRepairMachine').show();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            }
+
+            // Complete Repair Machine Process
+            $('#endRepairMachine').click(function () {
+                const problem = $('#repairProblem').val();
+                const remarks = $('#repairRemarks').val();
+
+                $.ajax({
+                    url: "{{ route('repair.machine.end') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: {
+                        problem: problem,
+                        remarks: remarks
+                    },
+                    success: function (response) {
+                        alert(response.message);
+                        localStorage.removeItem('repairMachineOperator');
+
+                        $('#repairMachineInfo').addClass('hidden');
+                        $('#startRepairMachine').show();
+                        $('#endRepairMachine').hide();
+
+                        location.reload();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON?.error || 'Terjadi kesalahan.');
+                    }
+                });
+            });
+
+
         });
 
 
@@ -622,13 +799,16 @@
 
         function scanModeHandler(deactivateScanModeFlag) {
             return {
-                scanMode: true,
-                verified: localStorage.getItem('verified') === 'true', // Load verification state
+                ready: false, // NEW
+                scanMode: false,
+                verified: false,
                 nikInput: '', 
                 passwordInput: '',
                 idleTimeout: null,
 
                 initialize() {
+                    this.verified = localStorage.getItem('verified') === 'true';
+
                     if (deactivateScanModeFlag == true) {
                         this.scanMode = false;
                         localStorage.setItem('scanMode', false);
@@ -636,10 +816,13 @@
                         this.scanMode = localStorage.getItem('scanMode') === 'true';
                     }
 
-                    // Restore verification state
-                    if (this.verified) {
-                        this.startIdleTimer(); // Restart the idle timer if already verified
+                    if (this.verified && this.scanMode) {
+                        this.startIdleTimer();
+                        this.focusOnSPKCode();
                     }
+
+                    // Delay rendering until everything is set
+                    this.ready = true;
 
                     if (this.scanMode) {
                         if (!this.verified) {
@@ -763,6 +946,27 @@
                 }
             };
         }
+
+        function updateWaktuIndonesia() {
+                const now = new Date();
+                const optionsTanggal = {
+                    timeZone: 'Asia/Jakarta',
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                };
+                const optionsJam = {
+                    timeZone: 'Asia/Jakarta',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                };
+
+                const tanggal = now.toLocaleDateString('id-ID', optionsTanggal);
+                const jam = now.toLocaleTimeString('id-ID', optionsJam);
+
+                document.getElementById('tanggal-hari-ini').textContent = tanggal;
+                document.getElementById('jam-hari-ini').textContent = jam;
+            }
+
+            setInterval(updateWaktuIndonesia, 1000);
+            updateWaktuIndonesia();
     </script>
 
 </x-app-layout>

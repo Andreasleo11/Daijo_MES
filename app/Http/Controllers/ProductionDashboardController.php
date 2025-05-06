@@ -12,6 +12,7 @@ use App\Models\OperatorUser;
 use App\Models\DailyItemCode;
 use App\Models\MouldChangeLog;
 use App\Models\AdjustMachineLog; // Make sure the model is imported
+use App\Models\RepairMachineLog;
 use Carbon\Carbon;
 
 class ProductionDashboardController extends Controller
@@ -50,6 +51,7 @@ class ProductionDashboardController extends Controller
                 $structuredData[$userName] = [
                     'mould_change_log' => [],
                     'adjust_machine_logs' => [],
+                    'repair_machine_logs' => [], 
                     'daily_item_code' => [],
                     'hourly_production' => []
                 ];
@@ -85,8 +87,8 @@ class ProductionDashboardController extends Controller
 
             foreach ($machineJob->adjustMachineLogs as $adjustLog) {
                 $setupTimeMinute = $mouldChange->masterListItem->setup_time_minute ?? 0;
-                $startTime = Carbon::parse($mouldChange->created_at);
-                $endTime = Carbon::parse($mouldChange->end_time);
+                $startTime = Carbon::parse($adjustLog->created_at);
+                $endTime = Carbon::parse($adjustLog->end_time);
                 $actualTime = $startTime->diffInMinutes($endTime);
 
                 $operatorUser = OperatorUser::where('name', $adjustLog->pic)->first();
@@ -105,6 +107,32 @@ class ProductionDashboardController extends Controller
                     'pic_profile_path' => $operatorProfilePath,
                     'start_time' => Carbon::parse($adjustLog->created_at)->format('Y-m-d H:i:s'),
                     'end_time' => Carbon::parse($adjustLog->end_time)->format('Y-m-d H:i:s'),
+                ];
+            }
+
+             // Process repair machine logs
+            foreach ($machineJob->repairMachineLogs as $repairLog) {
+                $startTime = Carbon::parse($repairLog->created_at);
+                $endTime = Carbon::parse($repairLog->finish_repair);
+                $actualTime = $startTime->diffInMinutes($endTime);
+
+                // Fetch operator user details (for `pic`)
+                $operatorUser = OperatorUser::where('name', $repairLog->pic)->first();
+                $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
+                    ? asset('storage/' . $operatorUser->profile_picture) 
+                    : asset('images/default_profile.jpg'); // Default profile image
+
+                $structuredData[$userName]['repair_machine_logs'][] = [
+                    'id' => $repairLog->id,
+                    'machine_name' => $repairLog->user->name,
+                    'start_time' => $startTime->format('Y-m-d H:i:s'),
+                    'end_time' => $endTime->format('Y-m-d H:i:s'),
+                    'problem' => $repairLog->problem,
+                    'remark' => $repairLog->remark,
+                    'actual_time' => $actualTime,
+                    'pic' => $repairLog->pic,
+                    'pic_profile_path' => $operatorProfilePath, // Added profile picture
+                    'status' => ($actualTime > 30) ? 'problem' : 'safe', // Example condition for problem
                 ];
             }
 

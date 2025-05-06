@@ -16,6 +16,7 @@ use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
 use App\Models\MouldChangeLog;
 use App\Models\AdjustMachineLog;
+use App\Models\RepairMachineLog;
 use App\Models\SpkMaster;
 use App\Models\OperatorUser;
 use App\Models\User;
@@ -53,78 +54,140 @@ class DashboardController extends Controller
                 $dataWithSpkNo = null;
             }
 
+            $machineJobShift = MachineJob::where('user_id', auth()->user()->id)->first()->shift;
+
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem')
                 ->get();
 
+          
+             // Ambil data dari MouldChangeLog sesuai dengan user_id dan tanggal hari ini
+            $mouldChangeLogs = MouldChangeLog::where('user_id',  $user->id)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+
+            // Ambil data dari AdjustMachineLog sesuai dengan user_id dan tanggal hari ini
+            $adjustMachineLogs = AdjustMachineLog::where('user_id', $user->id)
+                    ->whereDate('created_at', Carbon::today())
+                    ->get();
+
+            // Ambil data dari RepairMachineLog sesuai dengan user_id dan tanggal hari ini
+            $repairMachineLogs = RepairMachineLog::where('user_id', $user->id)
+                    ->whereDate('created_at', Carbon::today())
+                    ->get();
+
+             // Tambahkan array total_pengerjaan di setiap data, melewati yang null
+                $mouldChangeLogs->each(function ($log) {
+                    // Pastikan created_at dan end_time tidak null
+                    if ($log->created_at && $log->end_time) {
+                        $createdAt = Carbon::parse($log->created_at);
+                        $endTime = Carbon::parse($log->end_time);
+                        $log->total_pengerjaan = $endTime->diffInMinutes($createdAt); // Hitung selisih waktu dalam menit
+                    } else {
+                        $log->total_pengerjaan = null; // Jika null, beri nilai null
+                    }
+                });
+
+                // Tangani AdjustMachineLogs
+                $adjustMachineLogs->each(function ($log) {
+                    // Pastikan created_at dan end_time tidak null
+                    if ($log->created_at && $log->end_time) {
+                        $createdAt = Carbon::parse($log->created_at);
+                        $endTime = Carbon::parse($log->end_time);
+                        $log->total_pengerjaan = $endTime->diffInMinutes($createdAt); // Hitung selisih waktu dalam menit
+                    } else {
+                        $log->total_pengerjaan = null; // Jika null, beri nilai null
+                    }
+                });
+
+                // Tangani RepairMachineLogs
+                $repairMachineLogs->each(function ($log) {
+                    // Pastikan created_at dan finish_repair tidak null
+                    if ($log->created_at && $log->finish_repair) {
+                        $createdAt = Carbon::parse($log->created_at);
+                        $endTime = Carbon::parse($log->finish_repair);
+                        $log->total_pengerjaan = $endTime->diffInMinutes($createdAt); // Hitung selisih waktu dalam menit
+                    } else {
+                        $log->total_pengerjaan = null; // Jika null, beri nilai null
+                    }
+                });
+            
+
+
+
             $itemCollections = [];
+            $totalQuantities = [];
+            $files = [];
 
             foreach ($datas as $data) {
                 $itemCode = $user->jobs->item_code ?? null;
 
+                $itemCodeAll = $data->item_code;
 
+                
                 if ($itemCode) {
-                    $files = File::where('item_code', $itemCode)->get();
+                    $files = File::where('item_code', $itemCodeAll)->get();
+                    if ($files->isEmpty()) {
+                        $files = collect(); // pastikan tetap berbentuk Collection kosong
+                    }
                 }
-
-                $itemCodeall = $data->item_code;
-                $quantity = $data->quantity;
-
-                // Create an array for each unique item_code
-                if (!isset($itemCollections[$itemCodeall])) {
-                    $itemCollections[$itemCodeall] = [];
+                if (!isset($totalQuantities[$itemCodeAll])) {
+                    $totalQuantities[$itemCodeAll] = 0;
                 }
+                $totalQuantities[$itemCodeAll] += $data->quantity;
+            }
 
-                // Get all SPK records for the current item_code
-                $spkRecords = SpkMaster::where('item_code', $itemCodeall)->get();
-                $masterItem = MasterListItem::where('item_code', $itemCodeall)->first();
-                $perpack = $masterItem->standart_packaging_list ?? 1; // Avoid division by zero
+           
 
+           
+            // Step 2: Allocate SPKs just once per item_code
+            foreach ($totalQuantities as $itemCodeAll => $totalQty) {
+                $spkRecords = SpkMaster::where('item_code', $itemCodeAll)->get();
+                $masterItem = MasterListItem::where('item_code', $itemCodeAll)->first();
+                $perpack = $masterItem->standart_packaging_list ?? 1;
+            
                 $labelstart = 0;
-                $previous_spk = null;
-                $start_label = null;
-
+            
                 foreach ($spkRecords as $spk) {
                     $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
-
-                    if ($quantity <= 0) {
-                        break; // Move to the next item_code once the quantity is fulfilled
+            
+                    if ($totalQty <= 0) break;
+            
+                    if ($totalQty <= $available_quantity) {
+                        $available_quantity = $totalQty;
                     }
-
-                    if ($quantity <= $available_quantity) {
-                        $available_quantity = $quantity;
-                    }
-
+            
                     if ($spk->completed_quantity === 0) {
                         $labelstart = 0;
                     } else {
                         $labelstart = ceil($spk->completed_quantity / $perpack);
                     }
-
+            
                     while ($available_quantity > 0) {
                         $labelstart++;
                         $pack_quantity = min($perpack, $available_quantity);
                         $key = $spk->spk_number . '|' . $spk->item_code;
-
-                        if (isset($itemCollections[$itemCodeall][$key])) {
-                            $itemCollections[$itemCodeall][$key]['count']++;
-                            $itemCollections[$itemCodeall][$key]['end_label'] = $labelstart;
-                        } else {
-                            $itemCollections[$itemCodeall][$key] = [
+            
+                        if (!isset($itemCollections[$itemCodeAll][$key])) {
+                            $itemCollections[$itemCodeAll][$key] = [
                                 'spk' => $spk->spk_number,
                                 'item_code' => $spk->item_code,
                                 'item_perpack' => $perpack,
-                                'available_quantity' => $available_quantity,
-                                'count' => 1,
+                                'available_quantity' => 0,
+                                'count' => 0,
                                 'start_label' => $labelstart,
                                 'end_label' => $labelstart,
-                                'scannedData' => 0, // Will be updated later
+                                'scannedData' => 0,
                             ];
                         }
-
+            
+                        $itemCollections[$itemCodeAll][$key]['count']++;
+                        $itemCollections[$itemCodeAll][$key]['end_label'] = $labelstart;
+                        $itemCollections[$itemCodeAll][$key]['available_quantity'] += $pack_quantity;
+            
                         $available_quantity -= $pack_quantity;
-                        $quantity -= $pack_quantity;
+                        $totalQty -= $pack_quantity;
                     }
                 }
             }
@@ -142,7 +205,7 @@ class DashboardController extends Controller
                 }
             }
             // dd($itemCollections);
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections'));
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
@@ -412,7 +475,7 @@ class DashboardController extends Controller
                     'first' => $barcodeGenerator->getBarcodeHTML($barcodeData1, 'C128', 1, 50),
                     'second' => $barcodeGenerator->getBarcodeHTML($barcodeData2, 'C128', 1, 55),
                 ];
-                $qrCodeData = implode("\t", [$labelData['spk'], $labelData['warehouse'], $labelData['quantity'], $labelData['label']]);
+                $qrCodeData = implode("\t", [$labelData['spk'], $labelData['quantity'], $labelData['warehouse'], $labelData['label']]);
                 // dd($qrCodeData);
                 $qrCode = new QrCode(data: $qrCodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70,
                 margin: 5);
@@ -581,6 +644,13 @@ class DashboardController extends Controller
             'user' => $user,
         ]);
 
+        $spk = SpkMaster::where('spk_number', $spk_code)->first();
+
+        if ($spk) {
+            $spk->completed_quantity += $quantity;
+            $spk->save();
+        }
+
         // Redirect back to the dashboard with a success message
         return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
@@ -589,14 +659,14 @@ class DashboardController extends Controller
 
     public function resetJobs(Request $request)
     {
-        dd($request->all());
+        
         $uniquedata = json_decode($request->input('uniqueData'), true);
 
         $datas = json_decode($request->input('datas'));
 
         // dd($uniquedata);
         // dd($datas);
-
+        
         foreach ($uniquedata as $uniquedatum) {
             $targetQuantity = $uniquedatum['count'];
             $actualProductionQuantity = $uniquedatum['scannedData'];
@@ -705,6 +775,7 @@ class DashboardController extends Controller
 
     public function resetJob()
     {
+     
         $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
         // Define shift times
         $shift1Start = Carbon::parse('07:30:00');
@@ -724,7 +795,7 @@ class DashboardController extends Controller
         } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
             $shift = 3;
         }
-
+       
         // Reset the machine job
         MachineJob::where('user_id', auth()->user()->id)->update([
             'item_code' => null,
@@ -854,6 +925,36 @@ class DashboardController extends Controller
     }
 
 
+    public function startRepairMachine(Request $request)
+    {
+        $userId = Auth::id();
+        $today = Carbon::now()->format('Y-m-d');
+
+        $request->validate([
+            'pic_name' => 'required|string|max:255',
+        ]);
+
+
+        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
+
+        // Create a new mould change log entry
+        $repairmachine = RepairMachineLog::create([
+            'user_id' => $userId,
+            'pic' => $request->pic_name,
+            'created_at' => Carbon::now(), // Start time
+        ]);
+
+      
+
+        return response()->json(['message' => 'Repair Machine started', 'repair_id' => $repairmachine->id,'operator' => [
+            'name' => $operatorUser->name,
+           'profile_path' => $operatorUser->profile_picture 
+            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
+            : asset('images/default_profile.jpg'),  // Default profile image
+    ],]);
+    }
+
+
 
     public function endMouldChange()
     {
@@ -892,6 +993,34 @@ class DashboardController extends Controller
         }
 
         return response()->json(['error' => 'No active mould change found'], 400);
+    }
+    
+
+    public function endRepairMachine(Request $request)
+    {
+        $request->validate([
+            'problem' => 'required|string|max:255',
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
+        $userId = Auth::id();
+
+        $repairLog = RepairMachineLog::where('user_id', $userId)
+            ->whereNull('finish_repair')
+            ->latest()
+            ->first();
+
+        if ($repairLog) {
+            $repairLog->update([
+                'finish_repair' => Carbon::now(),
+                'problem' => $request->problem,
+                'remark' => $request->remarks,
+            ]);
+
+            return response()->json(['message' => 'Repair Machine completed']);
+        }
+
+        return response()->json(['error' => 'No active repair process found'], 400);
     }
 
 

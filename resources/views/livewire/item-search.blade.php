@@ -1,11 +1,15 @@
 <div class="container mx-auto p-6 bg-gray-100">
-    <!-- Search Input -->
-    <div class="mb-4">
-        <input wire:model.live="search" type="text" placeholder="Search by item code or file name..."
+
+
+    <div class="flex items-center mb-4 space-x-2">
+    <input wire:model.live="search" type="text" placeholder="Search by item code or file name..."
             class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
-    </div>
-
+    <button wire:click="toggleShowOnlyNoFiles"
+        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+        {{ $this->showOnlyNoFiles ? 'Tampilkan Semua' : 'Tampilkan yang Belum Upload File' }}
+    </button>
+</div>
     <!-- Search Results Table -->
     <div class="overflow-x-auto shadow-lg rounded-lg">
         <table class="min-w-full bg-white rounded-lg">

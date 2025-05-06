@@ -2,6 +2,7 @@
     <livewire:alert />
 
     <div class="container mx-auto p-6 bg-gray-100">
+        
 
         <livewire:item-search />
         <button onclick="Livewire.emit('showAlert', 'Test success message')">Show Alert</button>

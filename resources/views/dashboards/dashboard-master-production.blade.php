@@ -42,6 +42,39 @@
                         <div class="mb-8 border-b pb-4">
                             <h3 class="text-2xl font-bold text-gray-700">{{ $userName }}</h3>
 
+
+                             <!-- Repair Machine Logs -->
+              <!-- Repair Machine Logs -->
+                    @if(count($data['repair_machine_logs']) > 0)
+                        <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            @foreach ($data['repair_machine_logs'] as $repairLog)
+                                <div class="bg-white border rounded-lg p-4 shadow-md">
+                                    <div class="flex items-center space-x-4">
+                                        <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-16 h-16 rounded-full border-2 border-gray-300">
+                                        <div>
+                                            <h5 class="text-xl font-semibold">{{ $repairLog['pic'] }}</h5>
+                                            <p class="text-sm text-gray-600">{{ $repairLog['status'] }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <p><strong>Start Time:</strong> {{ $repairLog['start_time'] }}</p>
+                                        <p><strong>End Time:</strong> {{ $repairLog['end_time'] }}</p>
+                                        <p><strong>Actual Time:</strong> {{ $repairLog['actual_time'] }} min</p>
+                                        <p><strong>Problem:</strong> {{ $repairLog['problem'] }} min</p>
+                                        <p><strong>Remark:</strong> {{ $repairLog['remark'] }} min</p>
+                                    </div>
+
+                                  
+                                </div>
+
+                            @endforeach
+                        </div>
+                    @else
+                        <p>No Repair Machine Logs Available</p>
+                    @endif
+
                             <!-- Mould Change Log -->
                             <h4 class="text-lg font-semibold mt-4">Mould Change Summary</h4>
                             <div class="grid grid-cols-3 gap-4">

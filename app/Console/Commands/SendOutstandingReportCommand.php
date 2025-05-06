@@ -23,7 +23,8 @@ class SendOutstandingReportCommand extends Command
 
         Excel::store(new OutstandingReportExport($rows), 'outstanding_report.xlsx');
 
-        $recipients = ['budiman@daijo.co.id', 'andriani@daijo.co.id', 'sriyati@daijo.co.id', 'anik@daijo.co.id', 'erizal@daijo.co.id', 'tina@daijo.co.id', 'sukur@daijo.co.id', 'andyco@daijo.co.id', 'naufal@daijo.co.id', 'timo@daijo.co.id'];
+        // $recipients = ['budiman@daijo.co.id', 'andriani@daijo.co.id', 'sriyati@daijo.co.id', 'anik@daijo.co.id', 'erizal@daijo.co.id', 'tina@daijo.co.id', 'sukur@daijo.co.id', 'andyco@daijo.co.id', 'naufal@daijo.co.id', 'timo@daijo.co.id'];
+        $recipients = ['timo@daijo.co.id'];
         Mail::to($recipients) // You can use multiple recipients with array if needed
             ->send(new SendOutstandingReport());
 
