@@ -24,6 +24,8 @@ use App\Http\Controllers\CapacityByForecastController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OperatorUserController;
 use App\Http\Controllers\ProductionDashboardController;
+use App\Http\Controllers\MasterListItemController;
+
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
@@ -43,6 +45,7 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
 
 
+Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
 
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
@@ -57,6 +60,11 @@ Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class,
 
 Route::put('/operator/update-profile-picture', [OperatorUserController::class, 'updateProfilePicture'])->name('operator.updateProfilePicture');
 Route::get('/operator-users', [OperatorUserController::class, 'index'])->name('operator.index');
+
+Route::get('/zone/edit', [OperatorUserController::class, 'editZone'])->name('zone.edit');
+
+// Handle the POST request to update a Master Zone
+Route::post('/zone/update', [OperatorUserController::class, 'updateZone'])->name('zone.update');
 
 
 Route::redirect('/', '/login');
@@ -91,6 +99,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/dashboard/update-machine-job', [DashboardController::class, 'updateMachineJob'])->name('update.machine_job');
     Route::get('/generate-barcode/{item_code}/{quantity}', [DashboardController::class, 'itemCodeBarcode'])->name('generate.itemcode.barcode');
     Route::post('/process/itemproduction', [DashboardController::class, 'procesProductionBarcodes'])->name('process.productionbarcode');
+    Route::post('/process/itemproduction/losspackage', [DashboardController::class, 'procesProductionBarcodesLoss'])->name('process.productionbarcodeloss');
     Route::get('/reset-jobs', [DashboardController::class, 'resetJobs'])->name('reset.jobs');
     Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
     Route::post('/verify-nik-password', [DashboardController::class, 'verifyNIKPassword'])->name('verify.nik.password');
@@ -181,7 +190,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/production/process/accept/{id}', [BillOfMaterialController::class, 'accept'])->name('production.process.accept');
 
     Route::post('/excel-bom-upload', [BillOfMaterialController::class, 'uploadExcelBom'])->name('excel.bom.upload');
-
+    
 
     Route::get('/print-all-material/{id}', [BillOfMaterialController::class, 'printAllMaterial'])->name('printAllMaterial');
 
@@ -286,6 +295,12 @@ Route::middleware('auth')->group(function (){
     Route::get("/production/capacity-forecast/step3", [CapacityByForecastController::class, "step3"])->name('step3');
     Route::get("/production/capacity-forecast/step3logic", [CapacityByForecastController::class, "step3logic"])->name('step3logic');
     Route::get("/production/capacity-forecast/step3last", [CapacityByForecastController::class, "step3logiclast"])->name('step3logiclast');
+
+
+
+    Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
+    Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
+    ->name('generate.machine.list');
 
 });
 

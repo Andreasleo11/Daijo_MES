@@ -40,7 +40,9 @@
         $activeRepairMachine = \App\Models\RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->exists();
     @endphp
 
-    <div class="flex flex-wrap gap-4">
+  <div class="flex justify-between items-start flex-wrap gap-4 px-4">
+    <!-- Button Group -->
+    <div class="flex flex-wrap gap-4 flex-grow">
         <!-- Start Mould Change Button -->
         <button id="startMouldChange" 
             class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
@@ -93,6 +95,32 @@
                 <div class="text-xl font-bold text-indigo-600" id="jam-hari-ini"></div>
             </div>
         </div>
+    <!-- Zone & Pengawas Info -->
+    <div class="bg-white shadow rounded-lg p-4 flex items-center min-w-[280px]">
+        @if($zone)
+            <!-- Text Section -->
+            <div class="flex-1 pr-4">
+                <p class="text-sm text-gray-500">Zone</p>
+                <h3 class="text-lg font-semibold text-gray-800">{{ $zone->zone_name }}</h3>
+                <p class="text-sm text-gray-500">Pengawas:</p>
+                <p class="text-md font-medium text-gray-700">{{ $pengawasName }}</p>
+            </div>
+
+            <!-- Profile Image Section -->
+            <div>
+                @if($pengawasProfile)
+                    <img src="{{ asset('storage/' . $pengawasProfile) }}" alt="Pengawas Profile Picture"
+                        class="w-20 h-20 rounded-full border border-gray-300 object-cover shadow">
+                @else
+                    <p class="text-xs text-gray-400 italic">No picture</p>
+                @endif
+            </div>
+        @endif
+    </div>
+</div>
+
+
+
 
 
         <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
@@ -202,7 +230,7 @@
         </div>
         
 
-        <div x-data="scanModeHandler({{ session('deactivateScanMode') ? 'true' : 'false' }})" x-init="initialize()" x-show="ready" x-cloak class="py-4">
+        <div x-data="scanModeHandler({{ session('deactivateScanMode') ? 'true' : 'false' }})" x-init="initialize()" x-show="ready" x-cloak x-show="ready" x-cloak class="py-4">
             <!-- Scan Mode Toggle Section -->
             <div class="px-6">
                 <div x-show="scanMode" id="scanModeBanner"
@@ -360,7 +388,8 @@
                                                             action="{{ route('generate.itemcode.barcode', ['item_code' => $data->item_code, 'quantity' => $data->quantity]) }}"
                                                             method="get">
                                                             <button
-                                                            >
+                                                            class="m-1 p-2 rounded text-white focus:outline-none transition ease-in-out duration-150 {{ $disabled ? 'bg-gray-500 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-800' }}"
+                                                            {{ $disabled ? 'disabled' : '' }}>
                                                                 Generate Barcode
                                                             </button>
                                                         </form>
@@ -413,7 +442,7 @@
                                     <tr class="bg-white text-center">
                                         <td class="py-2 px-4">{{ $data['spk'] }}</td>
                                         <td class="py-2 px-4">{{ $data['item_code'] }}</td>
-                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['available_quantity'] + $data['scannedData']}}</td>
+                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['count']}}</td>
                                         <td class="py-2 px-4">{{ $data['totalquantity'] }}</td>
                                     </tr>
                                 @endforeach
@@ -452,25 +481,25 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label for="spk_code">SPK Code</label>
-                                <input type="text" id="spk_code" name="spk_code" required
+                                <input type="text" id="spk_code" name="spk_code_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
                                 <label for="quantity">Quantity</label>
-                                <input type="number" id="quantity" name="quantity" required
+                                <input type="number" id="quantity" name="quantity_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="Quantity" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
                                 <label for="warehouse">Warehouse</label>
-                                <input type="text" id="warehouse" name="warehouse" required
+                                <input type="text" id="warehouse" name="warehouse_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="Warehouse" x-on:input="checkAndSubmitForm()" />
                             </div>
                             <div>
                                 <label for="label">Label</label>
-                                <input type="number" id="label" name="label" required
+                                <input type="number" id="label" name="label_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
                                     placeholder="Label" x-on:input="checkAndSubmitForm()" />
                             </div>
@@ -483,6 +512,72 @@
                         </button>
                     </form>
                 </div>
+
+                <div x-data="{ showLossScan: false }" class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
+                    <!-- Toggle Button -->
+                    <button type="button" @click="showLossScan = !showLossScan"
+                        class="text-xl font-bold flex items-center justify-between w-full text-left focus:outline-none">
+                        Scan Barcode (Loss Package)
+                        <svg :class="{'rotate-180': showLossScan}" class="h-5 w-5 transform transition-transform duration-200 ml-2"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <!-- Hidden Form -->
+                    <div x-show="showLossScan" x-transition class="mt-4 space-y-3">
+                        <form id="scanForm" action="{{ route('process.productionbarcodeloss') }}" method="POST">
+                            @csrf
+                            <input type="hidden" id="uniqueData" name="uniqueData" value="{{ json_encode($itemCollections) }}" />
+                            <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
+                            <input type="hidden" id="nik" name="nik" x-model="nikInput" />
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="spk_code">SPK Code</label>
+                                    <select id="spk_code" name="spk_code" required
+                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full">
+                                        <option value="">Select SPK Code</option>
+                                        @if ($itemCode && isset($itemCollections[$itemCode]))
+                                            @foreach ($itemCollections[$itemCode] as $data)
+                                                <option value="{{ $data['spk'] }}">{{ $data['spk'] }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="quantity">Quantity</label>
+                                    <input type="number" id="quantity" name="quantity" required
+                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                        placeholder="Quantity" />
+                                </div>
+
+                                <div>
+                                    <label for="warehouse">Warehouse</label>
+                                    <input type="text" id="warehouse" name="warehouse" required
+                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                        placeholder="Warehouse" />
+                                </div>
+
+                                <div>
+                                    <label for="label">Label</label>
+                                    <input type="number" id="label" name="label" required
+                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                        placeholder="Label" />
+                                </div>
+                            </div>
+
+                            <button type="submit"
+                                class="w-full py-2 px-4 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition mt-4">
+                                Scan
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+
             </div>
         </div>
     
@@ -802,11 +897,16 @@
                 ready: false, // NEW
                 scanMode: false,
                 verified: false,
+                ready: false, // NEW
+                scanMode: false,
+                verified: false,
                 nikInput: '', 
                 passwordInput: '',
                 idleTimeout: null,
 
                 initialize() {
+                    this.verified = localStorage.getItem('verified') === 'true';
+
                     this.verified = localStorage.getItem('verified') === 'true';
 
                     if (deactivateScanModeFlag == true) {
@@ -816,6 +916,13 @@
                         this.scanMode = localStorage.getItem('scanMode') === 'true';
                     }
 
+                    if (this.verified && this.scanMode) {
+                        this.startIdleTimer();
+                        this.focusOnSPKCode();
+                    }
+
+                    // Delay rendering until everything is set
+                    this.ready = true;
                     if (this.verified && this.scanMode) {
                         this.startIdleTimer();
                         this.focusOnSPKCode();
@@ -914,38 +1021,35 @@
         }
 
         function autoSubmitForm() {
-            return {
-                nikInput: localStorage.getItem('nik') || '',  // Load from localStorage
+        return {
+            nikInput: localStorage.getItem('nik') || '',
 
-                checkAndSubmitForm() {
-                    // Debugging logs
-                    console.log("LocalStorage NIK:", localStorage.getItem('nik'));
-                    console.log("Current NIK Input:", this.nikInput);
+            checkAndSubmitForm() {
+                console.log("LocalStorage NIK:", localStorage.getItem('nik'));
+                console.log("Current NIK Input:", this.nikInput);
 
-                    // Ensure NIK is set before submitting
-                    if (!this.nikInput) {
-                        this.nikInput = localStorage.getItem('nik') || '';
-                        console.warn("NIK was empty, updated from localStorage:", this.nikInput);
-                    }
-
-                    // Update hidden input field
-                    document.getElementById('nik').value = this.nikInput;
-
-                    // Check if all required fields are filled
-                    const inputs = document.querySelectorAll(
-                        '#scanForm input[type="text"], #scanForm input[type="number"]'
-                    );
-                    let allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
-
-                    if (allFilled && this.nikInput) {
-                        console.log("✅ Form is valid. Submitting...");
-                        document.getElementById('scanForm').submit();
-                    } else {
-                        console.warn("❌ Form not submitted. Missing required fields or NIK.");
-                    }
+                if (!this.nikInput) {
+                    this.nikInput = localStorage.getItem('nik') || '';
+                    console.warn("NIK was empty, updated from localStorage:", this.nikInput);
                 }
-            };
-        }
+
+                document.getElementById('nik').value = this.nikInput;
+
+                const requiredFieldNames = ['spk_code_auto', 'quantity_auto', 'warehouse_auto', 'label_auto'];
+                const allFilled = requiredFieldNames.every(name => {
+                    const input = document.querySelector(`[name="${name}"]`);
+                    return input && input.value.trim() !== '';
+                });
+
+                if (allFilled && this.nikInput) {
+                    console.log("✅ Form is valid. Submitting...");
+                    document.getElementById('scanForm').submit();
+                } else {
+                    console.warn("❌ Form not submitted. Missing required fields or NIK.");
+                }
+            }
+        };
+    }
 
         function updateWaktuIndonesia() {
                 const now = new Date();

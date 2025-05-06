@@ -55,6 +55,32 @@ class DashboardController extends Controller
             }
 
             $machineJobShift = MachineJob::where('user_id', auth()->user()->id)->first()->shift;
+            $machineJobShift = $machineJob->shift ?? 1;
+
+            // dd($machineJobShift);
+
+            // $zone = $user->zone;
+            // $pengawasName = $zone?->pengawas;
+            // $pengawasUser = $zone?->pengawasUser;
+            // $pengawasProfile = $pengawasUser?->profile_picture;
+
+            // $machineJobShift = $machineJob->shift ?? 1;
+
+            $zone = $user->zone;
+
+            $zonePengawas = $zone?->zoneData()
+                ->where('shift', $machineJobShift)
+                ->whereDate('start_date', '<=', now())
+                ->whereDate('end_date', '>=', now())
+                ->latest('updated_at')
+                ->first();
+
+            $pengawasName = $zonePengawas?->pengawas;
+
+            $pengawasUser = \App\Models\OperatorUser::where('name', $pengawasName)->first();
+
+            $pengawasProfile = $pengawasUser?->profile_picture;
+
 
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
@@ -151,7 +177,7 @@ class DashboardController extends Controller
             
                 foreach ($spkRecords as $spk) {
                     $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
-            
+                   
                     if ($totalQty <= 0) break;
             
                     if ($totalQty <= $available_quantity) {
@@ -163,7 +189,7 @@ class DashboardController extends Controller
                     } else {
                         $labelstart = ceil($spk->completed_quantity / $perpack);
                     }
-            
+                   
                     while ($available_quantity > 0) {
                         $labelstart++;
                         $pack_quantity = min($perpack, $available_quantity);
@@ -204,8 +230,8 @@ class DashboardController extends Controller
                         ->sum('quantity'); // Summing the 'quantity' column
                 }
             }
-            // dd($itemCollections);
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs'));
+            
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
@@ -527,10 +553,9 @@ class DashboardController extends Controller
           }
       
      
+    
   
-  
-          $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
-  
+        $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
         // dd($datas);
         // Restructure the unique data based on item_code
         $restructureduniquedata = [];
@@ -562,19 +587,168 @@ class DashboardController extends Controller
 
         // Validate incoming request data
         $request->validate([
-            'spk_code' => 'required|string',
-            'warehouse' => 'required|string',
-            'quantity' => 'required|integer',
-            'label' => 'required|string',
+            'spk_code_auto' => 'required|string',
+            'warehouse_auto' => 'required|string',
+            'quantity_auto' => 'required|integer',
+            'label_auto' => 'required|string',
         ]);
 
 
         // Validation logic for SPK code and label ranges
         $validator = Validator::make($request->all(), [
-            'spk_code' => 'required|string',
-            'warehouse' => 'required|string',
-            'quantity' => 'required|integer',
-            'label' => 'required|string',
+            'spk_code_auto' => 'required|string',
+            'warehouse_auto' => 'required|string',
+            'quantity_auto' => 'required|integer',
+            'label_auto' => 'required|string',
+        ]);
+
+        $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {
+            $spk_code = $request->input('spk_code_auto');
+            $item_code = $item_code_spk->item_code;
+            $label = (int) $request->input('label_auto');
+        
+            // Check if the provided item_code exists in restructureduniquedata
+            $foundSPKs = $restructureduniquedata[$item_code] ?? null;
+        
+            if (!$foundSPKs) {
+                $validator->errors()->add('spk_code_auto', 'The provided SPK code or item code does not exist.');
+            } else {
+                $isValidLabel = false;
+                $validRanges = [];
+        
+                foreach ($foundSPKs as $spkData) {
+                    if ($spkData->spk === $spk_code) { // Use -> instead of []
+                        $start_label = (int) $spkData->start_label;
+                        $end_label = (int) $spkData->end_label;
+        
+                        // Store the valid ranges for error messages
+                        $validRanges[] = "$start_label - $end_label";
+        
+                        if ($label >= $start_label && $label <= $end_label) {
+                            $isValidLabel = true;
+                            break;
+                        }
+                    }
+                }
+        
+                if (!$isValidLabel) {
+                    $validRangesText = implode(', ', $validRanges);
+                    $validator->errors()->add('label_auto', "The label must be within the valid range(s) for SPK $spk_code and item code $item_code. Valid range(s): $validRangesText.");
+                }
+            }
+        });
+        
+
+        // Return validation errors if validation fails
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+      
+        
+
+        // Check if the same scan already exists in the database
+        $existingScan = ProductionScannedData::where('spk_code', $spk_code)
+            ->where('item_code', $item_code_spk->item_code)
+            ->where('label', $label)
+            ->first();
+        
+
+        if ($existingScan) {
+            return redirect()->back()->withErrors(['error' => 'Data already scanned']);
+        }
+
+        // Create a new ProductionScannedData entry
+        ProductionScannedData::create([
+            'spk_code' => $spk_code,
+            'dic_id' => $dic_id,  // The associated data ID
+            'item_code' => $item_code_spk->item_code,
+            'quantity' => $quantity,
+            'warehouse' => $warehouse,
+            'label' => $label,
+            'user' => $user,
+        ]);
+
+        $spk = SpkMaster::where('spk_number', $spk_code)->first();
+
+        if ($spk) {
+            $spk->completed_quantity += $quantity;
+            $spk->save();
+        }
+
+        // Redirect back to the dashboard with a success message
+        return redirect()->route('dashboard')->with('deactivateScanMode', false);
+    }
+
+
+
+    public function procesProductionBarcodesLoss(Request $request)
+    {
+        // dd($request->all());
+        // Decode the JSON input from the request
+        $datas = json_decode($request->input('datas'), true);
+        $uniquedata = json_decode($request->input('uniqueData'));
+        // dd($uniquedata);
+
+          // Retrieve the values from the request for creating scanned data
+          $spk_code = $request->input('spk_code');
+          $quantity = $request->input('quantity');
+          $warehouse = $request->input('warehouse');
+          $label = $request->input('label');
+          $user = $request->input('nik');
+          if (!$user) {
+              $user = session('verifiedNIK'); // Retrieve from session if not in request\
+          
+          }
+      
+     
+    
+  
+        $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
+        // dd($datas);
+        // Restructure the unique data based on item_code
+        $restructureduniquedata = [];
+        foreach ($uniquedata as $itemCode => $spkData) {
+            foreach ($spkData as $key => $data) {
+                // Store each SPK entry in an array instead of overwriting
+                $restructureduniquedata[$itemCode][$key] = $data;
+            }
+        }
+
+        // dd($restructureduniquedata);
+
+        $dic_id = null;
+        foreach ($datas as $data) {
+            // dd($data);
+            if ($data['item_code'] === $item_code_spk->item_code) {
+                $dic_id = $data['id'];  // Set dic_id to the matched data's id
+
+                break; // Exit the loop once the match is found
+            }
+
+        }
+        // Validate that a matching dic_id was found
+        if (!$dic_id) {
+            return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
+        }
+
+
+
+        // Validate incoming request data
+        $request->validate([
+            'spk_code' => 'string',
+            'warehouse' => 'string',
+            'quantity' => 'integer',
+            'label' => 'string',
+        ]);
+
+
+        // Validation logic for SPK code and label ranges
+        $validator = Validator::make($request->all(), [
+            'spk_code' => 'string',
+            'warehouse' => 'string',
+            'quantity' => 'integer',
+            'label' => 'string',
         ]);
 
         $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {

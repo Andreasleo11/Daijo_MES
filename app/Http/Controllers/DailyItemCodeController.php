@@ -7,8 +7,10 @@ use App\Models\DailyItemCode;
 use App\Models\MasterListItem;
 use App\Models\delivery\sapLineProduction;
 use App\Models\SpkMaster;
+use App\Models\ProductionScannedData;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class DailyItemCodeController extends Controller
 {
@@ -246,5 +248,51 @@ class DailyItemCodeController extends Controller
         $dailyItemCode->update($validatedData);
 
         return redirect()->back()->with('success', 'Daily Item Code updated successfully.');
+    }
+
+    public function generateDataForSap()
+    {
+   
+        // $startOfDay = Carbon::create(2025, 3, 17)->startOfDay();
+        // $endOfDay = Carbon::create(2025, 3, 17)->endOfDay();
+        $startOfDay = Carbon::now()->startOfDay();
+        $endOfDay = Carbon::now()->endOfDay();
+
+        
+        $rawData = ProductionScannedData::whereBetween('created_at', [$startOfDay, $endOfDay])
+        ->where('processed', 0)
+        ->selectRaw("
+            spk_code,
+            item_code,
+            SUM(quantity) as total_quantity,
+            COUNT(*) as numbox,
+            FLOOR(UNIX_TIMESTAMP(CONVERT_TZ(created_at, '+00:00', '+07:00')) / 900) AS interval_group
+        ")
+        ->groupBy('interval_group', 'spk_code', 'item_code')
+        ->orderBy('interval_group')
+        ->get();
+
+        // Buat interval time readable dan bersih
+        $data = $rawData->map(function ($row) {
+            $intervalStart = Carbon::createFromTimestamp($row->interval_group * 900)
+                ->setTimezone('Asia/Jakarta') // Set ke zona waktu Indonesia
+                ->format('H:i');
+                
+            $intervalEnd = Carbon::createFromTimestamp(($row->interval_group + 1) * 900)
+                ->setTimezone('Asia/Jakarta')
+                ->format('H:i');
+        
+            return [
+                'interval' => $intervalStart . ' WIB - ' . $intervalEnd . ' WIB',
+                'spk_code' => $row->spk_code,
+                'item_code' => $row->item_code,
+                'total_quantity' => $row->total_quantity,
+                'numbox' => $row->numbox,
+            ];
+        });
+
+        // dd($data); // cek hasil
+        // return $data;
+        return view('send-api-table', compact('data'));
     }
 }

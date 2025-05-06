@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'zone_id',
     ];
 
     /**
@@ -74,4 +75,15 @@ class User extends Authenticatable
         // Check if the user's role is allowed to access the required role
         return in_array($requiredRole, $roleHierarchy[$userRole]);
     }
+
+    public function zone()
+    {
+        return $this->belongsTo(MasterZone::class, 'zone_id');
+    }
+
+    public function zoneLogs()
+    {
+        return $this->hasMany(ZoneLog::class, 'zone_id', 'zone_id');
+    }
+
 }

@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\OperatorUser;
+use App\Models\MasterZone;
+use App\Models\ZoneLog;
+use App\Models\ZonePengawas;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\ErrorCorrectionLevel;
@@ -106,5 +110,59 @@ class OperatorUserController extends Controller
         Excel::import(new OperatorUsersImport, $request->file('file'));
 
         return redirect()->back()->with('success', 'Users imported successfully!');
+    }
+
+    public function editZone()
+    {
+        $zones = MasterZone::all();
+        $zoneData = ZonePengawas::all();
+        $adjusters = OperatorUser::where('position', 'Adjuster')->get();
+    
+        return view('zonepengawas', compact('zones', 'adjusters', 'zoneData'));
+    }
+
+    public function updateZone(Request $request)
+    {
+        $request->validate([
+            'zone_id' => 'required|exists:master_zone,id',
+            'pengawas' => 'required|exists:operator_user,name',
+            'shift' => 'required|in:1,2,3',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+         // Check if the record exists for this zone and shift
+            $zonePengawas = ZonePengawas::where('zone_id', $request->zone_id)
+                ->where('shift', $request->shift)
+                ->first();
+
+            if ($zonePengawas) {
+            // Update existing record
+                $zonePengawas->update([
+                'pengawas' => $request->pengawas,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                ]);
+            } else {
+                // Create new record
+                ZonePengawas::create([
+                'zone_id' => $request->zone_id,
+                'pengawas' => $request->pengawas,
+                'shift' => $request->shift,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                ]);
+            }
+
+            ZoneLog::create([
+                'zone_id' => $request->zone_id,
+                'pengawas' => $request->pengawas,
+                'shift' => $request->shift,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+            ]);
+    
+
+        return redirect()->back()->with('success', 'Zone updated successfully.');
     }
 }

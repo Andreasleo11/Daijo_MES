@@ -5,6 +5,7 @@
         </h2>
     </x-slot>
 
+
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
@@ -36,11 +37,42 @@
                     </div>
                 </div>
             </form>
-
                 @if (request('machine_name')) <!-- Only show tables if a machine is selected -->
+                
+                @foreach($structuredData as $machineName => $data)
+                    @php
+                        $zoneName = collect($data['pengawas'])->pluck('zone_name')->first();
+                    @endphp
+                    <div class="border p-4 rounded-xl mb-6 shadow-md bg-white">
+                        <h2 class="text-xl font-bold mb-4">
+                            Machine: {{ $machineName }} 
+                            @if($zoneName)
+                                || ZONA {{ $zoneName }}
+                            @endif
+                        </h2>
+
+                        @if(isset($data['pengawas']))
+                            <div class="grid md:grid-cols-3 gap-4">
+                                @foreach($data['pengawas'] as $shift => $pengawasData)
+                                    <div class="flex items-center space-x-3 border p-3 rounded-lg shadow-sm">
+                                        <img src="{{ $pengawasData['profile_path'] }}" alt="Pengawas Profile" class="w-12 h-12 rounded-full border">
+                                        <div>
+                                            <p class="text-xs text-gray-400">Shift {{ $shift }} - Zona {{ $pengawasData['zone_name'] }}</p>
+                                            <p class="font-semibold text-sm">{{ $pengawasData['name'] }}</p>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        {{-- Optional: You can show logs or other data next --}}
+                    </div>
+                @endforeach
+
+
                     @foreach ($structuredData as $userName => $data)
                         <div class="mb-8 border-b pb-4">
-                            <h3 class="text-2xl font-bold text-gray-700">{{ $userName }}</h3>
+                            <!-- <h3 class="text-2xl font-bold text-gray-700">{{ $userName }}</h3> -->
 
 
                              <!-- Repair Machine Logs -->
@@ -170,69 +202,75 @@
                             
                             <!-- Hourly Production -->
                             <h4 class="text-lg font-semibold mt-6">Hourly Production</h4>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse border border-gray-300 mt-2">
-                                        <thead class="bg-gray-200">
-                                            <tr>
-                                                <th class="border px-4 py-2">Hour</th>
-                                                <th class="border px-4 py-2">Total Quantity</th>
-                                                <th class="border px-4 py-2">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                            <div class="overflow-x-auto">
+                                <table class="w-full border-collapse border border-gray-300 mt-2">
+                                    <thead class="bg-gray-200">
+                                        <tr>
+                                            <th class="border px-4 py-2">Hour</th>
+                                            <th class="border px-4 py-2">Item Code</th>
+                                            <th class="border px-4 py-2">Total Quantity</th>
+                                            <th class="border px-4 py-2">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    @php
+                                        $groupedHourly = [];
+                                    @endphp
+
+                                    @foreach ($data['hourly_production'] as $record)
                                         @php
-                                            $hourlySummary = [];
-                                            $hourlyDetails = [];
+                                            $hour = $record['hour'];
+                                            $itemCode = $record['item_code'];
+                                            $users = $record['users'];
+                                            $totalQuantity = array_sum(array_column($users, 'quantity'));
+
+                                            $groupedHourly[$hour][$itemCode] = [
+                                                'total_quantity' => $totalQuantity,
+                                                'users' => $users
+                                            ];
                                         @endphp
+                                    @endforeach
 
-                                        @foreach ($data['hourly_production'] as $hourly)
-                                            @php
-                                                $hour = $hourly['hour'];
-                                                $totalQuantity = array_sum(array_column($hourly['users'], 'quantity')); // ✅ Extract "quantity" values and sum
-
-                                                $hourlySummary[$hour] = $totalQuantity;
-                                                $hourlyDetails[$hour] = $hourly['users']; // ✅ Keep full user data
-                                            @endphp
-                                        @endforeach
-
-                                            @foreach ($hourlySummary as $hour => $totalQuantity)
-                                                <tr>
-                                                    <td class="border px-4 py-2 font-bold">{{ $hour }}</td>
-                                                    <td class="border px-4 py-2 font-bold">{{ $totalQuantity }}</td>
-                                                    <td class="border px-4 py-2 text-center">
-                                                        <button class="toggle-hourly-details bg-blue-500 text-white px-3 py-1 rounded-md" data-hour="{{ $hour }}">
-                                                            View Details
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                                <tr class="hourly-details hidden" id="details-{{ $hour }}">
-                                                    <td colspan="3">
-                                                        <table class="w-full border-collapse border border-gray-300 mt-2">
-                                                            <thead class="bg-gray-100">
+                                    @foreach ($groupedHourly as $hour => $itemGroups)
+                                        @foreach ($itemGroups as $itemCode => $dataSet)
+                                            <tr>
+                                                <td class="border px-4 py-2 font-bold">{{ $hour }}</td>
+                                                <td class="border px-4 py-2">{{ $itemCode }}</td>
+                                                <td class="border px-4 py-2 font-bold">{{ $dataSet['total_quantity'] }}</td>
+                                                <td class="border px-4 py-2 text-center">
+                                                    <button class="toggle-hourly-details bg-blue-500 text-white px-3 py-1 rounded-md" data-hour="{{ $hour }}" data-item="{{ $itemCode }}">
+                                                        View Details
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr class="hourly-details hidden" id="details-{{ $hour }}-{{ $itemCode }}">
+                                                <td colspan="4">
+                                                    <table class="w-full border-collapse border border-gray-300 mt-2">
+                                                        <thead class="bg-gray-100">
+                                                            <tr>
+                                                                <th class="border px-4 py-2">User</th>
+                                                                <th class="border px-4 py-2">Quantity</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach ($dataSet['users'] as $user => $userData)
                                                                 <tr>
-                                                                    <th class="border px-4 py-2">User</th>
-                                                                    <th class="border px-4 py-2">Quantity</th>
+                                                                    <td class="border px-4 py-2 flex items-center">
+                                                                        <img src="{{ $userData['user_profile_path'] }}" alt="{{ $user }}" class="w-10 h-10 rounded-full mr-2">
+                                                                        {{ $user }}
+                                                                    </td>
+                                                                    <td class="border px-4 py-2">{{ $userData['quantity'] }}</td>
                                                                 </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                            <tbody>
-                                                                @foreach ($hourlyDetails[$hour] as $user => $userData)
-                                                                    <tr>
-                                                                        <td class="border px-4 py-2 flex items-center">
-                                                                            <img src="{{ $userData['user_profile_path'] }}" alt="{{ $user }}" class="w-20 h-20 rounded-full mr-2">
-                                                                            {{ $user }}
-                                                                        </td>
-                                                                        <td class="border px-4 py-2">{{ $userData['quantity'] }}</td>
-                                                                    </tr>
-                                                                @endforeach
-                                                            </tbody>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
 
                             <!-- Daily Item Code -->
                             <h4 class="text-lg font-semibold mt-6">Daily Item Code</h4>
@@ -244,6 +282,7 @@
                                                 <th class="border px-4 py-2">Shift</th>
                                                 <th class="border px-4 py-2">Planned Quantity</th>
                                                 <th class="border px-4 py-2">Quantity Produksi</th>
+                                                <th class="border px-4 py-2">Cycle Time</th>
                                                 <th class="border px-4 py-2">Start Time</th>
                                                 <th class="border px-4 py-2">End Time</th>
                                             </tr>
@@ -260,6 +299,7 @@
                                                     <td class="border px-4 py-2">{{ $dailyItem['shift'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['total_scanned_quantity'] }}</td>
+                                                    <td class="border px-4 py-2">{{ $dailyItem['cycle_time_seconds'] }} Detik </td>
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['start_date'] }} {{ \Carbon\Carbon::parse($dailyItem['start_time'])->subHours(7)->format('H:i') }}
                                                     </td>
@@ -438,6 +478,18 @@
         this.classList.toggle("scale-150");
     });
 });
+
+
+document.querySelectorAll('.toggle-hourly-details').forEach(button => {
+        button.addEventListener('click', () => {
+            const hour = button.dataset.hour;
+            const item = button.dataset.item;
+            const row = document.getElementById(`details-${hour}-${item}`);
+            if (row) {
+                row.classList.toggle('hidden');
+            }
+        });
+    });
 
 </script>
 </x-dashboard-layout>
