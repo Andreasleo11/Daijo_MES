@@ -9,6 +9,31 @@
                 Create Process
             </a>
         </div>
+
+
+        <form method="GET" action="{{ route('workshop.main.menu') }}" class="mb-4">
+            <div class="flex items-center gap-2">
+                <select name="code" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                    <option value="">-- Filter by BOM/Project Code --</option>
+                    @foreach ($distinctCodes as $code)
+                        <option value="{{ $code }}" {{ request('code') == $code ? 'selected' : '' }}>
+                            {{ $code }}
+                        </option>
+                    @endforeach
+                </select>
+                <button type="submit"
+                    class="bg-blue-500 text-white px-4 py-2 text-sm rounded hover:bg-blue-600">
+                    Filter
+                </button>
+                @if(request('code'))
+                    <a href="{{ route('workshop.main.menu') }}"
+                        class="text-sm text-gray-600 hover:underline ml-2">
+                        Reset
+                    </a>
+                @endif
+            </div>
+        </form>
+
         <div class="overflow-x-auto bg-white shadow rounded-lg">
             <table class="w-full border-collapse table-auto">
                 <thead class="bg-gray-50 border-b-2 border-gray-200">

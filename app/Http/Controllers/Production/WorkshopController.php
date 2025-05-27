@@ -216,13 +216,36 @@ class WorkshopController extends Controller
     public function mainMenuByWorkshop()
     {
         $user = auth()->user();
-        $logs = PRD_MaterialLog::with('childData')->where('process_name', $user->name)->whereNotNull('scan_in')->get();
-        // dd($jobs);
+        $codeFilter = request('code');
+
+        // Ambil daftar BOM/Project Code unik dari relasi
+        $distinctCodes = PRD_MaterialLog::with(['childData.parent'])
+            ->where('process_name', $user->name)
+            ->whereNotNull('scan_in')
+            ->get()
+            ->pluck('childData.parent.code')
+            ->filter() // buang null
+            ->unique()
+            ->values();
+
+        $logsQuery = PRD_MaterialLog::with(['childData.parent'])
+            ->where('process_name', $user->name)
+            ->whereNotNull('scan_in');
+
+        if ($codeFilter) {
+            $logsQuery->whereHas('childData.parent', function ($q) use ($codeFilter) {
+                $q->where('code', $codeFilter);
+            });
+        }
+
+        $logs = $logsQuery->get();
+
         $this->updateAllMaterialChildrenStatus();
-        if($user->username === null){
+
+        if ($user->username === null) {
             return redirect()->route('dashboard');
         } else {
-            return view('production.workshop.mainmenu', compact('logs', 'user'));
+            return view('production.workshop.mainmenu', compact('logs', 'user', 'distinctCodes', 'codeFilter'));
         }
     }
 
