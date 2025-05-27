@@ -8,6 +8,7 @@
                     <th class="px-4 py-3 border-b border-gray-300">Item Code</th>
                     <th class="px-4 py-3 border-b border-gray-300">Quantity</th>
                     <th class="px-4 py-3 border-b border-gray-300">Box</th>
+                    <th class="px-4 py-3 border-b border-gray-300">Mesin</th> {{-- Kolom baru --}}
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -18,6 +19,7 @@
                         <td class="px-4 py-2 whitespace-nowrap">{{ $item['item_code'] }}</td>
                         <td class="px-4 py-2 whitespace-nowrap">{{ $item['total_quantity'] }}</td>
                         <td class="px-4 py-2 whitespace-nowrap">{{ $item['numbox'] }}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">{{ $item['mesin'] }}</td> {{-- Tampilkan mesin --}}
                     </tr>
                 @endforeach
             </tbody>

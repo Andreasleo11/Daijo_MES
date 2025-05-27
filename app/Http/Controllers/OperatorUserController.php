@@ -14,6 +14,7 @@ use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Facades\Storage;
 use App\Imports\OperatorUsersImport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Str;
 
 
 class OperatorUserController extends Controller
@@ -164,5 +165,39 @@ class OperatorUserController extends Controller
     
 
         return redirect()->back()->with('success', 'Zone updated successfully.');
+    }
+
+    public function showAllOperator()
+    {
+        $operators = OperatorUser::whereNotBetween('id', [1, 10])->get();
+        return view('showalloperator', compact('operators'));
+    }
+
+    public function createOperator()
+    {
+        $departments = ['390', '351'];
+        $positions = ['Operator', 'Adjuster', 'Setup Mold'];
+
+        return view('create-operator', compact('departments', 'positions'));
+    }
+
+    public function storeOperator(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'department' => 'required|in:390,351',
+            'position' => 'required|in:Operator,Adjuster,Setup Mold',
+        ]);
+
+        $password = Str::random(10);
+
+        OperatorUser::create([
+            'name' => $request->name,
+            'password' => $password,
+            'department' => $request->department,
+            'position' => $request->position,
+        ]);
+
+        return redirect()->route('show.all.operators')->with('success', 'Operator berhasil ditambahkan!');
     }
 }

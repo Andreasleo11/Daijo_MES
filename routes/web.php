@@ -53,6 +53,9 @@ Route::get('/production-day-dashboard', [ProductionDashboardController::class, '
 Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
 Route::get('/operator-users/upload', [OperatorUserController::class, 'uploadForm'])->name('operator-users.upload');
 Route::post('/operator-users/import', [OperatorUserController::class, 'import'])->name('operator-users.import');
+Route::get('/operator-users/show-all', [OperatorUserController::class, 'showAllOperator'])->name('show.all.operators');
+Route::get('/operator/create', [OperatorUserController::class, 'createOperator'])->name('operator.create');
+Route::post('/operator/store', [OperatorUserController::class, 'storeOperator'])->name('operator.store');
 
 Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
 
@@ -301,6 +304,9 @@ Route::middleware('auth')->group(function (){
     Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
     Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
     ->name('generate.machine.list');
+
+
+    Route::post('/submit/spk', [DashboardController::class, 'submitSPK'])->name('submit.spk');
 
 });
 

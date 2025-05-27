@@ -535,57 +535,41 @@ class DashboardController extends Controller
 
     public function procesProductionBarcodes(Request $request)
     {
-        // dd($request->all());
         // Decode the JSON input from the request
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
-        // dd($uniquedata);
-
-          // Retrieve the values from the request for creating scanned data
-          $spk_code = $request->input('spk_code');
-          $quantity = $request->input('quantity');
-          $warehouse = $request->input('warehouse');
-          $label = $request->input('label');
-          $user = $request->input('nik');
-          if (!$user) {
-              $user = session('verifiedNIK'); // Retrieve from session if not in request\
-          
-          }
       
-     
-    
-  
+        // Retrieve the values from the request 
+        $spk_code = $request->input('spk_code_auto');
+        $quantity = $request->input('quantity_auto');
+        $warehouse = $request->input('warehouse_auto');
+        $label = $request->input('label_auto');
+        $user = $request->input('nik') ?? session('verifiedNIK'); // fallback ke session jika tidak dikirim
+        
         $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
-        // dd($datas);
+
         // Restructure the unique data based on item_code
         $restructureduniquedata = [];
         foreach ($uniquedata as $itemCode => $spkData) {
             foreach ($spkData as $key => $data) {
-                // Store each SPK entry in an array instead of overwriting
                 $restructureduniquedata[$itemCode][$key] = $data;
             }
         }
 
-        // dd($restructureduniquedata);
-
+        // Ambil dic_id berdasarkan item_code yang cocok
         $dic_id = null;
         foreach ($datas as $data) {
-            // dd($data);
             if ($data['item_code'] === $item_code_spk->item_code) {
-                $dic_id = $data['id'];  // Set dic_id to the matched data's id
-
-                break; // Exit the loop once the match is found
+                $dic_id = $data['id'];
+                break;
             }
-
         }
-        // Validate that a matching dic_id was found
+
         if (!$dic_id) {
-            return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
+            return redirect()->back()->withErrors(['error' => 'Item code tidak ditemukan atau dic_id tidak cocok.']);
         }
 
-
-
-        // Validate incoming request data
+        // Validasi dasar inputan
         $request->validate([
             'spk_code_auto' => 'required|string',
             'warehouse_auto' => 'required|string',
@@ -593,8 +577,7 @@ class DashboardController extends Controller
             'label_auto' => 'required|string',
         ]);
 
-
-        // Validation logic for SPK code and label ranges
+        // Custom validator untuk cek range label
         $validator = Validator::make($request->all(), [
             'spk_code_auto' => 'required|string',
             'warehouse_auto' => 'required|string',
@@ -606,62 +589,58 @@ class DashboardController extends Controller
             $spk_code = $request->input('spk_code_auto');
             $item_code = $item_code_spk->item_code;
             $label = (int) $request->input('label_auto');
-        
-            // Check if the provided item_code exists in restructureduniquedata
+
             $foundSPKs = $restructureduniquedata[$item_code] ?? null;
-        
+             
             if (!$foundSPKs) {
-                $validator->errors()->add('spk_code_auto', 'The provided SPK code or item code does not exist.');
+                $validator->errors()->add('spk_code_auto', 'SPK atau item code tidak ditemukan.');
             } else {
                 $isValidLabel = false;
                 $validRanges = [];
-        
+
                 foreach ($foundSPKs as $spkData) {
-                    if ($spkData->spk === $spk_code) { // Use -> instead of []
+                    if ($spkData->spk === $spk_code) {
                         $start_label = (int) $spkData->start_label;
                         $end_label = (int) $spkData->end_label;
-        
-                        // Store the valid ranges for error messages
+
                         $validRanges[] = "$start_label - $end_label";
-        
-                        if ($label >= $start_label && $label <= $end_label) {
+
+                        // Cek range dua arah (untuk label terbalik)
+                        if (
+                            ($start_label <= $label && $label <= $end_label) ||
+                            ($end_label <= $label && $label <= $start_label)
+                        ) {
                             $isValidLabel = true;
                             break;
                         }
                     }
                 }
-        
+
                 if (!$isValidLabel) {
                     $validRangesText = implode(', ', $validRanges);
-                    $validator->errors()->add('label_auto', "The label must be within the valid range(s) for SPK $spk_code and item code $item_code. Valid range(s): $validRangesText.");
+                    $validator->errors()->add('label_auto', "Label harus berada dalam rentang valid SPK $spk_code dan item code $item_code. Rentang valid: $validRangesText.");
                 }
             }
         });
-        
 
-        // Return validation errors if validation fails
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-      
-        
-
-        // Check if the same scan already exists in the database
+        // Cek apakah label ini sudah pernah discan
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
             ->where('item_code', $item_code_spk->item_code)
             ->where('label', $label)
             ->first();
-        
 
         if ($existingScan) {
-            return redirect()->back()->withErrors(['error' => 'Data already scanned']);
+            return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
         }
 
-        // Create a new ProductionScannedData entry
+        // Simpan data scan ke database
         ProductionScannedData::create([
             'spk_code' => $spk_code,
-            'dic_id' => $dic_id,  // The associated data ID
+            'dic_id' => $dic_id,
             'item_code' => $item_code_spk->item_code,
             'quantity' => $quantity,
             'warehouse' => $warehouse,
@@ -669,17 +648,42 @@ class DashboardController extends Controller
             'user' => $user,
         ]);
 
-        $spk = SpkMaster::where('spk_number', $spk_code)->first();
+        // Tambah jumlah produksi ke SPK terkait
+        // $spk = SpkMaster::where('spk_number', $spk_code)->first();
+        // if ($spk) {
+        //     $spk->completed_quantity += $quantity;
+        //     $spk->save();
+        // }
 
-        if ($spk) {
-            $spk->completed_quantity += $quantity;
-            $spk->save();
-        }
-
-        // Redirect back to the dashboard with a success message
         return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
 
+    public function submitSPK(Request $request)
+    {
+        $all = $request->all(); // atau dd($request->all());
+        $datas = json_decode($request->input('datas'), true);
+        $uniquedata = json_decode($request->input('uniqueData'));
+        
+
+         // Loop berdasarkan item_code
+        foreach ($uniquedata as $itemCode => $spkItems) {
+            foreach ($spkItems as $key => $data) {
+                $spkNumber = $data->spk;
+                $additionalQty = (int) $data->totalquantity;
+
+                if ($additionalQty > 0) {
+                    // Cari SPK-nya
+                    $spk = SpkMaster::where('spk_number', $spkNumber)->first();
+                    if ($spk) {
+                        $spk->completed_quantity += $additionalQty;
+                        $spk->save();
+                    }
+                }
+            }
+        }
+
+        return redirect()->back()->with('success', 'SPK quantities updated successfully.');
+    }
 
 
     public function procesProductionBarcodesLoss(Request $request)
@@ -695,12 +699,8 @@ class DashboardController extends Controller
           $quantity = $request->input('quantity');
           $warehouse = $request->input('warehouse');
           $label = $request->input('label');
-          $user = $request->input('nik');
-          if (!$user) {
-              $user = session('verifiedNIK'); // Retrieve from session if not in request\
-          
-          }
-      
+          $user = $request->input('nik') ?? session('verifiedNIK'); // fallback ke session jika tidak dikirim
+       
      
     
   
@@ -817,13 +817,6 @@ class DashboardController extends Controller
             'label' => $label,
             'user' => $user,
         ]);
-
-        $spk = SpkMaster::where('spk_number', $spk_code)->first();
-
-        if ($spk) {
-            $spk->completed_quantity += $quantity;
-            $spk->save();
-        }
 
         // Redirect back to the dashboard with a success message
         return redirect()->route('dashboard')->with('deactivateScanMode', false);

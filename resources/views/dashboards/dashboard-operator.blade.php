@@ -454,11 +454,13 @@
                             </tbody>
                         </table>
 
-                        <form method="GET" action="{{ route('reset.jobs') }}" id="resetJobsForm">
-                            <input type="hidden" id="uniqueData" name="uniqueData" value="{{ json_encode($uniquedata) }}" />
+                        <form method="POST" action="{{ route('submit.spk') }}">
+                            @csrf
+                            <input type="hidden" id="uniqueData" name="uniqueData"
+                            value="{{ json_encode($itemCollections) }}" />
                             <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
 
-                            <button type="submit" id="resetJobsButton"
+                            <button type="submit"
                                 class="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition mt-4">
                                 Submit
                             </button>
@@ -527,7 +529,7 @@
 
                     <!-- Hidden Form -->
                     <div x-show="showLossScan" x-transition class="mt-4 space-y-3">
-                        <form id="scanForm" action="{{ route('process.productionbarcodeloss') }}" method="POST">
+                        <form id="scanForm" action="{{ route('process.productionbarcodeloss') }}" method="POST" x-data="autoSubmitForm()">
                             @csrf
                             <input type="hidden" id="uniqueData" name="uniqueData" value="{{ json_encode($itemCollections) }}" />
                             <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
@@ -993,7 +995,7 @@
                     }
                     this.idleTimeout = setTimeout(() => {
                         this.resetVerification(); // Reset verification after timeout
-                    }, 180000); // 3 minutes
+                    }, 1800000000); // 3 minutes
                 },
 
                 resetVerification() {

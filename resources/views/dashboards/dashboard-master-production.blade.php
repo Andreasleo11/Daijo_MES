@@ -78,30 +78,37 @@
                              <!-- Repair Machine Logs -->
               <!-- Repair Machine Logs -->
                     @if(count($data['repair_machine_logs']) > 0)
-                        <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            @foreach ($data['repair_machine_logs'] as $repairLog)
-                                <div class="bg-white border rounded-lg p-4 shadow-md">
-                                    <div class="flex items-center space-x-4">
-                                        <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-16 h-16 rounded-full border-2 border-gray-300">
-                                        <div>
-                                            <h5 class="text-xl font-semibold">{{ $repairLog['pic'] }}</h5>
-                                            <p class="text-sm text-gray-600">{{ $repairLog['status'] }}</p>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-4">
-                                        <p><strong>Start Time:</strong> {{ $repairLog['start_time'] }}</p>
-                                        <p><strong>End Time:</strong> {{ $repairLog['end_time'] }}</p>
-                                        <p><strong>Actual Time:</strong> {{ $repairLog['actual_time'] }} min</p>
-                                        <p><strong>Problem:</strong> {{ $repairLog['problem'] }} min</p>
-                                        <p><strong>Remark:</strong> {{ $repairLog['remark'] }} min</p>
-                                    </div>
-
-                                  
-                                </div>
-
-                            @endforeach
+                    <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left">Operator</th>
+                                        <th class="px-4 py-2 text-left">Status</th>
+                                        <th class="px-4 py-2 text-left">Start Time</th>
+                                        <th class="px-4 py-2 text-left">End Time</th>
+                                        <th class="px-4 py-2 text-left">Actual Time</th>
+                                        <th class="px-4 py-2 text-left">Problem</th>
+                                        <th class="px-4 py-2 text-left">Remark</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($data['repair_machine_logs'] as $repairLog)
+                                        <tr class="border-t">
+                                            <td class="px-4 py-2 flex items-center space-x-3">
+                                                <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-10 h-10 rounded-full border">
+                                                <span class="font-medium">{{ $repairLog['pic'] }}</span>
+                                            </td>
+                                            <td class="px-4 py-2">{{ $repairLog['status'] }}</td>
+                                            <td class="px-4 py-2">{{ $repairLog['start_time'] }}</td>
+                                            <td class="px-4 py-2">{{ $repairLog['end_time'] }}</td>
+                                            <td class="px-4 py-2">{{ $repairLog['actual_time'] }} min</td>
+                                            <td class="px-4 py-2">{{ $repairLog['problem'] }}</td>
+                                            <td class="px-4 py-2">{{ $repairLog['remark'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     @else
                         <p>No Repair Machine Logs Available</p>
