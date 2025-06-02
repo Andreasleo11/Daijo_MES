@@ -883,7 +883,7 @@ class DashboardController extends Controller
         } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
             $shift = 3;
         }
-        dd($shift);
+        
         // Reset the machine job
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
         $machineJob->update([
@@ -940,37 +940,37 @@ class DashboardController extends Controller
         return view('dashboard_plasticinjection', compact('datas'));
     }
 
-    public function resetJob()
-    {
+    // public function resetJob()
+    // {
      
-        $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
-        // Define shift times
-        $shift1Start = Carbon::parse('07:30:00');
-        $shift1End = Carbon::parse('15:30:00');
-        $shift2Start = Carbon::parse('15:31:00');
-        $shift2End = Carbon::parse('23:30:00');
-        $shift3Start = Carbon::parse('23:31:00');
-        $shift3End = Carbon::parse('07:29:59');
+    //     $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
+    //     // Define shift times
+    //     $shift1Start = Carbon::parse('07:30:00');
+    //     $shift1End = Carbon::parse('15:30:00');
+    //     $shift2Start = Carbon::parse('15:31:00');
+    //     $shift2End = Carbon::parse('23:30:00');
+    //     $shift3Start = Carbon::parse('23:31:00');
+    //     $shift3End = Carbon::parse('07:29:59');
 
-        // Determine the shift based on the current time
-        $shift = null;
+    //     // Determine the shift based on the current time
+    //     $shift = null;
 
-        if ($currentTime->between($shift1Start, $shift1End)) {
-            $shift = 1;
-        } elseif ($currentTime->between($shift2Start, $shift2End)) {
-            $shift = 2;
-        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
-            $shift = 3;
-        }
+    //     if ($currentTime->between($shift1Start, $shift1End)) {
+    //         $shift = 1;
+    //     } elseif ($currentTime->between($shift2Start, $shift2End)) {
+    //         $shift = 2;
+    //     } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
+    //         $shift = 3;
+    //     }
        
-        // Reset the machine job
-        MachineJob::where('user_id', auth()->user()->id)->update([
-            'item_code' => null,
-            'shift' => $shift,
-        ]);
+    //     // Reset the machine job
+    //     MachineJob::where('user_id', auth()->user()->id)->update([
+    //         'item_code' => null,
+    //         'shift' => $shift,
+    //     ]);
 
-        return redirect()->back()->with('success', 'Job has been resetted!');
-    }
+    //     return redirect()->back()->with('success', 'Job has been resetted!');
+    // }
 
     public function startMouldChange(Request $request)
     {
@@ -1142,6 +1142,38 @@ class DashboardController extends Controller
         return response()->json(['error' => 'No active mould change found'], 400);
     }
 
+    private function resetUserJob($userId)
+    {
+        $currentTime = now();
+
+        $shift1Start = Carbon::parse('07:30:00');
+        $shift1End = Carbon::parse('15:30:00');
+        $shift2Start = Carbon::parse('15:31:00');
+        $shift2End = Carbon::parse('23:30:00');
+        $shift3Start = Carbon::parse('23:31:00');
+        $shift3End = Carbon::parse('07:29:59');
+
+        $shift = null;
+        if ($currentTime->between($shift1Start, $shift1End)) {
+            $shift = 1;
+        } elseif ($currentTime->between($shift2Start, $shift2End)) {
+            $shift = 2;
+        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
+            $shift = 3;
+        }
+
+        MachineJob::where('user_id', $userId)->update([
+            'item_code' => null,
+            'shift' => $shift,
+        ]);
+    }
+
+    public function resetJob()
+    {
+        $this->resetUserJob(auth()->id());
+        return redirect()->back()->with('success', 'Job has been resetted!');
+    }
+
 
     public function endAdjustMachine()
     {
@@ -1155,6 +1187,10 @@ class DashboardController extends Controller
 
         if ($AdjustMachine) {
             $AdjustMachine->update(['end_time' => Carbon::now()]);
+
+            // Reset machine job langsung di sini
+            $this->resetUserJob($userId);
+
 
             return response()->json(['message' => 'Adjust Machine completed']);
         }

@@ -696,9 +696,19 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
+                        // Cek jika backend memberikan warning message
+                        if (response.message === 'Belum ada item yang diassign') {
+                            alert('Gagal: ' + response.message);
+                            return; // STOP, jangan update UI atau simpan localStorage
+                        }
+
+                        // Lanjut hanya kalau valid
                         alert(response.message);
+
+                        // Simpan ke localStorage
                         localStorage.setItem('mouldChangeOperator', JSON.stringify(response.operator));
 
+                        // Tampilkan data operator & ubah UI
                         $('#mouldChangeInfo').removeClass('hidden');
                         $('#currentUserProfile').attr('src', response.operator.profile_path);
                         $('#currentUserName').text(response.operator.name);
@@ -707,10 +717,13 @@
                         $('#endMouldChange').show();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        // Tampilkan pesan error default dari backend
+                        const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai mould change';
+                        alert(msg);
                     }
                 });
             }
+
 
             // Complete Mould Change Process
             $('#endMouldChange').click(function () {
@@ -742,9 +755,18 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
+                        // Cek jika backend mengirim warning
+                        if (response.message === 'Belum ada item yang diassign') {
+                            alert('Gagal: ' + response.message);
+                            return; // STOP, jangan ubah UI atau simpan localStorage
+                        }
+
                         alert(response.message);
+
+                        // Simpan ke localStorage
                         localStorage.setItem('adjustMachineOperator', JSON.stringify(response.operator));
 
+                        // Update UI
                         $('#adjustMachineInfo').removeClass('hidden');
                         $('#currentAdjustUserProfile').attr('src', response.operator.profile_path);
                         $('#currentAdjustUserName').text(response.operator.name);
@@ -753,7 +775,8 @@
                         $('#endAdjustMachine').show();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai adjust machine';
+                        alert(msg);
                     }
                 });
             }
