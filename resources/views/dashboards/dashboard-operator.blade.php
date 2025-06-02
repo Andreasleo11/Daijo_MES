@@ -316,10 +316,14 @@
                     <div class="bg-white shadow-sm sm:rounded-lg p-4">
                         @if ($itemCode)
                             <section>
-                                @if (count($files) > 0)
+                                @php
+                                    $activeFiles = $files[$itemCode] ?? collect();
+                                @endphp
+
+                                @if ($activeFiles->count() > 0)
                                     <div class="font-bold text-2xl">Files</div>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
-                                        @foreach ($files as $file)
+                                        @foreach ($activeFiles as $file)
                                             <a href="{{ asset('storage/files/' . $file->name) }}"
                                                 data-fancybox="gallery" data-caption="{{ $file->name }}">
                                                 <img class="w-full h-auto rounded-lg shadow-lg hover:shadow-2xl transition-transform transform hover:scale-105"
@@ -338,6 +342,7 @@
                         @endif
                     </div>
                 </div>
+
 
                 <!-- Daily Production Plan Section -->
                 <div class="mx-auto sm:px-4 lg:px-6 pt-6">
@@ -379,22 +384,20 @@
                                                 <td class="py-1 px-2">{{ $data->quantity }}</td>
                                                 <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td>
                                                 <!-- <td class="py-1 px-2">{{ $data->actual_quantity }}</td> -->
-                                                @if ($itemCode)
-                                                    @php
-                                                        $disabled = $data->shift !== $machineJobShift;
-                                                    @endphp
-                                                    <td class="py-1 px-2">
-                                                        <form
-                                                            action="{{ route('generate.itemcode.barcode', ['item_code' => $data->item_code, 'quantity' => $data->quantity]) }}"
+                                                <td class="py-1 px-2">
+                                                    @if ($itemCode && $data->item_code === $itemCode)
+                                                        <form action="{{ route('generate.itemcode.barcode', ['item_code' => $data->item_code, 'quantity' => $data->quantity]) }}"
                                                             method="get">
-                                                            <button
-                                                            class="m-1 p-2 rounded text-white focus:outline-none transition ease-in-out duration-150 {{ $disabled ? 'bg-gray-500 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-800' }}"
-                                                            {{ $disabled ? 'disabled' : '' }}>
+                                                            <button class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded">
                                                                 Generate Barcode
                                                             </button>
                                                         </form>
-                                                    </td>
-                                                @endif
+                                                    @else
+                                                        <button class="px-2 py-1 bg-gray-400 text-white rounded cursor-not-allowed" disabled>
+                                                            Generate Barcode
+                                                        </button>
+                                                    @endif
+                                                </td>
                                             </tr>
                                         @endforeach
                                     </tbody>

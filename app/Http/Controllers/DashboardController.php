@@ -153,17 +153,18 @@ class DashboardController extends Controller
 
                 
                 if ($itemCode) {
-                    $files = File::where('item_code', $itemCodeAll)->get();
-                    if ($files->isEmpty()) {
-                        $files = collect(); // pastikan tetap berbentuk Collection kosong
-                    }
+                    $fileData = File::where('item_code', $itemCodeAll)->get();
+            
+                    // Simpan file per item_code
+                    $files[$itemCodeAll] = $fileData->isEmpty() ? collect() : $fileData;
                 }
                 if (!isset($totalQuantities[$itemCodeAll])) {
                     $totalQuantities[$itemCodeAll] = 0;
                 }
                 $totalQuantities[$itemCodeAll] += $data->quantity;
             }
-
+            // dd($files);
+           
            
 
            
@@ -230,7 +231,7 @@ class DashboardController extends Controller
                         ->sum('quantity'); // Summing the 'quantity' column
                 }
             }
-            
+           
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
