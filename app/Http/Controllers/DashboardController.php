@@ -1124,8 +1124,12 @@ class DashboardController extends Controller
 
 
 
-    public function endMouldChange()
+    public function endMouldChange(Request $request)
     {
+        $request->validate([
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
         $userId = Auth::id();
 
         // Update the last mould change log where user_id matches
@@ -1135,7 +1139,8 @@ class DashboardController extends Controller
             ->first();
 
         if ($mouldChange) {
-            $mouldChange->update(['end_time' => Carbon::now()]);
+            $mouldChange->update(['end_time' => Carbon::now(),
+        'remark' => $request->remarks,]);
 
             return response()->json(['message' => 'Mould change completed']);
         }
@@ -1176,8 +1181,12 @@ class DashboardController extends Controller
     }
 
 
-    public function endAdjustMachine()
+    public function endAdjustMachine(Request $request)
     {
+        $request->validate([
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
         $userId = Auth::id();
 
         // Update the last mould change log where user_id matches
@@ -1187,7 +1196,8 @@ class DashboardController extends Controller
             ->first();
 
         if ($AdjustMachine) {
-            $AdjustMachine->update(['end_time' => Carbon::now()]);
+            $AdjustMachine->update(['end_time' => Carbon::now(),
+            'remark' => $request->remarks,]);
 
             // Reset machine job langsung di sini
             $this->resetUserJob($userId);

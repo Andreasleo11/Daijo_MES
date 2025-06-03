@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Imports\OperatorUsersImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 
 
 class OperatorUserController extends Controller
@@ -62,6 +63,76 @@ class OperatorUserController extends Controller
 
         // Pass the QR codes and user names to the view
         return view('barcode.qr_operator', ['qrCodes' => $qrCodes]);
+    }
+
+    function getNikByName($name, $employeeData)
+    {
+        foreach ($employeeData as $employee) {
+            if (strtolower(trim($employee['Name'])) === strtolower(trim($name))) {
+                return $employee['NIK']; // asumsikan NIK = EMPLOYEE_NO
+            }
+        }
+        return null;
+    }
+
+    public function showIdCard()
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic QVBJPUV4VCtEQCFqMDpEQCFqMEBKcDR5cjAxMQ=='
+        ])->post('http://192.168.6.75/JPayroll/thirdparty/ext/API_View_Master_Employee.php', [
+            'CompanyArea' => '10000'
+        ]);
+
+        $data = $response->json(); // hasilnya array asosiatif
+        // dd($data);
+        $users = OperatorUser::all();
+        $qrCodes = [];
+
+        foreach ($users as $user) {
+              // Cari NIK berdasarkan nama
+            $nik = 'NIK Not Found'; // default
+            if (isset($data['data']) && is_array($data['data'])) {
+                foreach ($data['data'] as $employee) {
+                    if (
+                        isset($employee['Name']) &&
+                        strtolower(trim($employee['Name'])) === strtolower(trim($user->name))
+                    ) {
+                        $nik = $employee['NIK'];
+                        break;
+                    }
+                }
+            }
+            $barcodeData = $user->name . "\t" . $user->password;
+
+            // Create a new QR code with specified parameters
+            $qrCode = new QrCode(
+                data: $barcodeData,
+                errorCorrectionLevel: ErrorCorrectionLevel::High,
+                size: 100,  // Adjust the size as needed
+                margin: 5    // Adjust the margin as needed
+            );
+
+            // Generate the QR code using the PngWriter
+            $writer = new PngWriter();
+            $qrCodeResult = $writer->write($qrCode);
+
+            // Get the PNG image as a string
+            $qrCodeImage = $qrCodeResult->getString();
+
+            // Base64 encode the image to embed in HTML
+            $qrcoded = base64_encode($qrCodeImage);
+
+            $qrCodes[] = [
+                'name' => $user->name,
+                'qrCode' => 'data:image/png;base64,' . $qrcoded,
+                'photo' => $user->profile_picture,
+                'role' => $user->position,
+                'department' => $user->department,
+                'nik' => $nik ?? 'NIK Not Found',
+            ];
+        }
+
+        return view('barcode.id_card', compact('qrCodes'));
     }
 
     public function index()

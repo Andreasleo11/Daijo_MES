@@ -141,6 +141,10 @@
                 <img id="currentUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
                 <span id="currentUserName" class="text-lg font-semibold"></span>
             </div>
+            <div class="mb-2">
+                <label for="mouldRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
+                <textarea id="mouldRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
+            </div>
         </div>
 
         <div id="adjustMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
@@ -148,6 +152,11 @@
             <div class="flex items-center">
                 <img id="currentAdjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
                 <span id="currentAdjustUserName" class="text-lg font-semibold"></span>
+            </div>
+
+            <div class="mb-2">
+                <label for="adjustRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
+                <textarea id="adjustRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
             </div>
         </div>
 
@@ -179,10 +188,11 @@
                         <ul>
                             @foreach($mouldChangeLogs as $log)
                                 <li class="mb-2">
-                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
-                                    <p><strong>End Time:</strong> {{ \Carbon\Carbon::parse($log->end_time)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
+                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
                                     <p><strong>PIC :</strong> {{ $log->pic }}</p>
                                     <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
                                 </li>
                             @endforeach
                         </ul>
@@ -198,10 +208,11 @@
                         <ul>
                             @foreach($adjustMachineLogs as $log)
                                 <li class="mb-2">
-                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
-                                    <p><strong>End Time:</strong> {{ \Carbon\Carbon::parse($log->end_time)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
+                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
                                     <p><strong>PIC :</strong> {{ $log->pic }}</p>
                                     <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
                                 </li>
                             @endforeach
                         </ul>
@@ -217,10 +228,11 @@
                         <ul>
                             @foreach($repairMachineLogs as $log)
                                 <li class="mb-2">
-                                    <p><strong>Created At:</strong> {{ \Carbon\Carbon::parse($log->created_at)->format('Y-m-d H:i') }}</p>
-                                    <p><strong>Finish Repair:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->format('Y-m-d H:i') }}</p>
+                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
+                                    <p><strong>Waktu Selesai Perbaikan:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
                                     <p><strong>PIC :</strong> {{ $log->pic }}</p>
                                     <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
+                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
                                 </li>
                             @endforeach
                         </ul>
@@ -730,10 +742,13 @@
 
             // Complete Mould Change Process
             $('#endMouldChange').click(function () {
+                const remarks = $('#mouldRemarks').val(); // ambil input dari textarea
+
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { remarks: remarks }, // kirim remarks ke backend
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('mouldChangeOperator');
@@ -786,10 +801,13 @@
 
             // Complete Adjust Machine Process
             $('#endAdjustMachine').click(function () {
+                const remarks = $('#adjustRemarks').val(); // ambil input dari textarea
+
                 $.ajax({
                     url: "{{ route('adjust.machine.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { remarks: remarks }, // kirim remarks ke backend
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('adjustMachineOperator');

@@ -15,6 +15,7 @@ class AdjustMachineLog extends Model
         'user_id',
         'item_code',
         'end_time',
+        'remark',
         'pic',
     ];
 
