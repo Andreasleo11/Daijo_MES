@@ -19,7 +19,7 @@ class DailyItemCodeController extends Controller
         $users = User::all();
         $dailyItemCodes = DailyItemCode::all();
         $itemCodes = MasterListItem::all()->pluck('item_code');
-        // dd($dailyItemCodes);
+        
         return view('daily-item-codes.index', compact('dailyItemCodes', 'users', 'itemCodes'));
     }
 
@@ -48,11 +48,38 @@ class DailyItemCodeController extends Controller
 
         // Use the transformed machine name to query the MasterListItem
         // $masterListItem = sapLineProduction::where('line_production', $selectedMachine->name)->get();
-        $masterListItem = sapLineProduction::get(['item_code']);
+        $masterListItem = MasterListItem::get('item_code');
         $dailyItemCodes = DailyItemCode::all();
 
         return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine', 'dailyItemCodes'));
     }
+
+    // Tambahkan method baru di controller untuk API endpoint
+    public function getItemCodes(Request $request)
+    {
+        $search = $request->get('search', '');
+        $limit = $request->get('limit', 100); // Limit hasil pencarian
+        
+        $query = MasterListItem::select('item_code');
+        
+        if ($search) {
+            $query->where('item_code', 'LIKE', '%' . $search . '%');
+        }
+        
+        $items = $query->limit($limit)->get();
+        
+        return response()->json([
+            'items' => $items->map(function($item) {
+                return [
+                    'value' => $item->item_code,
+                    'text' => $item->item_code
+                ];
+            })
+        ]);
+    }
+    
+
+    
 
     private function transformUsername($username) {
         // Use regular expression to match the numeric part and the alphabetic part separately
@@ -158,7 +185,7 @@ class DailyItemCodeController extends Controller
                 $endDate = $validatedData['end_dates'][$shift][$key];
                 $startTime = $validatedData['start_times'][$shift][$key];
                 $endTime = $validatedData['end_times'][$shift][$key];
-
+                 $remark = $validatedData['remarks'][$shift][$key] ?? null;
                 // Fetch SPK and Master Item Data
                 $datas = SpkMaster::where('item_code', $itemCode)->get();
                 $master = MasterListItem::where('item_code', $itemCode)->first();
@@ -208,6 +235,7 @@ class DailyItemCodeController extends Controller
                     'start_date' => $startDate,
                     'end_date' => $endDate,
                     'shift' => $shift, // Store the shift number
+                    'remark' => $remark, // Add remark field
                 ]);
             }
         }

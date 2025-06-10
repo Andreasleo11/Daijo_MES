@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Delivery\sapInventoryFg;
 
 class DailyItemCode extends Model
 {
@@ -25,6 +26,7 @@ class DailyItemCode extends Model
         'schedule_date',
         'start_date',
         'end_date',
+        'remark',
     ];
 
     public function user()
@@ -50,5 +52,15 @@ class DailyItemCode extends Model
     public function scannedData()
     {
         return $this->hasMany(ProductionScannedData::class, 'dic_id', 'id');
+    }
+
+    public function hourlyRemarks()
+    {
+        return $this->hasMany(HourlyRemark::class, 'dic_id', 'id');
+    }
+
+    public function masterFg()
+    {
+        return $this->hasOne(sapInventoryFg::class, 'item_code', 'item_code');
     }
 }

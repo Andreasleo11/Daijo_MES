@@ -43,9 +43,14 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
+Route::get('/daily-item-code/get-item-codes', [DailyItemCodeController::class, 'getItemCodes'])
+    ->name('daily-item-code.get-item-codes');
 
+Route::get('/daily-item-code/max-quantity', [DailyItemCodeController::class, 'getMaxQuantity'])
+    ->name('daily-item-code.get-max-quantity');
 
 Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
+Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
 
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
@@ -109,6 +114,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/update-employee-name', [DashboardController::class, 'updateEmployeeName'])->name('updateEmployeeName');
     Route::post('/verify-nik-password', [DashboardController::class, 'verifyNIKPassword'])->name('verify.nik.password');
     Route::post('/verify-nik-mould-change', [DashboardController::class, 'verifyNik'])->name('verify.nik');
+    Route::post('/hourly-remarks/{id}/update-remark', [DashboardController::class, 'updateRemark']);
 
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');

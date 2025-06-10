@@ -40,49 +40,49 @@
         $activeRepairMachine = \App\Models\RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->exists();
     @endphp
 
-  <div class="flex justify-between items-start flex-wrap gap-4 px-4">
-    <!-- Button Group -->
-    <div class="flex flex-wrap gap-4 flex-grow">
-        <!-- Start Mould Change Button -->
-        <button id="startMouldChange" 
-            class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
-            @if($activeMouldChange) style="display: none;" @endif>
-            Change Mould
-        </button>
+    <div class="flex justify-between items-start flex-wrap gap-4 px-4">
+        <!-- Button Group -->
+        <div class="flex flex-wrap gap-4 flex-grow">
+            <!-- Start Mould Change Button -->
+            <button id="startMouldChange" 
+                class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
+                @if($activeMouldChange) style="display: none;" @endif>
+                Change Mould
+            </button>
 
-        <!-- End Mould Change Button -->
-        <button id="endMouldChange" 
-            class="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-200 hidden">
-            Complete Change Mould
-        </button>
+            <!-- End Mould Change Button -->
+            <button id="endMouldChange" 
+                class="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-200 hidden">
+                Complete Change Mould
+            </button>
 
-        <!-- Start Adjust Machine Button -->
-        <button id="startAdjustMachine" 
-            class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
-            @if($activeAdjustMachine) style="display: none;" @endif>
-            Adjust Machine
-        </button>
+            <!-- Start Adjust Machine Button -->
+            <button id="startAdjustMachine" 
+                class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
+                @if($activeAdjustMachine) style="display: none;" @endif>
+                Adjust Machine
+            </button>
 
-        <!-- End Adjust Machine Button -->
-        <button id="endAdjustMachine" 
-            class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
-            Complete Adjust Machine
-        </button>
+            <!-- End Adjust Machine Button -->
+            <button id="endAdjustMachine" 
+                class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
+                Complete Adjust Machine
+            </button>
 
-        
-          <!-- Start Repair Machine Button -->
-        <button id="startRepairMachine" 
-            class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200"
-            @if($activeRepairMachine) style="display: none;" @endif>
-            Repair Machine
-        </button>
+            
+            <!-- Start Repair Machine Button -->
+            <button id="startRepairMachine" 
+                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200"
+                @if($activeRepairMachine) style="display: none;" @endif>
+                Repair Machine
+            </button>
 
-        <!-- Finish Repair Machine Button -->
-        <button id="endRepairMachine" 
-            class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
-            Finish Repair Machine
-        </button>
-    </div>
+            <!-- Finish Repair Machine Button -->
+            <button id="endRepairMachine" 
+                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
+                Finish Repair Machine
+            </button>
+        </div>
     
         <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">
             <div>
@@ -95,29 +95,29 @@
                 <div class="text-xl font-bold text-indigo-600" id="jam-hari-ini"></div>
             </div>
         </div>
-    <!-- Zone & Pengawas Info -->
-    <div class="bg-white shadow rounded-lg p-4 flex items-center min-w-[280px]">
-        @if($zone)
-            <!-- Text Section -->
-            <div class="flex-1 pr-4">
-                <p class="text-sm text-gray-500">Zone</p>
-                <h3 class="text-lg font-semibold text-gray-800">{{ $zone->zone_name }}</h3>
-                <p class="text-sm text-gray-500">Pengawas:</p>
-                <p class="text-md font-medium text-gray-700">{{ $pengawasName }}</p>
-            </div>
+        <!-- Zone & Pengawas Info -->
+        <div class="bg-white shadow rounded-lg p-4 flex items-center min-w-[280px]">
+                @if($zone)
+                    <!-- Text Section -->
+                    <div class="flex-1 pr-4">
+                        <p class="text-sm text-gray-500">Zone</p>
+                        <h3 class="text-lg font-semibold text-gray-800">{{ $zone->zone_name }}</h3>
+                        <p class="text-sm text-gray-500">Pengawas:</p>
+                        <p class="text-md font-medium text-gray-700">{{ $pengawasName }}</p>
+                    </div>
 
-            <!-- Profile Image Section -->
-            <div>
-                @if($pengawasProfile)
-                    <img src="{{ asset('storage/' . $pengawasProfile) }}" alt="Pengawas Profile Picture"
-                        class="w-20 h-20 rounded-full border border-gray-300 object-cover shadow">
-                @else
-                    <p class="text-xs text-gray-400 italic">No picture</p>
+                    <!-- Profile Image Section -->
+                    <div>
+                        @if($pengawasProfile)
+                            <img src="{{ asset('storage/' . $pengawasProfile) }}" alt="Pengawas Profile Picture"
+                                class="w-20 h-20 rounded-full border border-gray-300 object-cover shadow">
+                        @else
+                            <p class="text-xs text-gray-400 italic">No picture</p>
+                        @endif
+                    </div>
                 @endif
             </div>
-        @endif
-    </div>
-</div>
+        </div>
 
 
 
@@ -287,6 +287,7 @@
                     <div class="bg-white shadow-sm sm:rounded-lg p-4">
                         <div class="text-gray-900">
                             <span class="font-bold ">Active Job:</span>
+                            
                             @if ($itemCode)
                                 <span class="text-blue-500">{{ $itemCode }}</span>
                                 <a href="{{ route('reset.job') }}"
@@ -369,10 +370,11 @@
                                     <thead class="bg-indigo-100">
                                         <tr>
                                             <th class="py-1 px-2 text-gray-700">Item Code</th>
+                                            <th class="py-1 px-2 text-gray-700">Pair</th>
                                             <th class="py-1 px-2 text-gray-700">Start Date - End Date</th>
                                             <th class="py-1 px-2 text-gray-700">Shift</th>
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
-                                            <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th>
+                                            <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
                                             @if ($itemCode)
                                                 <th class="py-1 px-2 text-gray-700">Action</th>
@@ -386,15 +388,17 @@
                                                 $endTime = \Carbon\Carbon::parse($data->end_time)->format('H:i');
                                                 $startDate = \Carbon\Carbon::parse($data->start_date)->format('d/m/Y'); // Format start date as dd/mm/yyyy
                                                 $endDate = \Carbon\Carbon::parse($data->end_date)->format('d/m/Y'); // Format end date as dd/mm/yyyy
+                                                $pairCode = $data->masterItem->pair ?? null;
                                             @endphp
 
                                             <tr class="bg-white border-b text-center">
                                                 <td class="py-1 px-2">{{ $data->item_code }}</td>
+                                                <td class="py-1 px-2">{{ $pairCode ?? '-' }}</td> <!-- Kolom pair -->
                                                 <td class="py-1 px-2">{{ $startDate }} - {{ $endDate }}</td>
                                                 <td class="py-1 px-2">{{ $data->shift }} ({{ $startTime }} -
                                                     {{ $endTime }})</td>
                                                 <td class="py-1 px-2">{{ $data->quantity }}</td>
-                                                <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td>
+                                                <!-- <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td> -->
                                                 <!-- <td class="py-1 px-2">{{ $data->actual_quantity }}</td> -->
                                                 <td class="py-1 px-2">
                                                     @if ($itemCode && $data->item_code === $itemCode)
@@ -424,11 +428,11 @@
 
             <!-- Scan Barcode Section -->
             <div x-show="scanMode && verified" class="mx-auto sm:px-4 lg:px-6 pt-6" x-cloak>
-            <button 
-                @click="resetVerification()" 
-                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200">
-                Reset Verification
-            </button>
+                <button 
+                    @click="resetVerification()" 
+                    class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200">
+                    Reset Verification
+                </button>
             
                 <div class="flex gap-6 items-start w-full">
                     <!-- Profile Section -->
@@ -441,26 +445,38 @@
 
                     <!-- SPK Table Section -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
-                        <span class="text-xl font-bold">SPK</span>
+                        <span class="text-xl font-bold">Detail Pekerjaan</span>
                         <table class="w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
                             <thead class="bg-gray-100">
                                 <tr>
-                                    <th class="py-2 px-4">SPK Number</th>
                                     <th class="py-2 px-4">Item Code</th>
-                                    <th class="py-2 px-4">Scanned Quantity</th>
-                                    <th class="py-2 px-4">Total Quantity</th>
+                                    <th class="py-2 px-4">Quantity</th>
+                                    <th class="py-2 px-4">Total Box Yang sudah discan</th>
+                                    <th class="py-2 px-4">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                            @if ($itemCode && isset($itemCollections[$itemCode]))
-                                @foreach ($itemCollections[$itemCode] as $data)
-                                    <tr class="bg-white text-center">
-                                        <td class="py-2 px-4">{{ $data['spk'] }}</td>
-                                        <td class="py-2 px-4">{{ $data['item_code'] }}</td>
-                                        <td class="py-2 px-4">{{ $data['scannedData'] }}/{{ $data['count']}}</td>
-                                        <td class="py-2 px-4">{{ $data['totalquantity'] }}</td>
-                                    </tr>
-                                @endforeach
+                           @if ($activeDIC)
+                                <tr class="bg-white text-center">
+                                    <td class="py-2 px-4">{{ $activeDIC['item_code'] }}</td>
+                                    <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] }}</td>
+                                    <td class="py-2 px-4">{{ $scannedCount }}</td>
+                                    <td class="py-2 px-4">
+                                        <div class="flex flex-wrap gap-2">
+                                            <button 
+                                                onclick="document.getElementById('detailModal').showModal()" 
+                                                class="bg-blue-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-blue-600 transition duration-150">
+                                                Detail Remark
+                                            </button>
+                                            <button 
+                                                onclick="document.getElementById('detailDataModal').showModal()" 
+                                                class="bg-green-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-green-600 transition duration-150">
+                                                Detail Data
+                                            </button>
+                                        </div>
+                                    </td>
+
+                                </tr>
                             @else
                                 <tr>
                                     <td colspan="4" class="text-center text-gray-500 py-2">No data for selected item code</td>
@@ -469,17 +485,145 @@
                             </tbody>
                         </table>
 
-                        <form method="POST" action="{{ route('submit.spk') }}">
+
+                            <dialog id="detailDataModal" class="p-6 rounded-lg w-11/12 max-w-4xl">
+                                <h3 class="text-xl font-semibold mb-4">Detail Data Scan SPK</h3>
+                                <table class="w-full border-collapse border border-gray-300 text-left text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-100">
+                                            <th class="border border-gray-300 px-3 py-2">ID</th>
+                                            <th class="border border-gray-300 px-3 py-2">SPK Code</th>
+                                            <th class="border border-gray-300 px-3 py-2">DIC ID</th>
+                                            <th class="border border-gray-300 px-3 py-2">Item Code</th>
+                                            <th class="border border-gray-300 px-3 py-2">Warehouse</th>
+                                            <th class="border border-gray-300 px-3 py-2">Quantity</th>
+                                            <th class="border border-gray-300 px-3 py-2">Label</th>
+                                            <th class="border border-gray-300 px-3 py-2">User</th>
+                                            <th class="border border-gray-300 px-3 py-2">Created At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($spkData as $scan)
+                                            <tr>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->id }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->spk_code }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->dic_id }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->item_code }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->warehouse }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->quantity }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->label }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->user }}</td>
+                                                <td class="border border-gray-300 px-3 py-1">{{ $scan->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr><td colspan="9" class="text-center py-4">Tidak ada data scan.</td></tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+
+                                <div class="mt-4 text-right">
+                                    <button onclick="document.getElementById('detailDataModal').close()" class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600">
+                                        Close
+                                    </button>
+                                </div>
+                            </dialog>
+
+                            <dialog id="detailModal" class="rounded-md shadow-lg p-4 w-full max-w-3xl">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-bold">Detail Per Jam - {{ $activeDIC['item_code'] ?? '' }}</h3>
+                                    <button onclick="document.getElementById('detailModal').close()" class="text-red-500 hover:text-red-700">X</button>
+                                </div>
+
+                                <table class="w-full border border-gray-200 text-sm">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th class="py-2 px-4 border">Jam Mulai</th>
+                                            <th class="py-2 px-4 border">Jam Selesai</th>
+                                            <th class="py-2 px-4 border">Target</th>
+                                            <th class="py-2 px-4 border">Actual</th>
+                                            <th class="py-2 px-4 border">Status</th>
+                                            <th class="py-2 px-4 border">Remark</th>
+                                            <th class="py-2 px-4 border">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (!empty($hourlyRemarksActiveDIC))
+                                        @foreach ($hourlyRemarksActiveDIC as $slot)
+                                                <tr class="text-center">
+                                                    <td class="py-2 px-4 border">{{ \Carbon\Carbon::parse($slot->start_time)->format('H:i') }}</td>
+                                                    <td class="py-2 px-4 border">{{ \Carbon\Carbon::parse($slot->end_time)->format('H:i') }}</td>
+                                                    <td class="py-2 px-4 border">{{ $slot->target }}</td>
+                                                    <td class="py-2 px-4 border">{{ $slot->actual }}</td>
+                                                    <td class="py-2 px-4 border">
+                                                        @if ($slot->is_achieve)
+                                                            <span class="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Tercapai</span>
+                                                        @else
+                                                            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Tidak Tercapai</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="py-2 px-4 border">{{ $slot->remark ?? '-' }}</td>
+                                                    <td class="py-2 px-4 border">
+                                                        <button onclick="editRemark({{ $slot->id }}, @js($slot->remark))">
+                                                            Edit
+                                                        </button>
+                                                    </td>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @else
+                                            <tr>
+                                                <td colspan="3" class="text-center py-2 text-gray-500">No hourly data available</td>
+                                            </tr>
+                                        @endif
+                                    </tbody>
+                                </table>
+                            </dialog>
+
+                            <dialog id="remarkModal" class="rounded-md shadow-lg p-4 w-full max-w-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-bold">Edit Remark</h3>
+                                    <button onclick="document.getElementById('remarkModal').close()" class="text-red-500 hover:text-red-700">X</button>
+                                </div>
+
+                                <form id="remarkForm">
+                                    @csrf
+                                    <input type="hidden" name="id" id="remarkId">
+                                    <textarea name="remark" id="remarkInput" rows="4" class="w-full border rounded p-2" placeholder="Tulis remark..."></textarea>
+                                    <div class="flex justify-end mt-4">
+                                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Simpan</button>
+                                    </div>
+                                </form>
+                            </dialog>
+
+                        <form id="mainSubmitForm" method="POST" action="{{ route('submit.spk') }}">
                             @csrf
                             <input type="hidden" id="uniqueData" name="uniqueData"
                             value="{{ json_encode($itemCollections) }}" />
                             <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
+                            <input type="hidden" id="activedic" name="activedic" value="{{ $activeDIC }}" />
 
-                            <button type="submit"
+                            <button type="button"
+                                onclick="openConfirmModal()"
                                 class="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition mt-4">
                                 Submit
                             </button>
                         </form>
+
+                            <dialog id="confirmModal" class="rounded-md shadow-lg p-6 w-full max-w-md">
+                                <h3 class="text-lg font-bold mb-4">Konfirmasi Submit</h3>
+                                <p class="text-sm text-gray-700 mb-4">
+                                    Apakah kamu yakin ingin submit data ini? Tindakan ini tidak bisa dibatalkan.
+                                </p>
+
+                                <div class="flex justify-end gap-2">
+                                    <button onclick="document.getElementById('confirmModal').close()"
+                                        class="px-4 py-2 text-gray-600 hover:text-gray-800">Batal</button>
+
+                                    <button onclick="document.getElementById('mainSubmitForm').submit()"
+                                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Ya, Submit</button>
+                                </div>
+                            </dialog>
+
                     </div>
                 </div>
 
@@ -492,6 +636,7 @@
                         <input type="hidden" id="uniqueData" name="uniqueData"
                             value="{{ json_encode($itemCollections) }}" />
                         <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
+                        <input type="hidden" id="activedic" name="activedic" value="{{ $activeDIC }}" />
                         <input type="hidden" id="nik" name="nik" x-model="nikInput" />
 
                         <!-- Grid Layout for 2 Columns -->
@@ -553,15 +698,9 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label for="spk_code">SPK Code</label>
-                                    <select id="spk_code" name="spk_code" required
-                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full">
-                                        <option value="">Select SPK Code</option>
-                                        @if ($itemCode && isset($itemCollections[$itemCode]))
-                                            @foreach ($itemCollections[$itemCode] as $data)
-                                                <option value="{{ $data['spk'] }}">{{ $data['spk'] }}</option>
-                                            @endforeach
-                                        @endif
-                                    </select>
+                                     <input type="text" id="spk_code" name="spk_code" required
+                                        class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                        placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
                                 </div>
 
                                 <div>
@@ -594,9 +733,44 @@
                     </div>
                 </div>
 
-
+                  <table class="w-full border border-gray-200 text-sm mt-6">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-2 px-4 border">Jam Mulai</th>
+                                    <th class="py-2 px-4 border">Jam Selesai</th>
+                                    <th class="py-2 px-4 border">Target</th>
+                                    <th class="py-2 px-4 border">Actual</th>
+                                    <th class="py-2 px-4 border">Status</th>
+                                    <th class="py-2 px-4 border">PIC</th>
+                                    <th class="py-2 px-4 border">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($hourlyRemarks as $remark)
+                                    <tr class="text-center">
+                                        <td class="py-2 px-4 border">{{ \Carbon\Carbon::parse($remark->start_time)->format('H:i') }}</td>
+                                        <td class="py-2 px-4 border">{{ \Carbon\Carbon::parse($remark->end_time)->format('H:i') }}</td>
+                                        <td class="py-2 px-4 border">{{ $remark->target }}</td>
+                                        <td class="py-2 px-4 border">{{ $remark->actual }}</td>
+                                        <td class="py-2 px-4 border">
+                                            @if ($remark->is_achieve)
+                                                <span class="text-green-600 font-semibold">Tercapai</span>
+                                            @else
+                                                <span class="text-red-600 font-semibold">Tidak Tercapai</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border">{{ $remark->pic }}</td>
+                                        <td class="py-2 px-4 border">{{ $remark->remark ?? '-' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center py-3 text-gray-500">Belum ada data summary</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
             </div>
-        </div>
+    </div>
     
 
 
@@ -886,237 +1060,272 @@
 
     <script>
 
-    document.addEventListener("DOMContentLoaded", function () {
-        const startMouldChange = document.getElementById("startMouldChange");
-        const endMouldChange = document.getElementById("endMouldChange");
-        const startAdjustMachine = document.getElementById("startAdjustMachine");
-        const endAdjustMachine = document.getElementById("endAdjustMachine");
+        document.addEventListener("DOMContentLoaded", function () {
+            const startMouldChange = document.getElementById("startMouldChange");
+            const endMouldChange = document.getElementById("endMouldChange");
+            const startAdjustMachine = document.getElementById("startAdjustMachine");
+            const endAdjustMachine = document.getElementById("endAdjustMachine");
 
-        // Handle Mould Change Start
-        startMouldChange.addEventListener("click", function () {
-            startMouldChange.style.display = "none";
-            startAdjustMachine.style.display = "none"; // Hide adjust machine button
-            endMouldChange.style.display = "inline-block";
-        });
-
-        // Handle Mould Change End
-        endMouldChange.addEventListener("click", function () {
-            startMouldChange.style.display = "inline-block";
-            startAdjustMachine.style.display = "inline-block"; // Show adjust machine button again
-            endMouldChange.style.display = "none";
-        });
-
-        // Handle Adjust Machine Start
-        startAdjustMachine.addEventListener("click", function () {
-            startMouldChange.style.display = "none"; // Hide mould change button
-            startAdjustMachine.style.display = "none";
-            endAdjustMachine.style.display = "inline-block";
-        });
-
-        // Handle Adjust Machine End
-        endAdjustMachine.addEventListener("click", function () {
-            startMouldChange.style.display = "inline-block"; // Show mould change button again
-            startAdjustMachine.style.display = "inline-block";
-            endAdjustMachine.style.display = "none";
-        });
-    });
-
-
-          document.addEventListener("DOMContentLoaded", function () {
-                // Check if user is already verified (persistent login)
-                if (localStorage.getItem("verified")) {
-                    let savedProfile = localStorage.getItem("profile_picture");
-                    let savedNIK = localStorage.getItem("nik");
-                    let savedName = localStorage.getItem("operator_name");
-
-                    if (savedProfile && savedNIK && savedName) {
-                        $('#profileImage').attr('src', savedProfile);
-                        $('#operatorName').text(savedName);
-                        $('#dashboardSection').removeClass('hidden');
-                        $('#loginSection').addClass('hidden');
-                    }
-                }
+            // Handle Mould Change Start
+            startMouldChange.addEventListener("click", function () {
+                startMouldChange.style.display = "none";
+                startAdjustMachine.style.display = "none"; // Hide adjust machine button
+                endMouldChange.style.display = "inline-block";
             });
 
-        function scanModeHandler(deactivateScanModeFlag) {
-            return {
-                ready: false, // NEW
-                scanMode: false,
-                verified: false,
-                ready: false, // NEW
-                scanMode: false,
-                verified: false,
-                nikInput: '', 
-                passwordInput: '',
-                idleTimeout: null,
+            // Handle Mould Change End
+            endMouldChange.addEventListener("click", function () {
+                startMouldChange.style.display = "inline-block";
+                startAdjustMachine.style.display = "inline-block"; // Show adjust machine button again
+                endMouldChange.style.display = "none";
+            });
 
-                initialize() {
-                    this.verified = localStorage.getItem('verified') === 'true';
+            // Handle Adjust Machine Start
+            startAdjustMachine.addEventListener("click", function () {
+                startMouldChange.style.display = "none"; // Hide mould change button
+                startAdjustMachine.style.display = "none";
+                endAdjustMachine.style.display = "inline-block";
+            });
 
-                    this.verified = localStorage.getItem('verified') === 'true';
+            // Handle Adjust Machine End
+            endAdjustMachine.addEventListener("click", function () {
+                startMouldChange.style.display = "inline-block"; // Show mould change button again
+                startAdjustMachine.style.display = "inline-block";
+                endAdjustMachine.style.display = "none";
+            });
+        });
 
-                    if (deactivateScanModeFlag == true) {
-                        this.scanMode = false;
-                        localStorage.setItem('scanMode', false);
-                    } else {
-                        this.scanMode = localStorage.getItem('scanMode') === 'true';
-                    }
 
-                    if (this.verified && this.scanMode) {
-                        this.startIdleTimer();
-                        this.focusOnSPKCode();
-                    }
+            document.addEventListener("DOMContentLoaded", function () {
+                    // Check if user is already verified (persistent login)
+                    if (localStorage.getItem("verified")) {
+                        let savedProfile = localStorage.getItem("profile_picture");
+                        let savedNIK = localStorage.getItem("nik");
+                        let savedName = localStorage.getItem("operator_name");
 
-                    // Delay rendering until everything is set
-                    this.ready = true;
-                    if (this.verified && this.scanMode) {
-                        this.startIdleTimer();
-                        this.focusOnSPKCode();
-                    }
-
-                    // Delay rendering until everything is set
-                    this.ready = true;
-
-                    if (this.scanMode) {
-                        if (!this.verified) {
-                            alert("Please verify your NIK before activating Scan Mode.");
-                            return;
+                        if (savedProfile && savedNIK && savedName) {
+                            $('#profileImage').attr('src', savedProfile);
+                            $('#operatorName').text(savedName);
+                            $('#dashboardSection').removeClass('hidden');
+                            $('#loginSection').addClass('hidden');
                         }
-                        this.focusOnSPKCode();
                     }
-                },
+                });
 
-                toggleScanMode() {
-                    this.scanMode = !this.scanMode;
-                    localStorage.setItem('scanMode', this.scanMode);
+            function scanModeHandler(deactivateScanModeFlag) {
+                return {
+                    ready: false, // NEW
+                    scanMode: false,
+                    verified: false,
+                    ready: false, // NEW
+                    scanMode: false,
+                    verified: false,
+                    nikInput: '', 
+                    passwordInput: '',
+                    idleTimeout: null,
 
-                    if (this.scanMode) {
-                        this.focusOnSPKCode();
-                    }
-                },
+                    initialize() {
+                        this.verified = localStorage.getItem('verified') === 'true';
 
-                verifyNIK() {
-                    if (this.nikInput.trim() !== '' && this.passwordInput.trim() !== '') {
-                        $.ajax({
-                            url: "{{ route('verify.nik.password') }}",
-                            type: "POST",
-                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                            data: {
-                                nik: this.nikInput,
-                                password: this.passwordInput
-                            },
-                            success: (response) => {
-                                if (response.success) {
-                                    this.verified = true;
-                                    localStorage.setItem('verified', true); // Save state
-                                    localStorage.setItem('nik', this.nikInput);
-                                    this.startIdleTimer(); // Start the idle timer
-                                    localStorage.setItem('operator_name', response.operator_name);
-                                    localStorage.setItem('profile_picture', response.profile_picture);
+                        this.verified = localStorage.getItem('verified') === 'true';
 
+                        if (deactivateScanModeFlag == true) {
+                            this.scanMode = false;
+                            localStorage.setItem('scanMode', false);
+                        } else {
+                            this.scanMode = localStorage.getItem('scanMode') === 'true';
+                        }
 
-                                    $('#profileImage').attr('src', response.profile_picture);
-                                    $('#operatorName').text(response.operator_name);
-                                    $('#dashboardSection').removeClass('hidden'); // Show the dashboard
-                                    $('#loginSection').addClass('hidden'); // Hide the login form
-                                    alert("NIK Verified Successfully!");
-                                } else {
-                                    alert("Invalid NIK or Password.");
-                                }
-                            },
-                            error: function(xhr) {
-                                alert("An error occurred while verifying your NIK.");
+                        if (this.verified && this.scanMode) {
+                            this.startIdleTimer();
+                            this.focusOnSPKCode();
+                        }
+
+                        // Delay rendering until everything is set
+                        this.ready = true;
+                        if (this.verified && this.scanMode) {
+                            this.startIdleTimer();
+                            this.focusOnSPKCode();
+                        }
+
+                        // Delay rendering until everything is set
+                        this.ready = true;
+
+                        if (this.scanMode) {
+                            if (!this.verified) {
+                                alert("Please verify your NIK before activating Scan Mode.");
+                                return;
                             }
-                        });
+                            this.focusOnSPKCode();
+                        }
+                    },
+
+                    toggleScanMode() {
+                        this.scanMode = !this.scanMode;
+                        localStorage.setItem('scanMode', this.scanMode);
+
+                        if (this.scanMode) {
+                            this.focusOnSPKCode();
+                        }
+                    },
+
+                    verifyNIK() {
+                        if (this.nikInput.trim() !== '' && this.passwordInput.trim() !== '') {
+                            $.ajax({
+                                url: "{{ route('verify.nik.password') }}",
+                                type: "POST",
+                                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                data: {
+                                    nik: this.nikInput,
+                                    password: this.passwordInput
+                                },
+                                success: (response) => {
+                                    if (response.success) {
+                                        this.verified = true;
+                                        localStorage.setItem('verified', true); // Save state
+                                        localStorage.setItem('nik', this.nikInput);
+                                        this.startIdleTimer(); // Start the idle timer
+                                        localStorage.setItem('operator_name', response.operator_name);
+                                        localStorage.setItem('profile_picture', response.profile_picture);
+
+
+                                        $('#profileImage').attr('src', response.profile_picture);
+                                        $('#operatorName').text(response.operator_name);
+                                        $('#dashboardSection').removeClass('hidden'); // Show the dashboard
+                                        $('#loginSection').addClass('hidden'); // Hide the login form
+                                        alert("NIK Verified Successfully!");
+                                    } else {
+                                        alert("Invalid NIK or Password.");
+                                    }
+                                },
+                                error: function(xhr) {
+                                    alert("An error occurred while verifying your NIK.");
+                                }
+                            });
+                        } else {
+                            alert("Please enter both NIK and password.");
+                        }
+                    },
+
+                    startIdleTimer() {
+                        if (this.idleTimeout) {
+                            clearTimeout(this.idleTimeout);
+                        }
+                        this.idleTimeout = setTimeout(() => {
+                            this.resetVerification(); // Reset verification after timeout
+                        }, 1800000000); // 3 minutes
+                    },
+
+                    resetVerification() {
+                        this.verified = false;
+                        localStorage.removeItem('verified');
+
+                        localStorage.removeItem('nik');
+                        localStorage.removeItem('operator_name');
+                        localStorage.removeItem('profile_picture');
+
+                        // Reset UI elements
+                        $('#profileImage').attr('src', "{{ asset('default-avatar.png') }}"); // Default image
+                        $('#operatorName').text(""); // Clear operator name
+                        $('#dashboardSection').addClass('hidden');
+                        $('#loginSection').removeClass('hidden');
+                        alert("Verification expired due to inactivity.");
+                    },
+
+                    focusOnSPKCode() {
+                        setTimeout(() => {
+                            document.getElementById('spk_code').focus();
+                        }, 100);
+                    }
+                };
+            }
+
+            function autoSubmitForm() {
+            return {
+                nikInput: localStorage.getItem('nik') || '',
+
+                checkAndSubmitForm() {
+                    console.log("LocalStorage NIK:", localStorage.getItem('nik'));
+                    console.log("Current NIK Input:", this.nikInput);
+
+                    if (!this.nikInput) {
+                        this.nikInput = localStorage.getItem('nik') || '';
+                        console.warn("NIK was empty, updated from localStorage:", this.nikInput);
+                    }
+
+                    document.getElementById('nik').value = this.nikInput;
+
+                    const requiredFieldNames = ['spk_code_auto', 'quantity_auto', 'warehouse_auto', 'label_auto'];
+                    const allFilled = requiredFieldNames.every(name => {
+                        const input = document.querySelector(`[name="${name}"]`);
+                        return input && input.value.trim() !== '';
+                    });
+
+                    if (allFilled && this.nikInput) {
+                        console.log("✅ Form is valid. Submitting...");
+                        document.getElementById('scanForm').submit();
                     } else {
-                        alert("Please enter both NIK and password.");
+                        console.warn("❌ Form not submitted. Missing required fields or NIK.");
                     }
-                },
-
-                startIdleTimer() {
-                    if (this.idleTimeout) {
-                        clearTimeout(this.idleTimeout);
-                    }
-                    this.idleTimeout = setTimeout(() => {
-                        this.resetVerification(); // Reset verification after timeout
-                    }, 1800000000); // 3 minutes
-                },
-
-                resetVerification() {
-                    this.verified = false;
-                    localStorage.removeItem('verified');
-
-                    localStorage.removeItem('nik');
-                    localStorage.removeItem('operator_name');
-                    localStorage.removeItem('profile_picture');
-
-                    // Reset UI elements
-                    $('#profileImage').attr('src', "{{ asset('default-avatar.png') }}"); // Default image
-                    $('#operatorName').text(""); // Clear operator name
-                    $('#dashboardSection').addClass('hidden');
-                    $('#loginSection').removeClass('hidden');
-                    alert("Verification expired due to inactivity.");
-                },
-
-                focusOnSPKCode() {
-                    setTimeout(() => {
-                        document.getElementById('spk_code').focus();
-                    }, 100);
                 }
             };
         }
 
-        function autoSubmitForm() {
-        return {
-            nikInput: localStorage.getItem('nik') || '',
+            function updateWaktuIndonesia() {
+                    const now = new Date();
+                    const optionsTanggal = {
+                        timeZone: 'Asia/Jakarta',
+                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                    };
+                    const optionsJam = {
+                        timeZone: 'Asia/Jakarta',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    };
 
-            checkAndSubmitForm() {
-                console.log("LocalStorage NIK:", localStorage.getItem('nik'));
-                console.log("Current NIK Input:", this.nikInput);
+                    const tanggal = now.toLocaleDateString('id-ID', optionsTanggal);
+                    const jam = now.toLocaleTimeString('id-ID', optionsJam);
 
-                if (!this.nikInput) {
-                    this.nikInput = localStorage.getItem('nik') || '';
-                    console.warn("NIK was empty, updated from localStorage:", this.nikInput);
+                    document.getElementById('tanggal-hari-ini').textContent = tanggal;
+                    document.getElementById('jam-hari-ini').textContent = jam;
                 }
 
-                document.getElementById('nik').value = this.nikInput;
+                setInterval(updateWaktuIndonesia, 1000);
+                updateWaktuIndonesia();
 
-                const requiredFieldNames = ['spk_code_auto', 'quantity_auto', 'warehouse_auto', 'label_auto'];
-                const allFilled = requiredFieldNames.every(name => {
-                    const input = document.querySelector(`[name="${name}"]`);
-                    return input && input.value.trim() !== '';
+
+            function editRemark(id, remark) {
+                document.getElementById('remarkId').value = id;
+                document.getElementById('remarkInput').value = remark || '';
+                document.getElementById('remarkModal').showModal();
+            }
+
+            document.getElementById('remarkForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = document.getElementById('remarkId').value;
+                const remark = document.getElementById('remarkInput').value;
+                const token = document.querySelector('input[name="_token"]').value;
+
+                fetch(`/hourly-remarks/${id}/update-remark`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ remark })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert("Gagal menyimpan remark");
+                    }
                 });
+            });
 
-                if (allFilled && this.nikInput) {
-                    console.log("✅ Form is valid. Submitting...");
-                    document.getElementById('scanForm').submit();
-                } else {
-                    console.warn("❌ Form not submitted. Missing required fields or NIK.");
-                }
+            function openConfirmModal() {
+                document.getElementById('confirmModal').showModal();
             }
-        };
-    }
-
-        function updateWaktuIndonesia() {
-                const now = new Date();
-                const optionsTanggal = {
-                    timeZone: 'Asia/Jakarta',
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                };
-                const optionsJam = {
-                    timeZone: 'Asia/Jakarta',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit'
-                };
-
-                const tanggal = now.toLocaleDateString('id-ID', optionsTanggal);
-                const jam = now.toLocaleTimeString('id-ID', optionsJam);
-
-                document.getElementById('tanggal-hari-ini').textContent = tanggal;
-                document.getElementById('jam-hari-ini').textContent = jam;
-            }
-
-            setInterval(updateWaktuIndonesia, 1000);
-            updateWaktuIndonesia();
     </script>
 
 </x-app-layout>

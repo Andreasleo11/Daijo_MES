@@ -14,12 +14,14 @@ use App\Models\Production\PRD_MouldingJob;
 use App\Models\Production\PRD_MouldingUserLog;
 use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
+use App\Models\Delivery\SapInventoryFg;
 use App\Models\MouldChangeLog;
 use App\Models\AdjustMachineLog;
 use App\Models\RepairMachineLog;
 use App\Models\SpkMaster;
 use App\Models\OperatorUser;
 use App\Models\User;
+use App\Models\HourlyRemark;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -84,9 +86,9 @@ class DashboardController extends Controller
 
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
-                ->with('masterItem')
+                ->with('masterItem','scannedData')
                 ->get();
-
+        
           
              // Ambil data dari MouldChangeLog sesuai dengan user_id dan tanggal hari ini
             $mouldChangeLogs = MouldChangeLog::where('user_id',  $user->id)
@@ -121,7 +123,7 @@ class DashboardController extends Controller
                     if ($log->created_at && $log->end_time) {
                         $createdAt = Carbon::parse($log->created_at);
                         $endTime = Carbon::parse($log->end_time);
-                        $log->total_pengerjaan = $endTime->diffInMinutes($createdAt); // Hitung selisih waktu dalam menit
+                         $log->total_pengerjaan = $endTime->diffInMinutes($createdAt); // Hitung selisih waktu dalam menit
                     } else {
                         $log->total_pengerjaan = null; // Jika null, beri nilai null
                     }
@@ -142,62 +144,73 @@ class DashboardController extends Controller
 
 
 
+           // Awal proses
             $itemCollections = [];
             $totalQuantities = [];
             $files = [];
-
-            foreach ($datas as $data) {
-                $itemCode = $user->jobs->item_code ?? null;
-
-                $itemCodeAll = $data->item_code;
-
-                
-                if ($itemCode) {
-                    $fileData = File::where('item_code', $itemCodeAll)->get();
-            
-                    // Simpan file per item_code
-                    $files[$itemCodeAll] = $fileData->isEmpty() ? collect() : $fileData;
-                }
-                if (!isset($totalQuantities[$itemCodeAll])) {
-                    $totalQuantities[$itemCodeAll] = 0;
-                }
-                $totalQuantities[$itemCodeAll] += $data->quantity;
+            $itemCode = $user->jobs->item_code ?? null;
+       
+            // Helper untuk menentukan key utama (gabung ke yang lebih kecil atau yang muncul pertama)
+            function getMainItemCode($itemCode, $pairCode) {
+                return $itemCode ?? $pairCode;
             }
-            // dd($files);
-           
-           
 
-           
-            // Step 2: Allocate SPKs just once per item_code
-            foreach ($totalQuantities as $itemCodeAll => $totalQty) {
-                $spkRecords = SpkMaster::where('item_code', $itemCodeAll)->get();
-                $masterItem = MasterListItem::where('item_code', $itemCodeAll)->first();
+            // Kumpulkan total quantity dan file berdasarkan item utama
+            foreach ($datas as $data) {
+                $itemCodeAll = $data->item_code;
+                $pairCode = $data->masterItem->pair ?? null;
+
+                // Tentukan item utama
+                $mainItemCode = getMainItemCode($itemCodeAll, $pairCode);
+                
+                // Total quantity
+                if (!isset($totalQuantities[$mainItemCode])) {
+                    $totalQuantities[$mainItemCode] = 0;
+                }
+                $totalQuantities[$mainItemCode] += $data->quantity;
+
+                // Simpan file
+                $fileData = File::where('item_code', $itemCodeAll)->get();
+                $files[$mainItemCode] = $fileData->isEmpty() ? collect() : $fileData;
+
+                // Jika ada pair, ambil juga file-nya
+                if ($pairCode) {
+                    $fileDataPair = File::where('item_code', $pairCode)->get();
+                    $files[$mainItemCode] = $fileDataPair->isEmpty() ? collect() : $fileDataPair;
+                }
+            }
+
+            // Fungsi bantu untuk alokasi SPK berdasarkan item_code
+            function allocateSPKsForItem($itemCode, $totalQty, &$itemCollections, $mainItemCode)
+            {
+                
+                $datas = SpkMaster::where('item_code', $itemCode)
+                   // atau 'created_at', tergantung nama kolomnya
+                    ->get();
+            
+                $masterItem = MasterListItem::where('item_code', $itemCode)->first();
                 $perpack = $masterItem->standart_packaging_list ?? 1;
-            
+
                 $labelstart = 0;
-            
-                foreach ($spkRecords as $spk) {
+
+                foreach ($datas as $spk) {
                     $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
-                   
+
                     if ($totalQty <= 0) break;
-            
+
                     if ($totalQty <= $available_quantity) {
                         $available_quantity = $totalQty;
                     }
-            
-                    if ($spk->completed_quantity === 0) {
-                        $labelstart = 0;
-                    } else {
-                        $labelstart = ceil($spk->completed_quantity / $perpack);
-                    }
-                   
+
+                    $labelstart = ($spk->completed_quantity === 0) ? 0 : ceil($spk->completed_quantity / $perpack);
+
                     while ($available_quantity > 0) {
                         $labelstart++;
                         $pack_quantity = min($perpack, $available_quantity);
                         $key = $spk->spk_number . '|' . $spk->item_code;
-            
-                        if (!isset($itemCollections[$itemCodeAll][$key])) {
-                            $itemCollections[$itemCodeAll][$key] = [
+
+                        if (!isset($itemCollections[$mainItemCode][$key])) {
+                            $itemCollections[$mainItemCode][$key] = [
                                 'spk' => $spk->spk_number,
                                 'item_code' => $spk->item_code,
                                 'item_perpack' => $perpack,
@@ -208,19 +221,35 @@ class DashboardController extends Controller
                                 'scannedData' => 0,
                             ];
                         }
-            
-                        $itemCollections[$itemCodeAll][$key]['count']++;
-                        $itemCollections[$itemCodeAll][$key]['end_label'] = $labelstart;
-                        $itemCollections[$itemCodeAll][$key]['available_quantity'] += $pack_quantity;
-            
+
+                        $itemCollections[$mainItemCode][$key]['count']++;
+                        $itemCollections[$mainItemCode][$key]['end_label'] = $labelstart;
+                        $itemCollections[$mainItemCode][$key]['available_quantity'] += $pack_quantity;
+
                         $available_quantity -= $pack_quantity;
                         $totalQty -= $pack_quantity;
                     }
                 }
             }
 
-            // Fetch scanned data for all collected SPKs
-            foreach ($itemCollections as $itemCodeall => &$spkList) {
+            // Alokasikan SPK untuk semua item_code, pakai key utama (gabungan)
+            foreach ($datas as $data) {
+                $itemCodeAll = $data->item_code;
+                $pairCode = $data->masterItem->pair ?? null;
+
+                $mainItemCode = getMainItemCode($itemCodeAll, $pairCode);
+
+                // SPK untuk item utama
+                allocateSPKsForItem($itemCodeAll, $data->quantity, $itemCollections, $mainItemCode);
+
+                // SPK untuk pair-nya jika ada (juga masuk ke key utama!)
+                if ($pairCode) {
+                    allocateSPKsForItem($pairCode, $data->quantity, $itemCollections, $mainItemCode);
+                }
+            }
+
+            // Ambil data scanned dan total quantity per SPK
+            foreach ($itemCollections as $mainItemCode => &$spkList) {
                 foreach ($spkList as &$spkData) {
                     $spkData['scannedData'] = ProductionScannedData::where('spk_code', $spkData['spk'])
                         ->where('item_code', $spkData['item_code'])
@@ -228,17 +257,77 @@ class DashboardController extends Controller
 
                     $spkData['totalquantity'] = ProductionScannedData::where('spk_code', $spkData['spk'])
                         ->where('item_code', $spkData['item_code'])
-                        ->sum('quantity'); // Summing the 'quantity' column
+                        ->sum('quantity');
                 }
             }
-           
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile'));
+
+
+            $hourlyRemarksActiveDIC = null;
+            $activeDIC = DailyItemCode::where('user_id', $user->id)
+                ->whereDate('schedule_date', Carbon::today())
+                ->where('item_code', $itemCode)
+                ->with('masterItem','scannedData','masterFg','hourlyRemarks')
+                ->whereNull('is_done')
+                ->first();
+
+            if ($activeDIC) {
+                $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
+                $scannedCount = $activeDIC->scannedData->count();
+                $hourlyRemarksActiveDIC = HourlyRemark::where('dic_id', $activeDIC->id)
+                    ->orderBy('start_time')
+                    ->get();
+                // dd($hourlyRemarksActiveDIC);
+            } else {
+                $totalScannedQuantity = 0;
+                $scannedCount = 0;
+            }
+            // dd($activeDIC);
+            $activeID = $activeDIC?->id;
+
+            $today = Carbon::today();
+            $tomorrow = Carbon::tomorrow();
+            $userId = auth()->id();
+
+            $hourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($today, $tomorrow, $userId) {
+                    $query->where(function ($q) use ($today, $tomorrow) {
+                        $q->whereDate('schedule_date', $today)
+                        ->orWhereDate('schedule_date', $tomorrow);
+                    })
+                    ->where('user_id', $userId); // tambahkan ini untuk memfilter per user
+                })
+                ->where(function ($q) {
+                    $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
+                    ->orWhereBetween('start_time', ['00:00:00', '07:30:00']);
+                })
+                ->orderBy('start_time')
+                ->get();
+       
+            $spkData = ProductionScannedData::where('dic_id', $activeID)
+                ->get();
+            // dd($spkData);
+            // dd($hourlyRemarks);
+            // dd($activeID);
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
             return view('dashboard', compact('user'));
         }
     }
+
+    public function updateRemark(Request $request, $id)
+    {
+        $request->validate([
+            'remark' => 'nullable|string|max:255',
+        ]);
+
+        $remark = HourlyRemark::findOrFail($id);
+        $remark->remark = $request->remark;
+        $remark->save();
+
+        return response()->json(['success' => true]);
+    }
+
 
     // public function updateData()
     // {
@@ -351,7 +440,8 @@ class DashboardController extends Controller
     {
         try {
             // Fetch SPK data for the given item code
-            $datas = SpkMaster::where('item_code', $item_code)->get();
+            $datas = SpkMaster::where('item_code', $item_code) // atau 'created_at', tergantung nama kolomnya
+                ->get();
 
             if ($datas->isEmpty()) {
                 return redirect()->back()->with('error', 'No SPK data found for the given item code.');
@@ -536,40 +626,38 @@ class DashboardController extends Controller
 
     public function procesProductionBarcodes(Request $request)
     {
+        // dd($request->all());
         // Decode the JSON input from the request
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
-      
+        $activeDIC = json_decode($request->input('activedic'));
+        // dd($activeDIC);
         // Retrieve the values from the request 
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
         $warehouse = $request->input('warehouse_auto');
         $label = $request->input('label_auto');
         $user = $request->input('nik') ?? session('verifiedNIK'); // fallback ke session jika tidak dikirim
+        // dd($user);
+        $now = Carbon::now('Asia/Jakarta');
+
+        // PATOKAN JAM DASAR 07:30
+        $base = Carbon::createFromTime(7, 30, 0, 'Asia/Jakarta');
+
+        // Hitung selisih menit dari jam dasar
+        $diffMinutes = $base->diffInMinutes($now);
+
+        // Hitung index slot (setiap 60 menit)
+        $slotIndex = floor($diffMinutes / 60);
+
+        // Tentukan jam slot saat ini
+        $startTime = $base->copy()->addMinutes($slotIndex * 60)->format('H:i:s');
+        $endTime = $base->copy()->addMinutes(($slotIndex + 1) * 60)->format('H:i:s');
+
+        $cycletime = $activeDIC->master_fg->cycle_time * 60;
         
-        $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
-
-        // Restructure the unique data based on item_code
-        $restructureduniquedata = [];
-        foreach ($uniquedata as $itemCode => $spkData) {
-            foreach ($spkData as $key => $data) {
-                $restructureduniquedata[$itemCode][$key] = $data;
-            }
-        }
-
-        // Ambil dic_id berdasarkan item_code yang cocok
-        $dic_id = null;
-        foreach ($datas as $data) {
-            if ($data['item_code'] === $item_code_spk->item_code) {
-                $dic_id = $data['id'];
-                break;
-            }
-        }
-
-        if (!$dic_id) {
-            return redirect()->back()->withErrors(['error' => 'Item code tidak ditemukan atau dic_id tidak cocok.']);
-        }
-
+        $target = ceil(3600 / $cycletime); // Target dalam satuan jam, misalnya 3600 detik = 1 jam
+        // dd($target);
         // Validasi dasar inputan
         $request->validate([
             'spk_code_auto' => 'required|string',
@@ -577,6 +665,17 @@ class DashboardController extends Controller
             'quantity_auto' => 'required|integer',
             'label_auto' => 'required|string',
         ]);
+
+        $dicId = $activeDIC->id;
+
+        // Cek apakah entri sudah ada di slot waktu ini
+        $hourlyRemark = HourlyRemark::where('dic_id', $dicId)
+            ->where('start_time', $startTime)
+            ->where('end_time', $endTime)
+            ->first();
+
+      
+
 
         // Custom validator untuk cek range label
         $validator = Validator::make($request->all(), [
@@ -586,51 +685,9 @@ class DashboardController extends Controller
             'label_auto' => 'required|string',
         ]);
 
-        $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {
-            $spk_code = $request->input('spk_code_auto');
-            $item_code = $item_code_spk->item_code;
-            $label = (int) $request->input('label_auto');
-
-            $foundSPKs = $restructureduniquedata[$item_code] ?? null;
-             
-            if (!$foundSPKs) {
-                $validator->errors()->add('spk_code_auto', 'SPK atau item code tidak ditemukan.');
-            } else {
-                $isValidLabel = false;
-                $validRanges = [];
-
-                foreach ($foundSPKs as $spkData) {
-                    if ($spkData->spk === $spk_code) {
-                        $start_label = (int) $spkData->start_label;
-                        $end_label = (int) $spkData->end_label;
-
-                        $validRanges[] = "$start_label - $end_label";
-
-                        // Cek range dua arah (untuk label terbalik)
-                        if (
-                            ($start_label <= $label && $label <= $end_label) ||
-                            ($end_label <= $label && $label <= $start_label)
-                        ) {
-                            $isValidLabel = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!$isValidLabel) {
-                    $validRangesText = implode(', ', $validRanges);
-                    $validator->errors()->add('label_auto', "Label harus berada dalam rentang valid SPK $spk_code dan item code $item_code. Rentang valid: $validRangesText.");
-                }
-            }
-        });
-
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
-
         // Cek apakah label ini sudah pernah discan
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-            ->where('item_code', $item_code_spk->item_code)
+            ->where('item_code', $activeDIC->item_code)
             ->where('label', $label)
             ->first();
 
@@ -641,20 +698,45 @@ class DashboardController extends Controller
         // Simpan data scan ke database
         ProductionScannedData::create([
             'spk_code' => $spk_code,
-            'dic_id' => $dic_id,
-            'item_code' => $item_code_spk->item_code,
+            'dic_id' => $dicId,
+            'item_code' => $activeDIC->item_code,
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,
             'user' => $user,
         ]);
 
-        // Tambah jumlah produksi ke SPK terkait
-        // $spk = SpkMaster::where('spk_number', $spk_code)->first();
-        // if ($spk) {
-        //     $spk->completed_quantity += $quantity;
-        //     $spk->save();
-        // }
+        // Hitung total actual dari scanned_data untuk slot waktu ini
+        $totalActual = ProductionScannedData::where('dic_id', $dicId)
+            ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= ?", [$startTime])
+            ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) < ?", [$endTime])
+            ->sum('quantity');
+        // dd($totalActual);
+
+        $isAchieve = $totalActual >= $target ? 1 : 0;
+        if ($hourlyRemark) {
+            // Update existing row
+            $hourlyRemark->update([
+                'actual' => $totalActual,
+                'is_achieve' => $isAchieve,
+                'updated_at' => now(),
+            ]);
+        } else {
+            // Insert new row
+            HourlyRemark::create([
+                'dic_id' => $dicId,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'target' => $target,
+                'actual' => $totalActual,
+                'is_achieve' => $isAchieve,
+                'pic' => $user,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+       
 
         return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
@@ -664,24 +746,29 @@ class DashboardController extends Controller
         $all = $request->all(); // atau dd($request->all());
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
-        
+        $dic = json_decode($request->input('activedic'));
+        $dicId = $dic->id;
 
-         // Loop berdasarkan item_code
-        foreach ($uniquedata as $itemCode => $spkItems) {
-            foreach ($spkItems as $key => $data) {
-                $spkNumber = $data->spk;
-                $additionalQty = (int) $data->totalquantity;
+        $spkToUpdate = ProductionScannedData::where('dic_id', $dicId)
+            ->get();
+        // dd($spkToUpdate);
+        // Loop berdasarkan item_code
+        foreach ($spkToUpdate as $scanned) {
+            // spk_code dan quantity dari ProductionScannedData
+            $spkNumber = $scanned->spk_code; // asumsi 'spk_code' ada di tabel ini
+            $additionalQty = (int) $scanned->quantity;
 
-                if ($additionalQty > 0) {
-                    // Cari SPK-nya
-                    $spk = SpkMaster::where('spk_number', $spkNumber)->first();
-                    if ($spk) {
-                        $spk->completed_quantity += $additionalQty;
-                        $spk->save();
-                    }
+            if ($additionalQty > 0) {
+                $spk = SpkMaster::where('spk_number', $spkNumber)->first();
+                if ($spk) {
+                    $spk->completed_quantity += $additionalQty;
+                    $spk->save();
                 }
             }
         }
+
+        // Update status DIC jadi done
+        DailyItemCode::where('id', $dicId)->update(['is_done' => 1]);
 
         return redirect()->back()->with('success', 'SPK quantities updated successfully.');
     }
