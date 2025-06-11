@@ -444,12 +444,19 @@
                   
 
                     <!-- SPK Table Section -->
+                        @php
+                            $pairCode = $activeDIC->masterItem->pair ?? null;
+                            $hasPair = $pairCode !== null && $pairCode !== '0';
+                        @endphp
                     <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
                         <span class="text-xl font-bold">Detail Pekerjaan</span>
                         <table class="w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
                             <thead class="bg-gray-100">
                                 <tr>
                                     <th class="py-2 px-4">Item Code</th>
+                                    @if ($hasPair)
+                                        <th class="py-2 px-4">Pair Code</th>
+                                    @endif
                                     <th class="py-2 px-4">Quantity</th>
                                     <th class="py-2 px-4">Total Box Yang sudah discan</th>
                                     <th class="py-2 px-4">Action</th>
@@ -457,26 +464,50 @@
                             </thead>
                             <tbody>
                            @if ($activeDIC)
-                                <tr class="bg-white text-center">
-                                    <td class="py-2 px-4">{{ $activeDIC['item_code'] }}</td>
-                                    <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] }}</td>
-                                    <td class="py-2 px-4">{{ $scannedCount }}</td>
-                                    <td class="py-2 px-4">
-                                        <div class="flex flex-wrap gap-2">
-                                            <button 
-                                                onclick="document.getElementById('detailModal').showModal()" 
-                                                class="bg-blue-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-blue-600 transition duration-150">
-                                                Detail Remark
-                                            </button>
-                                            <button 
-                                                onclick="document.getElementById('detailDataModal').showModal()" 
-                                                class="bg-green-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-green-600 transition duration-150">
-                                                Detail Data
-                                            </button>
-                                        </div>
-                                    </td>
+                                @if ($hasPair)
+                                    {{-- Jika punya pair, tampilkan versi table khusus --}}
+                                    <tr class="bg-white text-center">
+                                        <td class="py-2 px-4">{{ $activeDIC['item_code'] }} / {{ $pairCode }}</td>
+                                        <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] * 2 }}</td>
+                                        <td class="py-2 px-4">{{ $scannedCount }}</td>
+                                        <td class="py-2 px-4">
+                                            <div class="flex flex-wrap gap-2">
+                                                <button 
+                                                    onclick="document.getElementById('detailModal').showModal()" 
+                                                    class="bg-blue-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-blue-600 transition duration-150">
+                                                    Detail Remark
+                                                </button>
+                                                <button 
+                                                    onclick="document.getElementById('detailDataModal').showModal()" 
+                                                    class="bg-green-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-green-600 transition duration-150">
+                                                    Detail Data
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @else
+                                    {{-- Versi default tanpa pair --}}
+                                    <tr class="bg-white text-center">
+                                        <td class="py-2 px-4">{{ $activeDIC['item_code'] }}</td>
+                                        <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] }}</td>
+                                        <td class="py-2 px-4">{{ $scannedCount }}</td>
+                                        <td class="py-2 px-4">
+                                            <div class="flex flex-wrap gap-2">
+                                                <button 
+                                                    onclick="document.getElementById('detailModal').showModal()" 
+                                                    class="bg-blue-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-blue-600 transition duration-150">
+                                                    Detail Remark
+                                                </button>
+                                                <button 
+                                                    onclick="document.getElementById('detailDataModal').showModal()" 
+                                                    class="bg-green-500 text-white px-4 py-1 rounded-md text-sm shadow hover:bg-green-600 transition duration-150">
+                                                    Detail Data
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
 
-                                </tr>
                             @else
                                 <tr>
                                     <td colspan="4" class="text-center text-gray-500 py-2">No data for selected item code</td>

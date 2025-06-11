@@ -12,11 +12,12 @@ use App\Models\MachineJob;
 use App\Models\OperatorUser;
 use App\Models\DailyItemCode;
 use App\Models\MouldChangeLog;
-use App\Models\AdjustMachineLog; // Make sure the model is imported
+use App\Models\AdjustMachineLog;
 use App\Models\MasterZone;
 use App\Models\ZoneLog;
 use App\Models\ZonePengawas;
 use App\Models\RepairMachineLog;
+use App\Models\HourlyRemark;
 use Carbon\Carbon;
 
 class ProductionDashboardController extends Controller
@@ -30,12 +31,12 @@ class ProductionDashboardController extends Controller
         $machineJobs = MachineJob::with([
             'user',
             'dailyItemCode' => function ($query) use ($selectedDate) {
-                $query->where('schedule_date', $selectedDate)->with(['scannedData']);
+                $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks']);
             },
             'mouldChangeLogs' => function ($query) use ($selectedDate) {
                 $query->whereDate('created_at', $selectedDate);
             },
-            'adjustMachineLogs' => function ($query) use ($selectedDate) { // 🔹 New Relation
+            'adjustMachineLogs' => function ($query) use ($selectedDate) {
                 $query->whereDate('created_at', $selectedDate);
             }
         ])
@@ -47,7 +48,6 @@ class ProductionDashboardController extends Controller
         ->get();
 
         $structuredData = [];
-
 
         foreach ($machineJobs as $machineJob) {
             $userName = $machineJob->user->name ?? 'Unknown User';
@@ -81,8 +81,6 @@ class ProductionDashboardController extends Controller
                 ];
             }
 
-          
-          
             if (!isset($structuredData[$userName])) {
                 $structuredData[$userName] = [
                     'pengawas' => $pengawas,
@@ -90,7 +88,8 @@ class ProductionDashboardController extends Controller
                     'adjust_machine_logs' => [],
                     'repair_machine_logs' => [], 
                     'daily_item_code' => [],
-                    'hourly_production' => []
+                    'hourly_production' => [],
+                    'hourly_remarks' => [] // 🔹 Add hourly_remarks array
                 ];
             }
 
@@ -101,11 +100,10 @@ class ProductionDashboardController extends Controller
                 $endTime = Carbon::parse($mouldChange->end_time);
                 $actualTime = $startTime->diffInMinutes($endTime);
 
-                // 🔹 Fetch operator user details (for `pic`)
                 $operatorUser = OperatorUser::where('name', $mouldChange->pic)->first();
                 $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                     ? asset('storage/' . $operatorUser->profile_picture) 
-                    : asset('images/default_profile.jpg'); // Default profile image
+                    : asset('images/default_profile.jpg');
 
                 $structuredData[$userName]['mould_change_log'][] = [
                     'id' => $mouldChange->id,
@@ -116,14 +114,14 @@ class ProductionDashboardController extends Controller
                     'predicted_time' => $setupTimeMinute,
                     'actual_time' => $actualTime,
                     'pic' => $mouldChange->pic,
-                    'pic_profile_path' => $operatorProfilePath, // 🔹 Added profile picture
+                    'pic_profile_path' => $operatorProfilePath,
                     'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
                 ];
             }
 
-
+            // Process adjust machine logs
             foreach ($machineJob->adjustMachineLogs as $adjustLog) {
-                $setupTimeMinute = $mouldChange->masterListItem->setup_time_minute ?? 0;
+                $setupTimeMinute = $adjustLog->masterListItem->setup_time_minute ?? 0;
                 $startTime = Carbon::parse($adjustLog->created_at);
                 $endTime = Carbon::parse($adjustLog->end_time);
                 $actualTime = $startTime->diffInMinutes($endTime);
@@ -131,7 +129,8 @@ class ProductionDashboardController extends Controller
                 $operatorUser = OperatorUser::where('name', $adjustLog->pic)->first();
                 $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                     ? asset('storage/' . $operatorUser->profile_picture) 
-                    : asset('images/default_profile.jpg'); // Default profile image
+                    : asset('images/default_profile.jpg');
+                
                 $structuredData[$userName]['adjust_machine_logs'][] = [
                     'id' => $adjustLog->id,
                     'machine_name' => $adjustLog->user->name,
@@ -143,22 +142,19 @@ class ProductionDashboardController extends Controller
                     'pic' => $adjustLog->pic,
                     'pic_profile_path' => $operatorProfilePath,
                     'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
-                    'start_time' => Carbon::parse($adjustLog->created_at)->format('Y-m-d H:i:s'),
-                    'end_time' => Carbon::parse($adjustLog->end_time)->format('Y-m-d H:i:s'),
                 ];
             }
 
-             // Process repair machine logs
+            // Process repair machine logs
             foreach ($machineJob->repairMachineLogs as $repairLog) {
                 $startTime = Carbon::parse($repairLog->created_at);
                 $endTime = Carbon::parse($repairLog->finish_repair);
                 $actualTime = $startTime->diffInMinutes($endTime);
 
-                // Fetch operator user details (for `pic`)
                 $operatorUser = OperatorUser::where('name', $repairLog->pic)->first();
                 $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                     ? asset('storage/' . $operatorUser->profile_picture) 
-                    : asset('images/default_profile.jpg'); // Default profile image
+                    : asset('images/default_profile.jpg');
 
                 $structuredData[$userName]['repair_machine_logs'][] = [
                     'id' => $repairLog->id,
@@ -169,17 +165,17 @@ class ProductionDashboardController extends Controller
                     'remark' => $repairLog->remark,
                     'actual_time' => $actualTime,
                     'pic' => $repairLog->pic,
-                    'pic_profile_path' => $operatorProfilePath, // Added profile picture
-                    'status' => ($actualTime > 30) ? 'problem' : 'safe', // Example condition for problem
+                    'pic_profile_path' => $operatorProfilePath,
+                    'status' => ($actualTime > 30) ? 'problem' : 'safe',
                 ];
             }
+
 
 
             // Process daily item codes
             foreach ($machineJob->dailyItemCode as $dailyItem) {
                 $totalScannedQuantity = collect($dailyItem->scannedData)->sum('quantity');
 
-                
                 $cycleTime = sapInventoryFg::where('item_code', $dailyItem->item_code)->value('cycle_time');
                 $cycleTimeInSeconds = $cycleTime ? $cycleTime * 60 : null;
 
@@ -207,27 +203,26 @@ class ProductionDashboardController extends Controller
                     $hour = Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('H:00');
                     $scanUser = $scan->user ?? 'Unknown';
                 
-                    // 🔹 Fetch profile picture of scanned user
                     $scannedUser = OperatorUser::where('name', $scanUser)->first();
                     $scannedUserProfilePath = $scannedUser && $scannedUser->profile_picture 
                         ? asset('storage/' . $scannedUser->profile_picture) 
                         : asset('images/default_profile.jpg');
                 
-                        $itemCode = $dailyItem->item_code;
+                    $itemCode = $dailyItem->item_code;
 
-                        if (!isset($hourlyProduction[$hour])) {
-                            $hourlyProduction[$hour] = [];
-                        }
-                        if (!isset($hourlyProduction[$hour][$itemCode])) {
-                            $hourlyProduction[$hour][$itemCode] = [];
-                        }
-                        if (!isset($hourlyProduction[$hour][$itemCode][$scanUser])) {
-                            $hourlyProduction[$hour][$itemCode][$scanUser] = [
-                                'quantity' => 0,
-                                'user_profile_path' => $scannedUserProfilePath
-                            ];
-                        }
-                        $hourlyProduction[$hour][$itemCode][$scanUser]['quantity'] += $scan->quantity;
+                    if (!isset($hourlyProduction[$hour])) {
+                        $hourlyProduction[$hour] = [];
+                    }
+                    if (!isset($hourlyProduction[$hour][$itemCode])) {
+                        $hourlyProduction[$hour][$itemCode] = [];
+                    }
+                    if (!isset($hourlyProduction[$hour][$itemCode][$scanUser])) {
+                        $hourlyProduction[$hour][$itemCode][$scanUser] = [
+                            'quantity' => 0,
+                            'user_profile_path' => $scannedUserProfilePath
+                        ];
+                    }
+                    $hourlyProduction[$hour][$itemCode][$scanUser]['quantity'] += $scan->quantity;
                 
                     $formattedDailyItem['scanned_data'][] = [
                         'id' => $scan->id,
@@ -236,7 +231,7 @@ class ProductionDashboardController extends Controller
                         'quantity' => $scan->quantity,
                         'label' => $scan->label,
                         'user' => $scanUser,
-                        'user_profile_path' => $scannedUserProfilePath, // 🔹 Added profile picture
+                        'user_profile_path' => $scannedUserProfilePath,
                         'scanned_at' => Carbon::parse($scan->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
                     ];
                 }
@@ -251,19 +246,60 @@ class ProductionDashboardController extends Controller
                     }
                 }
                 
+                // Process hourly remarks for this daily item
+                foreach ($dailyItem->hourlyRemarks as $hourlyRemark) {
+                    $operatorUser = OperatorUser::where('name', $hourlyRemark->pic)->first();
+                    $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
+                        ? asset('storage/' . $operatorUser->profile_picture) 
+                        : asset('images/default_profile.jpg');
+
+                    // Calculate achievement percentage
+                    $achievementPercentage = 0;
+                    if ($hourlyRemark->target > 0) {
+                        $achievementPercentage = round(($hourlyRemark->actual / $hourlyRemark->target) * 100, 2);
+                    }
+
+                    // Determine status based on achievement
+                    $status = 'normal';
+                    if ($achievementPercentage >= 100) {
+                        $status = 'achieved';
+                    } elseif ($achievementPercentage >= 80) {
+                        $status = 'warning';
+                    } else {
+                        $status = 'Not Achieved';
+                    }
+
+                    $structuredData[$userName]['hourly_remarks'][] = [
+                        'id' => $hourlyRemark->id,
+                        'machine_name' => $userName,
+                        'dic_id' => $dailyItem->id,
+                        'item_code' => $dailyItem->item_code,
+                        'start_time' => Carbon::parse($hourlyRemark->start_time)->format('H:i'),
+                        'end_time' => Carbon::parse($hourlyRemark->end_time)->format('H:i'),
+                        'time_range' => Carbon::parse($hourlyRemark->start_time)->format('H:i') . ' - ' . Carbon::parse($hourlyRemark->end_time)->format('H:i'),
+                        'target' => $hourlyRemark->target,
+                        'actual' => $hourlyRemark->actual,
+                        'achievement_percentage' => $achievementPercentage,
+                        'remark' => $hourlyRemark->remark ?: '-',
+                        'is_achieve' => $hourlyRemark->is_achieve,
+                        'status' => $status,
+                        'shift' => $dailyItem->shift,
+                        'pic' => $hourlyRemark->pic,
+                        'pic_profile_path' => $operatorProfilePath,
+                        'created_at' => Carbon::parse($hourlyRemark->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+                        'updated_at' => Carbon::parse($hourlyRemark->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+                    ];
+                }
+
                 $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
             }
         }
 
-        // dd($structuredData); // Debug output
-
         $machines = User::distinct()
             ->whereIn('id', MachineJob::pluck('user_id'))
             ->pluck('name', 'id');
+            
         // dd($structuredData);
         return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate'));
     }
-
-    
-
 }

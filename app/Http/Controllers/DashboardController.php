@@ -306,7 +306,7 @@ class DashboardController extends Controller
                 ->get();
             // dd($spkData);
             // dd($hourlyRemarks);
-            // dd($activeID);
+            // dd($activeDIC);
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
@@ -365,15 +365,15 @@ class DashboardController extends Controller
         $itemCode = $request->input('item_code');
 
         // Find the DailyItemCode records for the user
-        $verified_data = DailyItemCode::where('user_id', $user->id)->get();
-
+        $verified_data = DailyItemCode::where('user_id', $user->id)->whereNull('is_done')->get();
+        
         // Check if the item code exists for the user
         $itemCodeExists = $verified_data->contains('item_code', $itemCode);
 
         if ($itemCodeExists) {
             // Retrieve the specific DailyItemCode for the item code
-            $dailyItemCode = DailyItemCode::where('item_code', $itemCode)->first();
-
+            $dailyItemCode = DailyItemCode::where('item_code', $itemCode)->whereNull('is_done')->first();
+            
             // Get the current time
             $currentTime = now();
 
@@ -631,7 +631,7 @@ class DashboardController extends Controller
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $activeDIC = json_decode($request->input('activedic'));
-        // dd($activeDIC);
+      
         // Retrieve the values from the request 
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
@@ -695,11 +695,13 @@ class DashboardController extends Controller
             return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
         }
 
+        $trueItemcode = SpkMaster::where('spk_number', $spk_code)->first()?->item_code ?? $activeDIC->item_code;
+
         // Simpan data scan ke database
         ProductionScannedData::create([
             'spk_code' => $spk_code,
             'dic_id' => $dicId,
-            'item_code' => $activeDIC->item_code,
+            'item_code' => $trueItemcode->item_code,
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,
