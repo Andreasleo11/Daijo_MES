@@ -5,10 +5,22 @@
     <input wire:model.live="search" type="text" placeholder="Search by item code or file name..."
             class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
-    <button wire:click="toggleShowOnlyNoFiles"
+    <!-- <button wire:click="toggleShowOnlyNoFiles"
         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
         {{ $this->showOnlyNoFiles ? 'Tampilkan Semua' : 'Tampilkan yang Belum Upload File' }}
-    </button>
+    </button> -->
+
+    <div class="flex space-x-2 mb-4">
+        <button wire:click="toggleShowOnlyNoFiles"
+            class="px-3 py-1 {{ $showOnlyNoFiles ? 'bg-blue-600 text-white' : 'bg-gray-300' }}">
+            Tampilkan Item Hari Ini Tanpa File
+        </button>
+
+        <button wire:click="toggleShowAllNoFiles"
+            class="px-3 py-1 {{ $showAllNoFiles ? 'bg-green-600 text-white' : 'bg-gray-300' }}">
+            Tampilkan Semua Item Tanpa File
+        </button>
+    </div>
 </div>
     <!-- Search Results Table -->
     <div class="overflow-x-auto shadow-lg rounded-lg">

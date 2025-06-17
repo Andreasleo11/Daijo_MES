@@ -696,12 +696,13 @@ class DashboardController extends Controller
         }
 
         $trueItemcode = SpkMaster::where('spk_number', $spk_code)->first()?->item_code ?? $activeDIC->item_code;
+        // dd($trueItemcode);
 
         // Simpan data scan ke database
         ProductionScannedData::create([
             'spk_code' => $spk_code,
             'dic_id' => $dicId,
-            'item_code' => $trueItemcode->item_code,
+            'item_code' => $trueItemcode,
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,

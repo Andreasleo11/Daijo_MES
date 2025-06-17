@@ -247,7 +247,7 @@ class ProductionDashboardController extends Controller
                 }
                 
                 // Process hourly remarks for this daily item
-                foreach ($dailyItem->hourlyRemarks as $hourlyRemark) {
+                foreach ($dailyItem->hourlyRemarks->sortBy('created_at') as $hourlyRemark) {
                     $operatorUser = OperatorUser::where('name', $hourlyRemark->pic)->first();
                     $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                         ? asset('storage/' . $operatorUser->profile_picture) 

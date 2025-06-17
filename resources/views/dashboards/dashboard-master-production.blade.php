@@ -220,7 +220,6 @@
                                                 <th class="border px-4 py-2">Shift</th>
                                                 <th class="border px-4 py-2">Target</th>
                                                 <th class="border px-4 py-2">Actual</th>
-                                                <th class="border px-4 py-2">Achievement %</th>
                                                 <th class="border px-4 py-2">Status</th>
                                                 <th class="border px-4 py-2">Remark</th>
                                             </tr>
@@ -240,9 +239,6 @@
                                                     <td class="border px-4 py-2 text-center">{{ $remark['shift'] }}</td>
                                                     <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
                                                     <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
-                                                    <td class="border px-4 py-2 text-center font-bold">
-                                                        {{ number_format($remark['achievement_percentage'], 2) }}%
-                                                    </td>
                                                     <td class="border px-4 py-2 text-center">
                                                         <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
                                                             {{ ucfirst($remark['status']) }}
