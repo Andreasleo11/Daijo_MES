@@ -679,12 +679,23 @@ class DashboardController extends Controller
 
         // Custom validator untuk cek range label
         $validator = Validator::make($request->all(), [
-            'spk_code_auto' => 'required|string',
+            'spk_code_auto' => [
+                'required',
+                'string',
+                'regex:/^\d{8}$/', // Hanya 8 digit angka
+            ],
             'warehouse_auto' => 'required|string',
             'quantity_auto' => 'required|integer',
             'label_auto' => 'required|string',
+        ], [
+            'spk_code_auto.regex' => 'Kode SPK harus terdiri dari tepat 8 angka.',
         ]);
-
+        
+        if ($validator->fails()) {
+            // dd($validator->errors());
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+        
         // Cek apakah label ini sudah pernah discan
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
             ->where('item_code', $activeDIC->item_code)
