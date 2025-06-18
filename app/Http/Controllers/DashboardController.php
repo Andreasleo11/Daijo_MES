@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\ParentDataUpdated;
 use App\Models\DailyItemCode;
+use Illuminate\Support\Facades\DB;
 use App\Models\File;
 use App\Models\MachineJob;
 use App\Models\MasterListItem;
@@ -698,7 +699,6 @@ class DashboardController extends Controller
         
         // Cek apakah label ini sudah pernah discan
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-            ->where('item_code', $activeDIC->item_code)
             ->where('label', $label)
             ->first();
 
@@ -1401,6 +1401,50 @@ class DashboardController extends Controller
 
         // Redirect to dashboard
         return redirect()->route('dashboard');
+    }
+
+    public function deleteScanData($id)
+    {
+        $scan = ProductionScannedData::find($id);
+        if (!$scan) {
+            return back()->with('error', 'Data scan tidak ditemukan');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Ambil informasi dasar
+            $dicId = $scan->dic_id;
+            $scanTime = Carbon::parse($scan->created_at)->timezone('Asia/Jakarta');
+            $scanHour = $scanTime->format('H:i:s');
+            $userId = $scan->user;
+        
+
+            // Cari entri hourly yang cocok
+            $hourly = HourlyRemark::where('dic_id', $dicId)
+                ->where('pic', $userId)
+                ->where('start_time', '<=',  $scanHour)
+                ->where('end_time', '>',  $scanHour)
+                ->first();
+            
+            if ($hourly) {
+                $hourly->actual = max(0, $hourly->actual - $scan->quantity); // hindari negatif
+                // Update is_achieve jika perlu
+                if ($hourly->actual < $hourly->target) {
+                    $hourly->is_achieve = 0;
+                }
+                $hourly->save();
+            }
+
+            $scan->delete();
+
+            DB::commit();
+
+            return back()->with('success', 'Scan berhasil dihapus dan actual diperbarui');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+        }
     }
 
 

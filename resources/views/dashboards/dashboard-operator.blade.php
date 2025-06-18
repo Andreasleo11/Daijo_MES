@@ -531,6 +531,7 @@
                                             <th class="border border-gray-300 px-3 py-2">Label</th>
                                             <th class="border border-gray-300 px-3 py-2">User</th>
                                             <th class="border border-gray-300 px-3 py-2">Created At</th>
+                                            <th class="border border-gray-300 px-3 py-2">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -545,6 +546,15 @@
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->label }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->user }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}</td>
+                                                <td>
+                                                <form method="POST" action="{{ route('spk-scan.destroy', $scan->id) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" onclick="return confirm('Yakin ingin hapus scan ini?')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr><td colspan="9" class="text-center py-4">Tidak ada data scan.</td></tr>

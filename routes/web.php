@@ -115,6 +115,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/verify-nik-password', [DashboardController::class, 'verifyNIKPassword'])->name('verify.nik.password');
     Route::post('/verify-nik-mould-change', [DashboardController::class, 'verifyNik'])->name('verify.nik');
     Route::post('/hourly-remarks/{id}/update-remark', [DashboardController::class, 'updateRemark']);
+    Route::delete('/spk-scan/{id}', [DashboardController::class, 'deleteScanData'])->name('spk-scan.destroy');
 
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
