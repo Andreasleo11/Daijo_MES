@@ -270,6 +270,15 @@ class DashboardController extends Controller
                 ->with('masterItem','scannedData','masterFg','hourlyRemarks')
                 ->whereNull('is_done')
                 ->first();
+            if (!$activeDIC) {
+                    // Kalau null, cari lagi tanpa filter tanggal
+                $activeDIC = DailyItemCode::where('user_id', $user->id)
+                    ->where('item_code', $itemCode)
+                    ->with(['masterItem','scannedData','masterFg','hourlyRemarks'])
+                    ->whereNull('is_done')
+                    ->first();
+                // dd($activeDIC);
+            }
 
             if ($activeDIC) {
                 $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
@@ -308,6 +317,8 @@ class DashboardController extends Controller
             // dd($spkData);
             // dd($hourlyRemarks);
             // dd($activeDIC);
+            
+
             return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
@@ -627,38 +638,32 @@ class DashboardController extends Controller
 
     public function procesProductionBarcodes(Request $request)
     {
-        // dd($request->all());
-        // Decode the JSON input from the request
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $activeDIC = json_decode($request->input('activedic'));
-      
-        // Retrieve the values from the request 
+
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
         $warehouse = $request->input('warehouse_auto');
         $label = $request->input('label_auto');
-        $user = $request->input('nik') ?? session('verifiedNIK'); // fallback ke session jika tidak dikirim
-        // dd($user);
+        $user = $request->input('nik') ?? session('verifiedNIK');
         $now = Carbon::now('Asia/Jakarta');
 
-        // PATOKAN JAM DASAR 07:30
-        $base = Carbon::createFromTime(7, 30, 0, 'Asia/Jakarta');
+        // ✅ Perbaikan logika slot waktu
+        if ($now->lt(Carbon::createFromTime(7, 30, 0, 'Asia/Jakarta'))) {
+            $base = Carbon::yesterday('Asia/Jakarta')->setTime(7, 30, 0);
+        } else {
+            $base = Carbon::today('Asia/Jakarta')->setTime(7, 30, 0);
+        }
 
-        // Hitung selisih menit dari jam dasar
         $diffMinutes = $base->diffInMinutes($now);
-
-        // Hitung index slot (setiap 60 menit)
         $slotIndex = floor($diffMinutes / 60);
-
-        // Tentukan jam slot saat ini
         $startTime = $base->copy()->addMinutes($slotIndex * 60)->format('H:i:s');
         $endTime = $base->copy()->addMinutes(($slotIndex + 1) * 60)->format('H:i:s');
 
         $cycletime = $activeDIC->master_fg->cycle_time * 60;
-        
-        $target = ceil(3600 / $cycletime); // Target dalam satuan jam, misalnya 3600 detik = 1 jam
-        // dd($target);
+        $target = ceil(3600 / $cycletime);
+
         // Validasi dasar inputan
         $request->validate([
             'spk_code_auto' => 'required|string',
@@ -669,35 +674,11 @@ class DashboardController extends Controller
 
         $dicId = $activeDIC->id;
 
-        // Cek apakah entri sudah ada di slot waktu ini
         $hourlyRemark = HourlyRemark::where('dic_id', $dicId)
             ->where('start_time', $startTime)
             ->where('end_time', $endTime)
             ->first();
 
-      
-
-
-        // Custom validator untuk cek range label
-        $validator = Validator::make($request->all(), [
-            'spk_code_auto' => [
-                'required',
-                'string',
-                'regex:/^\d{8}$/', // Hanya 8 digit angka
-            ],
-            'warehouse_auto' => 'required|string',
-            'quantity_auto' => 'required|integer',
-            'label_auto' => 'required|string',
-        ], [
-            'spk_code_auto.regex' => 'Kode SPK harus terdiri dari tepat 8 angka.',
-        ]);
-        
-        if ($validator->fails()) {
-            // dd($validator->errors());
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
-        
-        // Cek apakah label ini sudah pernah discan
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
             ->where('label', $label)
             ->first();
@@ -707,9 +688,7 @@ class DashboardController extends Controller
         }
 
         $trueItemcode = SpkMaster::where('spk_number', $spk_code)->first()?->item_code ?? $activeDIC->item_code;
-        // dd($trueItemcode);
 
-        // Simpan data scan ke database
         ProductionScannedData::create([
             'spk_code' => $spk_code,
             'dic_id' => $dicId,
@@ -720,23 +699,20 @@ class DashboardController extends Controller
             'user' => $user,
         ]);
 
-        // Hitung total actual dari scanned_data untuk slot waktu ini
         $totalActual = ProductionScannedData::where('dic_id', $dicId)
             ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= ?", [$startTime])
             ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) < ?", [$endTime])
             ->sum('quantity');
-        // dd($totalActual);
 
         $isAchieve = $totalActual >= $target ? 1 : 0;
+
         if ($hourlyRemark) {
-            // Update existing row
             $hourlyRemark->update([
                 'actual' => $totalActual,
                 'is_achieve' => $isAchieve,
                 'updated_at' => now(),
             ]);
         } else {
-            // Insert new row
             HourlyRemark::create([
                 'dic_id' => $dicId,
                 'start_time' => $startTime,
@@ -749,8 +725,6 @@ class DashboardController extends Controller
                 'updated_at' => now(),
             ]);
         }
-
-       
 
         return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
@@ -1089,11 +1063,11 @@ class DashboardController extends Controller
         
         // Get all item_codes for today, ordered by shift or time
         $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('start_date', $today) // Match today's records
+            ->whereDate('schedule_date', $today) // Match today's records
             ->orderBy('start_time', 'asc') // Order by shift timing
             ->pluck('item_code')
             ->toArray(); // Convert to an array for easier processing
-
+        
      
 
         // Find the next item_code in sequence
@@ -1102,7 +1076,12 @@ class DashboardController extends Controller
 
         if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
             $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
-        } else {
+        }
+        else if($currentIndex === false) 
+        {
+        $nextItemCode = $dailyItems[1]; 
+        }
+        else {
             // Special case: Find the first item_code of the next day
             $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
             $nextDayItem = DailyItemCode::where('user_id', $userId)->whereDate('start_date', $nextDay)->orderBy('start_time', 'asc')->value('item_code'); // Get the first record of the next day
@@ -1162,6 +1141,10 @@ class DashboardController extends Controller
 
         if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
             $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
+        }
+        else if($currentIndex === false) 
+        {
+        $nextItemCode = $dailyItems[1]; 
         } else {
             // Special case: Find the first item_code of the next day
             $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date

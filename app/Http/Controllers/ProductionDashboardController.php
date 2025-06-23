@@ -116,6 +116,7 @@ class ProductionDashboardController extends Controller
                     'pic' => $mouldChange->pic,
                     'pic_profile_path' => $operatorProfilePath,
                     'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
+                    'remark' => $mouldChange->remark,
                 ];
             }
 
@@ -142,6 +143,7 @@ class ProductionDashboardController extends Controller
                     'pic' => $adjustLog->pic,
                     'pic_profile_path' => $operatorProfilePath,
                     'status' => ($actualTime > $setupTimeMinute) ? 'problem' : 'safe',
+                    'remark' => $adjustLog->remark,
                 ];
             }
 
@@ -150,7 +152,7 @@ class ProductionDashboardController extends Controller
                 $startTime = Carbon::parse($repairLog->created_at);
                 $endTime = Carbon::parse($repairLog->finish_repair);
                 $actualTime = $startTime->diffInMinutes($endTime);
-
+                // dd($startTime);
                 $operatorUser = OperatorUser::where('name', $repairLog->pic)->first();
                 $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                     ? asset('storage/' . $operatorUser->profile_picture) 
@@ -227,6 +229,7 @@ class ProductionDashboardController extends Controller
                     $formattedDailyItem['scanned_data'][] = [
                         'id' => $scan->id,
                         'spk_code' => $scan->spk_code,
+                        'item_code' => $scan->item_code,
                         'warehouse' => $scan->warehouse,
                         'quantity' => $scan->quantity,
                         'label' => $scan->label,
@@ -263,8 +266,6 @@ class ProductionDashboardController extends Controller
                     $status = 'normal';
                     if ($achievementPercentage >= 100) {
                         $status = 'achieved';
-                    } elseif ($achievementPercentage >= 80) {
-                        $status = 'warning';
                     } else {
                         $status = 'Not Achieved';
                     }

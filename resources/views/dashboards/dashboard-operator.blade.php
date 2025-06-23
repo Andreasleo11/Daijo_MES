@@ -672,7 +672,7 @@
                 <div class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
                     <h3 class="text-xl font-bold">Scan Barcode</h3>
                     <form id="scanForm" action="{{ route('process.productionbarcode') }}" method="POST"
-                        class="space-y-3" x-data="autoSubmitForm()">
+                        class="space-y-3" x-data="autoSubmitForm()" >
                         @csrf
                         <input type="hidden" id="uniqueData" name="uniqueData"
                             value="{{ json_encode($itemCollections) }}" />
@@ -680,6 +680,7 @@
                         <input type="hidden" id="activedic" name="activedic" value="{{ $activeDIC }}" />
                         <input type="hidden" id="nik" name="nik" x-model="nikInput" />
 
+        
                         <!-- Grid Layout for 2 Columns -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -718,7 +719,7 @@
 
                 <div x-data="{ showLossScan: false }" class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
                     <!-- Toggle Button -->
-                    <button type="button" @click="showLossScan = !showLossScan"
+                    <!-- <button type="button" @click="showLossScan = !showLossScan"
                         class="text-xl font-bold flex items-center justify-between w-full text-left focus:outline-none">
                         Scan Barcode (Loss Package)
                         <svg :class="{'rotate-180': showLossScan}" class="h-5 w-5 transform transition-transform duration-200 ml-2"
@@ -726,10 +727,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M19 9l-7 7-7-7" />
                         </svg>
-                    </button>
+                    </button> -->
 
                     <!-- Hidden Form -->
-                    <div x-show="showLossScan" x-transition class="mt-4 space-y-3">
+                    <!-- <div x-show="showLossScan" x-transition class="mt-4 space-y-3">
                         <form id="scanForm" action="{{ route('process.productionbarcodeloss') }}" method="POST" x-data="autoSubmitForm()">
                             @csrf
                             <input type="hidden" id="uniqueData" name="uniqueData" value="{{ json_encode($itemCollections) }}" />
@@ -771,7 +772,7 @@
                                 Scan
                             </button>
                         </form>
-                    </div>
+                    </div> -->
                 </div>
 
                   <table class="w-full border border-gray-200 text-sm mt-6">
@@ -1304,7 +1305,7 @@
 
                     if (allFilled && this.nikInput) {
                         console.log("✅ Form is valid. Submitting...");
-                        document.getElementById('scanForm').submit();
+                        
                     } else {
                         console.warn("❌ Form not submitted. Missing required fields or NIK.");
                     }

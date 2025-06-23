@@ -189,6 +189,9 @@ class DailyItemCodeController extends Controller
                 // Fetch SPK and Master Item Data
                 $datas = SpkMaster::where('item_code', $itemCode)->get();
                 $master = MasterListItem::where('item_code', $itemCode)->first();
+                if ($master && $master->pair !== null) {
+                    $quantity *= 2;
+                }
                 $stanpack = $master->standart_packaging_list;
 
                 // Calculate the total planned and completed quantities
@@ -220,6 +223,8 @@ class DailyItemCodeController extends Controller
                     // Adjust the current quantity
                     $adjustedQuantity = $quantity - $previousDailyItemCode->loss_package_quantity;
                 }
+
+
 
                 // Store the new DailyItemCode entry
                 DailyItemCode::create([

@@ -75,9 +75,25 @@
                             <!-- <h3 class="text-2xl font-bold text-gray-700">{{ $userName }}</h3> -->
 
 
-                             <!-- Repair Machine Logs -->
-              <!-- Repair Machine Logs -->
-                    @if(count($data['repair_machine_logs']) > 0)
+                        <!-- Repair Machine Logs -->
+                     
+                        @php
+                            $selectedDate = request('date', now()->toDateString());
+                            $selectedMonth = \Carbon\Carbon::parse($selectedDate)->format('Y-m');
+                            $selectedMachine = request('machine_name');
+
+                            $allLogs = $data['repair_machine_logs'] ?? [];
+                            
+
+                            // Filter berdasarkan bulan dan mesin
+                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedMonth, $selectedMachine) {
+                                return \Carbon\Carbon::parse($log['start_time'])->format('Y-m') === $selectedMonth
+                                    && (!$selectedMachine || $log['machine_name'] === $selectedMachine);
+                            });
+                           
+                        @endphp
+                    <!-- Repair Machine Logs -->
+                    @if(isset($filteredRepairLogs) && count($filteredRepairLogs) > 0)
                     <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
                         <div class="overflow-x-auto">
                             <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow">
@@ -93,7 +109,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($data['repair_machine_logs'] as $repairLog)
+                                    @foreach ($filteredRepairLogs as $repairLog)
                                         <tr class="border-t">
                                             <td class="px-4 py-2 flex items-center space-x-3">
                                                 <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-10 h-10 rounded-full border">
@@ -145,10 +161,10 @@
                                                     <th class="border px-4 py-2">Predicted Time (min)</th>
                                                     <th class="border px-4 py-2">Actual Time (min)</th>
                                                     <th class="border px-4 py-2">PIC</th>
-                                                    <th class="border px-4 py-2">Photo</th>
                                                     <th class="border px-4 py-2">Status</th>
+                                                    <th class="border px-4 py-2">Remark</th>
                                                     <th class="border px-4 py-2">Type</th>
-                                                    <th class="border px-4 py-2">Action</th>
+                                                    <th class="border px-4 py-2">Foto</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -170,19 +186,14 @@
                                                         <td class="border px-4 py-2">{{ $log['predicted_time'] }} Min</td>
                                                         <td class="border px-4 py-2">{{ $log['actual_time'] }} Min</td>
                                                         <td class="border px-4 py-2">{{ $log['pic'] }}</td>
-                                                        <td class="border px-4 py-2">
-                                                            <img src="{{ $log['pic_profile_path'] ?? '/images/default-placeholder.png' }}" 
-                                                                alt="Log Image" 
-                                                                class="w-16 h-16 rounded-lg">
-                                                        </td>
+                                                        <td class="border px-4 py-2">{{ $log['remark'] }}</td>
                                                         <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status'] ?? 'N/A') }}</td>
                                                         <td class="border px-4 py-2 font-bold">
                                                             {{ in_array($log, $data['mould_change_log'], true) ? 'Mould Change' : 'Adjusting Machine' }}
                                                         </td>
-                                                        <td class="border px-4 py-2 text-center">
-                                                            <button class="show-photo bg-blue-500 text-white px-3 py-1 rounded" data-photo="{{ $log['pic_profile_path'] }}">
-                                                                Show Photo
-                                                            </button>
+                                                        <td class="border px-4 py-2 flex items-center gap-2">
+                                                            <img src="{{ asset($log['pic_profile_path']) }}" alt="{{ $log['pic'] }}" class="w-8 h-8 rounded-full object-cover">
+                                                        
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -380,37 +391,44 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @php
-                                                $spkSummary = []; // Store accumulated quantity per item_code and spk_code
-                                                $spkDetails = []; // Store details per item_code and spk_code
-                                            @endphp
+                                        @php
+                                            $spkSummary = []; // Store accumulated quantity per item_code and spk_code
+                                            $spkDetails = []; // Store details per item_code and spk_code
+                                        @endphp
 
-                                            @foreach ($data['daily_item_code'] as $dailyItem)
-                                                @foreach ($dailyItem['scanned_data'] as $scan)
-                                                    @php
-                                                        $spkKey = $dailyItem['item_code'] . '-' . $scan['spk_code']; // Unique key (Item Code + SPK Code)
-                                                        
-                                                        if (!isset($spkSummary[$spkKey])) {
-                                                            $spkSummary[$spkKey] = [
-                                                                'item_code' => $dailyItem['item_code'],
-                                                                'spk_code' => $scan['spk_code'],
-                                                                'accumulated_quantity' => 0,
-                                                            ];
-                                                            $spkDetails[$spkKey] = [];
-                                                        }
-                                                        
-                                                        $spkSummary[$spkKey]['accumulated_quantity'] += $scan['quantity'];
+                                        @foreach ($data['daily_item_code'] as $dailyItem)
+                                            @foreach ($dailyItem['scanned_data'] as $scan)
+                                                @php
+                                                    // Gunakan item_code dari scanned_data, bukan dari dailyItem
+                                                    $itemCode = $scan['item_code'];
+                                                    $spkCode = $scan['spk_code'];
+                                                    $spkKey = $itemCode . '-' . $spkCode; // Unique key per item + SPK
 
-                                                        $spkDetails[$spkKey][] = [
-                                                            'warehouse'   => $scan['warehouse'],
-                                                            'quantity'    => $scan['quantity'],
-                                                            'label'       => $scan['label'],
-                                                            'user'        => $scan['user'],
-                                                            'scanned_at'  => $scan['scanned_at'],
+                                                    // Inisialisasi jika belum ada
+                                                    if (!isset($spkSummary[$spkKey])) {
+                                                        $spkSummary[$spkKey] = [
+                                                            'item_code' => $itemCode,
+                                                            'spk_code' => $spkCode,
+                                                            'accumulated_quantity' => 0,
                                                         ];
-                                                    @endphp
-                                                @endforeach
+                                                        $spkDetails[$spkKey] = [];
+                                                    }
+
+                                                    // Tambah kuantitas
+                                                    $spkSummary[$spkKey]['accumulated_quantity'] += $scan['quantity'];
+
+                                                    // Simpan detail
+                                                    $spkDetails[$spkKey][] = [
+                                                        'warehouse'   => $scan['warehouse'],
+                                                        'quantity'    => $scan['quantity'],
+                                                        'label'       => $scan['label'],
+                                                        'user'        => $scan['user'],
+                                                        'scanned_at'  => $scan['scanned_at'],
+                                                    ];
+                                                @endphp
                                             @endforeach
+                                        @endforeach
+
 
                                             @foreach ($spkSummary as $spkKey => $summary)
                                                 <tr>
