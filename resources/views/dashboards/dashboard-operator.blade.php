@@ -332,7 +332,6 @@
                                 @php
                                     $activeFiles = $files[$itemCode] ?? collect();
                                 @endphp
-
                                 @if ($activeFiles->count() > 0)
                                     <div class="font-bold text-2xl">Files</div>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
@@ -468,7 +467,7 @@
                                     {{-- Jika punya pair, tampilkan versi table khusus --}}
                                     <tr class="bg-white text-center">
                                         <td class="py-2 px-4">{{ $activeDIC['item_code'] }} / {{ $pairCode }}</td>
-                                        <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] * 2 }}</td>
+                                        <td class="py-2 px-4">{{ $totalScannedQuantity }}/{{ $activeDIC['quantity'] }}</td>
                                         <td class="py-2 px-4">{{ $scannedCount }}</td>
                                         <td class="py-2 px-4">
                                             <div class="flex flex-wrap gap-2">

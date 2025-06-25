@@ -54,6 +54,7 @@ Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
 
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
 
 
 Route::get('/id-card/operator', [OperatorUserController::class, 'showIdCard']);
@@ -77,6 +78,7 @@ Route::get('/zone/edit', [OperatorUserController::class, 'editZone'])->name('zon
 Route::post('/zone/update', [OperatorUserController::class, 'updateZone'])->name('zone.update');
 
 
+
 Route::redirect('/', '/login');
 
 // Route::view('dashboard', 'dashboard')
@@ -85,6 +87,7 @@ Route::redirect('/', '/login');
 
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
+
     
 
 Route::view('profile', 'profile')

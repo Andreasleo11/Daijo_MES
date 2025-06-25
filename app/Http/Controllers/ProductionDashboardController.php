@@ -303,4 +303,23 @@ class ProductionDashboardController extends Controller
         // dd($structuredData);
         return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate'));
     }
+
+    public function getMachinesByItem(Request $request)
+    {
+        $itemCode = $request->input('item_code');
+
+        $results = DailyItemCode::with('user')
+        ->where('item_code', $itemCode)
+        ->get()
+        ->map(function ($dic) {
+            return [
+                'machine' => $dic->user->name ?? 'Unknown',
+                'date' => Carbon::parse($dic->schedule_date)->format('Y-m-d'),
+            ];
+        })
+        ->unique(fn ($item) => $item['machine'] . '|' . $item['date'])
+        ->values(); // ⬅⬅ Ini penting biar bisa pakai forEach() di frontend
+
+        return response()->json($results);
+    }
 }

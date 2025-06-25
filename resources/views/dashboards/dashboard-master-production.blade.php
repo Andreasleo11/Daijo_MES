@@ -11,6 +11,29 @@
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
             <form method="GET" action="{{ route('djoni.dashboard') }}">
                 <div class="flex flex-wrap gap-4 items-end">
+
+                <div class="w-full sm:max-w-xs mb-6">
+                    <label for="item_code" class="block text-sm font-medium text-gray-700 mb-1">Select Item Code</label>
+                    <select id="item_code" class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select Item Code --</option>
+                        @php
+                            $distinctItemCodes = collect($structuredData)
+                                ->flatMap(fn($d) => collect($d['daily_item_code'])->pluck('item_code'))
+                                ->unique()
+                                ->values();
+                        @endphp
+                        @foreach ($distinctItemCodes as $code)
+                            <option value="{{ $code }}">{{ $code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- AJAX Output -->
+                <div id="machine-info" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                    <!-- Cards will be inserted here -->
+                </div>
+
+
                     <!-- Filter by Machine -->
                     <div class="w-full sm:w-auto">
                         <label for="machine_name" class="block text-sm font-medium text-gray-700">Filter by Machine</label>
@@ -161,8 +184,8 @@
                                                     <th class="border px-4 py-2">Predicted Time (min)</th>
                                                     <th class="border px-4 py-2">Actual Time (min)</th>
                                                     <th class="border px-4 py-2">PIC</th>
-                                                    <th class="border px-4 py-2">Status</th>
                                                     <th class="border px-4 py-2">Remark</th>
+                                                    <th class="border px-4 py-2">Status</th>
                                                     <th class="border px-4 py-2">Type</th>
                                                     <th class="border px-4 py-2">Foto</th>
                                                 </tr>
@@ -236,28 +259,55 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach ($data['hourly_remarks'] as $remark)
-                                                @php
-                                                    $statusClass = $remark['is_achieve'] ? 'bg-green-200' : 'bg-red-200';
-                                                @endphp
-                                                <tr class="{{ $statusClass }}">
-                                                    <td class="border px-4 py-2 flex items-center space-x-3">
-                                                        <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-10 h-10 rounded-full border">
-                                                        <span class="font-medium">{{ $remark['pic'] }}</span>
-                                                    </td>
-                                                    <td class="border px-4 py-2">{{ $remark['item_code'] }}</td>
-                                                    <td class="border px-4 py-2">{{ $remark['time_range'] }}</td>
-                                                    <td class="border px-4 py-2 text-center">{{ $remark['shift'] }}</td>
-                                                    <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
-                                                    <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
-                                                    <td class="border px-4 py-2 text-center">
-                                                        <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
-                                                            {{ ucfirst($remark['status']) }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
+                                        @php
+                                            $currentShift = null;
+                                            $totalActual = 0;
+                                        @endphp
+
+                                        @foreach ($data['hourly_remarks'] as $index => $remark)
+                                            @php
+                                                $statusClass = $remark['is_achieve'] ? 'bg-green-100' : 'bg-red-100';
+
+                                                // Cek jika ganti shift
+                                                if ($currentShift !== $remark['shift']) {
+                                                    $currentShift = $remark['shift'];
+                                                    $totalActual = 0;
+                                                }
+
+                                                $totalActual += $remark['actual'];
+                                            @endphp
+
+                                            <tr class="{{ $statusClass }}">
+                                                <td class="border px-4 py-2 flex items-center space-x-3">
+                                                    <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-10 h-10 rounded-full border">
+                                                    <span class="font-medium">{{ $remark['pic'] }}</span>
+                                                </td>
+                                                <td class="border px-4 py-2">{{ $remark['item_code'] }}</td>
+                                                <td class="border px-4 py-2">{{ $remark['time_range'] }}</td>
+                                                <td class="border px-4 py-2 text-center">{{ $remark['shift'] }}</td>
+                                                <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
+                                                <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
+                                                <td class="border px-4 py-2 text-center">
+                                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
+                                                        {{ ucfirst($remark['status']) }}
+                                                    </span>
+                                                </td>
+                                                <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
+                                            </tr>
+
+                                            @php
+                                                $nextShift = $data['hourly_remarks'][$index + 1]['shift'] ?? null;
+                                                $isLastInShift = $nextShift !== $currentShift;
+                                            @endphp
+
+                                            @if ($isLastInShift)
+                                                <tr class="bg-blue-100 text-blue-900 font-semibold text-sm">
+                                                    <td colspan="5" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
+                                                    <td class="border px-4 py-2 text-center">{{ $totalActual }}</td>
+                                                    <td colspan="2" class="border px-4 py-2"></td>
                                                 </tr>
-                                            @endforeach
+                                            @endif
+                                        @endforeach
                                         </tbody>
                                     </table>
                                 </div>
@@ -559,6 +609,48 @@ document.querySelectorAll('.toggle-hourly-details').forEach(button => {
             }
         });
     });
+
+
+    document.getElementById('item_code').addEventListener('change', function() {
+    const itemCode = this.value;
+    const machineInfoDiv = document.getElementById('machine-info');
+
+    if (!itemCode) {
+        machineInfoDiv.innerHTML = '';
+        return;
+    }
+
+    fetch(`/get-machines-by-item?item_code=${itemCode}`)
+        .then(res => res.json())
+        .then(data => {
+            machineInfoDiv.innerHTML = ''; // Kosongkan dulu
+
+            if (data.length === 0) {
+                machineInfoDiv.innerHTML = '<p class="text-gray-500">No machines found for this item code.</p>';
+                return;
+            }
+
+            data.forEach(row => {
+                const card = document.createElement('div');
+                card.className = "bg-white shadow rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition";
+
+                card.innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-800 mb-1">${row.machine}</h3>
+                    <p class="text-sm text-gray-600">Date: <span class="font-medium">${row.date}</span></p>
+                `;
+
+                // 👇 Tambahkan event redirect on click
+                card.addEventListener('click', () => {
+                    const url = new URL("{{ route('djoni.dashboard') }}", window.location.origin);
+                    url.searchParams.set('machine_name', row.machine);
+                    url.searchParams.set('date', row.date);
+                    window.location.href = url.toString();
+                });
+
+                machineInfoDiv.appendChild(card);
+            });
+        });
+});
 
 </script>
 </x-dashboard-layout>

@@ -173,12 +173,16 @@ class DashboardController extends Controller
                 // Simpan file
                 $fileData = File::where('item_code', $itemCodeAll)->get();
                 $files[$mainItemCode] = $fileData->isEmpty() ? collect() : $fileData;
-
+                // dd($files[$mainItemCode]);
+                \Illuminate\Support\Facades\Log::info("files" . $fileData);
+                \Illuminate\Support\Facades\Log::info("files" . $files[$mainItemCode]);
+                // dd($fileData); ini aku dd muncul mon coba di viewnyua deh , kauanya kalol pair ke
                 // Jika ada pair, ambil juga file-nya
-                if ($pairCode) {
-                    $fileDataPair = File::where('item_code', $pairCode)->get();
-                    $files[$mainItemCode] = $fileDataPair->isEmpty() ? collect() : $fileDataPair;
-                }
+                // if ($pairCode) {
+                //     $fileDataPair = File::where('item_code', $pairCode)->get(); // ini
+                //     dd($fileDataPair);
+                //     $files[$mainItemCode] = $fileDataPair->isEmpty() ? collect() : $fileDataPair;
+                // }
             }
 
             // Fungsi bantu untuk alokasi SPK berdasarkan item_code
@@ -641,6 +645,7 @@ class DashboardController extends Controller
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $activeDIC = json_decode($request->input('activedic'));
+        
 
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
@@ -663,6 +668,14 @@ class DashboardController extends Controller
 
         $cycletime = $activeDIC->master_fg->cycle_time * 60;
         $target = ceil(3600 / $cycletime);
+
+        if (
+            !empty($activeDIC->master_item?->pair) || 
+            !empty($activeDIC->master_fg?->pair)
+        ) {
+            $target *= 2;
+        }
+
 
         // Validasi dasar inputan
         $request->validate([
