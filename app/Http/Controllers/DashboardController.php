@@ -302,19 +302,32 @@ class DashboardController extends Controller
             $tomorrow = Carbon::tomorrow();
             $userId = auth()->id();
 
-            $hourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($today, $tomorrow, $userId) {
-                    $query->where(function ($q) use ($today, $tomorrow) {
-                        $q->whereDate('schedule_date', $today)
-                        ->orWhereDate('schedule_date', $tomorrow);
-                    })
-                    ->where('user_id', $userId); // tambahkan ini untuk memfilter per user
-                })
-                ->where(function ($q) {
-                    $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
-                    ->orWhereBetween('start_time', ['00:00:00', '07:30:00']);
-                })
-                ->orderBy('start_time')
-                ->get();
+             // Tentukan tanggal shift berdasarkan jam sekarang
+             $now = Carbon::now('Asia/Jakarta');
+
+             if ($now->hour < 7 || ($now->hour == 7 && $now->minute < 30)) {
+                 // Masih dalam shift kemarin
+                 $shiftToday = Carbon::yesterday('Asia/Jakarta')->toDateString();
+                 $shiftTomorrow = Carbon::today('Asia/Jakarta')->toDateString();
+             } else {
+                 // Shift hari ini
+                 $shiftToday = Carbon::today('Asia/Jakarta')->toDateString();
+                 $shiftTomorrow = Carbon::tomorrow('Asia/Jakarta')->toDateString();
+             }
+ 
+             $hourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($shiftToday, $shiftTomorrow, $userId) {
+                 $query->where(function ($q) use ($shiftToday, $shiftTomorrow) {
+                     $q->whereDate('schedule_date', $shiftToday)
+                     ->orWhereDate('schedule_date', $shiftTomorrow);
+                 })
+                 ->where('user_id', $userId);
+             })
+             ->where(function ($q) {
+                 $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
+                 ->orWhereBetween('start_time', ['00:00:00', '07:30:00']);
+             })
+             ->orderBy('start_time')
+             ->get();
        
             $spkData = ProductionScannedData::where('dic_id', $activeID)
                 ->get();
@@ -645,7 +658,6 @@ class DashboardController extends Controller
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $activeDIC = json_decode($request->input('activedic'));
-        
 
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
@@ -667,7 +679,7 @@ class DashboardController extends Controller
         $endTime = $base->copy()->addMinutes(($slotIndex + 1) * 60)->format('H:i:s');
 
         $cycletime = $activeDIC->master_fg->cycle_time * 60;
-        $target = ceil(3600 / $cycletime);
+        $target = floor(3600 / $cycletime);
 
         if (
             !empty($activeDIC->master_item?->pair) || 
@@ -675,7 +687,6 @@ class DashboardController extends Controller
         ) {
             $target *= 2;
         }
-
 
         // Validasi dasar inputan
         $request->validate([
@@ -696,6 +707,11 @@ class DashboardController extends Controller
             ->where('label', $label)
             ->first();
 
+        $existingSpk = SpkMaster::where('spk_number', $spk_code)->first();
+
+        if (!$existingSpk) {
+            return redirect()->back()->withErrors(['error' => 'SPK code tidak ditemukan.']);
+        }
         if ($existingScan) {
             return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
         }
@@ -712,10 +728,32 @@ class DashboardController extends Controller
             'user' => $user,
         ]);
 
-        $totalActual = ProductionScannedData::where('dic_id', $dicId)
-            ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= ?", [$startTime])
-            ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) < ?", [$endTime])
-            ->sum('quantity');
+        // ✅ PERBAIKAN: Hitung total actual dengan datetime range yang tepat
+        $slotStart = $base->copy()->addMinutes($slotIndex * 60);
+        $slotEnd = $base->copy()->addMinutes(($slotIndex + 1) * 60);
+        
+        // Jika endTime lebih kecil dari startTime, berarti slot melewati midnight
+        if ($endTime < $startTime) {
+            // Contoh: startTime = 23:30:00, endTime = 00:30:00
+            // Query split jadi 2 bagian: 23:30-23:59 dan 00:00-00:30
+            $totalActual = ProductionScannedData::where('dic_id', $dicId)
+                ->where(function($query) use ($startTime, $endTime) {
+                    $query->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= ?", [$startTime])
+                        ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) <= '23:59:59'");
+                })
+                ->orWhere(function($query) use ($dicId, $endTime) {
+                    $query->where('dic_id', $dicId)
+                        ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= '00:00:00'")
+                        ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) < ?", [$endTime]);
+                })
+                ->sum('quantity');
+        } else {
+            // Slot normal dalam satu hari
+            $totalActual = ProductionScannedData::where('dic_id', $dicId)
+                ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) >= ?", [$startTime])
+                ->whereRaw("TIME(CONVERT_TZ(created_at, '+00:00', '+07:00')) < ?", [$endTime])
+                ->sum('quantity');
+        }
 
         $isAchieve = $totalActual >= $target ? 1 : 0;
 
@@ -729,7 +767,7 @@ class DashboardController extends Controller
             HourlyRemark::create([
                 'dic_id' => $dicId,
                 'start_time' => $startTime,
-                'end_time' => $endTime,
+                'end_time' => $endTime, 
                 'target' => $target,
                 'actual' => $totalActual,
                 'is_achieve' => $isAchieve,
