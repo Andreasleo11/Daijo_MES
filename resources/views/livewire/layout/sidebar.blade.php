@@ -120,6 +120,7 @@ new class extends Component {
                         ['name' => 'inandout.index', 'label' => 'Scan Barcode'],
                         ['name' => 'list.barcode', 'label' => 'Report History'],
                         ['name' => 'stockallbarcode', 'label' => 'Stock Item'],
+                        ['name' => 'customer.add', 'label' => 'Add Customer'],
                         ['name' => 'updated.barcode.item.position', 'label' => 'List All Item Barcode'],
                     ]" />
                 @endif

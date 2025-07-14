@@ -373,6 +373,8 @@
                                             <th class="py-1 px-2 text-gray-700">Start Date - End Date</th>
                                             <th class="py-1 px-2 text-gray-700">Shift</th>
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
+                                            <th class="py-1 px-2 text-gray-700">Status</th>
+                                            <th class="py-1 px-2 text-gray-700">Cycle Time</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
                                             @if ($itemCode)
@@ -397,10 +399,24 @@
                                                 <td class="py-1 px-2">{{ $data->shift }} ({{ $startTime }} -
                                                     {{ $endTime }})</td>
                                                 <td class="py-1 px-2">{{ $data->quantity }}</td>
+                                                <td class="py-1 px-2">
+                                                    {{ $data->is_done === 1 ? 'Selesai' : 'Belum Selesai' }}
+                                                </td>
+                                                <td class="py-1 px-2">
+                                                    @if ($data->temporal_cycle_time)
+                                                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-sm">
+                                                            {{ $data->temporal_cycle_time }} detik
+                                                        </span>
+                                                    @else
+                                                        <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm italic">
+                                                            Belum di-assign
+                                                        </span>
+                                                    @endif
+                                                </td>
                                                 <!-- <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td> -->
                                                 <!-- <td class="py-1 px-2">{{ $data->actual_quantity }}</td> -->
                                                 <td class="py-1 px-2">
-                                                    @if ($itemCode && $data->item_code === $itemCode)
+                                                    <!-- @if ($itemCode && $data->item_code === $itemCode)
                                                         <form action="{{ route('generate.itemcode.barcode', ['item_code' => $data->item_code, 'quantity' => $data->quantity]) }}"
                                                             method="get">
                                                             <button class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded">
@@ -411,12 +427,40 @@
                                                         <button class="px-2 py-1 bg-gray-400 text-white rounded cursor-not-allowed" disabled>
                                                             Generate Barcode
                                                         </button>
-                                                    @endif
+                                                    @endif -->
+
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded mt-1"
+                                                        onclick="openCycleTimeModal('{{ $data->id }}', '{{ $data->temporal_cycle_time ?? '' }}')"
+                                                    >
+                                                        Set Cycle Time
+                                                    </button>
                                                 </td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
+
+
+                                <div id="cycleTimeModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+                                        <h2 class="text-lg font-semibold mb-4">Set Temporal Cycle Time</h2>
+                                        <form id="cycleTimeForm" method="POST">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="data_id" id="dataIdInput">
+                                            <label for="cycle_time" class="block text-sm font-medium text-gray-700 mb-1">Temporal Cycle Time</label>
+                                            <input type="text" id="cycleTimeInput" name="temporal_cycle_time" class="w-full border rounded p-2 mb-4" required>
+                                            <div class="flex justify-end gap-2">
+                                                <button type="button" onclick="closeCycleTimeModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+                                                <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Submit</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+
                             @else
                                 <p class="text-red-500 text-sm">No assigned item code yet</p>
                             @endif
@@ -580,7 +624,8 @@
                                             <th class="py-2 px-4 border">Jam Mulai</th>
                                             <th class="py-2 px-4 border">Jam Selesai</th>
                                             <th class="py-2 px-4 border">Target</th>
-                                            <th class="py-2 px-4 border">Actual</th>
+                                            <th class="py-2 px-4 border">Actual Scan</th>
+                                            <th class="py-2 px-4 border">Actual Production</th>
                                             <th class="py-2 px-4 border">Status</th>
                                             <th class="py-2 px-4 border">Remark</th>
                                             <th class="py-2 px-4 border">Action</th>
@@ -595,6 +640,9 @@
                                                     <td class="py-2 px-4 border">{{ $slot->target }}</td>
                                                     <td class="py-2 px-4 border">{{ $slot->actual }}</td>
                                                     <td class="py-2 px-4 border">
+                                                        {{ $slot->actual_production ? $slot->actual_production : 0 }}
+                                                    </td>
+                                                    <td class="py-2 px-4 border">
                                                         @if ($slot->is_achieve)
                                                             <span class="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Tercapai</span>
                                                         @else
@@ -603,12 +651,38 @@
                                                     </td>
                                                     <td class="py-2 px-4 border">{{ $slot->remark ?? '-' }}</td>
                                                     <td class="py-2 px-4 border">
-                                                        <button onclick="editRemark({{ $slot->id }}, @js($slot->remark))">
-                                                            Edit
+                                                        <button 
+                                                            onclick="editRemark({{ $slot->id }}, @js($slot->remark))"
+                                                            class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600"
+                                                        >
+                                                            Edit Remark
+                                                        </button>
+                                                        <button 
+                                                            class="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
+                                                            onclick="openProductionModal({{ $slot->id }}, {{ $slot->actual_production ?? 0 }})"
+                                                        >
+                                                            Add Actual Production
                                                         </button>
                                                     </td>
                                                     </td>
                                                 </tr>
+
+                                                    <div id="productionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                                        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                                                            <h2 class="text-lg font-semibold mb-4">Update Actual Production</h2>
+                                                            <form id="productionForm" method="POST">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <input type="hidden" id="productionSlotId" name="id">
+                                                                <label for="actual_production" class="block text-sm font-medium text-gray-700 mb-1">Actual Production</label>
+                                                                <input type="number" id="actualProductionInput" name="actual_production" class="w-full border rounded p-2 mb-4" required min="0">
+                                                                <div class="flex justify-end gap-2">
+                                                                    <button type="button" onclick="closeProductionModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+                                                                    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Submit</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
                                             @endforeach
                                         @else
                                             <tr>
@@ -780,7 +854,8 @@
                                     <th class="py-2 px-4 border">Jam Mulai</th>
                                     <th class="py-2 px-4 border">Jam Selesai</th>
                                     <th class="py-2 px-4 border">Target</th>
-                                    <th class="py-2 px-4 border">Actual</th>
+                                    <th class="py-2 px-4 border">Actual Scan</th>
+                                    <th class="py-2 px-4 border">Actual Production</th>
                                     <th class="py-2 px-4 border">Status</th>
                                     <th class="py-2 px-4 border">PIC</th>
                                     <th class="py-2 px-4 border">Remark</th>
@@ -793,6 +868,7 @@
                                         <td class="py-2 px-4 border">{{ \Carbon\Carbon::parse($remark->end_time)->format('H:i') }}</td>
                                         <td class="py-2 px-4 border">{{ $remark->target }}</td>
                                         <td class="py-2 px-4 border">{{ $remark->actual }}</td>
+                                        <td class="py-2 px-4 border">{{ $remark->actual_production ? $remark->actual_production : 0 }}</td>
                                         <td class="py-2 px-4 border">
                                             @if ($remark->is_achieve)
                                                 <span class="text-green-600 font-semibold">Tercapai</span>
@@ -1367,6 +1443,36 @@
             function openConfirmModal() {
                 document.getElementById('confirmModal').showModal();
             }
+
+            function openCycleTimeModal(dataId, existingValue = '') {
+                document.getElementById('cycleTimeModal').classList.remove('hidden');
+                document.getElementById('dataIdInput').value = dataId;
+                document.getElementById('cycleTimeInput').value = existingValue;
+
+                // Set form action dynamically
+                document.getElementById('cycleTimeForm').action = `/daily-item-codes/${dataId}/temporal-cycle-time`;
+            }
+
+            function closeCycleTimeModal() {
+                document.getElementById('cycleTimeModal').classList.add('hidden');
+            }
+
+            function openProductionModal(slotId, currentValue = 0) {
+            const modal = document.getElementById('productionModal');
+            const form = document.getElementById('productionForm');
+            const input = document.getElementById('actualProductionInput');
+            const hiddenId = document.getElementById('productionSlotId');
+
+            hiddenId.value = slotId;
+            input.value = currentValue;
+            form.action = `/hourly-remarks/${slotId}/update-actual-production`;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductionModal() {
+            document.getElementById('productionModal').classList.add('hidden');
+        }
     </script>
 
 </x-app-layout>

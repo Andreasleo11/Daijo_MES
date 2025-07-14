@@ -430,7 +430,16 @@
                                             editEvent(event.id);
                                         };
 
+                                        const deleteButton = document.createElement("button");
+                                        deleteButton.className =
+                                            "ml-2 text-red-600 bg-red-100 px-2 py-1 rounded-md text-sm";
+                                        deleteButton.innerText = "Delete";
+                                        deleteButton.onclick = function() {
+                                            deleteEvent(event.id);
+                                        };
+
                                         eventDiv.appendChild(editButton);
+                                        eventDiv.appendChild(deleteButton);
                                         userEventsDiv.appendChild(eventDiv);
                                     }
                                 });
@@ -460,6 +469,7 @@
                     }
                 });
 
+
                 function editEvent(eventId) {
                     // Find the event data using the event ID from dailyItemCodes
                     const eventData = dailyItemCodes.find(item => item.id === eventId);
@@ -484,6 +494,37 @@
                     // Show the modal
                     document.getElementById("edit-event-modal").classList.remove("hidden");
                 }
+
+                function deleteEvent(id) {
+                    if (!confirm("Are you sure you want to delete this item?")) {
+                        return;
+                    }
+
+                    fetch(`/daily-item-codes/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            alert("Item deleted successfully.");
+                            // Optionally remove the item from the DOM
+                            document.getElementById(`item-${id}`)?.remove();
+                            window.location.reload();
+                        } else {
+                            return response.json().then(error => {
+                                throw new Error(error.message || 'Failed to delete item.');
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Delete error:", error);
+                        alert("Error deleting item: " + error.message);
+                    });
+                }
+
 
                 closeSidebarButton.addEventListener("click", function() {
                     sidebar.classList.add("hidden");

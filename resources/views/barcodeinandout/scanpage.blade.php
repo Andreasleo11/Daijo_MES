@@ -180,6 +180,7 @@
 
     <h2>No Dokumen: {{ $noDokumen }}</h2>
     <p>Tanggal Scan: {{ $tanggalScanFull }}</p>
+    <p> Customer   : {{ $customer }}</p>
 
     <h1 style="text-align: center; font-size: 2em;">{{ $HeaderScan }}</h1>
 

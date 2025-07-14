@@ -22,6 +22,17 @@
                         <option value="karawang">Karawang</option>
                     </select>
                 </div>
+
+                <div class="mb-4">
+                    <label for="customer_name" class="block text-sm font-medium text-gray-700">Pilih Customer</label>
+                    <select id="customer_name" name="customer_name" required
+                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-3 py-2 text-sm">
+                        <option value="" disabled selected>-- Pilih Customer --</option>
+                        @foreach($customers as $customer)
+                            <option value="{{ $customer->name }}">{{ $customer->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="submit"
                     class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">Submit</button>
             </form>

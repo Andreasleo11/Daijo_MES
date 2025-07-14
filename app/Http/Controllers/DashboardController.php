@@ -51,6 +51,7 @@ class DashboardController extends Controller
             $itemCode = null;
             $uniquedata = collect();
             $machinejobid = MachineJob::where('user_id', $user->id)->first() ?? null;
+            
             if(count($uniquedata) > 0){
                 $dataWithSpkNo = ProductionReport::where('spk_no', $uniquedata[0]['spk'])->first();
             } else {
@@ -172,7 +173,17 @@ class DashboardController extends Controller
 
                 // Simpan file
                 $fileData = File::where('item_code', $itemCodeAll)->get();
+
+                // $fallbackItemCode = $machinejobid->item_code ?? null;
+         
+                // $fileData = File::where('item_code', $fallbackItemCode)->get();
+                
+        
+
                 $files[$mainItemCode] = $fileData->isEmpty() ? collect() : $fileData;
+
+                
+                
                 // dd($files[$mainItemCode]);
                 \Illuminate\Support\Facades\Log::info("files" . $fileData);
                 \Illuminate\Support\Facades\Log::info("files" . $files[$mainItemCode]);
@@ -268,12 +279,24 @@ class DashboardController extends Controller
 
 
             $hourlyRemarksActiveDIC = null;
-            $activeDIC = DailyItemCode::where('user_id', $user->id)
+            $todayDIC = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
                 ->where('item_code', $itemCode)
-                ->with('masterItem','scannedData','masterFg','hourlyRemarks')
+                ->with('masterItem', 'scannedData', 'masterFg', 'hourlyRemarks')
                 ->whereNull('is_done')
                 ->first();
+
+            $previousDIC = DailyItemCode::where('user_id', $user->id)
+                ->where('schedule_date', '<', Carbon::today())
+                ->where('item_code', $itemCode)
+                ->with('masterItem', 'scannedData', 'masterFg', 'hourlyRemarks')
+                ->whereNull('is_done')
+                ->orderByDesc('schedule_date')
+                ->first();
+
+            // Gunakan yang lebih lama dulu (kalau ada), baru hari ini
+            $activeDIC = $previousDIC ?? $todayDIC;
+            // dd($activeDIC);
             if (!$activeDIC) {
                     // Kalau null, cari lagi tanpa filter tanggal
                 $activeDIC = DailyItemCode::where('user_id', $user->id)
@@ -282,6 +305,17 @@ class DashboardController extends Controller
                     ->whereNull('is_done')
                     ->first();
                 // dd($activeDIC);
+            }
+
+            if ($activeDIC) {
+                foreach ($activeDIC->hourlyRemarks as $remark) {
+                    if ($remark->target <= ($remark->actual_production ?? 0)) {
+                        $remark->is_achieve = true;
+                        $remark->save();
+                    }
+                }
+            
+                $hourlyRemarksActiveDIC = $activeDIC->hourlyRemarks;
             }
 
             if ($activeDIC) {
@@ -658,6 +692,7 @@ class DashboardController extends Controller
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $activeDIC = json_decode($request->input('activedic'));
+        // dd($activeDIC);
 
         $spk_code = $request->input('spk_code_auto');
         $quantity = $request->input('quantity_auto');
@@ -678,8 +713,13 @@ class DashboardController extends Controller
         $startTime = $base->copy()->addMinutes($slotIndex * 60)->format('H:i:s');
         $endTime = $base->copy()->addMinutes(($slotIndex + 1) * 60)->format('H:i:s');
 
-        $cycletime = $activeDIC->master_fg->cycle_time * 60;
-        $target = floor(3600 / $cycletime);
+        if ($activeDIC->temporal_cycle_time) {
+            $cycletime = $activeDIC->temporal_cycle_time; // sudah dalam detik
+        } else {
+            $cycletime = $activeDIC->master_fg->cycle_time * 60; // dari menit ke detik
+        }
+        
+        $target = floor(3600 / $cycletime); // 1 jam = 3600 detik
 
         if (
             !empty($activeDIC->master_item?->pair) || 
@@ -705,6 +745,7 @@ class DashboardController extends Controller
 
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
             ->where('label', $label)
+            ->where('quantity', $quantity)
             ->first();
 
         $existingSpk = SpkMaster::where('spk_number', $spk_code)->first();
@@ -1481,5 +1522,42 @@ class DashboardController extends Controller
         }
     }
 
+
+    public function showROPData()
+    {
+        $today = Carbon::today(); // ambil tanggal hari ini tanpa jam
+
+        $data = ProductionScannedData::whereDate('created_at', $today)
+            ->select('spk_code', 'item_code', 'warehouse', 'quantity', 'label')
+            ->get();
+
+        return response()->json($data);
+    }
+
+    public function updateCycleTime(Request $request, $id)
+    {
+        $request->validate([
+            'temporal_cycle_time' => 'required|string|max:255',
+        ]);
+
+        $record = DailyItemCode::findOrFail($id);
+        $record->temporal_cycle_time = $request->temporal_cycle_time;
+        $record->save();
+
+        return back()->with('success', 'Temporal cycle time updated successfully.');
+    }
+
+    public function updateActualProduction(Request $request, $id)
+    {
+        $request->validate([
+            'actual_production' => 'required|integer|min:0',
+        ]);
+
+        $slot = HourlyRemark::findOrFail($id);
+        $slot->actual_production = $request->actual_production;
+        $slot->save();
+
+        return back()->with('success', 'Actual Production updated successfully.');
+    }
 
 }

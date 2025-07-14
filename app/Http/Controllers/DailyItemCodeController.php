@@ -189,7 +189,7 @@ class DailyItemCodeController extends Controller
                 // Fetch SPK and Master Item Data
                 $datas = SpkMaster::where('item_code', $itemCode)->get();
                 $master = MasterListItem::where('item_code', $itemCode)->first();
-                if ($master && $master->pair !== null) {
+                if ($master && $master->pair !== null && $master->pair != 0) {
                     $quantity *= 2;
                 }
                 $stanpack = $master->standart_packaging_list;
@@ -333,5 +333,19 @@ class DailyItemCodeController extends Controller
 
         // Pastikan kita mengembalikan data ke view
         return view('send-api-table', compact('data'));
+    }
+
+    public function destroy($id)
+    {
+        $item = DailyItemCode::find($id);
+    
+        if (!$item) {
+            return redirect()->back()->with('error', 'Item not found.');
+        }
+    
+        $item->forceDelete();
+    
+        // return redirect()->back()->with('success', 'Daily Item Code deleted successfully!');
+        return response()->json(['message' => 'Daily Item Code deleted successfully!']);
     }
 }

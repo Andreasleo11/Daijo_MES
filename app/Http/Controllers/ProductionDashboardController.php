@@ -176,10 +176,18 @@ class ProductionDashboardController extends Controller
 
             // Process daily item codes
             foreach ($machineJob->dailyItemCode as $dailyItem) {
-                $totalScannedQuantity = collect($dailyItem->scannedData)->sum('quantity');
+                // $totalScannedQuantity = collect($dailyItem->scannedData)->sum('quantity');
 
-                $cycleTime = sapInventoryFg::where('item_code', $dailyItem->item_code)->value('cycle_time');
-                $cycleTimeInSeconds = $cycleTime ? $cycleTime * 60 : null;
+                $totalScannedQuantity = $dailyItem->hourlyRemarks->sum(function ($remark) {
+                    return $remark->actual_production ?? 0;
+                });
+                
+                if ($dailyItem->temporal_cycle_time) {
+                    $cycleTimeInSeconds = $dailyItem->temporal_cycle_time;
+                } else {
+                    $cycleTime = sapInventoryFg::where('item_code', $dailyItem->item_code)->value('cycle_time');
+                    $cycleTimeInSeconds = $cycleTime ? $cycleTime * 60 : null;
+                }
 
                 $formattedDailyItem = [
                     'id' => $dailyItem->id,
@@ -262,9 +270,11 @@ class ProductionDashboardController extends Controller
                         $achievementPercentage = round(($hourlyRemark->actual / $hourlyRemark->target) * 100, 2);
                     }
 
+                    $status = $hourlyRemark->is_achieve;
+
                     // Determine status based on achievement
-                    $status = 'normal';
-                    if ($achievementPercentage >= 100) {
+                    // $status = 'normal';
+                    if ($status === 1) {
                         $status = 'achieved';
                     } else {
                         $status = 'Not Achieved';
@@ -281,6 +291,7 @@ class ProductionDashboardController extends Controller
                         'target' => $hourlyRemark->target,
                         'actual' => $hourlyRemark->actual,
                         'achievement_percentage' => $achievementPercentage,
+                        'actual_production' => $hourlyRemark->actual_production,
                         'remark' => $hourlyRemark->remark ?: '-',
                         'is_achieve' => $hourlyRemark->is_achieve,
                         'status' => $status,
@@ -294,6 +305,8 @@ class ProductionDashboardController extends Controller
 
                 $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
             }
+
+
         }
 
         $machines = User::distinct()

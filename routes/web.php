@@ -43,6 +43,9 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
+
+Route::get('/test/ROPdata', [DashboardController::class, 'showROPData']);
+
 Route::get('/daily-item-code/get-item-codes', [DailyItemCodeController::class, 'getItemCodes'])
     ->name('daily-item-code.get-item-codes');
 
@@ -119,6 +122,11 @@ Route::middleware('auth')->group(function (){
     Route::post('/verify-nik-mould-change', [DashboardController::class, 'verifyNik'])->name('verify.nik');
     Route::post('/hourly-remarks/{id}/update-remark', [DashboardController::class, 'updateRemark']);
     Route::delete('/spk-scan/{id}', [DashboardController::class, 'deleteScanData'])->name('spk-scan.destroy');
+    Route::put('/daily-item-codes/{id}/temporal-cycle-time', [DashboardController::class, 'updateCycleTime'])
+    ->name('daily-item-codes.updateCycleTime');
+
+    Route::put('/hourly-remarks/{id}/update-actual-production', [DashboardController::class, 'updateActualProduction'])
+    ->name('hourly-remarks.updateActualProduction');
 
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
@@ -146,6 +154,10 @@ Route::middleware('auth')->group(function (){
     Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
     Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
 
+    Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
+    Route::post('/add-customer', [BarcodeController::class, 'storeCustomer'])->name('customer.store');
+    Route::delete('/customer/{id}', [BarcodeController::class, 'destroyCustomer'])->name('customer.destroy');
+
     Route::get('master-item', [MasterItemController::class, 'index'])->middleware(['auth', 'verified'])->name('master-item.index');
 
     Route::get('/initialbarcode', [InitialBarcodeController::class, 'index'])->name('barcode.index');
@@ -161,6 +173,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/apply-item-code/{machine_id}', [DailyItemCodeController::class, 'applyItemCode'])->name('apply-item-code');
     Route::get('/daily-item-codes/daily', [DailyItemCodeController::class, 'daily'])->name('daily-item-code.daily');
     Route::put('/daily-item-codes/{id}', [DailyItemCodeController::class, 'update'])->name('daily-item-code.update');
+    Route::delete('/daily-item-codes/{id}', [DailyItemCodeController::class, 'destroy'])->name('daily-item-code.destroy');
 
     Route::get('/maintenance/index', [MaintenanceController::class, 'index'])->name('maintenance.index');
 

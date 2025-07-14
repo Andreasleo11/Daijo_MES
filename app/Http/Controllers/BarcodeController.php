@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BarcodePackagingDetail;
 use App\Models\BarcodePackagingMaster;
 use App\Models\MasterDataRogPartName;
+use App\Models\Customer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -172,17 +173,20 @@ class BarcodeController extends Controller
                 $master->delete();
             }
         }
+        $customers = Customer::orderBy('name')->get();
 
-        return view('barcodeinandout.inandoutpage');
+        return view('barcodeinandout.inandoutpage' , compact('customers'));
     }
 
     public function processInAndOut(Request $request)
     {
+        
         $barcodePackagingMaster = new BarcodePackagingMaster;
         $tanggalScanFull = Carbon::now('Asia/Bangkok')->format('Y-m-d H:i:s');
         $barcodePackagingMaster->dateScan = $tanggalScanFull;
         $warehouseType = $request->input('warehouseType');
         $location = $request->input('location');
+        $customer = $request->input('customer_name');
 
         // Define prefix based on warehouse type and location
         switch ($warehouseType) {
@@ -238,6 +242,7 @@ class BarcodeController extends Controller
 
         $barcodePackagingMaster->tipeBarcode = $warehouseType;
         $barcodePackagingMaster->location = $location;
+        $barcodePackagingMaster->customer = $customer;
 
         $barcodePackagingMaster->save();
 
@@ -253,7 +258,7 @@ class BarcodeController extends Controller
 
         $barcodePackagingMaster->save();
 
-        return view('barcodeinandout.scanpage', compact('noDokumen', 'tanggalScanFull', 'position', 'HeaderScan'));
+        return view('barcodeinandout.scanpage', compact('noDokumen', 'tanggalScanFull', 'position', 'HeaderScan', 'customer'));
     }
 
     public function storeInAndOut(Request $request)
@@ -323,6 +328,7 @@ class BarcodeController extends Controller
                 'noDokumen' => $noDokumen,
                 'tipeBarcode' => $item->tipeBarcode, // Add tipeBarcode here
                 'location' => $item->location,
+                'customer' => $item->customer,
             ];
 
             // Initialize arrays for noDokumen and finishDokumen if not already set
@@ -533,5 +539,33 @@ class BarcodeController extends Controller
         }
 
         return view('barcodeinandout.stockallbarcode', compact('balances', 'location'));
+    }
+
+
+    public function addCustomer()
+    {
+        $customers = Customer::latest()->get();
+        return view('barcodeinandout.customeradd', compact('customers'));
+    }
+
+    public function storeCustomer(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255'
+        ]);
+
+        Customer::create([
+            'name' => $request->name
+        ]);
+
+        return redirect()->back()->with('success', 'Customer berhasil ditambahkan!');
+    }
+
+    public function destroyCustomer($id)
+    {
+        $customer = Customer::findOrFail($id);
+        $customer->delete();
+
+        return redirect()->back()->with('success', 'Customer berhasil dihapus!');
     }
 }

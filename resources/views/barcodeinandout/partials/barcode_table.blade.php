@@ -2,6 +2,7 @@
     <div class="bg-white shadow-lg rounded-lg p-6 mb-8">
         <h2 class="text-xl font-bold mb-2">Date Scan: {{ $item['dateScan'] }}</h2>
         <p class="text-gray-700 mb-1"><strong>No Dokumen:</strong> {{ $item['noDokumen'] }}</p>
+        <p class="text-gray-700 mb-1"><strong>Customer :</strong> {{ $item['customer'] }}</p>
         <p class="text-gray-700 mb-1"><strong>Tipe Barcode:</strong> {{ strtoupper($item['tipeBarcode']) }}</p>
         <p class="text-gray-700 mb-4"><strong>Location:</strong> {{ strtoupper($item['location']) }}</p>
 
