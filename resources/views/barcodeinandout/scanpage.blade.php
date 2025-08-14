@@ -199,16 +199,12 @@
                     <input type="text" id="partno1" name="partno1" class="barcode-input">
                 </div>
                 <div class="form-group">
-                    <label for="quantity1">Quantity :</label>
-                    <input type="text" id="quantity1" name="quantity1" class="barcode-input">
+                    <label for="label1">Label :</label>
+                    <input type="text" id="label1" name="label1" class="barcode-input">
                 </div>
                 <div class="form-group">
                     <label for="warehouse1">Warehouse :</label>
                     <input type="text" id="warehouse1" name="warehouse1" class="barcode-input">
-                </div>
-                <div class="form-group">
-                    <label for="label1">Label :</label>
-                    <input type="text" id="label1" name="label1" class="barcode-input">
                 </div>
                 <div class="form-group">
                     <label for="scantime1">Scan Time:</label>
@@ -234,14 +230,14 @@
 
         function addEventListenersToRow(fieldId) {
             document.getElementById('partno' + fieldId).addEventListener('input', () => updateScanTime(fieldId));
-            document.getElementById('label' + fieldId).addEventListener('input', () => updateScanTime(fieldId));
+            document.getElementById('warehouse' + fieldId).addEventListener('input', () => updateScanTime(fieldId));
         }
 
-        document.getElementById('label1').addEventListener('focus', addNewRow);
+        document.getElementById('warehouse1').addEventListener('focus', addNewRow);
 
         function addNewRow() {
             const partno = document.getElementById('partno' + formCounter).value;
-            const label = document.getElementById('label' + formCounter).value;
+            const label = document.getElementById('warehouse' + formCounter).value;
 
             if (partno) {
                 formCounter++;
@@ -255,16 +251,12 @@
                     <input type="text" id="partno${formCounter}" name="partno${formCounter}" class="barcode-input">
                 </div>
                 <div class="form-group">
-                    <label for="quantity${formCounter}">Quantity :</label>
-                    <input type="text" id="quantity${formCounter}" name="quantity${formCounter}" class="barcode-input">
-                </div>
-                <div class="form-group">
-                    <label for="warehouse${formCounter}">Warehouse :</label>
-                    <input type="text" id="warehouse${formCounter}" name="warehouse${formCounter}" class="barcode-input">
-                </div>
-                <div class="form-group">
                     <label for="label${formCounter}">Label:</label>
                     <input type="text" id="label${formCounter}" name="label${formCounter}" class="barcode-input">
+                </div>
+                 <div class="form-group">
+                    <label for="warehouse${formCounter}">Warehouse :</label>
+                    <input type="text" id="warehouse${formCounter}" name="warehouse${formCounter}" class="barcode-input">
                 </div>
                 <div class="form-group">
                     <label for="scantime${formCounter}">Scan Time:</label>
@@ -279,7 +271,7 @@
                 addEventListenersToRow(formCounter);
 
                 // Add event listener to the new label input field to add new row on focus
-                document.getElementById('label' + formCounter).addEventListener('focus', addNewRow);
+                document.getElementById('warehouse' + formCounter).addEventListener('focus', addNewRow);
 
                 // Set focus to the new partno input field after a short delay to ensure it is rendered
                 setTimeout(() => {
@@ -309,12 +301,10 @@
                 row.querySelector('.delete-row-button').setAttribute('onclick', `deleteRow(${formCounter})`);
                 row.querySelector('.form-group input[id^="partno"]').id = 'partno' + formCounter;
                 row.querySelector('.form-group input[id^="partno"]').name = 'partno' + formCounter;
-                row.querySelector('.form-group input[id^="quantity"]').id = 'quantity' + formCounter;
-                row.querySelector('.form-group input[id^="quantity"]').name = 'quantity' + formCounter;
-                row.querySelector('.form-group input[id^="warehouse"]').id = 'warehouse' + formCounter;
-                row.querySelector('.form-group input[id^="warehouse"]').name = 'warehouse' + formCounter;
                 row.querySelector('.form-group input[id^="label"]').id = 'label' + formCounter;
                 row.querySelector('.form-group input[id^="label"]').name = 'label' + formCounter;
+                row.querySelector('.form-group input[id^="warehouse"]').id = 'warehouse' + formCounter;
+                row.querySelector('.form-group input[id^="warehouse"]').name = 'warehouse' + formCounter;
                 row.querySelector('.form-group input[id^="scantime"]').id = 'scantime' + formCounter;
                 row.querySelector('.form-group input[id^="scantime"]').name = 'scantime' + formCounter;
 
@@ -325,7 +315,7 @@
 
         document.getElementById('barcodeForm').addEventListener('submit', function(event) {
             const lastPartNoField = document.getElementById('partno' + formCounter);
-            const lastLabelField = document.getElementById('label' + formCounter);
+            const lastLabelField = document.getElementById('warehouse' + formCounter);
 
             if (!lastPartNoField.value && !lastLabelField.value) {
                 lastPartNoField.parentElement.parentElement.remove();

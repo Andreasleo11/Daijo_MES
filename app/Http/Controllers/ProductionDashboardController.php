@@ -31,7 +31,7 @@ class ProductionDashboardController extends Controller
         $machineJobs = MachineJob::with([
             'user',
             'dailyItemCode' => function ($query) use ($selectedDate) {
-                $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks']);
+                $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks','masterItem']);
             },
             'mouldChangeLogs' => function ($query) use ($selectedDate) {
                 $query->whereDate('created_at', $selectedDate);
@@ -192,11 +192,13 @@ class ProductionDashboardController extends Controller
                 $formattedDailyItem = [
                     'id' => $dailyItem->id,
                     'item_code' => $dailyItem->item_code,
+                    'item_name' => $dailyItem->masterItem->item_name,
                     'quantity' => $dailyItem->quantity,
                     'final_quantity' => $dailyItem->final_quantity,
                     'loss_package_quantity' => $dailyItem->loss_package_quantity,
                     'actual_quantity' => $dailyItem->actual_quantity,
                     'shift' => $dailyItem->shift,
+                    'remark' => $dailyItem->remark,
                     'start_date' => Carbon::parse($dailyItem->start_date)->format('Y-m-d'),
                     'start_time' => Carbon::parse($dailyItem->start_time)->timezone('Asia/Jakarta')->format('H:i:s'),
                     'end_date' => Carbon::parse($dailyItem->end_date)->format('Y-m-d'),
@@ -258,7 +260,7 @@ class ProductionDashboardController extends Controller
                 }
                 
                 // Process hourly remarks for this daily item
-                foreach ($dailyItem->hourlyRemarks->sortBy('created_at') as $hourlyRemark) {
+                foreach ($dailyItem->hourlyRemarks->sortBy('start_time') as $hourlyRemark) {
                     $operatorUser = OperatorUser::where('name', $hourlyRemark->pic)->first();
                     $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                         ? asset('storage/' . $operatorUser->profile_picture) 
@@ -305,12 +307,41 @@ class ProductionDashboardController extends Controller
 
                 $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
             }
-
-
+            $structuredData[$userName]['hourly_remarks'] = collect($structuredData[$userName]['hourly_remarks'])
+            ->sort(function ($a, $b) {
+                // Urutkan berdasarkan shift terlebih dahulu
+                if ($a['shift'] !== $b['shift']) {
+                    return $a['shift'] <=> $b['shift'];
+                }
+                
+                // Jika shift sama, urutkan berdasarkan created_at
+                $createdAtA = \Carbon\Carbon::parse($a['created_at']);
+                $createdAtB = \Carbon\Carbon::parse($b['created_at']);
+                
+                return $createdAtA <=> $createdAtB;
+            })
+            ->values()
+            ->all();
+        
         }
+        
 
+        $machineNames = [
+            '0350F',
+            '0450F',
+            '0450G',
+            '0450H',
+            '0450I',
+            '0450J',
+            '0550B',
+            '0650D',
+            '0650E',
+            '0850D',
+        ];
+        
         $machines = User::distinct()
             ->whereIn('id', MachineJob::pluck('user_id'))
+            ->whereIn('name', $machineNames)
             ->pluck('name', 'id');
             
         // dd($structuredData);
@@ -334,5 +365,41 @@ class ProductionDashboardController extends Controller
         ->values(); // ⬅⬅ Ini penting biar bisa pakai forEach() di frontend
 
         return response()->json($results);
+    }
+
+    public function adminView()
+    {
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $tomorrow = now()->addDay()->toDateString();
+
+        $dailyItemCodes = DailyItemCode::with('user', 'hourlyRemarks', 'scannedData') // Load relasi user
+            ->whereIn('start_date', [$yesterday, $today, $tomorrow])
+            ->orderBy('start_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get();
+
+        return view('admin.dailyitemcodesindex', compact('dailyItemCodes', 'today', 'yesterday', 'tomorrow'));
+    }
+
+    public function setStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'nullable|in:1,null',
+        ]);
+
+        $code = DailyItemCode::findOrFail($id);
+        $code->is_done = $request->status === 'null' ? null : 1;
+        $code->save();
+
+        return back()->with('status', 'Status updated successfully.');
+    }
+
+    public function destroyHourlyRemark($id)
+    {
+        $hr = HourlyRemark::findOrFail($id);
+        $hr->delete();
+
+        return back()->with('success', 'Hourly remark berhasil dihapus.');
     }
 }

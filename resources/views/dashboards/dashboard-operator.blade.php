@@ -375,6 +375,7 @@
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
+                                            <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
                                             @if ($itemCode)
@@ -413,6 +414,7 @@
                                                         </span>
                                                     @endif
                                                 </td>
+                                                <td class="py-1 px-2">{{ $data->remark }}</td>
                                                 <!-- <td class="py-1 px-2">{{ $data->loss_package_quantity }}</td> -->
                                                 <!-- <td class="py-1 px-2">{{ $data->actual_quantity }}</td> -->
                                                 <td class="py-1 px-2">
@@ -430,18 +432,38 @@
                                                     @endif -->
 
                                                     <button 
-                                                        type="button" 
-                                                        class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded mt-1"
-                                                        onclick="openCycleTimeModal('{{ $data->id }}', '{{ $data->temporal_cycle_time ?? '' }}')"
-                                                    >
-                                                        Set Cycle Time
+                                                            type="button" 
+                                                            class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded mt-1"
+                                                            onclick="openCycleTimeModal('{{ $data->id }}', '{{ $data->temporal_cycle_time ?? '' }}')"
+                                                        >
+                                                            Set Cycle Time
                                                     </button>
+
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded mt-1"
+                                                        onclick="openRemarkModal('{{ $data->id }}', '{{ $data->remark ?? '' }}')"
+                                                    >
+                                                        Set Remark
+                                                    </button>
+
                                                 </td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
 
+                                <div id="remarkDICModal" class="fixed inset-0 bg-black bg-opacity-30 z-50 hidden flex items-center justify-center">
+                                    <div class="bg-white p-6 rounded shadow-md w-96">
+                                        <h2 class="text-lg font-semibold mb-2">Set Remark</h2>
+                                        <input type="hidden" id="remark_dic_id">
+                                        <textarea id="remark_dic_input" class="w-full border rounded px-2 py-1" rows="4" placeholder="Tulis remark..."></textarea>
+                                        <div class="mt-4 text-right">
+                                            <button onclick="closeRemarkModal()" class="px-3 py-1 bg-gray-400 text-white rounded">Cancel</button>
+                                            <button onclick="saveRemark()" class="px-3 py-1 bg-blue-600 text-white rounded">Save</button>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div id="cycleTimeModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                     <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
@@ -615,8 +637,49 @@
                             <dialog id="detailModal" class="rounded-md shadow-lg p-4 w-full max-w-3xl">
                                 <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-bold">Detail Per Jam - {{ $activeDIC['item_code'] ?? '' }}</h3>
+                                    <button onclick="document.getElementById('addHourlyRemarksModal').showModal()" 
+                                            class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                        Add Hourly Remarks
+                                    </button>
                                     <button onclick="document.getElementById('detailModal').close()" class="text-red-500 hover:text-red-700">X</button>
                                 </div>
+
+                                <dialog id="addHourlyRemarksModal" class="rounded-md p-6 w-full max-w-md bg-white shadow">
+                                    <form method="POST" action="{{ route('hourly-remarks.store') }}" x-data="autoSubmitForm()" >
+                                        @csrf
+                                        <h3 class="text-lg font-bold mb-4">Tambah Hourly Remarks</h3>
+
+                                        <label for="start_time" class="block text-sm font-semibold mb-1">Pilih Jam Mulai</label>
+                                        <select name="start_time" id="start_time" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 mb-4">
+                                            @php
+                                                $start = \Carbon\Carbon::parse('07:30');
+                                                $end = \Carbon\Carbon::parse('7:30')->addDay(); // keesokan harinya
+                                            @endphp
+                                            @while ($start < $end)
+                                                <option value="{{ $start->format('H:i') }}">
+                                                    {{ $start->format('H:i') }}
+                                                </option>
+                                                @php $start->addHour(); @endphp
+                                            @endwhile
+                                        </select>
+
+                                        {{-- Hidden Inputs --}}
+                                        <input type="hidden" name="uniqueData" value='@json($itemCollections)' />
+                                        <input type="hidden" name="datas" value='@json($datas)' />
+                                        <input type="hidden" name="activedic" value='@json($activeDIC)' />
+                                        <input type="hidden" id="nik" name="nik" x-model="nikInput" />
+
+                                        <div class="flex justify-end gap-2 mt-4">
+                                            <button type="button" onclick="document.getElementById('addHourlyRemarksModal').close()"
+                                                    class="px-3 py-1 rounded border text-gray-700 hover:bg-gray-100">Cancel</button>
+                                            <button type="submit"
+                                                    class="px-4 py-1 rounded bg-green-600 text-white hover:bg-green-700">Simpan</button>
+                                        </div>
+                                    </form>
+                                </dialog>
+
+                                
 
                                 <table class="w-full border border-gray-200 text-sm">
                                     <thead class="bg-gray-100">
@@ -1347,6 +1410,7 @@
                         $('#dashboardSection').addClass('hidden');
                         $('#loginSection').removeClass('hidden');
                         alert("Verification expired due to inactivity.");
+                        location.reload();
                     },
 
                     focusOnSPKCode() {
@@ -1472,6 +1536,36 @@
 
         function closeProductionModal() {
             document.getElementById('productionModal').classList.add('hidden');
+        }
+
+        function openRemarkModal(id, existingRemark = '') {
+            document.getElementById('remark_dic_id').value = id;
+            document.getElementById('remark_dic_input').value = existingRemark;
+            document.getElementById('remarkDICModal').classList.remove('hidden');
+        }
+
+        function closeRemarkModal() {
+            document.getElementById('remarkDICModal').classList.add('hidden');
+        }
+
+        function saveRemark() {
+            const id = document.getElementById('remark_dic_id').value;
+            const remark = document.getElementById('remark_dic_input').value;
+
+            fetch(`/daily-item-codes/update-remark/${id}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ remark })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('Remark saved!');
+                closeRemarkModal();
+                location.reload();
+            });
         }
     </script>
 

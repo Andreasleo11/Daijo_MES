@@ -46,6 +46,32 @@ class DashboardController extends Controller
         if ($user->role->name === 'ADMIN') {
             return view('dashboards.dashboard-admin');
         } elseif ($user->role->name === 'OPERATOR') {
+
+            $hourlyRemarks = HourlyRemark::with('dailyItemCode.masterItem')->get();
+
+            foreach ($hourlyRemarks as $remark) {
+
+                $temporal = $remark->dailyItemCode->temporal_cycle_time ?? null;
+
+                if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
+                    if($remark->dailyItemCode->masterItem->pair){
+                    $remark->target = floor(3600 / $temporal) * 2;
+                    }else{
+                    $remark->target = floor(3600 / $temporal);
+                    }
+                }
+
+                if (!is_null($remark->actual_production)) {
+                    $remark->is_achieve = $remark->actual_production >= $remark->target ? 1 : 0;
+                } else {
+                    // Jika actual_production masih null, anggap belum tercapai
+                    $remark->is_achieve = 0;
+                }
+        
+                $remark->save();
+            }
+
+
             $files = collect();
             $machineJobShift = null;
             $itemCode = null;
@@ -284,6 +310,7 @@ class DashboardController extends Controller
                 ->where('item_code', $itemCode)
                 ->with('masterItem', 'scannedData', 'masterFg', 'hourlyRemarks')
                 ->whereNull('is_done')
+                ->orderBy('shift')
                 ->first();
 
             $previousDIC = DailyItemCode::where('user_id', $user->id)
@@ -309,7 +336,7 @@ class DashboardController extends Controller
 
             if ($activeDIC) {
                 foreach ($activeDIC->hourlyRemarks as $remark) {
-                    if ($remark->target <= ($remark->actual_production ?? 0)) {
+                    if (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target) {
                         $remark->is_achieve = true;
                         $remark->save();
                     }
@@ -728,6 +755,10 @@ class DashboardController extends Controller
             $target *= 2;
         }
 
+        // if ($activeDIC->master_item?->cavity == 2) {
+        //     $target *= 2;
+        // }
+
         // Validasi dasar inputan
         $request->validate([
             'spk_code_auto' => 'required|string',
@@ -747,6 +778,7 @@ class DashboardController extends Controller
             ->where('label', $label)
             ->where('quantity', $quantity)
             ->first();
+
 
         $existingSpk = SpkMaster::where('spk_number', $spk_code)->first();
 
@@ -796,7 +828,7 @@ class DashboardController extends Controller
                 ->sum('quantity');
         }
 
-        $isAchieve = $totalActual >= $target ? 1 : 0;
+        $isAchieve = 0;
 
         if ($hourlyRemark) {
             $hourlyRemark->update([
@@ -1558,6 +1590,70 @@ class DashboardController extends Controller
         $slot->save();
 
         return back()->with('success', 'Actual Production updated successfully.');
+    }
+
+    public function updateRemarkDIC(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'remark' => 'nullable|string|max:255'
+        ]);
+
+        $item = DailyItemCode::findOrFail($id);
+        $item->remark = $validated['remark'];
+        $item->save();
+
+        return response()->json(['message' => 'Remark updated']);
+    }
+
+    public function storeHourlyRemark(Request $request)
+    {
+        $activedic = json_decode($request->activedic, true);
+        $dicId = $activedic['id'];
+        $itemCode = $activedic['item_code'];
+  
+   
+    
+        $startTime = Carbon::parse($request->start_time);
+        $endTime = (clone $startTime)->addHour(); // 1 jam interval
+    
+        // Priority 1: Get from daily_item_codes.temporal_cycle_time
+        $daily = DailyItemCode::where('id', $dicId)->first();
+        $temporal = $daily?->temporal_cycle_time;
+        
+        if ($temporal && is_numeric($temporal)) {
+            $target = floor(3600 / $temporal);
+        } else {
+            // Priority 2: Get from sap_inventory_fg
+            $sap = SapInventoryFg::where('item_code', $itemCode)->first();
+            $cycle = $sap?->cycle_time;
+    
+            if ($cycle && is_numeric($cycle)) {
+                $target = floor(3600 / ($cycle * 60));
+            } else {
+                $target = 0; // fallback jika semua kosong
+            }
+        }
+
+        $exists = HourlyRemark::where('dic_id',  $activedic['id'])
+        ->where('start_time', $startTime)
+        ->exists();
+
+        if ($exists) {
+            return back()->with('error', 'Data dengan jam tersebut sudah ada untuk DIC yang sama.');
+        }
+    
+        // Insert hourly remark
+        HourlyRemark::create([
+            'dic_id' => $dicId,
+            'start_time' => $startTime->format('H:i:s'),
+            'end_time' => $endTime->format('H:i:s'),
+            'target' => $target,
+            'pic' => $request->nik,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    
+        return back()->with('success', 'Hourly Remark berhasil ditambahkan!');
     }
 
 }

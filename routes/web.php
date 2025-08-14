@@ -25,6 +25,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OperatorUserController;
 use App\Http\Controllers\ProductionDashboardController;
 use App\Http\Controllers\MasterListItemController;
+use App\Http\Controllers\DaijoMesHomeController;
 
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -44,6 +45,12 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
 
+Route::post('/admin/dailyitemcodes/{id}/set-status', [ProductionDashboardController::class, 'setStatus'])->name('dailyitemcodes.set-status');
+Route::delete('/hourly-remarks/{id}', [ProductionDashboardController::class, 'destroyHourlyRemark'])->name('hourly-remarks.destroy');
+
+Route::get('/admin/dailyitemcodes', [ProductionDashboardController::class, 'adminView'])->name('admin.dailyitemcodes');
+
+
 Route::get('/test/ROPdata', [DashboardController::class, 'showROPData']);
 
 Route::get('/daily-item-code/get-item-codes', [DailyItemCodeController::class, 'getItemCodes'])
@@ -55,6 +62,9 @@ Route::get('/daily-item-code/max-quantity', [DailyItemCodeController::class, 'ge
 Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
 Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
 
+
+Route::get('/daijo-mes-home', [DaijoMesHomeController::class, 'index'])
+    ->name('daijo.mes.home');
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
 Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
@@ -124,6 +134,9 @@ Route::middleware('auth')->group(function (){
     Route::delete('/spk-scan/{id}', [DashboardController::class, 'deleteScanData'])->name('spk-scan.destroy');
     Route::put('/daily-item-codes/{id}/temporal-cycle-time', [DashboardController::class, 'updateCycleTime'])
     ->name('daily-item-codes.updateCycleTime');
+    Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
+
+    Route::post('/daily-item-codes/update-remark/{id}', [DashboardController::class, 'updateRemarkDIC']);
 
     Route::put('/hourly-remarks/{id}/update-actual-production', [DashboardController::class, 'updateActualProduction'])
     ->name('hourly-remarks.updateActualProduction');
@@ -153,6 +166,9 @@ Route::middleware('auth')->group(function (){
     Route::get('/barcode/filter', [BarcodeController::class, 'filter'])->name('barcode.filter');
     Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
     Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
+    Route::get('barcode/summary', [BarcodeController::class, 'summaryDashboard'])->name('summaryDashboard');
+
+    
 
     Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
     Route::post('/add-customer', [BarcodeController::class, 'storeCustomer'])->name('customer.store');

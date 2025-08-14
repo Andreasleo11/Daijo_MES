@@ -5,6 +5,11 @@
         </h2>
     </x-slot>
 
+    <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-slate-800 tracking-tight mb-3">Daily Production</h1>
+            <div class="w-16 h-0.5 bg-gradient-to-r from-slate-600 to-slate-400 mx-auto rounded-full"></div>
+        </div>
+
 
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -160,8 +165,12 @@
                                     <p class="text-xl font-semibold">{{ count($data['mould_change_log']) }}</p>
                                     <p>Total Mould Changes</p>
                                 </div>
+                                @php
+                                    $totalDowntime = array_sum(array_column(array_merge($data['mould_change_log'], $data['adjust_machine_logs']), 'actual_time'));
+                                @endphp
+
                                 <div class="bg-green-200 p-4 rounded-lg">
-                                    <p class="text-xl font-semibold">{{ array_sum(array_column($data['mould_change_log'], 'actual_time')) }} min</p>
+                                    <p class="text-xl font-semibold">{{ $totalDowntime }} min</p>
                                     <p>Total Downtime</p>
                                 </div>
                             
@@ -239,6 +248,27 @@
                                     <!-- Image -->
                                     <img id="modalPhoto" src="" alt="Mould Change Photo" class="max-w-full max-h-screen cursor-pointer transition-transform transform hover:scale-125">
                                 </div>
+                            </div>
+
+                            <div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-900 rounded shadow-sm mb-4">
+                                <h3 class="text-lg font-bold mb-2">📝 Catatan Penting</h3>
+
+                                @php
+                                    $remarks = collect($data['daily_item_code'])->filter(fn($dic) => !empty($dic['remark']));
+                                @endphp
+
+                                @if ($remarks->isNotEmpty())
+                                    <ul class="list-disc list-inside space-y-2 text-sm">
+                                        @foreach ($remarks as $dic)
+                                            <li>
+                                                <strong>Shift {{ $dic['shift'] }} - {{ $dic['item_code'] }}:</strong><br>
+                                                {!! nl2br(e($dic['remark'])) !!}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <p class="italic text-sm text-gray-600">Tidak ada remark hari ini.</p>
+                                @endif
                             </div>
 
                             <!-- Hourly Remarks -->
@@ -399,6 +429,7 @@
                                         <thead class="bg-gray-200">
                                             <tr>
                                                 <th class="border px-4 py-2">Item Code</th>
+                                                <th class="border px-4 py-2">Item Name</th>
                                                 <th class="border px-4 py-2">Shift</th>
                                                 <th class="border px-4 py-2">Planned Quantity</th>
                                                 <th class="border px-4 py-2">Quantity Produksi</th>
@@ -416,6 +447,7 @@
                                                 @endphp
                                                 <tr class="{{ $rowColor }}">
                                                     <td class="border px-4 py-2">{{ $dailyItem['item_code'] }}</td>
+                                                    <td class="border px-4 py-2">{{ $dailyItem['item_name'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['shift'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['total_scanned_quantity'] }}</td>

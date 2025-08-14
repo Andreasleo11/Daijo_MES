@@ -273,11 +273,6 @@ class BarcodeController extends Controller
 
         $counter = 1;
         while (isset($data['partno'.$counter])) {
-            if ($data['label'.$counter] === 'ADJUST') {
-                $data['quantity'.$counter];
-            } else {
-                $data['quantity'.$counter] = 1;
-            }
 
             $partNo = $data['partno'.$counter];
             $label = $data['label'.$counter];
@@ -298,7 +293,7 @@ class BarcodeController extends Controller
                     'masterId' => $idmaster,
                     'noDokumen' => $data['noDokumen'],
                     'partNo' => $partNo,
-                    'quantity' => $data['quantity'.$counter],
+                    'quantity' => null,
                     'label' => $label,
                     'position' => $data['position'],
                     'scantime' => $formattedScanTime,
@@ -514,11 +509,11 @@ class BarcodeController extends Controller
             // Calculate quantities based on location
             $locationQuantity = $datas->where('partNo', $partNo)
                 ->where('position', $locationData['position'])
-                ->sum('quantity');
+                ->count();
 
             $customerQuantity = $datas->where('partNo', $partNo)
                 ->where('position', $locationData['customerPosition'])
-                ->sum('quantity');
+                ->count();
 
             $balance = max($locationQuantity - $customerQuantity, 0);
 
@@ -567,5 +562,67 @@ class BarcodeController extends Controller
         $customer->delete();
 
         return redirect()->back()->with('success', 'Customer berhasil dihapus!');
+    }
+
+    public function summaryDashboard()
+    {
+        $partNumbers = BarcodePackagingDetail::select('partNo')->distinct()->pluck('partNo');
+        $summaryData = [];
+
+        foreach ($partNumbers as $partNo) {
+            $labels = BarcodePackagingDetail::where('partNo', $partNo)
+                ->orderBy('scantime', 'desc')
+                ->get()
+                ->groupBy('label');
+
+            $daijoQty = 0;
+            $kiicQty = 0;
+            $customerQty = 0;
+            $detailPerLabel = [];
+
+            foreach ($labels as $label => $rows) {
+                $latest = $rows->first(); // data terbaru dari label ini
+                $position = strtolower(trim($latest->position)); // normalisasi teks
+
+                // Karena setiap row = 1 quantity, cukup tambahkan 1 per label valid
+                if ($position === 'jakarta') {
+                    $daijoQty += 1;
+                } elseif ($position === 'karawang') {
+                    $kiicQty += 1;
+                } elseif (in_array($position, ['customerjakarta', 'customerkarawang'])) {
+                    $customerQty += 1;
+                }
+
+                $detailPerLabel[] = [
+                    'label' => $label,
+                    'position' => $latest->position,
+                    'last_transaction' => $latest->scantime,
+                    'quantity' => 1, // karena 1 row = 1 quantity
+                    'history' => $rows->map(function ($r) {
+                        return [
+                            'scantime' => $r->scantime,
+                            'position' => $r->position,
+                            'label' => $r->label,
+                            'no_dokumen' => $r->noDokumen,
+                            'created_at' => $r->created_at,
+                        ];
+                    })->toArray(),
+                ];
+            }
+
+            $summaryData[] = [
+                'part_no' => $partNo,
+                'quantity_daijo' => $daijoQty,
+                'quantity_kiic' => $kiicQty,
+                'quantity_customer' => $customerQty,
+                'total' => $daijoQty + $kiicQty + $customerQty,
+                'details' => $detailPerLabel,
+            ];
+        }
+
+        // dd($summaryData); // Debug dulu
+        return view('barcode.store_summary', [
+            'summaryData' => $summaryData,
+        ]);
     }
 }

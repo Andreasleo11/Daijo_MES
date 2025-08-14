@@ -45,8 +45,8 @@ new class extends Component {
                 <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                     wire:navigate />
 
-                {{-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
-                    wire:navigate /> --}}
+                <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
+                    wire:navigate />
 
 
                 @if (auth()->user()->can('view-warehouse-links'))
@@ -57,14 +57,14 @@ new class extends Component {
                         ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses'],
                         ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project'],
                     ]" />
-                    {{-- <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
+                    <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
                         :active="request()->routeIs('production.bom.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
                         label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('notification_recipients.index') }}"
-                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> --}}
+                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate /> 
                 @endif
 
                 <!-- Admin Links -->
@@ -118,6 +118,7 @@ new class extends Component {
                     <livewire:parent-dropdown label="Store" :childRoutes="[
                         ['name' => 'barcodeindex', 'label' => 'Create Barcode'],
                         ['name' => 'inandout.index', 'label' => 'Scan Barcode'],
+                        ['name' => 'summaryDashboard', 'label' => 'Summary Store Packaging Data'],
                         ['name' => 'list.barcode', 'label' => 'Report History'],
                         ['name' => 'stockallbarcode', 'label' => 'Stock Item'],
                         ['name' => 'customer.add', 'label' => 'Add Customer'],
