@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_MouldingUserLog;
+use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\File;
 use Carbon\Carbon;
 
@@ -347,4 +348,87 @@ class WorkshopController extends Controller
         return redirect()->route('workshop.main.menu')->with('status', 'Scan In removed successfully!');
     }
 
+    public function addManualWorkshop()
+    {
+        $parents = PRD_BillOfMaterialParent::all();
+        return view('production.workshop.add_manual', compact('parents'));
+    }
+
+      public function getChildren($parentId)
+    {
+        return PRD_BillOfMaterialChild::where('parent_id', $parentId)->get();
+    }
+
+    public function handleScanManual(Request $request)
+    {
+       
+        $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
+
+        $barcode = $request->child;
+
+        // Split the barcode using '-' as the separator
+        if (strpos($barcode, '~') !== false) {
+            [$item_code, $item_id] = explode('~', $barcode, 2);
+        } else {
+            return back()->with('error', 'Invalid barcode format.');
+        }
+        $scanTime = now('Asia/Jakarta')->format('Y-m-d H:i:s');
+
+        $user = auth()->user();
+
+
+        $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
+
+        if (!$data) {
+            return redirect()->back()->withErrors(['error' => 'Barcode data not found or invalid.']);
+        }
+
+        if ($data->status === 'Canceled') {
+            return redirect()->back()->withErrors(['error' => 'Item sudah di cancel']);
+        }
+
+        $materialProcess = $data->materialProcess()
+        ->where('process_name', $user->name)
+        ->whereNull('scan_in')  // Ensure scan_in is null
+        ->orderBy('created_at', 'asc')  // Order by created_at to get the earliest
+        ->first();  // Get the first match
+
+        // If a matching material process is found, update its scan_in field with the scan time
+        if ($materialProcess) {
+            $materialProcess->scan_in = $scanTime;
+            $materialProcess->pic = $user->username;
+            $materialProcess->status = 1;
+            $materialProcess->save();  // Save the changes
+            $anyScanIn = $data->materialProcess()->whereNotNull('scan_in')->exists();
+
+        // If any materialProcess has scan_in not null, update the status to 'started'
+            if ($anyScanIn) {
+                $data->status = 'Started';
+                $data->save();  // Save the status update
+            }
+        } else {
+            $barcodeElements = explode('~', $barcode); // Split barcode into elements
+            $childId = $barcodeElements[1] ?? null; // Get the second element (child ID)
+            if ($childId) {
+                // Create a new material process using PRD_MaterialLog model
+                $newMaterialProcess = new \App\Models\Production\PRD_MaterialLog();
+                $newMaterialProcess->child_id = $childId;
+                $newMaterialProcess->process_name = auth()->user()->name; // Use the authenticated user's name
+                $newMaterialProcess->scan_in = $scanTime; // Use the current scan time
+                $newMaterialProcess->scan_start = null;
+                $newMaterialProcess->scan_out = null;
+                $newMaterialProcess->status = 0; // Default status
+                $newMaterialProcess->pic = $user->username; // Assign the user's username
+                $newMaterialProcess->remark = 'Proses Tambahan'; // Optional remark
+                $newMaterialProcess->is_draft = true; // Set is_draft to true
+                $newMaterialProcess->save(); // Save the new record
+                
+                return redirect()->route('workshop.main.menu');
+            }else {
+                    return back()->with('error', 'Invalid barcode format.');
+                }
+        }
+
+        return redirect()->route('workshop.main.menu');
+    }
 }

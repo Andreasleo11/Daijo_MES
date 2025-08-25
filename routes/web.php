@@ -259,6 +259,12 @@ Route::middleware('auth')->group(function (){
 
     Route::get('/workshop/summary', [WorkshopController::class, 'summaryDashboard'])->name('workshop.summary.dashboard');
 
+    //add manual
+    Route::get('/workshop/add-manual', [WorkshopController::class, 'addManualWorkshop'])->name('workshop.addManual');
+    Route::get('/workshop/children/{parentId}', [WorkshopController::class, 'getChildren'])->name('workshop.children');
+    Route::post('/workshop/scan-manual', [WorkshopController::class, 'handleScanManual'])->name('workshop.scan.manual');
+    //add manual
+
     Route::post('file/upload', [FileController::class, 'upload'])->name('file.upload');
     Route::delete('/file/{id}', [FileController::class, 'destroy'])->name('file.delete');
 

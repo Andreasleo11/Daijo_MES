@@ -506,9 +506,9 @@ class DashboardController extends Controller
                 }
 
                 // If no matching shift is found, you can set a default value if needed
-                if (!isset($machineJob->shift)) {
-                    return redirect()->back()->with('error', 'No matching shift found!');
-                }
+                // if (!isset($machineJob->shift)) {
+                //     return redirect()->back()->with('error', 'No matching shift found!');
+                // }
 
                 $machineJob->save();
 

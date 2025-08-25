@@ -8,6 +8,11 @@
                 class="inline-block bg-green-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400">
                 Create Process
             </a>
+
+            <a href="{{ route('workshop.addManual') }}"
+                class="inline-block bg-green-500 text-white px-4 py-2 text-sm font-medium rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400">
+                Jangan diklik
+            </a>
         </div>
 
 
