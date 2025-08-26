@@ -19,6 +19,7 @@ class HourlyRemark extends Model
         'is_achieve',
         'pic',
         'actual_production',
+        'NG',
     ];
 
     public function dailyItemCode()

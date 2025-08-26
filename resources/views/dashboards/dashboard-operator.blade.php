@@ -689,6 +689,7 @@
                                             <th class="py-2 px-4 border">Target</th>
                                             <th class="py-2 px-4 border">Actual Scan</th>
                                             <th class="py-2 px-4 border">Actual Production</th>
+                                            <th class="py-2 px-4 border">NG</th>
                                             <th class="py-2 px-4 border">Status</th>
                                             <th class="py-2 px-4 border">Remark</th>
                                             <th class="py-2 px-4 border">Action</th>
@@ -704,6 +705,9 @@
                                                     <td class="py-2 px-4 border">{{ $slot->actual }}</td>
                                                     <td class="py-2 px-4 border">
                                                         {{ $slot->actual_production ? $slot->actual_production : 0 }}
+                                                    </td>
+                                                      <td class="py-2 px-4 border">
+                                                        {{ $slot->NG ? $slot->NG : 0 }}
                                                     </td>
                                                     <td class="py-2 px-4 border">
                                                         @if ($slot->is_achieve)
@@ -726,6 +730,13 @@
                                                         >
                                                             Add Actual Production
                                                         </button>
+
+                                                        <button 
+                                                            class="ml-2 bg-purple-500 text-white text-xs px-2 py-1 rounded hover:bg-purple-600"
+                                                            onclick="openNgModal({{ $slot->id }}, {{ $slot->NG ?? 0 }})"
+                                                        >
+                                                            Add NG
+                                                        </button>
                                                     </td>
                                                     </td>
                                                 </tr>
@@ -741,6 +752,22 @@
                                                                 <input type="number" id="actualProductionInput" name="actual_production" class="w-full border rounded p-2 mb-4" required min="0">
                                                                 <div class="flex justify-end gap-2">
                                                                     <button type="button" onclick="closeProductionModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+                                                                    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Submit</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="ngModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center">
+                                                        <div class="bg-white p-6 rounded shadow-lg w-96">
+                                                            <h2 class="text-lg font-semibold mb-4">Add NG</h2>
+                                                            <form id="ngForm" method="POST">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <input type="number" name="NG" id="ngValue" class="w-full border rounded p-2 mb-4" min="0" required>
+
+                                                                <div class="flex justify-end space-x-2">
+                                                                    <button type="button" onclick="closeNgModal()" class="px-4 py-2 bg-gray-400 text-white rounded">Cancel</button>
                                                                     <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Submit</button>
                                                                 </div>
                                                             </form>
@@ -919,6 +946,7 @@
                                     <th class="py-2 px-4 border">Target</th>
                                     <th class="py-2 px-4 border">Actual Scan</th>
                                     <th class="py-2 px-4 border">Actual Production</th>
+                                    <th class="py-2 px-4 border">NG</th>
                                     <th class="py-2 px-4 border">Status</th>
                                     <th class="py-2 px-4 border">PIC</th>
                                     <th class="py-2 px-4 border">Remark</th>
@@ -932,6 +960,7 @@
                                         <td class="py-2 px-4 border">{{ $remark->target }}</td>
                                         <td class="py-2 px-4 border">{{ $remark->actual }}</td>
                                         <td class="py-2 px-4 border">{{ $remark->actual_production ? $remark->actual_production : 0 }}</td>
+                                        <td class="py-2 px-4 border">{{ $remark->NG ? $remark->NG : 0 }}</td> 
                                         <td class="py-2 px-4 border">
                                             @if ($remark->is_achieve)
                                                 <span class="text-green-600 font-semibold">Tercapai</span>
@@ -1537,6 +1566,24 @@
         function closeProductionModal() {
             document.getElementById('productionModal').classList.add('hidden');
         }
+
+         function openNgModal(id, currentValue) {
+        let modal = document.getElementById('ngModal');
+        let form = document.getElementById('ngForm');
+
+        // Set form action
+        form.action = '/hourly-remarks/' + id + '/ng'; // pastikan route sesuai
+        document.getElementById('ngValue').value = currentValue;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeNgModal() {
+        let modal = document.getElementById('ngModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 
         function openRemarkModal(id, existingRemark = '') {
             document.getElementById('remark_dic_id').value = id;

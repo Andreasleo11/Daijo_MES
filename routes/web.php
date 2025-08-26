@@ -140,6 +140,8 @@ Route::middleware('auth')->group(function (){
 
     Route::put('/hourly-remarks/{id}/update-actual-production', [DashboardController::class, 'updateActualProduction'])
     ->name('hourly-remarks.updateActualProduction');
+    Route::put('/hourly-remarks/{id}/ng', [DashboardController::class, 'updateNgProduction'])
+    ->name('hourly-remarks.updateNg');
 
 
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');

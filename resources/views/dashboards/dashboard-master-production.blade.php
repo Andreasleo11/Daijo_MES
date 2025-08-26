@@ -285,6 +285,7 @@
                                                 <th class="border px-4 py-2">Target</th>
                                                 <th class="border px-4 py-2">Actual Scan</th>
                                                 <th class="border px-4 py-2">Actual Production</th>
+                                                <th class="border px-4 py-2">NG</th>
                                                 <th class="border px-4 py-2">Status</th>
                                                 <th class="border px-4 py-2">Remark</th>
                                             </tr>
@@ -321,6 +322,9 @@
                                                 <td class="border px-4 py-2 text-center font-bold">
                                                     {{ $remark['actual_production'] ?? 0 }}
                                                 </td>
+                                                <td class="border px-4 py-2 text-center font-bold">
+                                                    {{ $remark['ng'] ?? 0 }}
+                                                </td>
                                                 <td class="border px-4 py-2 text-center">
                                                     <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
                                                         {{ ucfirst($remark['status']) }}
@@ -336,7 +340,7 @@
 
                                             @if ($isLastInShift)
                                                 <tr class="bg-blue-100 text-blue-900 font-semibold text-sm">
-                                                    <td colspan="6" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
+                                                    <td colspan="7" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
                                                     <td class="border px-4 py-2 text-center">{{ $totalActual }}</td>
                                                     <td colspan="2" class="border px-4 py-2"></td>
                                                 </tr>

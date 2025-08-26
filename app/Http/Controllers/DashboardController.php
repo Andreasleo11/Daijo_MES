@@ -54,11 +54,13 @@ class DashboardController extends Controller
                 $temporal = $remark->dailyItemCode->temporal_cycle_time ?? null;
 
                 if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                    if($remark->dailyItemCode->masterItem->pair){
-                    $remark->target = floor(3600 / $temporal) * 2;
-                    }else{
-                    $remark->target = floor(3600 / $temporal);
-                    }
+                    $cavity = $remark->dailyItemCode->masterItem->cavity;
+                    // dd($cavity);
+                    // kalau cavity = 0 → ubah jadi 1
+                    $cavity = $cavity > 0 ? $cavity : 1;
+
+                    $remark->target = floor(3600 / $temporal) * $cavity;
+                    // dd($remark->target);
                 }
 
                 if (!is_null($remark->actual_production)) {
@@ -1590,6 +1592,20 @@ class DashboardController extends Controller
         $slot->save();
 
         return back()->with('success', 'Actual Production updated successfully.');
+    }
+
+    public function updateNgProduction(Request $request, $id)
+    {
+        // dd($request->all());
+        $request->validate([
+            'NG' => 'required|integer|min:0',
+        ]);
+
+        $slot = HourlyRemark::findOrFail($id);
+        $slot->NG = $request->NG;
+        $slot->save();
+
+        return back()->with('success', 'NG updated successfully.');
     }
 
     public function updateRemarkDIC(Request $request, $id)

@@ -294,6 +294,7 @@ class ProductionDashboardController extends Controller
                         'actual' => $hourlyRemark->actual,
                         'achievement_percentage' => $achievementPercentage,
                         'actual_production' => $hourlyRemark->actual_production,
+                        'ng' =>$hourlyRemark->NG,
                         'remark' => $hourlyRemark->remark ?: '-',
                         'is_achieve' => $hourlyRemark->is_achieve,
                         'status' => $status,
