@@ -53,7 +53,8 @@ class GenerateProductionSummary extends Command
             }
 
             // Mark processed records
-            ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
+            // INI UNTUK UPDATE PROCESSED JADI TRUE NANTI KALAU METHOD SUDAH AMAN 
+            // ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
 
             DB::commit();
             $this->info('Production summary generated and data marked as processed.');

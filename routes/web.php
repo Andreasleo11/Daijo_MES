@@ -30,6 +30,9 @@ use App\Http\Controllers\DaijoMesHomeController;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
+use App\Services\BaseSapService;
+use App\Services\SpkMasterService;
+
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -44,6 +47,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
+
+Route::get('test/spk/1', [SpkMasterService::class, 'getAll']);
 
 Route::post('/admin/dailyitemcodes/{id}/set-status', [ProductionDashboardController::class, 'setStatus'])->name('dailyitemcodes.set-status');
 Route::delete('/hourly-remarks/{id}', [ProductionDashboardController::class, 'destroyHourlyRemark'])->name('hourly-remarks.destroy');
