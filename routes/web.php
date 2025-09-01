@@ -72,6 +72,7 @@ Route::get('/daijo-mes-home', [DaijoMesHomeController::class, 'index'])
     ->name('daijo.mes.home');
 
 Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+Route::get('/api-log-dashboard', [DashboardController::class, 'apiLog'])->name('api.dashboard');
 Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
 
 

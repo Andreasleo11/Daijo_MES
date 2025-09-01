@@ -31,7 +31,7 @@ class BaseSapService
                 'Content-Type' => 'application/json',
             ])
             ->post($this->authUrl, [
-                'CompanyDB' => 'LIVE_DATABASE',
+                'CompanyDB' => 'TESTING_MARET',
                 'Username' => 'it02',
                 'Password' => '123it',
             ]);
@@ -69,6 +69,31 @@ class BaseSapService
         }
 
         return $response->json();
+    }
+
+    protected function post($endpoint, $payload = [])
+    {
+        $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->token,
+                'Accept'        => 'application/json',
+                'Host'          => 'localhost',
+            ])
+            ->post($this->baseUrl . $endpoint, $payload);
+
+        if ($response->status() === 401) {
+            // Refresh token jika expired
+            $this->token = $this->authenticate();
+            session(['sap_token' => $this->token]);
+
+            $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $this->token,
+                    'Accept'        => 'application/json',
+                    'Host'          => 'localhost',
+                ])
+                ->post($this->baseUrl . $endpoint, $payload);
+        }
+
+        return $response;
     }
 
     public function getToken()

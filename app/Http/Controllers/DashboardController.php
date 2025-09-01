@@ -23,6 +23,7 @@ use App\Models\SpkMaster;
 use App\Models\OperatorUser;
 use App\Models\User;
 use App\Models\HourlyRemark;
+use App\Models\ApiLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -1670,6 +1671,12 @@ class DashboardController extends Controller
         ]);
     
         return back()->with('success', 'Hourly Remark berhasil ditambahkan!');
+    }
+
+    public function apiLog()
+    {
+        $logs = ApiLog::all();
+        return view('Log.api_logs', compact('logs'));
     }
 
 }

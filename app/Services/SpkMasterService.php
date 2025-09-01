@@ -69,26 +69,56 @@ class SpkMasterService extends BaseSapService
         return $response;
     }
 
-    public function SyncData()
+   public function SyncData()
     {
-        $spkData = $this->getAll();
-        // Hapus data lama
-        DB::table('spk_masters')->truncate();
+        try {
+                $spkData = $this->getAll();
 
-        // Simpan data baru
-        foreach ($spkData as $row) {
-            DB::table('spk_masters')->insert([
-                'spk_number' => $row['SPKNo'],
-                'post_date' => $row['PostDate'],
-                'due_date' => $row['DueDate'],
-                'production_status' => $row['Status'],
-                'item_code' => $row['ItemCode'],
-                'planned_quantity' => $row['PlannedQty'],
-                'completed_quantity' => $row['CompletedQty'],
-                'warehouse' => $row['Warehouse'],
-            ]);
-        }
+                // Hapus data lama
+                DB::table('spk_masters')->truncate();
 
-        return response()->json(['message' => 'Data forecast berhasil disinkronkan']);
+                // Simpan data baru
+                foreach ($spkData as $row) {
+                    DB::table('spk_masters')->insert([
+                        'spk_number' => $row['SPKNo'],
+                        'post_date' => $row['PostDate'],
+                        'due_date' => $row['DueDate'],
+                        'production_status' => $row['Status'],
+                        'item_code' => $row['ItemCode'],
+                        'planned_quantity' => $row['PlannedQty'],
+                        'completed_quantity' => $row['CompletedQty'],
+                        'warehouse' => $row['Warehouse'],
+                    ]);
+                }
+
+                // Simpan log sukses
+                DB::table('api_logs')->insert([
+                    'api_name' => 'SPK_SYNC',
+                    'method'   => 'GET',
+                    'endpoint' => $this->baseUrl . '/api/sap_production_order/list',
+                    'status_code' => 200,
+                    'status'   => 'success',
+                    'message'  => 'Data SPK berhasil disinkronkan',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                return response()->json(['message' => 'Data forecast berhasil disinkronkan']);
+            } catch (\Exception $e) {
+                // Simpan log gagal
+                DB::table('api_logs')->insert([
+                    'api_name' => 'SPK_SYNC',
+                    'method'   => 'GET',
+                    'endpoint' => $this->baseUrl . '/api/sap_production_order/list',
+                    'status_code' => 500,
+                    'status'   => 'failed',
+                    'message'  => $e->getMessage(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                return response()->json(['message' => 'Gagal sinkron data SPK', 'error' => $e->getMessage()], 500);
+            }
     }
+
 }
