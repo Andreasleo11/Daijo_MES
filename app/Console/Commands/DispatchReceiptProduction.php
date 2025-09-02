@@ -12,8 +12,11 @@ class DispatchReceiptProduction extends Command
 
     public function handle()
     {
+        \Log::info("[SCHEDULE] sap:dispatch-receipt triggered at " . now());
+
         PushAllReceiptProductionJob::dispatch();
 
         $this->info("Dispatched PushAllReceiptProductionJob to queue.");
+        \Log::info("[SCHEDULE] Job dispatched to queue.");
     }
 }

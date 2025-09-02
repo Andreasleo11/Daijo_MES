@@ -267,6 +267,8 @@ class BarcodeController extends Controller
         // dd($request->all());
         $docnum = $request->noDokumen;
 
+        $position = $request->input('position');
+        
         $master = BarcodePackagingMaster::where('noDokumen', $docnum)->first();
 
         $idmaster = $master->id;
@@ -278,7 +280,7 @@ class BarcodeController extends Controller
             $label = $data['label'.$counter];
 
             // Check for duplicates
-            $exists = BarcodePackagingDetail::where('masterId', $idmaster)
+            $exists = BarcodePackagingDetail::where('position', $position)
                 ->where('partNo', $partNo)
                 ->where('label', $label)
                 ->exists();

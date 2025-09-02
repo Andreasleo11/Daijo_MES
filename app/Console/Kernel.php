@@ -12,12 +12,14 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('summary:generate')->everyFiveMinutes();
+
+        $schedule->command('sap:dispatch-receipt')->everyTenMinutes()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
+
+        $schedule->command('summary:generate')->hourly();
         $schedule->command('app:send-daily-waiting-purchase-orders')->dailyAt('01:00'); // Adjust time as needed
         $schedule->command('report:send-outstanding')
             ->dailyAt('09:00')
             ->timezone('Asia/Jakarta'); // or your preferred timezone
-        $schedule->command('sap:dispatch-receipt')->everyFifteenMinutes();
 
         $schedule->command('spk:sync')->dailyAt('07:40')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('12:00')->timezone('Asia/Jakarta');

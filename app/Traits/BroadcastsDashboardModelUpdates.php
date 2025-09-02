@@ -13,30 +13,30 @@ trait BroadcastsDashboardModelUpdates
     {
         static::updated(function () {
             // Fetch updated data
-            $parents = PRD_BillOfMaterialParent::all();
-            $childs = PRD_BillOfMaterialChild::all();
-            $materialLogs = PRD_MaterialLog::all();
-            $mouldingUserLogs= PRD_MouldingUserLog::all();
+            // $parents = PRD_BillOfMaterialParent::all();
+            // $childs = PRD_BillOfMaterialChild::all();
+            // $materialLogs = PRD_MaterialLog::all();
+            // $mouldingUserLogs= PRD_MouldingUserLog::all();
 
-            event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
+            // event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
         });
 
         static::created(function () {
-            $parents = PRD_BillOfMaterialParent::all();
-            $childs = PRD_BillOfMaterialChild::all();
-            $materialLogs = PRD_MaterialLog::all();
-            $mouldingUserLogs = PRD_MouldingUserLog::all();
+            // $parents = PRD_BillOfMaterialParent::all();
+            // $childs = PRD_BillOfMaterialChild::all();
+            // $materialLogs = PRD_MaterialLog::all();
+            // $mouldingUserLogs = PRD_MouldingUserLog::all();
 
-            event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
+            // event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
         });
 
         static::deleted(function () {
-            $parents = PRD_BillOfMaterialParent::all();
-            $childs = PRD_BillOfMaterialChild::all();
-            $materialLogs = PRD_MaterialLog::all();
-            $mouldingUserLogs = PRD_MouldingUserLog::all();
+            // $parents = PRD_BillOfMaterialParent::all();
+            // $childs = PRD_BillOfMaterialChild::all();
+            // $materialLogs = PRD_MaterialLog::all();
+            // $mouldingUserLogs = PRD_MouldingUserLog::all();
 
-            event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
+            // event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
         });
     }
 }

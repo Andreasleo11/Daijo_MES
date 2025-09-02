@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Production;
 
+ini_set('memory_limit', '1024M');
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -73,10 +75,9 @@ class WorkshopController extends Controller
     public function handleScanStart(Request $request)
     {
         // dd($request->all());
-        //test
-        // $clockIn = Carbon::parse('05:00:00', 'Asia/Jakarta')->format('Y-m-d H:i:s');
+ 
         $clockIn = Carbon::now('Asia/Jakarta')->format('Y-m-d H:i:s');
-        // Get the scanned barcode from the request
+  
         $barcode = $request->input('barcode');
 
         // Split the barcode using '-' as the separator
@@ -91,6 +92,7 @@ class WorkshopController extends Controller
 
 
         $data = PRD_BillOfMaterialChild::with('materialProcess', 'parent')->where('id', $item_id)->first();
+       
 
         if (!$data) {
             return redirect()->back()->withErrors(['error' => 'Barcode data not found or invalid.']);
@@ -105,6 +107,7 @@ class WorkshopController extends Controller
         ->whereNull('scan_in')  // Ensure scan_in is null
         ->orderBy('created_at', 'asc')  // Order by created_at to get the earliest
         ->first();  // Get the first match
+        
 
         // If a matching material process is found, update its scan_in field with the scan time
         if ($materialProcess) {

@@ -17,18 +17,25 @@ class ReceiptProductionService extends BaseSapService
             ->where('spk_code', '25021280')
             ->get();
 
+        \Log::info('Scheduler jalan, records count: ' . $records->count());
+
         if ($records->isEmpty()) {
-            $this->saveApiLog(
-                'receipt_production',
-                'POST',
-                $this->endpoint,
-                [],
-                [],
-                204,
-                'failed',
-                'No unprocessed records found'
-            );
-            return;
+            try {
+                $this->saveApiLog(
+                    'receipt_production',
+                    'POST',
+                    $this->endpoint,
+                    [],
+                    [],
+                    204,
+                    'failed',
+                    'No unprocessed records found'
+                );
+                \Log::info('SaveApiLog sukses dibuat dari scheduler.');
+                return;
+            } catch (\Throwable $e) {
+                \Log::error('Gagal saveApiLog: ' . $e->getMessage());
+            }
         }
 
         // Group by SPK
