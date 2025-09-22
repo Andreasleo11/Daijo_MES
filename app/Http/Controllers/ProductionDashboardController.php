@@ -269,7 +269,7 @@ class ProductionDashboardController extends Controller
                     // Calculate achievement percentage
                     $achievementPercentage = 0;
                     if ($hourlyRemark->target > 0) {
-                        $achievementPercentage = round(($hourlyRemark->actual / $hourlyRemark->target) * 100, 2);
+                        $achievementPercentage = round(($hourlyRemark->actual_production / $hourlyRemark->target) * 100, 2);
                     }
 
                     $status = $hourlyRemark->is_achieve;
@@ -323,6 +323,16 @@ class ProductionDashboardController extends Controller
             })
             ->values()
             ->all();
+
+            foreach ($structuredData as $machineName => $machineData) {
+                $remarks = $machineData['hourly_remarks'] ?? [];
+
+                $average = collect($remarks)
+                    ->pluck('achievement_percentage')
+                    ->avg();
+
+                $structuredData[$machineName]['average_achievement'] = round($average, 2);
+            }
         
         }
         
@@ -373,14 +383,16 @@ class ProductionDashboardController extends Controller
         $today = now()->toDateString();
         $yesterday = now()->subDay()->toDateString();
         $tomorrow = now()->addDay()->toDateString();
+        $fourDaysAgo = now()->subDays(4)->toDateString();
+        // dd($fourDaysAgo);
 
         $dailyItemCodes = DailyItemCode::with('user', 'hourlyRemarks', 'scannedData') // Load relasi user
-            ->whereIn('start_date', [$yesterday, $today, $tomorrow])
+            ->whereIn('start_date', [$yesterday, $today, $tomorrow, $fourDaysAgo])
             ->orderBy('start_date', 'desc')
             ->orderBy('start_time', 'desc')
             ->get();
 
-        return view('admin.dailyitemcodesindex', compact('dailyItemCodes', 'today', 'yesterday', 'tomorrow'));
+        return view('admin.dailyitemcodesindex', compact('dailyItemCodes', 'today', 'yesterday', 'tomorrow', 'fourDaysAgo'));
     }
 
     public function setStatus(Request $request, $id)

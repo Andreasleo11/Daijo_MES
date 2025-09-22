@@ -37,7 +37,12 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700">{{ $log->status_code ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 truncate max-w-[200px]">{{ $log->message ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600">{{ $log->created_at }}</td>
+                           <!-- <td class="px-4 py-3 text-sm text-gray-600">
+                            {{ \Carbon\Carbon::parse($log->created_at)->setTimezone('Asia/Jakarta')->diffForHumans() }}
+                            </td> -->
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                            {{ \Carbon\Carbon::parse($log->created_at)->setTimezone('Asia/Jakarta')->format('d/m/Y H:i:s') }}
+                            </td>
                             <td class="px-4 py-3 text-sm">
                                 <button onclick="openModal({{ $log->id }})" class="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg">
                                     Detail

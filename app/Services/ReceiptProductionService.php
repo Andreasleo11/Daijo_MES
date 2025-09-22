@@ -13,9 +13,13 @@ class ReceiptProductionService extends BaseSapService
     public function pushAllUnprocessed()
     {
         $records = DB::table('production_scanned_data')
-            ->where('processed', 0)
-            ->where('spk_code', '25021280')
-            ->get();
+        ->where('processed', 0)
+        // ->where('spk_code', '25023034') 
+        ->where('spk_code', '99999999') 
+        ->get();
+
+        // ->whereIn('spk_code', [25024585, 25024610])
+        // ->whereIn('spk_code', [25023034])
 
         \Log::info('Scheduler jalan, records count: ' . $records->count());
 
@@ -40,11 +44,12 @@ class ReceiptProductionService extends BaseSapService
 
         // Group by SPK
         $grouped = $records->groupBy('spk_code');
+       
 
         Log::info("SAP Push START", ['spk_count' => $grouped->count()]);
-        $payload = [];
 
         foreach ($grouped as $spkCode => $items) {
+            $payload = [];
             $payload[] = [
                 'spk_code'  => $spkCode,
                 'item_code' => $items->first()->item_code,
@@ -52,6 +57,7 @@ class ReceiptProductionService extends BaseSapService
                 'quantity'  => $items->sum('quantity'),
                 'label'     => $items->count(),
             ];
+            
 
             try {
                 $response = Http::withHeaders([
@@ -122,6 +128,7 @@ class ReceiptProductionService extends BaseSapService
                 );
             }
         }
+
     }
 
     protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)

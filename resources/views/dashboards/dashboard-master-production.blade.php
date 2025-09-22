@@ -78,6 +78,9 @@
                                 || ZONA {{ $zoneName }}
                             @endif
                         </h2>
+                         <h1>
+                            Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
+                        </h1>
 
                         @if(isset($data['pengawas']))
                             <div class="grid md:grid-cols-3 gap-4">

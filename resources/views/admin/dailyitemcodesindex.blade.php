@@ -19,7 +19,7 @@
             <div x-show="open" class="px-4 py-3 bg-white space-y-4" x-transition>
                 @php $groupedByDate = $logs->groupBy('start_date'); @endphp
 
-                @foreach ([$yesterday, $today, $tomorrow] as $date)
+                @foreach ([$yesterday, $today, $tomorrow, $fourDaysAgo] as $date)
                     @if (isset($groupedByDate[$date]))
                         <div>
                             <h3 class="text-md font-medium text-indigo-600 mt-4 mb-2">
@@ -27,8 +27,10 @@
                                     Hari Ini ({{ \Carbon\Carbon::parse($date)->format('d M Y') }})
                                 @elseif ($date === $yesterday)
                                     Kemarin ({{ \Carbon\Carbon::parse($date)->format('d M Y') }})
-                                @else
+                                @elseif ($date === $tomorrow)
                                     Besok ({{ \Carbon\Carbon::parse($date)->format('d M Y') }})
+                                @elseif ($date === $fourDaysAgo)
+                                    4 Days Ago ({{ \Carbon\Carbon::parse($date)->format('d M Y')}})
                                 @endif
                             </h3>
 
