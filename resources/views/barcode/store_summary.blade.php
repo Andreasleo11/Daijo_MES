@@ -44,8 +44,16 @@
                 <!-- Modal Detail -->
                 <div x-show="detailModal === '{{ $partNo }}'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
                     <div class="bg-white rounded-lg w-full max-w-4xl p-6 overflow-y-auto max-h-[90vh]">
-                        <h2 class="text-xl font-bold mb-4">Details for {{ $partNo }}</h2>
+                      <h2 class="text-xl font-bold mb-4 flex items-center justify-between">
+                        <span>Details for {{ $partNo }}</span>
+                        <button 
+                            @click="detailModal = null" 
+                            class="ml-2 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition">
+                            CLOSE
+                        </button>
+                    </h2>
 
+                        
                         <table class="w-full table-auto border text-sm">
                             <thead class="bg-gray-100">
                                 <tr>

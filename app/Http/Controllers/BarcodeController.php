@@ -6,6 +6,7 @@ use App\Models\BarcodePackagingDetail;
 use App\Models\BarcodePackagingMaster;
 use App\Models\MasterDataRogPartName;
 use App\Models\Customer;
+use App\Models\StoreBoxData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -274,6 +275,7 @@ class BarcodeController extends Controller
         $idmaster = $master->id;
 
         $counter = 1;
+        $successfulLabels = [];
         while (isset($data['partno'.$counter])) {
 
             $partNo = $data['partno'.$counter];
@@ -285,26 +287,41 @@ class BarcodeController extends Controller
                 ->where('label', $label)
                 ->exists();
 
-            if (! $exists) {
-                $scanTime = $data['scantime'.$counter];
-                // Replace comma with space and periods with colons
-                $scanTime = str_replace(['.', ','], [':', ' '], $scanTime);
-                // Parse the corrected date-time string
-                $formattedScanTime = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $scanTime)->format('Y-m-d H:i:s');
-                BarcodePackagingDetail::create([
-                    'masterId' => $idmaster,
-                    'noDokumen' => $data['noDokumen'],
-                    'partNo' => $partNo,
-                    'quantity' => null,
-                    'label' => $label,
-                    'position' => $data['position'],
-                    'scantime' => $formattedScanTime,
-                ]);
-            }
+                if (!$exists) {
+                    $scanTime = $data['scantime' . $counter];
+                    // Replace comma with space and periods with colons
+                    $scanTime = str_replace(['.', ','], [':', ' '], $scanTime);
+                    // Parse the corrected date-time string
+                    $formattedScanTime = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $scanTime)
+                        ->format('Y-m-d H:i:s');
+
+                    // Cek apakah partNo ada di tabel store_box_data
+                    $isValidPart = \App\Models\StoreBoxData::where('part_no', $partNo)->exists();
+
+                    if ($isValidPart) {
+                        BarcodePackagingDetail::create([
+                            'masterId'  => $idmaster,
+                            'noDokumen' => $data['noDokumen'],
+                            'partNo'    => $partNo,
+                            'quantity'  => null,
+                            'label'     => $label,
+                            'position'  => $data['position'],
+                            'scantime'  => $formattedScanTime,
+                        ]);
+                       $successfulLabels[] = $label; 
+                    }
+                }
             $counter++;
         }
 
-        return redirect()->route('inandout.index')->with('success', 'Data added successfully');
+           if (count($successfulLabels) > 0) {
+                $labelsList = implode(', ', $successfulLabels);
+                $successMessage = "BERHASIL SCAN " . count($successfulLabels) . " DATA dengan label: " . $labelsList;
+            } else {
+                $successMessage = "Tidak ada data baru yang berhasil discan (mungkin sudah ada atau part number tidak valid)";
+            }
+
+        return redirect()->route('inandout.index')->with('success', $successMessage);
     }
 
     public function barcodelist()

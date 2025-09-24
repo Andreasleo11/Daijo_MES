@@ -44,4 +44,3 @@ class ParentDataUpdated implements ShouldBroadcast
     {
         return $this->payload;
     }
-}

@@ -110,6 +110,21 @@
             font-size: 16px;
         }
 
+        .custom-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #16a34a;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 9999;
+            max-width: 90%;
+            text-align: center;
+        }
+
         @media print {
             body {
                 margin: 0;
@@ -160,17 +175,18 @@
             }
         }
 
-        .submit-button {
-            position: absolute;
-            top: 120px;
-            right: 60px;
-            padding: 8px 20px;
+      .submit-button {
+            position: fixed;
+            bottom: 20px;   /* jarak dari bawah layar */
+            right: 10px;    /* jarak dari kanan layar */
+            padding: 12px 25px;
             font-size: 18px;
             background-color: #007bff;
             color: #fff;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            z-index: 1000;
         }
 
         .submit-button:hover {
@@ -178,6 +194,23 @@
         }
     </style>
 
+  @if(session('success'))
+        <div id="customAlert" class="custom-alert">
+            <strong>✅ {{ session('success') }}</strong>
+            <button onclick="document.getElementById('customAlert').remove()" 
+                    style="background: transparent; color: white; border: 1px solid white; padding: 5px 10px; margin-left: 15px; border-radius: 3px; cursor: pointer;">
+                ✕
+            </button>
+        </div>
+        <script>
+            // Auto hide after 8 seconds
+            setTimeout(function() {
+                var alert = document.getElementById('customAlert');
+                if(alert) alert.remove();
+            }, 8000);
+        </script>
+    @endif
+        
     <h2>No Dokumen: {{ $noDokumen }}</h2>
     <p>Tanggal Scan: {{ $tanggalScanFull }}</p>
     <p> Customer   : {{ $customer }}</p>
@@ -211,7 +244,7 @@
                     <input type="text" id="scantime1" name="scantime1" class="barcode-input" readonly>
                 </div>
 
-                <button type="button" class="delete-row-button" onclick="deleteRow(1)">Delete</button>
+                <button type="button" class="delete-row-button" onclick="deleteRow(1)">X</button>
             </div>
 
             <button type="submit" class="submit-button">Submit</button>
@@ -262,7 +295,7 @@
                     <label for="scantime${formCounter}">Scan Time:</label>
                     <input type="text" id="scantime${formCounter}" name="scantime${formCounter}" class="barcode-input" readonly>
                 </div>
-                 <button type="button" class="delete-row-button" onclick="deleteRow(${formCounter})">Delete</button>
+                 <button type="button" class="delete-row-button" onclick="deleteRow(${formCounter})">X</button>
             `;
 
                 document.getElementById('barcodeForm').appendChild(newRow);
