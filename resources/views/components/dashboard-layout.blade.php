@@ -1,6 +1,6 @@
 <div class="dashboard-container">
     <header class="dashboard-header">
-        <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+        <!-- <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1> -->
         <!-- Add other dashboard-specific content like navigation here -->
     </header>
     
@@ -8,6 +8,10 @@
         <!-- Slot for page-specific content -->
         {{ $slot }}
     </main>
+
+    <main>
+                {{ $slot }}
+            </main>
     
     <footer class="dashboard-footer">
         <p class="text-sm text-gray-600">© {{ date('Y') }} Your Company</p>

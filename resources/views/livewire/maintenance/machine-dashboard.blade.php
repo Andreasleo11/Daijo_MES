@@ -34,7 +34,7 @@
             </div>
 
             <!-- Separate Filters -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-1 gap-8">
                 <!-- Machine Filter -->
                 <div class="bg-blue-50 rounded-lg p-4">
                     <h3 class="text-md font-semibold text-blue-900 mb-4 flex items-center">
@@ -43,25 +43,34 @@
                         </svg>
                         Filter Machine
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Machine</label>
-                            <select wire:model.live="filterMachineType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white">
-                                <option value="">Semua Tipe</option>
-                                <option value="repair">Repair</option>
-                                <option value="maintenance">Maintenance</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">PIC Machine</label>
-                            <select wire:model.live="filterMachinePIC" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white">
-                                <option value="">Semua PIC</option>
-                                @foreach($pics as $pic)
-                                    <option value="{{ $pic }}">{{ $pic }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                   <div class="grid grid-cols-4 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Machine</label>
+                        <select wire:model.live="filterType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white">
+                            <option value="">Semua Tipe</option>
+                            <option value="repair">Repair</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">PIC Machine</label>
+                        <select wire:model.live="filterPIC" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white">
+                            <option value="">Semua PIC</option>
+                            @foreach($pics as $pic)
+                                <option value="{{ $pic }}">{{ $pic }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama Mesin</label>
+                        <select wire:model.live="filterMesin" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <option value="">Semua Mesin</option>
+                            @foreach($mesinList as $mesin)
+                                <option value="{{ $mesin }}">{{ $mesin }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
                 </div>
 
                
@@ -104,7 +113,7 @@
         </div>
 
         <!-- Data Tables -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-1 gap-8">
             <!-- Machine Maintenance Table -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div class="px-6 py-4 border-b border-gray-200">

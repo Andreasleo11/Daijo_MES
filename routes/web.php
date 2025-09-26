@@ -55,6 +55,16 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 // Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
 
+   Route::get('/maintenance-dashboard',  DashboardMaintenance::class)
+        ->name('maintenance.dashboard');
+
+    Route::get('/machine-dashboard',  DashboardMachine::class)
+        ->name('machine.dashboard');
+    
+    Route::get('/mould-dashboard',  DashboardMould::class)
+        ->name('mould.dashboard');
+        
+
 Route::get('test/spk/1', [SpkMasterService::class, 'getAll']);
 
 Route::post('/admin/dailyitemcodes/{id}/set-status', [ProductionDashboardController::class, 'setStatus'])->name('dailyitemcodes.set-status');
@@ -374,15 +384,6 @@ Route::middleware('auth')->group(function (){
         ->name('maintenance.machine.index');
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
-
-    Route::get('/maintenance-dashboard',  DashboardMaintenance::class)
-        ->name('maintenance.dashboard');
-
-    Route::get('/machine-dashboard',  DashboardMachine::class)
-        ->name('machine.dashboard');
-    
-    Route::get('/mould-dashboard',  DashboardMould::class)
-        ->name('mould.dashboard');
 
 
 

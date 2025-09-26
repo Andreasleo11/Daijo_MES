@@ -13,6 +13,7 @@ class MouldDashboard extends Component
 
     public $filterType = '';
     public $filterPIC = '';
+    public $filterPartNo = '';
     public $filterDateFrom = '';
     public $filterDateTo = '';
 
@@ -40,6 +41,7 @@ class MouldDashboard extends Component
 
         if ($this->filterType) $query->where('tipe', $this->filterType);
         if ($this->filterPIC) $query->where('pic', $this->filterPIC);
+        if ($this->filterPartNo) $query->where('part_no', 'LIKE', '%' . $this->filterPartNo . '%');
         if ($this->filterDateFrom) $query->where('tanggal', '>=', $this->filterDateFrom);
         if ($this->filterDateTo) $query->where('tanggal', '<=', $this->filterDateTo);
 
@@ -63,8 +65,9 @@ class MouldDashboard extends Component
             MaintenanceMould::pluck('pic')->toArray()
         ));
 
+        $partNoList = MaintenanceMould::pluck('part_no')->unique()->filter()->sort()->values()->toArray();
         return view('livewire.maintenance.mould-dashboard', compact(
-            'moulds','total','finished','pics','ongoing','mouldTotal','mouldFinished','mouldOngoing'
-        ));
+            'moulds','total','finished','pics','ongoing','mouldTotal','mouldFinished','mouldOngoing', 'partNoList'
+        ))->layout('layouts.dashboard');
     }
 }
