@@ -27,6 +27,13 @@ use App\Http\Controllers\ProductionDashboardController;
 use App\Http\Controllers\MasterListItemController;
 use App\Http\Controllers\DaijoMesHomeController;
 
+
+use App\Livewire\Maintenance\Machine\Index as MaintenanceMachineIndex;
+use App\Livewire\Maintenance\Mould\Index as MaintenanceMouldIndex;
+use App\Livewire\Maintenance\MaintenanceDashboard as DashboardMaintenance;
+use App\Livewire\Maintenance\MachineDashboard as DashboardMachine;
+use App\Livewire\Maintenance\MouldDashboard as DashboardMould;
+
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
@@ -362,6 +369,22 @@ Route::middleware('auth')->group(function (){
 
 
     Route::post('/submit/spk', [DashboardController::class, 'submitSPK'])->name('submit.spk');
+
+    Route::get('/machine-index', MaintenanceMachineIndex::class)
+        ->name('maintenance.machine.index');
+    Route::get('/mould-index', MaintenanceMouldIndex::class)
+        ->name('maintenance.mould.index');
+
+    Route::get('/maintenance-dashboard',  DashboardMaintenance::class)
+        ->name('maintenance.dashboard');
+
+    Route::get('/machine-dashboard',  DashboardMachine::class)
+        ->name('machine.dashboard');
+    
+    Route::get('/mould-dashboard',  DashboardMould::class)
+        ->name('mould.dashboard');
+
+
 
 });
 

@@ -30,9 +30,9 @@ class BaseSapService
                 'Content-Type' => 'application/json',
             ])
             ->post($this->authUrl, [
-                'CompanyDB' => 'LIVE_DATABASE',
-                'Username' => 'it02',
-                'Password' => '123it',
+                'CompanyDB' => env('SAP_COMPANY_DB'),
+                'Username' => env('SAP_USERNAME'),
+                'Password' => env('SAP_PASSWORD'),
             ]);
             
         if ($response->successful()) {
