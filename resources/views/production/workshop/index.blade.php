@@ -260,6 +260,21 @@
                         oninput="document.getElementById('scan-out-form').submit();">
                 </form>
             </div>
+
+
+            <div class="p-4 bg-red-500 rounded-lg shadow">
+                <form id="scan-out-form" action="{{ route('workshop.scan_out') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="log_id" value="{{ $log->id }}">
+                    <input type="hidden" name="child_id" value="{{ $log->child_id }}">
+                    <label class="block text-lg font-medium text-white mb-2">Complete Process</label>
+                    <span class="block text-sm text-gray-200 mb-4">MANUAL TANPA BARCODE SCAN</span>
+                    <button type="submit"
+                        class="w-full p-2 bg-white text-red-500 font-semibold rounded-lg hover:bg-red-100 transition">
+                        Complete Process
+                    </button>
+                </form>
+            </div>
         @endif
     </div>
 

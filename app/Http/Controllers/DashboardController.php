@@ -118,7 +118,11 @@ class DashboardController extends Controller
             $datas = DailyItemCode::where('user_id', $user->id)
                 ->whereDate('schedule_date', Carbon::today())
                 ->with('masterItem','scannedData')
-                ->get();
+                ->get()
+                ->sortBy([
+                    ['shift', 'asc'],         // Urutkan berdasarkan shift dulu
+                    ['item_code', 'asc'],     // Lalu urutkan berdasarkan item_code
+                ]);
         
           
              // Ambil data dari MouldChangeLog sesuai dengan user_id dan tanggal hari ini

@@ -1403,6 +1403,7 @@
                                         $('#dashboardSection').removeClass('hidden'); // Show the dashboard
                                         $('#loginSection').addClass('hidden'); // Hide the login form
                                         alert("NIK Verified Successfully!");
+                                        location.reload();
                                     } else {
                                         alert("Invalid NIK or Password.");
                                     }
