@@ -302,10 +302,31 @@
                                     <div class="mt-1">
                                         <form action="{{ route('update.machine_job') }}" method="POST">
                                             @csrf
-                                            <div>
+                                            <!-- <div>
                                                 <input type="text" id="item_code" name="item_code" required
                                                     class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('item_code') border-red-500 @enderror"
                                                     placeholder="Item Code" />
+                                                <button type="submit"
+                                                    class="py-1 px-3 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition inline-flex">
+                                                    Update Job
+                                                </button>
+
+                                                @error('item_code')
+                                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                                @enderror
+                                            </div> -->
+
+                                            <div>
+                                                <select id="item_code" name="item_code" required
+                                                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('item_code') border-red-500 @enderror">
+                                                    <option value="">-- Pilih Item Code --</option>
+                                                    @foreach($todayitems as $item)
+                                                        <option value="{{ $item->item_code }}">
+                                                            {{ $item->item_code }} - Shift {{ $item->shift }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+
                                                 <button type="submit"
                                                     class="py-1 px-3 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition inline-flex">
                                                     Update Job

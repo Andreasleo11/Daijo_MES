@@ -230,72 +230,72 @@ class DashboardController extends Controller
             }
 
             // Fungsi bantu untuk alokasi SPK berdasarkan item_code
-            function allocateSPKsForItem($itemCode, $totalQty, &$itemCollections, $mainItemCode)
-            {
+            // function allocateSPKsForItem($itemCode, $totalQty, &$itemCollections, $mainItemCode)
+            // {
                 
-                $datas = SpkMaster::where('item_code', $itemCode)
-                   // atau 'created_at', tergantung nama kolomnya
-                    ->get();
+            //     $datas = SpkMaster::where('item_code', $itemCode)
+            //        // atau 'created_at', tergantung nama kolomnya
+            //         ->get();
             
-                $masterItem = MasterListItem::where('item_code', $itemCode)->first();
-                $perpack = $masterItem->standart_packaging_list ?? 1;
+            //     $masterItem = MasterListItem::where('item_code', $itemCode)->first();
+            //     $perpack = $masterItem->standart_packaging_list ?? 1;
 
-                $labelstart = 0;
+            //     $labelstart = 0;
 
-                foreach ($datas as $spk) {
-                    $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
+            //     foreach ($datas as $spk) {
+            //         $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
 
-                    if ($totalQty <= 0) break;
+            //         if ($totalQty <= 0) break;
 
-                    if ($totalQty <= $available_quantity) {
-                        $available_quantity = $totalQty;
-                    }
+            //         if ($totalQty <= $available_quantity) {
+            //             $available_quantity = $totalQty;
+            //         }
 
-                    $labelstart = ($spk->completed_quantity === 0) ? 0 : ceil($spk->completed_quantity / $perpack);
+            //         $labelstart = ($spk->completed_quantity === 0) ? 0 : ceil($spk->completed_quantity / $perpack);
 
-                    while ($available_quantity > 0) {
-                        $labelstart++;
-                        $pack_quantity = min($perpack, $available_quantity);
-                        $key = $spk->spk_number . '|' . $spk->item_code;
+            //         while ($available_quantity > 0) {
+            //             $labelstart++;
+            //             $pack_quantity = min($perpack, $available_quantity);
+            //             $key = $spk->spk_number . '|' . $spk->item_code;
 
-                        if (!isset($itemCollections[$mainItemCode][$key])) {
-                            $itemCollections[$mainItemCode][$key] = [
-                                'spk' => $spk->spk_number,
-                                'item_code' => $spk->item_code,
-                                'item_perpack' => $perpack,
-                                'available_quantity' => 0,
-                                'count' => 0,
-                                'start_label' => $labelstart,
-                                'end_label' => $labelstart,
-                                'scannedData' => 0,
-                            ];
-                        }
+            //             if (!isset($itemCollections[$mainItemCode][$key])) {
+            //                 $itemCollections[$mainItemCode][$key] = [
+            //                     'spk' => $spk->spk_number,
+            //                     'item_code' => $spk->item_code,
+            //                     'item_perpack' => $perpack,
+            //                     'available_quantity' => 0,
+            //                     'count' => 0,
+            //                     'start_label' => $labelstart,
+            //                     'end_label' => $labelstart,
+            //                     'scannedData' => 0,
+            //                 ];
+            //             }
 
-                        $itemCollections[$mainItemCode][$key]['count']++;
-                        $itemCollections[$mainItemCode][$key]['end_label'] = $labelstart;
-                        $itemCollections[$mainItemCode][$key]['available_quantity'] += $pack_quantity;
+            //             $itemCollections[$mainItemCode][$key]['count']++;
+            //             $itemCollections[$mainItemCode][$key]['end_label'] = $labelstart;
+            //             $itemCollections[$mainItemCode][$key]['available_quantity'] += $pack_quantity;
 
-                        $available_quantity -= $pack_quantity;
-                        $totalQty -= $pack_quantity;
-                    }
-                }
-            }
+            //             $available_quantity -= $pack_quantity;
+            //             $totalQty -= $pack_quantity;
+            //         }
+            //     }
+            // }
 
-            // Alokasikan SPK untuk semua item_code, pakai key utama (gabungan)
-            foreach ($datas as $data) {
-                $itemCodeAll = $data->item_code;
-                $pairCode = $data->masterItem->pair ?? null;
+            // // Alokasikan SPK untuk semua item_code, pakai key utama (gabungan)
+            // foreach ($datas as $data) {
+            //     $itemCodeAll = $data->item_code;
+            //     $pairCode = $data->masterItem->pair ?? null;
 
-                $mainItemCode = getMainItemCode($itemCodeAll, $pairCode);
+            //     $mainItemCode = getMainItemCode($itemCodeAll, $pairCode);
 
-                // SPK untuk item utama
-                allocateSPKsForItem($itemCodeAll, $data->quantity, $itemCollections, $mainItemCode);
+            //     // SPK untuk item utama
+            //     allocateSPKsForItem($itemCodeAll, $data->quantity, $itemCollections, $mainItemCode);
 
-                // SPK untuk pair-nya jika ada (juga masuk ke key utama!)
-                if ($pairCode) {
-                    allocateSPKsForItem($pairCode, $data->quantity, $itemCollections, $mainItemCode);
-                }
-            }
+            //     // SPK untuk pair-nya jika ada (juga masuk ke key utama!)
+            //     if ($pairCode) {
+            //         allocateSPKsForItem($pairCode, $data->quantity, $itemCollections, $mainItemCode);
+            //     }
+            // }
 
             // Ambil data scanned dan total quantity per SPK
             foreach ($itemCollections as $mainItemCode => &$spkList) {
@@ -404,7 +404,14 @@ class DashboardController extends Controller
             // dd($activeDIC);
             
 
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData'));
+             $todayitems = DailyItemCode::where('user_id', $user->id)
+                ->whereDate('schedule_date', Carbon::today())
+                ->whereNull('is_done')
+                ->orderBy('shift')
+                ->get();
+            
+            
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData', 'todayitems'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
