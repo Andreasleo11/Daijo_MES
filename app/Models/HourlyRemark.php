@@ -26,5 +26,18 @@ class HourlyRemark extends Model
     {
         return $this->belongsTo(DailyItemCode::class, 'dic_id');
     }
+
     
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updating(function ($model) {
+            // Jika kolom actual_production tidak berubah,
+            // nonaktifkan timestamps agar updated_at tidak diperbarui
+            if (!$model->isDirty('actual_production')) {
+                $model->timestamps = false;
+            }
+        });
+    }
 }

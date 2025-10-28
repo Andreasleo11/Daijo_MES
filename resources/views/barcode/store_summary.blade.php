@@ -72,7 +72,7 @@
                                     @endphp
                                     <tr>
                                         <td class="border px-2 py-1 text-center">{{ $detail['label'] }}</td>
-                                        <td class="border px-2 py-1 text-center">{{ $detail['position'] }}</td>
+                                        <td class="border px-2 py-1 text-center">{{ $detail['position'] }} ({{$detail['customer']}})</td>
                                         <td class="border px-2 py-1 text-center">{{ $detail['last_transaction'] }}</td>
                                         <td class="border px-2 py-1 text-center">{{ $detail['quantity'] }}</td>
                                         <td class="border px-2 py-1 text-center">

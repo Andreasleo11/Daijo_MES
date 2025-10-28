@@ -31,7 +31,7 @@ class ProductionDashboardController extends Controller
         $machineJobs = MachineJob::with([
             'user',
             'dailyItemCode' => function ($query) use ($selectedDate) {
-                $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks','masterItem']);
+                $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks','masterItem','delsched']);
             },
             'mouldChangeLogs' => function ($query) use ($selectedDate) {
                 $query->whereDate('created_at', $selectedDate);
@@ -47,6 +47,7 @@ class ProductionDashboardController extends Controller
         })
         ->get();
 
+        
         $structuredData = [];
 
         foreach ($machineJobs as $machineJob) {
@@ -178,6 +179,21 @@ class ProductionDashboardController extends Controller
             foreach ($machineJob->dailyItemCode as $dailyItem) {
                 // $totalScannedQuantity = collect($dailyItem->scannedData)->sum('quantity');
 
+
+                $today = now()->startOfDay();
+                $fiveDaysLater = now()->addDays(5)->endOfDay();
+
+                $delschedData = $dailyItem->delsched()
+                    ->where(function ($query) use ($today, $fiveDaysLater) {
+                        $query->whereBetween('delivery_date', [$today->format('Y-m-d'), $fiveDaysLater->format('Y-m-d')])
+                            ->orWhere(function ($q) use ($today) {
+                                $q->where('status', 'open')
+                                    ->where('delivery_date', '<=', $today->format('Y-m-d'));
+                            });
+                    })
+                    ->orderBy('delivery_date', 'asc')
+                    ->get();
+
                 $totalScannedQuantity = $dailyItem->hourlyRemarks->sum(function ($remark) {
                     return $remark->actual_production ?? 0;
                 });
@@ -205,7 +221,8 @@ class ProductionDashboardController extends Controller
                     'end_time' => Carbon::parse($dailyItem->end_time)->timezone('Asia/Jakarta')->format('H:i:s'),
                     'total_scanned_quantity' => $totalScannedQuantity,
                     'cycle_time_seconds' => $cycleTimeInSeconds,
-                    'scanned_data' => []
+                    'scanned_data' => [],
+                    'delsched' => $delschedData
                 ];
 
                 // Hourly production
@@ -308,6 +325,8 @@ class ProductionDashboardController extends Controller
 
                 $structuredData[$userName]['daily_item_code'][] = $formattedDailyItem;
             }
+
+
             $structuredData[$userName]['hourly_remarks'] = collect($structuredData[$userName]['hourly_remarks'])
             ->sort(function ($a, $b) {
                 // Urutkan berdasarkan shift terlebih dahulu
@@ -348,6 +367,18 @@ class ProductionDashboardController extends Controller
             '0650D',
             '0650E',
             '0850D',
+            'K2800A',
+            'K2100A',
+            'K1400A',
+            'K1400B',
+            'K1400C',
+            'K0900A',
+            'K0900B',
+            'K0650A',
+            'K0650B',
+            'K0750A',
+            'K0750B',
+            'K0450A',
         ];
         
         $machines = User::distinct()

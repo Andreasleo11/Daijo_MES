@@ -42,18 +42,16 @@ new class extends Component {
 
             <!-- Navigation Links -->
             <div class="space-y-2 mt-4">
-                <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
-                    wire:navigate />
+                @if (!auth()->user()->can('view-store-links'))
+                    <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
+                        wire:navigate />
 
-                <!-- <livewire:sidebar-link href="{{ route('indexds') }}" label="Delivery Schedule" :active="request()->routeIs('indexds')"
-                    wire:navigate /> -->
+                    <livewire:sidebar-link href="{{ route('maintenance.machine.index') }}" label="Maintenance Machine" :active="request()->routeIs('maintenance.machine.index')"
+                        wire:navigate />
 
-                <livewire:sidebar-link href="{{ route('maintenance.machine.index') }}" label="Maintenance Machine" :active="request()->routeIs('maintenance.machine.index')"
-                    wire:navigate />
-
-                 <livewire:sidebar-link href="{{ route('maintenance.mould.index') }}" label="Maintenance Mould" :active="request()->routeIs('maintenance.mould.index')"
-                    wire:navigate />
-
+                    <livewire:sidebar-link href="{{ route('maintenance.mould.index') }}" label="Maintenance Mould" :active="request()->routeIs('maintenance.mould.index')"
+                        wire:navigate />
+                @endif
 
 
                 @if (auth()->user()->can('view-warehouse-links'))
@@ -122,15 +120,19 @@ new class extends Component {
 
                 <!-- Store Links -->
                 @if (auth()->user()->can('view-store-links'))
-                    <livewire:parent-dropdown label="Store" :childRoutes="[
-                        ['name' => 'barcodeindex', 'label' => 'Create Barcode'],
-                        ['name' => 'inandout.index', 'label' => 'Scan Barcode'],
-                        ['name' => 'summaryDashboard', 'label' => 'Summary Store Packaging Data'],
-                        ['name' => 'list.barcode', 'label' => 'Report History'],
-                        ['name' => 'stockallbarcode', 'label' => 'Stock Item'],
-                        ['name' => 'customer.add', 'label' => 'Add Customer'],
-                        ['name' => 'updated.barcode.item.position', 'label' => 'List All Item Barcode'],
-                    ]" />
+               
+                    <livewire:sidebar-link href="{{ route('inandout.index') }}" label="Scan Brarcode"
+                        :active="request()->routeIs('inandout.index')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('summaryDashboard') }}" label="Summary Store Packaging Data"
+                        :active="request()->routeIs('summaryDashboard')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('list.barcode') }}" label="Report History"
+                        :active="request()->routeIs('list.barcode')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('stockallbarcode') }}" label="Stock Item"
+                        :active="request()->routeIs('stockallbarcode')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('customer.add') }}" label="Add Customer"
+                        :active="request()->routeIs('customer.add')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('updated.barcode.item.position') }}" label="List All Item Barcode"
+                        :active="request()->routeIs('updated.barcode.item.position')" wire:navigate />
                 @endif
                 <hr>
                 <!-- Maintenance Links -->

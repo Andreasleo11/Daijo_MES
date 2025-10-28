@@ -535,7 +535,10 @@
                             $hasPair = $pairCode !== null && $pairCode !== '0';
                         @endphp
                     <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
-                        <span class="text-xl font-bold">Detail Pekerjaan</span>
+                      <span class="text-xl font-bold">
+                            Detail Pekerjaan - {{ optional($activeDIC)->item_code ?? '-' }} 
+                            (Shift: {{ optional($activeDIC)->shift ?? '-' }})
+                        </span>
                         <table class="w-full bg-white mt-2 rounded-md shadow-md overflow-hidden">
                             <thead class="bg-gray-100">
                                 <tr>

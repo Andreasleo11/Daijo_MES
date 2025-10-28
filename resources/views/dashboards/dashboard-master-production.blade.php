@@ -283,6 +283,7 @@
                                             <tr>
                                                 <th class="border px-4 py-2">PIC</th>
                                                 <th class="border px-4 py-2">Item Code</th>
+                                                <th class="border px-4 py-2">Dibuat Jam</th>
                                                 <th class="border px-4 py-2">Time Range</th>
                                                 <th class="border px-4 py-2">Shift</th>
                                                 <th class="border px-4 py-2">Target</th>
@@ -318,8 +319,9 @@
                                                     <span class="font-medium">{{ $remark['pic'] }}</span>
                                                 </td>
                                                 <td class="border px-4 py-2">{{ $remark['item_code'] }}</td>
+                                                 <td class="border px-4 py-2">{{ $remark['updated_at'] }}</td>
                                                 <td class="border px-4 py-2">{{ $remark['time_range'] }}</td>
-                                                <td class="border px-4 py-2 text-center">{{ $remark['shift'] }}</td>
+                                                <td class="border px-4 py-2 text-center">  {{ $remark['shift'] }}</td>
                                                 <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
                                                 <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
                                                 <td class="border px-4 py-2 text-center font-bold">
@@ -343,7 +345,7 @@
 
                                             @if ($isLastInShift)
                                                 <tr class="bg-blue-100 text-blue-900 font-semibold text-sm">
-                                                    <td colspan="7" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
+                                                    <td colspan="8" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
                                                     <td class="border px-4 py-2 text-center">{{ $totalActual }}</td>
                                                     <td colspan="2" class="border px-4 py-2"></td>
                                                 </tr>
@@ -443,6 +445,7 @@
                                                 <th class="border px-4 py-2">Cycle Time</th>
                                                 <th class="border px-4 py-2">Start Time</th>
                                                 <th class="border px-4 py-2">End Time</th>
+                                                <th class="border px-4 py-2">Delivery Schedule</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -465,10 +468,61 @@
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['end_date'] }} {{ \Carbon\Carbon::parse($dailyItem['end_time'])->subHours(7)->format('H:i') }}
                                                     </td>
+                                                   <td class="border px-4 py-2 text-center">
+                                                        <button 
+                                                            class="btn-delivery-schedule bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                                                            data-item-code="{{ $dailyItem['item_code'] }}"
+                                                            data-item-name="{{ $dailyItem['item_name'] }}"
+                                                            data-delsched="{{ json_encode($dailyItem['delsched'] ?? []) }}">
+                                                            <i class="fas fa-calendar-alt mr-1"></i> Schedule
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
                                     </table>
+                                </div>
+
+
+                                <div id="deliveryScheduleModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+                                    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+                                        <div class="flex justify-between items-center mb-4 border-b pb-3">
+                                            <h3 class="text-xl font-semibold text-gray-800">
+                                                <i class="fas fa-truck mr-2"></i>Delivery Schedule - <span id="modalItemCode"></span>
+                                            </h3>
+                                            <button 
+                                                id="closeDeliverySchedule" 
+                                                class="text-gray-600 hover:text-gray-800 text-2xl font-bold leading-none">
+                                                &times;
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full border-collapse border border-gray-300">
+                                                <thead class="bg-gray-200">
+                                                    <tr>
+                                                        <th class="border px-4 py-2">Delivery Date</th>
+                                                        <th class="border px-4 py-2">Item Code</th>
+                                                        <th class="border px-4 py-2">Item Name</th>
+                                                        <th class="border px-4 py-2">Outstanding</th>
+                                                        <th class="border px-4 py-2">Packaging Code</th>
+                                                        <th class="border px-4 py-2">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="deliveryScheduleBody">
+                                                    <!-- Data will be populated by JavaScript -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="mt-4 text-right border-t pt-3">
+                                            <button 
+                                                id="closeDeliveryScheduleBtn" 
+                                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded">
+                                                <i class="fas fa-times mr-1"></i> Close
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                             <!-- Scanned Data -->
@@ -573,6 +627,78 @@
             </div>
         </div>
     </div>
+
+
+    <script type="module">
+    $(document).ready(function() {
+        // Handle delivery schedule button click
+        $('.btn-delivery-schedule').click(function() {
+            const itemCode = $(this).data('item-code');
+            const itemName = $(this).data('item-name');
+            const delSched = $(this).data('delsched');
+            
+            // Set modal title
+            $('#modalItemCode').text(itemCode);
+            
+            // Populate table
+            const tbody = $('#deliveryScheduleBody');
+            tbody.empty();
+            
+            if (delSched && delSched.length > 0) {
+                delSched.forEach(function(sched) {
+                    const statusClass = sched.status === 'completed' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800';
+                    const row = `
+                        <tr class="hover:bg-gray-50">
+                            <td class="border px-4 py-2">${sched.delivery_date || '-'}</td>
+                            <td class="border px-4 py-2">${sched.item_code || '-'}</td>
+                            <td class="border px-4 py-2">${sched.item_name || '-'}</td>
+                            <td class="border px-4 py-2 text-right">${sched.outstanding || '-'}</td>
+                            <td class="border px-4 py-2">${sched.packaging_code || '-'}</td>
+                            <td class="border px-4 py-2">
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
+                                    ${sched.status || '-'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            } else {
+                tbody.html(`
+                    <tr>
+                        <td colspan="6" class="border px-4 py-8 text-center text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                            <p>No delivery schedule available</p>
+                        </td>
+                    </tr>
+                `);
+            }
+            
+            // Show modal
+            $('#deliveryScheduleModal').removeClass('hidden');
+        });
+        
+        // Close modal handlers
+        $('#closeDeliverySchedule, #closeDeliveryScheduleBtn').click(function() {
+            $('#deliveryScheduleModal').addClass('hidden');
+        });
+        
+        // Close when clicking outside modal
+        $('#deliveryScheduleModal').click(function(e) {
+            if (e.target.id === 'deliveryScheduleModal') {
+                $(this).addClass('hidden');
+            }
+        });
+        
+        // Close on ESC key
+        $(document).keydown(function(e) {
+            if (e.key === 'Escape') {
+                $('#deliveryScheduleModal').addClass('hidden');
+            }
+        });
+    });
+</script>
+
 
     <script type=module>
         $(document).ready(function() {

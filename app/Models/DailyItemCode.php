@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Delivery\sapInventoryFg;
+use App\Models\Delivery\DelschedFinal;
 
 class DailyItemCode extends Model
 {
@@ -63,5 +64,13 @@ class DailyItemCode extends Model
     public function masterFg()
     {
         return $this->hasOne(sapInventoryFg::class, 'item_code', 'item_code');
+    }
+
+    public function delsched()
+    {
+        return $this->hasMany(DelschedFinal::class,
+            'item_code',
+            'item_code'
+        );
     }
 }

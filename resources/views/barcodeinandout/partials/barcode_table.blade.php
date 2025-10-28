@@ -11,7 +11,6 @@
                 <thead class="bg-gray-100">
                     <tr>
                         <th class="px-4 py-2 border border-gray-300 text-left">Part No</th>
-                        <th class="px-4 py-2 border border-gray-300 text-left">Quantity</th>
                         <th class="px-4 py-2 border border-gray-300 text-left">Label</th>
                         <th class="px-4 py-2 border border-gray-300 text-left">Position</th>
                         <th class="px-4 py-2 border border-gray-300 text-left">Scan Time</th>
@@ -21,9 +20,8 @@
                     @foreach ($item[$item['noDokumen']] as $detail)
                         <tr class="border-b hover:bg-gray-50">
                             <td class="px-4 py-2 border border-gray-300">{{ $detail['partNo'] }}</td>
-                            <td class="px-4 py-2 border border-gray-300">{{ $detail['quantity'] }}</td>
                             <td class="px-4 py-2 border border-gray-300">{{ $detail['label'] }}</td>
-                            <td class="px-4 py-2 border border-gray-300">{{ $detail['position'] }}</td>
+                            <td class="px-4 py-2 border border-gray-300">{{ $item['customer'] }}</td>
                             <td class="px-4 py-2 border border-gray-300">{{ $detail['scantime'] }}</td>
                         </tr>
                     @endforeach

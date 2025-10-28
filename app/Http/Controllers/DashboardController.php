@@ -1686,7 +1686,7 @@ class DashboardController extends Controller
 
     public function apiLog()
     {
-        $logs = ApiLog::all();
+        $logs = ApiLog::latest()->take(150)->get(); 
         return view('Log.api_logs', compact('logs'));
     }
 

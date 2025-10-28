@@ -28,6 +28,9 @@ use App\Http\Controllers\MasterListItemController;
 use App\Http\Controllers\DaijoMesHomeController;
 
 
+use App\Livewire\Barcode\StoreDashboard;
+
+
 use App\Livewire\Maintenance\Machine\Index as MaintenanceMachineIndex;
 use App\Livewire\Maintenance\Mould\Index as MaintenanceMouldIndex;
 use App\Livewire\Maintenance\MaintenanceDashboard as DashboardMaintenance;
@@ -63,6 +66,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     
     Route::get('/mould-dashboard',  DashboardMould::class)
         ->name('mould.dashboard');
+
+    Route::get('/dashboard/store', StoreDashboard::class)->name('dashboard.store');
         
 
 Route::get('test/spk/1', [SpkMasterService::class, 'getAll']);

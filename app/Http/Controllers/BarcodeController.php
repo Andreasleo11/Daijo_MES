@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Milon\Barcode\DNS1D;
+use Illuminate\Support\Facades\Log;
 
 class BarcodeController extends Controller
 {
@@ -181,7 +182,7 @@ class BarcodeController extends Controller
 
     public function processInAndOut(Request $request)
     {
-        
+        // dd($request->all());
         $barcodePackagingMaster = new BarcodePackagingMaster;
         $tanggalScanFull = Carbon::now('Asia/Bangkok')->format('Y-m-d H:i:s');
         $barcodePackagingMaster->dateScan = $tanggalScanFull;
@@ -266,6 +267,7 @@ class BarcodeController extends Controller
     {
         $data = $request->all();
         // dd($request->all());
+        // dd($data);
         $docnum = $request->noDokumen;
 
         $position = $request->input('position');
@@ -282,20 +284,26 @@ class BarcodeController extends Controller
             $label = $data['label'.$counter];
 
             // Check for duplicates
-            $exists = BarcodePackagingDetail::where('position', $position)
-                ->where('partNo', $partNo)
-                ->where('label', $label)
-                ->exists();
+            // Ambil position terbaru dari kombinasi partNo + label
+                $latestPosition = BarcodePackagingDetail::where('partNo', $partNo)
+                    ->where('label', $label)
+                    ->latest('created_at') // atau ->latest('id') kalau pakai id auto increment
+                    ->value('position');
 
+                // Cek apakah posisi terbaru sama dengan yang sekarang di-scan
+                $exists = ($latestPosition === $position);
+         
                 if (!$exists) {
                     $scanTime = $data['scantime' . $counter];
-                    // Replace comma with space and periods with colons
+                    // dd($scanTime);
+                    // Replace koma dengan spasi dan titik dengan colon
                     $scanTime = str_replace(['.', ','], [':', ' '], $scanTime);
-                    // Parse the corrected date-time string
+
+                    // Parse format waktu
                     $formattedScanTime = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $scanTime)
                         ->format('Y-m-d H:i:s');
 
-                    // Cek apakah partNo ada di tabel store_box_data
+                    // Cek apakah partNo valid di tabel store_box_data
                     $isValidPart = \App\Models\StoreBoxData::where('part_no', $partNo)->exists();
 
                     if ($isValidPart) {
@@ -308,7 +316,8 @@ class BarcodeController extends Controller
                             'position'  => $data['position'],
                             'scantime'  => $formattedScanTime,
                         ]);
-                       $successfulLabels[] = $label; 
+
+                        $successfulLabels[] = $label;
                     }
                 }
             $counter++;
@@ -326,7 +335,9 @@ class BarcodeController extends Controller
 
     public function barcodelist()
     {
-        $items = BarcodePackagingMaster::with('detailbarcode')->get();
+        $items = BarcodePackagingMaster::with('detailbarcode')
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         $result = [];
 
@@ -373,7 +384,7 @@ class BarcodeController extends Controller
 
     public function filter(Request $request)
     {
-        $query = BarcodePackagingMaster::with('detailBarcode');
+        $query = BarcodePackagingMaster::with('detailbarcode');
 
         if ($request->filled('tipeBarcode')) {
             $query->where('tipeBarcode', $request->tipeBarcode);
@@ -384,30 +395,49 @@ class BarcodeController extends Controller
         }
 
         if ($request->filled('dateScan')) {
-            $dateScan = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('dateScan'))->startOfDay();
-            $query->whereDate('dateScan', $dateScan);
+            $query->whereDate('dateScan', $request->dateScan);
         }
 
-        $result = $query->get()->map(function ($item) {
-            return [
-                'dateScan' => $item->dateScan,
-                'noDokumen' => $item->noDokumen,
+        $items = $query->orderBy('created_at', 'desc')->get();
+        
+        // Proses data sama seperti di barcodelist()
+        $result = [];
+        foreach ($items as $item) {
+            $masterId = $item->id;
+            $dateScan = $item->dateScan;
+            $noDokumen = $item->noDokumen;
+            $finishDokumen = $item->finishDokumen;
+            
+            $result[$masterId] = [
+                'dateScan' => $dateScan,
+                'noDokumen' => $noDokumen,
                 'tipeBarcode' => $item->tipeBarcode,
                 'location' => $item->location,
-                $item->noDokumen => $item->detailBarcode->map(function ($detail) {
-                    return [
-                        'partNo' => $detail->partNo,
-                        'label' => $detail->label,
-                        'quantity' => $detail->quantity,
-                        'position' => $detail->position,
-                        'scantime' => $detail->scantime,
-                    ];
-                }),
+                'customer' => $item->customer,
             ];
-        });
-
-        return view('barcodeinandout.partials.barcode_table', ['result' => $result]);
+            
+            if (!isset($result[$masterId][$noDokumen])) {
+                $result[$masterId][$noDokumen] = [];
+            }
+            
+            foreach ($item->detailbarcode as $detail) {
+                if ($detail->noDokumen === $noDokumen) {
+                    $result[$masterId][$noDokumen][] = [
+                        'partNo' => $detail->partNo,
+                        'quantity' => $detail->quantity,
+                        'label' => $detail->label,
+                        'scantime' => $detail->scantime,
+                        'position' => $detail->position,
+                    ];
+                }
+            }
+        }
+        
+        $result = array_values($result);
+        
+        return view('barcodeinandout.partials.barcode_table', compact('result'));
     }
+
 
     public function latestitemdetails(Request $request)
     {
@@ -590,6 +620,7 @@ class BarcodeController extends Controller
 
         foreach ($partNumbers as $partNo) {
             $labels = BarcodePackagingDetail::where('partNo', $partNo)
+                ->with('masterBarcode')
                 ->orderBy('scantime', 'desc')
                 ->get()
                 ->groupBy('label');
@@ -617,6 +648,7 @@ class BarcodeController extends Controller
                     'position' => $latest->position,
                     'last_transaction' => $latest->scantime,
                     'quantity' => 1, // karena 1 row = 1 quantity
+                    'customer' => $latest->masterBarcode ? $latest->masterBarcode->customer : null,
                     'history' => $rows->map(function ($r) {
                         return [
                             'scantime' => $r->scantime,
