@@ -10,23 +10,47 @@ use App\Models\Production\PRD_BillOfMaterialParent;
 use App\Models\Production\PRD_BillOfMaterialChild;
 use App\Models\Production\PRD_MaterialLog;
 use App\Models\Production\PRD_BrokenChild;
+use App\Models\File;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use App\Models\Production\PRD_ListAllMasterItem;
+use App\Imports\BillOfMaterialChildImport;
+use Maatwebsite\Excel\Facades\Excel;
 
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Label\Label;
+use Endroid\QrCode\Logo\Logo;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\ValidationException;
 
 class BillOfMaterialController extends Controller
 {
     public function index()
     {
-        $bomParents = PRD_BillOfMaterialParent::all();
+        $bomParentsQuery = PRD_BillOfMaterialParent::with('children');
         // dd($datas);
-        return view('production.bom.index', compact('bomParents'));
+        $user = auth()->user();
+
+        if($user->role->name === 'WAREHOUSE'){
+            $bomParentsQuery->whereHas('children', function($query){
+                $query->where('action_type', 'buyfinish')->orWhere('action_type', 'buyprocess');
+            });
+        }
+
+        $bomParents = $bomParentsQuery->get();
+        return view('production.bom.index', compact('bomParents', 'user'));
     }
 
     public function create()
     {
-        return view('production.bom.create');
+        $datas = PRD_ListAllMasterItem::get();
+
+        return view('production.bom.create', compact('datas'));
     }
 
     public function destroy($id)
@@ -35,7 +59,7 @@ class BillOfMaterialController extends Controller
         $parent = PRD_BillOfMaterialParent::findOrFail($id);
 
         // Delete all associated child records
-        $parent->child()->delete(); // Assuming you have a relationship defined in the model
+        $parent->children()->delete(); // Assuming you have a relationship defined in the model
 
         // Delete the parent record
         $parent->delete();
@@ -45,20 +69,31 @@ class BillOfMaterialController extends Controller
 
     public function show($id)
     {
-        // Find the BOM parent by ID
-        $bomParent = PRD_BillOfMaterialParent::with('child', 'child.materialProcess')->findOrFail($id);
-        // dd($bomParent);
         $user = auth()->user();
-        // dd($user);
-        // Pass the data to the view
-        return view('production.bom.detail', compact('bomParent','user'));
+        $bomParent = PRD_BillOfMaterialParent::with('children', 'children.materialProcess', 'children.brokenChild')->findOrFail($id);
+        $actionTypeCounts = $bomParent->children->groupBy('action_type')->map(function ($group) {
+            return $group->count();
+        });
+
+        $childrenQuery = PRD_BillOfMaterialChild::with('materialProcess', 'brokenChild')->where('parent_id', $bomParent->id);
+        if($user->role->name === 'WAREHOUSE'){
+            $childrenQuery->where(function($query){
+                $query->where('action_type', 'buyfinish')
+                    ->orWhere('action_type', 'buyprocess');
+            });
+        }
+
+        $children = $childrenQuery->get();
+        // dd($nonWarehouseChildren);)
+
+        return view('production.bom.detail', compact('bomParent','user', 'actionTypeCounts', 'children'));
     }
 
     public function update(Request $request, $id)
     {
         $bomParent = PRD_BillOfMaterialParent::findOrFail($id);
 
-        $bomParent->update($request->only(['item_code', 'item_description', 'type', 'customer']));
+        $bomParent->update($request->only(['code', 'description', 'type', 'customer']));
 
         return redirect()->route('production.bom.show', $id)->with('success', 'BOM Parent updated successfully.');
     }
@@ -212,7 +247,7 @@ class BillOfMaterialController extends Controller
             $childData['parent_id'] = $bomParent->id;
 
             // Create the child record
-            $bomParent->child()->create($childData);
+            $bomParent->children()->create($childData);
         }
 
         return redirect()->route('production.bom.show', $bomParent)->with('success', 'Child items added successfully!');
@@ -283,6 +318,13 @@ class BillOfMaterialController extends Controller
         // Find the child item by ID
         $child = PRD_BillOfMaterialChild::findOrFail($id);
 
+        if($child->action_type === "buyfinish")
+        {
+            $child->status = "Finished";
+        }else
+        {
+            $child->status = "Available";
+        }
         // Update the status to "Available"
         $child->save();
 
@@ -298,6 +340,12 @@ class BillOfMaterialController extends Controller
         // Validate if processes are provided
         if (empty($processes)) {
             return redirect()->back()->with('error', 'No processes were selected.');
+        }
+
+        $child = PRD_BillOfMaterialChild::find($id);
+        if ($child->status === 'Finished') {
+            $child->status = 'Finished - Modified';
+            $child->save(); // Save the updated status
         }
 
         // Loop through each process and insert it into the PRD_MaterialLog table
@@ -327,11 +375,12 @@ class BillOfMaterialController extends Controller
             'brokenChild'
         ])->findOrFail($id);
 
+        $temp = $child->parent->id;
 
         $barcodeData = $child->item_code . '~' . $child->id; // Item Code and ID separated by ~
 
         // Generate the barcode PNG content
-        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 2, 70);
+        $barcodePNG = DNS1D::getBarcodePNG($barcodeData, 'C128', 3, 10);
 
         // Define the file name and path
         $fileName = 'barcode_' . $child->item_code . '_' . $child->id . '.png';
@@ -343,8 +392,57 @@ class BillOfMaterialController extends Controller
         // Get the URL for the barcode image
         $barcodeUrl = asset('storage/barcode/' . $fileName);
 
+        $image = File::where('item_code', $child->item_code)->get();
+
+        $qrCodeWriter = new PngWriter();
+        $qrcoded = null;
+
+        $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::High, size: 100,
+                margin: 5);
+
+        $writer = new PngWriter();
+        $qrCodeResult = $writer->write($qrCode);
+
+        // Get the PNG image as a string
+        $qrCodeImage = $qrCodeResult->getString();
+
+        // Base64 encode the image to embed in HTML
+        $qrcoded = base64_encode($qrCodeImage);
+            
         // Pass the data to the view
-        return view('production.bom.child_detail', compact('child', 'barcodeUrl'));
+        return view('production.bom.child_detail', compact('child', 'barcodeUrl', 'temp', 'image', 'qrcoded'));
+    }
+
+    public function printAllMaterial($id)
+    {
+        $bomParent = PRD_BillOfMaterialParent::with('children')->findOrFail($id);
+      
+        $writer = new PngWriter();
+
+
+        $childrenWithDetails = $bomParent->children->map(function($child) use ($writer) {
+
+            $barcodeData = $child->item_code . '~' . $child->id;
+            // Fetch the image for the child using item_code
+            $image = File::where('item_code', $child->item_code)->first();
+
+            // Generate QR code for the child (using item_code or any other relevant data)
+            $qrCode = new QrCode(data: $barcodeData, errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 70, margin: 2);
+            $qrCodeResult = $writer->write($qrCode);
+
+            // Get the PNG image as a string and base64 encode it for embedding in HTML
+            $qrCodeImage = $qrCodeResult->getString();
+            $qrcoded = base64_encode($qrCodeImage);
+
+            // Add the image to the child data (if it exists)
+            $child->barcode = $qrcoded;
+            $child->image_url = $image ? asset('storage/files/' . $image->name) : null; // Assuming 'path' holds the file path
+
+            return $child;
+        });
+        // dd($childrenWithDetails);
+        
+        return view('production.bom.allmaterialsprint', compact('bomParent', 'childrenWithDetails'));
     }
 
     public function addBrokenQuantity(Request $request, $childId)
@@ -375,4 +473,174 @@ class BillOfMaterialController extends Controller
         return redirect()->back()->with('success', 'Broken quantity added successfully.');
     }
 
+
+    public function getItemCodes(Request $request)
+    {
+        $query = $request->get('query');
+
+        if (!$query) {
+            return response()->json([]);
+        }
+
+        $items = PRD_ListAllMasterItem::where('item_code', 'LIKE', "%{$query}%")
+            ->select('item_code', 'item_description', 'uom')
+            ->get();
+
+        return response()->json($items);
+    }
+
+
+    public function destroyProcess($id)
+    {
+        // Find the process by ID
+        $process = PRD_MaterialLog::find($id);
+
+        // Check if the process exists
+        if (!$process) {
+            return redirect()->back()->with('error', 'Process not found.');
+        }
+
+        // Check if the process can be deleted (no scan_in)
+        if ($process->scan_in) {
+            return redirect()->back()->with('error', 'Cannot delete a process that has already started.');
+        }
+
+        // Delete the process
+        $process->delete();
+
+        return redirect()->back()->with('success', 'Process deleted successfully.');
+    }
+
+
+    public function dashboardTv()
+    {
+        $parents = PRD_BillOfMaterialParent::with(['children.materialProcess.workers'])->get();
+
+        $projectProgress = [];
+        $distinctUsers = [];
+
+        // Loop through each parent project
+        foreach ($parents as $parent) {
+            $totalChildren = $parent->children->count(); // Total children in the parent project
+            $completedChildren = 0;
+            $usersInvolved = [];
+
+            // Loop through each child project
+            foreach ($parent->children as $child) {
+                // Check if the child status is 'Finished' or 'Finished - Modified'
+                if ($child->status === 'Finished' || $child->status === 'Finished - Modified') {
+                    // Consider the child as completed if the status is Finished or Finished - Modified
+                    $completedChildren++;
+                    
+                    // Collect distinct users involved in this child's processes (if it's already marked as completed)
+                    foreach ($child->materialProcess as $materialLog) {
+                        foreach ($materialLog->workers as $worker) {
+                            // Ensure to store distinct usernames
+                            $usersInvolved[$worker->username] = $worker->username; 
+                        }
+                    }
+                    continue; // Skip the process counting for this child, since it's already considered completed
+                }
+
+                // If the child status is not 'Finished' or 'Finished - Modified', continue with the process count
+                $totalProcesses = $child->materialProcess->count(); // Total processes (material logs) for the child
+                $completedProcesses = $child->materialProcess->filter(function ($log) {
+                    // Assuming you have a 'status' or 'completed' field in the material log to determine completion
+                    return $log->status == '2'; 
+                })->count();
+
+                // Calculate child completion percentage
+                if ($totalProcesses > 0) {
+                    $childCompletion = ($completedProcesses / $totalProcesses) * 100;
+                } else {
+                    $childCompletion = 0;
+                }
+
+                // Increment completed children counter if all processes are completed
+                if ($childCompletion == 100) {
+                    $completedChildren++;
+                }
+
+                // Collect distinct users involved in this child's processes
+                foreach ($child->materialProcess as $materialLog) {
+                    foreach ($materialLog->workers as $worker) {
+                        // Ensure to store distinct usernames
+                        $usersInvolved[$worker->username] = $worker->username; 
+                    }
+                }
+            }
+
+            // Calculate the overall project completion
+            $projectCompletion = ($completedChildren / $totalChildren) * 100;
+
+            // Store the progress for each parent project
+            $projectProgress[] = [
+                'parent_id' => $parent->id,
+                'project_name' => $parent->code,
+                'completion' => $projectCompletion,
+            ];
+
+            // Store the distinct number of users for each parent project
+            $distinctUsers[$parent->id] = count($usersInvolved); // Count the unique users involved
+        }
+
+        // Pass the data to the view
+        return view('dashboard-tv', compact('projectProgress', 'distinctUsers'));
+    }
+
+    public function accept($id)
+    {
+        $process = PRD_MaterialLog::findOrFail($id);
+
+        if ($process->is_draft) {
+            $process->is_draft = false; // Mark as accepted
+            $process->save();
+
+            return back()->with('success', 'Process accepted successfully.');
+        }
+
+        return back()->with('error', 'Process is not in draft status.');
+    }
+
+    public function delete($id)
+    {
+        $process = PRD_MaterialLog::findOrFail($id);
+
+        if (is_null($process->scan_start)) {
+            $process->delete();
+
+            return back()->with('success', 'Process has been deleted successfully.');
+        }
+
+        return back()->with('error', 'Cannot delete the process. It has already started.');
+    }
+
+    public function destroyImage($id)
+    {
+        $img = File::findOrFail($id);
+
+        // Delete the file from storage
+        Storage::delete('files/' . $img->name);
+
+        // Delete the image record from the database
+        $img->delete();
+
+        return redirect()->back()->with('success', 'File deleted successfully');
+    }
+
+    public function uploadExcelBom(Request $request)
+    {
+   
+        $request->validate([
+            'excel_file' => 'required|mimes:xls,xlsx',
+            'bom_parent_id' => 'required|integer'
+        ]);
+    
+        $bomParentId = $request->bom_parent_id;
+        
+        Excel::import(new BillOfMaterialChildImport($bomParentId), $request->file('excel_file'));
+    
+        return back()->with('success', 'Excel file imported successfully!');
+    }
+    
 }

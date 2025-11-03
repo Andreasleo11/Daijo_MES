@@ -60,8 +60,8 @@
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->item_code ?? 'N/A' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->item_description ?? 'N/A' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->quantity ?? 'N/A' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->item_code ?? 'N/A' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->item_description ?? 'N/A' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->code ?? 'N/A' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-800">{{ $data->childData->parent->description ?? 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -94,7 +94,7 @@
 
                 // Redirect to the first page after 5 seconds
                 setTimeout(function () {
-                    window.location.href = 'http://127.0.0.1:8000/workshop/summary?page=1';
+                    window.location.href = 'http://116.254.114.93:8000/workshop/summary?page=1';
                 }, 5000); // 5 seconds
             }
         });

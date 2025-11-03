@@ -1,0 +1,12 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class CapForecastDiv extends Model
+{
+    use HasFactory;
+    protected $table = 'cap_forecast_divs';
+}

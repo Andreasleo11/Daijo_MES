@@ -18,9 +18,11 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'username',
         'name',
         'email',
         'password',
+        'zone_id',
     ];
 
     /**
@@ -46,4 +48,42 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Role::class);
     }
+
+    public function dailyItemCode()
+    {
+        return $this->hasMany(DailyItemCode::class);
+    }
+
+    public function jobs()
+    {
+        return $this->hasOne(MachineJob::class, 'user_id');
+    }
+
+    public function specification()
+    {
+        return $this->belongsTo(Specification::class);
+    }
+
+    public function hasRoleAccess($requiredRole)
+    {
+        // Get the role hierarchy from config
+        $roleHierarchy = config('roles.hierarchy');
+
+        // Get the current user's role
+        $userRole = $this->role->name;
+
+        // Check if the user's role is allowed to access the required role
+        return in_array($requiredRole, $roleHierarchy[$userRole]);
+    }
+
+    public function zone()
+    {
+        return $this->belongsTo(MasterZone::class, 'zone_id');
+    }
+
+    public function zoneLogs()
+    {
+        return $this->hasMany(ZoneLog::class, 'zone_id', 'zone_id');
+    }
+
 }

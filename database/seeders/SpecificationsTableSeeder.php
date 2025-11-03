@@ -14,9 +14,15 @@ class SpecificationsTableSeeder extends Seeder
     public function run(): void
     {
         // Specification::truncate();
-        // Specification::create(['name' => 'WORKSHOP']);
-        // Specification::create(['name' => 'WAREHOUSE']);
-        // Specification::create(['name' => 'ADMIN']);
-
+        // Specification::create(['name' => 'Admin']);
+        // Specification::create(['name' => 'Workshop']);
+        // Specification::create(['name' => 'Warehouse']);
+        // Specification::create(['name' => 'Operator']);
+        // Specification::create(['name' => 'PE']);
+        // Specification::create(['name' => 'Store']);
+        // Specification::create(['name' => 'PPIC']);
+        // Specification::create(['name' => 'Maintenance']);
+        // Specification::create(['name' => 'SecondProcess']);
+        // Specification::create(['name' => 'AssemblyProcess']);
     }
 }
