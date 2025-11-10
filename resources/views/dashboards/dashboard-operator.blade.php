@@ -82,6 +82,11 @@
                 class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
                 Finish Repair Machine
             </button>
+
+            <a href="{{ route('adminoperator') }}"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    📊 JADWAL MESIN
+                </a>
         </div>
     
         <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">

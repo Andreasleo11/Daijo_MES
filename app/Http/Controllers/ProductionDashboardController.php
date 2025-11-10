@@ -208,7 +208,7 @@ class ProductionDashboardController extends Controller
                 $formattedDailyItem = [
                     'id' => $dailyItem->id,
                     'item_code' => $dailyItem->item_code,
-                    'item_name' => $dailyItem->masterItem->item_name,
+                    'item_name' => $dailyItem->masterItem?->item_name ?? '',
                     'quantity' => $dailyItem->quantity,
                     'final_quantity' => $dailyItem->final_quantity,
                     'loss_package_quantity' => $dailyItem->loss_package_quantity,
@@ -286,7 +286,10 @@ class ProductionDashboardController extends Controller
                     // Calculate achievement percentage
                     $achievementPercentage = 0;
                     if ($hourlyRemark->target > 0) {
-                        $achievementPercentage = round(($hourlyRemark->actual_production / $hourlyRemark->target) * 100, 2);
+                         $achievementPercentage = round(
+                            min(($hourlyRemark->actual_production / $hourlyRemark->target) * 100, 100),
+                            2
+                        );
                     }
 
                     $status = $hourlyRemark->is_achieve;

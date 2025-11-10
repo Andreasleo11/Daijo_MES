@@ -129,6 +129,17 @@ Route::redirect('/', '/login');
 Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+
+    //FITUR ADMIN OPERATOR 5 NOVEMBER 2025 
+Route::get('adminoperator', [DashboardController::class,'operatoradmin'])->middleware(['auth', 'verified'])
+    ->name('adminoperator');
+Route::delete('/hourly-remarks/{id}', [DashboardController::class, 'deleteremark'])->name('hourlyremarks.destroy');
+Route::post('/storedic', [DashboardController::class, 'createFromAdmin'])->name('dicadmin.store');
+Route::delete('/dailyitemcodesdelete/{id}', [DashboardController::class, 'deletedic'])
+    ->name('dailyitemcodes.delete');
+    //
+
+
     
 
 Route::view('profile', 'profile')

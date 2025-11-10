@@ -55,7 +55,7 @@ class DashboardController extends Controller
                 $temporal = $remark->dailyItemCode->temporal_cycle_time ?? null;
 
                 if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                    $cavity = $remark->dailyItemCode->masterItem->cavity;
+                    $cavity = $remark->dailyItemCode->masterItem->cavity ?? 0;
                     // dd($cavity);
                     // kalau cavity = 0 → ubah jadi 1
                     $cavity = $cavity > 0 ? $cavity : 1;
@@ -319,6 +319,8 @@ class DashboardController extends Controller
                 ->whereNull('is_done')
                 ->orderBy('shift')
                 ->first();
+
+            // dd($todayDIC);
 
             $previousDIC = DailyItemCode::where('user_id', $user->id)
                 ->where('schedule_date', '<', Carbon::today())
@@ -1196,47 +1198,59 @@ class DashboardController extends Controller
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
+        $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
-        
-        // Get all item_codes for today, ordered by shift or time
+        // Ambil semua item hari ini (pakai schedule_date karena beda field)
         $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('schedule_date', $today) // Match today's records
-            ->orderBy('start_time', 'asc') // Order by shift timing
+            ->whereDate('schedule_date', $today)
+            ->orderBy('start_time', 'asc')
             ->pluck('item_code')
-            ->toArray(); // Convert to an array for easier processing
-        
-     
+            ->toArray();
 
-        // Find the next item_code in sequence
         $nextItemCode = null;
         $currentIndex = array_search($currentItemCode, $dailyItems);
 
         if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
-            $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
-        }
-        else if($currentIndex === false) 
-        {
-        $nextItemCode = $dailyItems[1]; 
-        }
-        else {
-            // Special case: Find the first item_code of the next day
-            $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
-            $nextDayItem = DailyItemCode::where('user_id', $userId)->whereDate('start_date', $nextDay)->orderBy('start_time', 'asc')->value('item_code'); // Get the first record of the next day
+            // Masih ada item berikutnya hari ini
+            $nextItemCode = $dailyItems[$currentIndex + 1];
+        } else {
+            // Kalau current item gak ada di hari ini atau sudah di akhir
+            if ($currentIndex === false) {
+                // Coba ambil item pertama hari ini
+                $nextItemCode = $dailyItems[0] ?? null;
+            }
 
-            $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
+            // Kalau tetap null, coba ambil item pertama besok
+            if (!$nextItemCode) {
+                $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                $nextDayItem = DailyItemCode::where('user_id', $userId)
+                    ->whereDate('schedule_date', $nextDay)
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+                $nextItemCode = $nextDayItem ?? null;
+            }
 
-            if ($nextItemCode === null) {
-                return response()->json(['message' => 'Belum ada item yang diassign']);
+            // 🔥 Fallback terakhir: cari item yang belum selesai (is_done = null)
+            if (!$nextItemCode) {
+                $undoneItem = DailyItemCode::where('user_id', $userId)
+                    ->whereNull('is_done')
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+                $nextItemCode = $undoneItem ?? null;
             }
         }
 
-        // Create a new mould change log entry
+        // Kalau tetap gak ada, berarti belum ada job yang bisa diassign
+        if (!$nextItemCode) {
+            return response()->json(['message' => 'Belum ada item yang diassign atau belum ada item yang belum selesai.']);
+        }
+
+        // Buat log mould change baru
         $mouldChange = MouldChangeLog::create([
             'user_id' => $userId,
             'pic' => $request->pic_name,
             'item_code' => $nextItemCode,
-            'created_at' => Carbon::now(), // Start time
+            'created_at' => Carbon::now(),
         ]);
 
       
@@ -1261,46 +1275,59 @@ class DashboardController extends Controller
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
+        $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
-        
-        // Get all item_codes for today, ordered by shift or time
+        // Ambil daftar item hari ini
         $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('start_date', $today) // Match today's records
-            ->orderBy('start_time', 'asc') // Order by shift timing
+            ->whereDate('start_date', $today)
+            ->orderBy('start_time', 'asc')
             ->pluck('item_code')
-            ->toArray(); // Convert to an array for easier processing
+            ->toArray();
 
-     
-
-        // Find the next item_code in sequence
         $nextItemCode = null;
         $currentIndex = array_search($currentItemCode, $dailyItems);
 
         if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
-            $nextItemCode = $dailyItems[$currentIndex + 1]; // Get the next item
-        }
-        else if($currentIndex === false) 
-        {
-        $nextItemCode = $dailyItems[1]; 
+            // Masih ada item berikutnya di hari ini
+            $nextItemCode = $dailyItems[$currentIndex + 1];
         } else {
-            // Special case: Find the first item_code of the next day
-            $nextDay = Carbon::tomorrow()->format('Y-m-d'); // Get tomorrow's date
-            $nextDayItem = DailyItemCode::where('user_id', $userId)->whereDate('start_date', $nextDay)->orderBy('start_time', 'asc')->value('item_code'); // Get the first record of the next day
+            // Kalau current item gak ada di hari ini atau sudah di akhir
+            if ($currentIndex === false) {
+                // Coba ambil item pertama hari ini
+                $nextItemCode = $dailyItems[0] ?? null;
+            }
 
-            $nextItemCode = $nextDayItem ?? null; // If exists, assign; else, remain null
+            // Kalau tetap null, ambil item pertama besok
+            if (!$nextItemCode) {
+                $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                $nextDayItem = DailyItemCode::where('user_id', $userId)
+                    ->whereDate('start_date', $nextDay)
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+                $nextItemCode = $nextDayItem ?? null;
+            }
 
-            if ($nextItemCode === null) {
-                return response()->json(['message' => 'Belum ada item yang diassign']);
+            // 🔥 Fallback terakhir: ambil item_code yang belum selesai (is_done null)
+            if (!$nextItemCode) {
+                $undoneItem = DailyItemCode::where('user_id', $userId)
+                    ->whereNull('is_done')
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+
+                $nextItemCode = $undoneItem ?? null;
             }
         }
 
-        // Create a new mould change log entry
+        if (!$nextItemCode) {
+            return response()->json(['message' => 'Belum ada item yang diassign atau belum ada item yang belum selesai.']);
+        }
+
+        // Simpan log
         $adjustMachine = AdjustMachineLog::create([
             'user_id' => $userId,
             'pic' => $request->pic_name,
             'item_code' => $nextItemCode,
-            'created_at' => Carbon::now(), // Start time
+            'created_at' => Carbon::now(),
         ]);
 
         // Set machine job user_id to NULL (machine is inactive)
@@ -1688,6 +1715,103 @@ class DashboardController extends Controller
     {
         $logs = ApiLog::latest()->take(150)->get(); 
         return view('Log.api_logs', compact('logs'));
+    }
+
+    public function operatoradmin()
+    {
+        $user = auth()->user();
+
+        if ($user->role->name !== 'OPERATOR') {
+            return redirect()->back()->with('error', 'Akses ditolak: hanya operator yang bisa membuka halaman ini.');
+        }
+
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $tomorrow = now()->addDay()->toDateString();
+
+         $datas = DailyItemCode::where('user_id', $user->id)
+                ->whereIn('start_date', [$yesterday, $today, $tomorrow])
+                ->with('hourlyRemarks','scannedData')
+                ->orderBy('start_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->get();
+        
+        // lanjut kalau operator
+        // dd($datas);
+        return view('dashboards.adminoperator', compact('datas')); // atau halaman kamu
+    }
+
+    public function createFromAdmin(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'item_code' => 'required|string|max:255',
+            'shift' => 'required|integer|in:1,2,3',
+            'start_schedule_date' => 'required|date',
+            'end_schedule_date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'quantity' => 'required|integer|min:0',
+        ]);
+
+        // Masukin ke tabel DailyItemCode
+        $daily = new DailyItemCode();
+        $daily->user_id = $validated['user_id'];
+        $daily->item_code = $validated['item_code'];
+        $daily->quantity = $validated['quantity'];
+        $daily->final_quantity = null; 
+        // $cavity = $remark->dailyItemCode->masterItem->cavity;
+                    // dd($cavity);
+        $daily->loss_package_quantity = null;
+        $daily->actual_quantity = 0;
+        $daily->shift = $validated['shift'];
+        $daily->start_date = $validated['start_schedule_date'];
+        $daily->start_time = $validated['start_time'];
+        $daily->end_date = $validated['end_schedule_date'];
+        $daily->end_time = $validated['end_time'];
+        $daily->schedule_date = $validated['start_schedule_date'];
+        $daily->is_done = null;
+        $daily->remark = null;
+        $daily->temporal_cycle_time = null;
+        $daily->save();
+
+        return redirect()->back()->with('message', 'Daily Item Code berhasil ditambahkan!');
+    }
+
+    public function deleteremark($id)
+    {
+        //works
+
+        $remark = HourlyRemark::findOrFail($id);
+
+        // Ambil range waktu
+        $start = Carbon::parse($remark->start_time);
+        $end   = Carbon::parse($remark->end_time);
+
+        // Hapus scanned data dalam rentang waktu itu
+        $test = ProductionScannedData::where('dic_id', $remark->dic_id)
+             ->whereRaw('CONVERT_TZ(created_at, "+00:00", "+07:00") BETWEEN ? AND ?', [$start, $end])
+            // ->get();
+            ->delete();
+        // dd($test);
+
+        // Hapus hourly remark
+        $remark->delete();
+
+        return redirect()->back()->with('message', 'Hourly Remark dan data terkait berhasil dihapus.');
+    }
+
+    public function deletedic($id)
+    {
+        $item = DailyItemCode::findOrFail($id);
+
+        // Hapus juga relasi kalau ada
+        $item->hourlyRemarks()->delete();
+        $item->scannedData()->delete();
+
+        $item->delete();
+
+        return redirect()->back()->with('message', 'Daily Item Code dan data terkait berhasil dihapus.');
     }
 
 }

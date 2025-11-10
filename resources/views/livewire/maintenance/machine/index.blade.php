@@ -118,33 +118,153 @@
 
     <!-- Modal Detail -->
     @if($showDetailModal && $selectedMaintenance)
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Detail Maintenance</h2>
-                <div class="space-y-2 text-gray-700">
-                    <p><strong>Tanggal Pengerjaan:</strong> {{ $selectedMaintenance->tanggal->format('Y-m-d') }}</p>
-                    <p><strong>Mesin:</strong> {{ $selectedMaintenance->user->name ?? $selectedMaintenance->mesin }}</p>
-                    <p><strong>Jenis Kerusakan:</strong> {{ $selectedMaintenance->jenis_kerusakan }}</p>
-                    <p><strong>Perbaikan:</strong> {{ $selectedMaintenance->perbaikan }}</p>
-                    <p><strong>PIC:</strong> {{ $selectedMaintenance->pic }}</p>
-                    <p><strong>Tipe:</strong> {{ $selectedMaintenance->tipe }}</p>
-                    <p><strong>Remark:</strong> {{ $selectedMaintenance->remark }}</p>
-                    <p><strong>Status:</strong>
-                        <span class="{{ $selectedMaintenance->status ? 'text-green-600' : 'text-red-600' }}">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl shadow-lg max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Detail Maintenance</h2>
+            
+            <form class="space-y-4">
+                <!-- Tanggal Pengerjaan -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tanggal Pengerjaan:</label>
+                    <input 
+                        type="date" 
+                        wire:model.defer="editTanggal"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        @if($selectedMaintenance->status) disabled @endif
+                    >
+                    @error('editTanggal') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Mesin (Dropdown dengan value = name) -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Mesin:</label>
+                    <select 
+                        wire:model.defer="editMesin"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        @if($selectedMaintenance->status) disabled @endif
+                    >
+                        <option value="">Pilih Mesin</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->name }}">{{ $user->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('editMesin') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Jenis Kerusakan -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Jenis Kerusakan:</label>
+                    <textarea 
+                        wire:model.defer="editJenisKerusakan"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                        @if($selectedMaintenance->status) disabled @endif
+                    ></textarea>
+                    @error('editJenisKerusakan') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Perbaikan -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Perbaikan:</label>
+                    <textarea 
+                        wire:model.defer="editPerbaikan"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                        @if($selectedMaintenance->status) disabled @endif
+                    ></textarea>
+                    @error('editPerbaikan') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- PIC -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">PIC:</label>
+                    <input 
+                        type="text" 
+                        wire:model.defer="editPic"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        @if($selectedMaintenance->status) disabled @endif
+                    >
+                    @error('editPic') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Tipe -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tipe:</label>
+                    <select 
+                        wire:model.defer="editTipe"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        @if($selectedMaintenance->status) disabled @endif
+                    >
+                        <option value="">Pilih Tipe</option>
+                        <option value="Repair">Repair</option>
+                        <option value="Maintenance">Maintenance</option>
+                    </select>
+                    @error('editTipe') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Remark -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Remark:</label>
+                    <textarea 
+                        wire:model.defer="editRemark"
+                        class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                        @if($selectedMaintenance->status) disabled @endif
+                    ></textarea>
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Status:</label>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium {{ $selectedMaintenance->status ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
                             {{ $selectedMaintenance->status ? 'Finished' : 'Ongoing' }}
                         </span>
-                    </p>
-                    <p><strong>Lama Pengerjaan:</strong> {{ $selectedMaintenance->lama_pengerjaan ?? '-' }}</p>
+                    </div>
                 </div>
-                <div class="flex justify-end mt-4 space-x-2">
-                    <button wire:click="closeDetailModal"
-                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">Close</button>
-                    @if(!$selectedMaintenance->status)
-                        <button wire:click="finishMaintenance"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Finish</button>
-                    @endif
-                </div>
+
+                <!-- Lama Pengerjaan (jika sudah selesai) -->
+                @if($selectedMaintenance->status)
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Lama Pengerjaan:</label>
+                        <input 
+                            type="text" 
+                            value="{{ $selectedMaintenance->lama_pengerjaan ?? '-' }}"
+                            class="w-full border border-gray-300 rounded-lg p-2 bg-gray-100"
+                            disabled
+                        >
+                    </div>
+                @endif
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end mt-6 space-x-2">
+                <button 
+                    wire:click="closeDetailModal"
+                    type="button"
+                    class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded-lg transition-colors font-medium"
+                >
+                    Close
+                </button>
+                
+                @if(!$selectedMaintenance->status)
+                    <button 
+                        wire:click="updateMaintenance"
+                        type="button"
+                        class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg transition-colors font-medium"
+                    >
+                        Update
+                    </button>
+                    <button 
+                        wire:click="finishMaintenance"
+                        type="button"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors font-medium"
+                    >
+                        Finish
+                    </button>
+                @endif
             </div>
         </div>
-    @endif
+    </div>
+@endif
 </div>

@@ -130,7 +130,16 @@
                     <p><strong>Jenis Kerusakan:</strong> {{ $selectedMould->jenis_kerusakan }}</p>
                     <p><strong>Perbaikan:</strong> {{ $selectedMould->perbaikan }}</p>
                     <p><strong>Tipe:</strong> {{ $selectedMould->tipe }}</p>
-                    <p><strong>Remark:</strong> {{ $selectedMould->remark }}</p>
+                     @if(!$selectedMould->status)
+                        <label class="font-semibold text-gray-800">Remark:</label>
+                        <textarea 
+                            wire:model.defer="remarkInput"
+                            class="w-full border rounded-lg p-2 mt-1 focus:ring focus:ring-blue-300 focus:outline-none"
+                            rows="3"
+                        ></textarea>
+                    @else
+                        <p><strong>Remark:</strong> {{ $selectedMould->remark }}</p>
+                    @endif
                     <p><strong>Status:</strong>
                         <span class="{{ $selectedMould->status ? 'text-green-600' : 'text-red-600' }}">
                             {{ $selectedMould->status ? 'Finished' : 'Ongoing' }}
