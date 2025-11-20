@@ -26,7 +26,7 @@ use App\Http\Controllers\OperatorUserController;
 use App\Http\Controllers\ProductionDashboardController;
 use App\Http\Controllers\MasterListItemController;
 use App\Http\Controllers\DaijoMesHomeController;
-
+use App\Http\Controllers\MonitoringController;
 
 use App\Livewire\Barcode\StoreDashboard;
 
@@ -69,6 +69,13 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+
+    Route::get('/monitoring-spk', [MonitoringController::class, 'index'])
+    ->name('monitoring.spk.index');
+
+    Route::get('/monitoring-spkdetail/{spk}', [MonitoringController::class, 'show'])
+        ->name('monitoring.spk.detail');
 
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
