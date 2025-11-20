@@ -43,6 +43,20 @@ use App\Models\User;
 use App\Services\BaseSapService;
 use App\Services\SpkMasterService;
 
+use App\Services\BomWipService;
+
+use App\Services\DelActualService;
+
+use App\Services\DelSoService;
+
+use App\Services\InventoryFgService;
+
+use App\Services\InventoryMtrService;
+
+use App\Services\LineProductionService;
+
+use App\Services\RejectService;
+
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 /*
@@ -56,9 +70,33 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
-// Route::get('/{user}', [DashboardController::class, 'autoLogin']);\
+    // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
-   Route::get('/maintenance-dashboard',  DashboardMaintenance::class)
+    Route::get("/test-bomwip", function (LineProductionService $LineProductionService) {
+        return $LineProductionService->SyncData();
+    });
+
+
+    Route::get("/test-sap-data", function (BaseSapService $sap) {
+        $data = $sap->testGet("/api/sap_bom_wip/list", [
+            "startDate" => "2025-03-01",
+            "itemGroupCode" => "103",
+        ]);
+        return response()->json($data);
+    });
+
+
+    // Route untuk barcode ALC Engineering 
+    Route::get('/barcodealcindex', [BarcodeController::class, 'alcindex'])->name('barcode.alc.index');
+
+    Route::get('/all-label-yanfeng', [BarcodeController::class, 'generateAllLabelYangeng'])->name('all.label.yanfeng');
+
+    Route::post('/generate-label-yanfeng', [BarcodeController::class, 'generateLabelYangeng'])->name('generate.label.yanfeng');   
+    // Route untuk barcode ALC Engineering 
+
+
+    //Route untuk maintenance dan mould dashboard produksi 
+    Route::get('/maintenance-dashboard',  DashboardMaintenance::class)
         ->name('maintenance.dashboard');
 
     Route::get('/machine-dashboard',  DashboardMachine::class)
@@ -66,98 +104,126 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     
     Route::get('/mould-dashboard',  DashboardMould::class)
         ->name('mould.dashboard');
+    
+    //Route untuk maintenance dan mould dashboard produksi 
 
+    //Route untuk dashboard Store 
     Route::get('/dashboard/store', StoreDashboard::class)->name('dashboard.store');
+    //Route untuk dashboard Store 
         
 
-Route::get('test/spk/1', [SpkMasterService::class, 'getAll']);
-
-Route::post('/admin/dailyitemcodes/{id}/set-status', [ProductionDashboardController::class, 'setStatus'])->name('dailyitemcodes.set-status');
-Route::delete('/hourly-remarks/{id}', [ProductionDashboardController::class, 'destroyHourlyRemark'])->name('hourly-remarks.destroy');
-
-Route::get('/admin/dailyitemcodes', [ProductionDashboardController::class, 'adminView'])->name('admin.dailyitemcodes');
+    Route::get('test/spk/1', [SpkMasterService::class, 'getAll']);
 
 
-Route::get('/test/ROPdata', [DashboardController::class, 'showROPData']);
+    //Route untuk ubah status DIC oleh admin 
+    Route::post('/admin/dailyitemcodes/{id}/set-status', [ProductionDashboardController::class, 'setStatus'])->name('dailyitemcodes.set-status');
+    //Route untuk ubah status DIC oleh admin 
 
-Route::get('/daily-item-code/get-item-codes', [DailyItemCodeController::class, 'getItemCodes'])
-    ->name('daily-item-code.get-item-codes');
+    //Route untuk hapus hourly remark
+    Route::delete('/hourly-remarks/{id}', [ProductionDashboardController::class, 'destroyHourlyRemark'])->name('hourly-remarks.destroy');
+    //Route untuk hapus hourly remark
 
-Route::get('/daily-item-code/max-quantity', [DailyItemCodeController::class, 'getMaxQuantity'])
-    ->name('daily-item-code.get-max-quantity');
+    //Route untuk view admin daily item code
+    Route::get('/admin/dailyitemcodes', [ProductionDashboardController::class, 'adminView'])->name('admin.dailyitemcodes');
+    //Route untuk view admin daily item code
 
-Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
-Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
-
-
-Route::get('/daijo-mes-home', [DaijoMesHomeController::class, 'index'])
-    ->name('daijo.mes.home');
-
-Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
-Route::get('/api-log-dashboard', [DashboardController::class, 'apiLog'])->name('api.dashboard');
-Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
+    Route::get('/test/ROPdata', [DashboardController::class, 'showROPData']);
 
 
-Route::get('/id-card/operator', [OperatorUserController::class, 'showIdCard']);
-Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
-Route::get('/operator-users/upload', [OperatorUserController::class, 'uploadForm'])->name('operator-users.upload');
-Route::post('/operator-users/import', [OperatorUserController::class, 'import'])->name('operator-users.import');
-Route::get('/operator-users/show-all', [OperatorUserController::class, 'showAllOperator'])->name('show.all.operators');
-Route::get('/operator/create', [OperatorUserController::class, 'createOperator'])->name('operator.create');
-Route::post('/operator/store', [OperatorUserController::class, 'storeOperator'])->name('operator.store');
+    //-- Route Ajax untuk get daily item codes dan hitung perhitungan max quantity spk 
+    Route::get('/daily-item-code/get-item-codes', [DailyItemCodeController::class, 'getItemCodes'])
+        ->name('daily-item-code.get-item-codes');
 
-Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
-
-Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
-
-Route::put('/operator/update-profile-picture', [OperatorUserController::class, 'updateProfilePicture'])->name('operator.updateProfilePicture');
-Route::get('/operator-users', [OperatorUserController::class, 'index'])->name('operator.index');
-
-Route::get('/zone/edit', [OperatorUserController::class, 'editZone'])->name('zone.edit');
-
-// Handle the POST request to update a Master Zone
-Route::post('/zone/update', [OperatorUserController::class, 'updateZone'])->name('zone.update');
+    Route::get('/daily-item-code/max-quantity', [DailyItemCodeController::class, 'getMaxQuantity'])
+        ->name('daily-item-code.get-max-quantity');
+    //-- Route Ajax untuk get daily item codes dan hitung perhitungan max quantity spk 
 
 
 
-Route::redirect('/', '/login');
 
-// Route::view('dashboard', 'dashboard')
-//     ->middleware(['auth', 'verified'])
-//     ->name('dashboard');
-
-Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
-    ->name('dashboard');
+    Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
+    Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
 
 
-    //FITUR ADMIN OPERATOR 5 NOVEMBER 2025 
-Route::get('adminoperator', [DashboardController::class,'operatoradmin'])->middleware(['auth', 'verified'])
-    ->name('adminoperator');
-Route::delete('/hourly-remarks/{id}', [DashboardController::class, 'deleteremark'])->name('hourlyremarks.destroy');
-Route::post('/storedic', [DashboardController::class, 'createFromAdmin'])->name('dicadmin.store');
-Route::delete('/dailyitemcodesdelete/{id}', [DashboardController::class, 'deletedic'])
-    ->name('dailyitemcodes.delete');
-    //
+    Route::get('/daijo-mes-home', [DaijoMesHomeController::class, 'index'])
+        ->name('daijo.mes.home');
+
+    Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
+    Route::get('/api-log-dashboard', [DashboardController::class, 'apiLog'])->name('api.dashboard');
+    Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
+
+    //Route untuk handle operator dan operator baru 
+    Route::get('/id-card/operator', [OperatorUserController::class, 'showIdCard']);
+    Route::get('/operator-users/qr-codes', [OperatorUserController::class, 'showQr']);
+    Route::get('/operator-users/upload', [OperatorUserController::class, 'uploadForm'])->name('operator-users.upload');
+    Route::post('/operator-users/import', [OperatorUserController::class, 'import'])->name('operator-users.import');
+    Route::get('/operator-users/show-all', [OperatorUserController::class, 'showAllOperator'])->name('show.all.operators');
+    Route::get('/operator/create', [OperatorUserController::class, 'createOperator'])->name('operator.create');
+    Route::post('/operator/store', [OperatorUserController::class, 'storeOperator'])->name('operator.store');
+
+    Route::put('/operator/update-profile-picture', [OperatorUserController::class, 'updateProfilePicture'])->name('operator.updateProfilePicture');
+    Route::get('/operator-users', [OperatorUserController::class, 'index'])->name('operator.index');
+
+    //Route untuk handle operator dan operator baru 
+
+    //masih belum tau 
+    Route::get('/external-users', [UpdateDailyController::class, 'getUsers']);
+    //masih belum tau 
+
+    //bawaaan diss 
+    Route::get('/capacity-forecast-dashboard', [CapacityByForecastController::class, 'dashboard'])->name('capacity_forecast_dashboard');
+    //bawaan diss
 
 
-    
 
-Route::view('profile', 'profile')
-    ->middleware(['auth'])
-    ->name('profile');
+    // Handle the POST request to update a Master Zone
 
-// Auto-login route (must not interfere with other routes)
-Route::get('/auto-login/{user_id}', function ($user_id) {
-    // dd($user_id);
-    $user = User::where('name', $user_id)->first();
+    //Route untuk handle Zone mesin 
+    Route::get('/zone/edit', [OperatorUserController::class, 'editZone'])->name('zone.edit');
+    Route::post('/zone/update', [OperatorUserController::class, 'updateZone'])->name('zone.update');
+    //Route untuk handle Zone mesin 
 
-    if ($user) {
-        Auth::login($user);
-        return redirect()->route('dashboard');
-    }
 
-    return redirect('/login')->withErrors(['error' => 'User not found']);
-})->where('user_id', '[0-9A-Za-z]+'); // Ensure only valid user IDs
+    Route::redirect('/', '/login');
+
+    // Route::view('dashboard', 'dashboard')
+    //     ->middleware(['auth', 'verified'])
+    //     ->name('dashboard');
+
+    Route::get('dashboard', [DashboardController::class,'index'])->middleware(['auth', 'verified'])
+        ->name('dashboard');
+
+
+        //FITUR ADMIN OPERATOR 5 NOVEMBER 2025 
+    Route::get('adminoperator', [DashboardController::class,'operatoradmin'])->middleware(['auth', 'verified'])
+        ->name('adminoperator');
+    Route::delete('/hourly-remarks/{id}', [DashboardController::class, 'deleteremark'])->name('hourlyremarks.destroy');
+    Route::post('/storedic', [DashboardController::class, 'createFromAdmin'])->name('dicadmin.store');
+    Route::delete('/dailyitemcodesdelete/{id}', [DashboardController::class, 'deletedic'])
+        ->name('dailyitemcodes.delete');
+        //FITUR ADMIN OPERATOR 5 NOVEMBER 2025 
+
+
+        
+
+    Route::view('profile', 'profile')
+        ->middleware(['auth'])
+        ->name('profile');
+
+    // Route untuk auto login 
+    // Auto-login route (must not interfere with other routes)
+    Route::get('/auto-login/{user_id}', function ($user_id) {
+        // dd($user_id);
+        $user = User::where('name', $user_id)->first();
+
+        if ($user) {
+            Auth::login($user);
+            return redirect()->route('dashboard');
+        }
+
+        return redirect('/login')->withErrors(['error' => 'User not found']);
+    })->where('user_id', '[0-9A-Za-z]+'); // Ensure only valid user IDs
+    // Route untuk auto login
 
 Route::middleware('auth')->group(function (){
     //-- Production project route
@@ -182,17 +248,24 @@ Route::middleware('auth')->group(function (){
     Route::put('/hourly-remarks/{id}/ng', [DashboardController::class, 'updateNgProduction'])
     ->name('hourly-remarks.updateNg');
 
+    Route::post('/hourly-remark/{id}/add-ng', [DashboardController::class, 'addNg']);
+    Route::get('/ng-detail/{id}', [DashboardController::class, 'showNgDetail']);
+    Route::put('/ng-detail/{id}', [DashboardController::class, 'updateNgDetail']);
+    Route::delete('/ng-detail/{id}', [DashboardController::class, 'destroyNgDetail']);
 
+    // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
     Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
     Route::post('/adjust-machine/start', [DashboardController::class, 'startAdjustMachine'])->name('adjust.machine.start');
     Route::post('/adjust-machine/end', [DashboardController::class, 'endAdjustMachine'])->name('adjust.machine.end');
     Route::post('/repair-machine/start', [DashboardController::class, 'startRepairMachine'])->name('repair.machine.start');
     Route::post('/repair-machine/end', [DashboardController::class, 'endRepairMachine'])->name('repair.machine.end');
+    // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
 
     Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);
     Route::get('/reset-job', [DashboardController::class, 'resetJob'])->name('reset.job');
 
+    //ROUTE UNTUK FITUR BARCODE STORE 
     Route::get('barcode/index', [BarcodeController::class, 'index'])->name('barcode.base.index');
     Route::get('barcode/inandout/index', [BarcodeController::class, 'inandoutpage'])->name('inandout.index');
     Route::get('barcode/missing/index', [BarcodeController::class, 'missingbarcodeindex'])->name('missingbarcode.index');
@@ -210,11 +283,10 @@ Route::middleware('auth')->group(function (){
     Route::get('barcode/summary', [BarcodeController::class, 'summaryDashboard'])->name('summaryDashboard');
 
     
-
     Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
     Route::post('/add-customer', [BarcodeController::class, 'storeCustomer'])->name('customer.store');
     Route::delete('/customer/{id}', [BarcodeController::class, 'destroyCustomer'])->name('customer.destroy');
-
+    
     Route::get('master-item', [MasterItemController::class, 'index'])->middleware(['auth', 'verified'])->name('master-item.index');
 
     Route::get('/initialbarcode', [InitialBarcodeController::class, 'index'])->name('barcode.index');
@@ -222,6 +294,10 @@ Route::middleware('auth')->group(function (){
     Route::get('/manualbarcodes', [InitialBarcodeController::class, 'manualgenerate'])->name('manualbarcode.index');
     Route::post('/generate-barcode', [InitialBarcodeController::class, 'generateBarcode'])->name('generate.barcode');
 
+    //ROUTE UNTUK FITUR BARCODE STORE 
+
+
+    //ROUTE UNTUK FITUR DAILY ITEM CODES
     Route::get('/daily-item-codes', [DailyItemCodeController::class, 'index'])->name('daily-item-code.index');
     Route::post('/daily-item-code', [DailyItemCodeController::class, 'store'])->name('daily-item-code.store');
     Route::get('/daily-item-code', [DailyItemCodeController::class, 'create'])->name('daily-item-code.create');
@@ -231,6 +307,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/daily-item-codes/daily', [DailyItemCodeController::class, 'daily'])->name('daily-item-code.daily');
     Route::put('/daily-item-codes/{id}', [DailyItemCodeController::class, 'update'])->name('daily-item-code.update');
     Route::delete('/daily-item-codes/{id}', [DailyItemCodeController::class, 'destroy'])->name('daily-item-code.destroy');
+    //ROUTE UNTUK FITUR DAILY ITEM CODES
 
     Route::get('/maintenance/index', [MaintenanceController::class, 'index'])->name('maintenance.index');
 
@@ -281,12 +358,15 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv'])->name('dashboard.moulding.tv');
-
+    
+    //Route untuk admin moulding 
     Route::get('/production/bom/create', [BillOfMaterialController::class, 'create'])->name('production.bom.create');
     Route::get('/get-item-codes', [BillOfMaterialController::class, 'getItemCodes'])->name('get-item-codes');
 
     Route::post('/production/bom/store', [BillOfMaterialController::class, 'store'])->name('production.bom.store');
+    //Route untuk admin moulding
 
+    //ROUTE untuk Workshop MOULDING
     Route::post('/workshop/update-username', [WorkshopController::class, 'updateUsername'])->name('update.username');
     Route::post('/workshop/set-scan-start', [WorkshopController::class, 'setScanStart'])->name('workshop.set_scan_start');
     Route::get('/workshop/remove-scan-in/{id}', [WorkshopController::class, 'removeScanIn'])->name('workshop.removeScanIn');
@@ -306,6 +386,9 @@ Route::middleware('auth')->group(function (){
     Route::post('/workshop/scan-manual', [WorkshopController::class, 'handleScanManual'])->name('workshop.scan.manual');
     //add manual
 
+
+    //ROUTE untuk Workshop MOULDING
+
     Route::post('file/upload', [FileController::class, 'upload'])->name('file.upload');
     Route::delete('/file/{id}', [FileController::class, 'destroy'])->name('file.delete');
 
@@ -317,6 +400,7 @@ Route::middleware('auth')->group(function (){
         return new \App\Mail\DailyWaitingPurchaseOrders($waitingPurchaseOrders);
     });
 
+    //Route untuk Delivery Schedule
     Route::get('deliveryschedule/averagemonth', [DeliveryScheduleController::class, 'averageschedule'])->name('delsched.averagemonth');
     Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
     Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
@@ -327,6 +411,7 @@ Route::middleware('auth')->group(function (){
     Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
     Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
+    //Route untuk Delivery Schedule
 
 
         
@@ -356,6 +441,7 @@ Route::middleware('auth')->group(function (){
 
     Route::resource('notification_recipients', NotificationRecepientController::class);
 
+    //ROUTE UNTUK FITUR HOLIDAY SCHEDULE
     Route::get('setting/holiday-schedule', [HolidayScheduleController::class, 'index'])->name('setting.holiday-schedule.index');
     Route::get('setting/holiday-schedule/create', [HolidayScheduleController::class, 'create'])->name('holiday-schedule.create');
     Route::post('setting/holiday-schedule/store', [HolidayScheduleController::class, 'store'])->name('holiday-schedule.store');
@@ -363,14 +449,18 @@ Route::middleware('auth')->group(function (){
     Route::put('/holiday-schedule/{id}', [HolidayScheduleController::class, 'update'])->name('holiday-schedule.update');
     Route::get('holiday-schedule/export', [HolidayScheduleController::class, 'export'])->name('holiday-schedule.export');
     Route::post('holiday-schedule/import', [HolidayScheduleController::class, 'import'])->name('holiday-schedule.import');
+    //ROUTE UNTUK FITUR HOLIDAY SCHEDULE
 
+    //ROUTE UNTUK INVENTORY MATERIAL DAN FINISHED GOODS
     Route::get('/inventory/mtr', [InventoryController::class, 'showMtrInventory'])->name('inventory.mtr');
     Route::get('/inventory/fg', [InventoryController::class, 'showFgInventory'])->name('inventory.fg');
     Route::get('/inventory/line-list',  [InvLineListController::class, "index"])->name('invlinelist');
     Route::post("/add/line", [InvLineListController::class, "addline"])->name('addline');
     Route::put("/edit/line/{id}", [InvLineListController::class, "editline"])->name('editline');
     Route::delete("/delete/line/{linecode}", [InvLineListController::class, "deleteline"])->name('deleteline');
+    //ROUTE UNTUK INVENTORY MATERIAL DAN FINISHED GOODS
 
+    //ROUTE UNTUK CAPACITY BY FORECASTING BAWAAN DISS 
     Route::get("/production/capacity-forecast", [CapacityByForecastController::class, "index"])->name('capacityforecastindex');
     Route::get("/production/capacity-line", [CapacityByForecastController::class, "line"])->name('capacityforecastline');
     Route::get("/production/capacity-distribution", [CapacityByForecastController::class, "distribution"])->name('capacityforecastdistribution');
@@ -386,7 +476,7 @@ Route::middleware('auth')->group(function (){
     Route::get("/production/capacity-forecast/step3", [CapacityByForecastController::class, "step3"])->name('step3');
     Route::get("/production/capacity-forecast/step3logic", [CapacityByForecastController::class, "step3logic"])->name('step3logic');
     Route::get("/production/capacity-forecast/step3last", [CapacityByForecastController::class, "step3logiclast"])->name('step3logiclast');
-
+    //ROUTE UNTUK CAPACITY BY FORECASTING BAWAAN DISS 
 
 
     Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');

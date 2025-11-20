@@ -7,11 +7,15 @@ use App\Models\BarcodePackagingMaster;
 use App\Models\MasterDataRogPartName;
 use App\Models\Customer;
 use App\Models\StoreBoxData;
+use App\Models\AlcPeMasterData;
+
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Milon\Barcode\DNS1D;
+use Milon\Barcode\DNS2D;
 use Illuminate\Support\Facades\Log;
+
 
 class BarcodeController extends Controller
 {
@@ -676,4 +680,185 @@ class BarcodeController extends Controller
             'summaryData' => $summaryData,
         ]);
     }
+
+
+    public function alcindex()
+    {
+        $items = AlcPeMasterData::orderBy('part_code')->get();
+        return view('barcode.alcindex', compact('items'));
+    }
+
+
+    public function generateLabelYangeng(Request $request)
+    {
+        $RS  = chr(30); // ␝
+        $GS  = chr(29); // ␟
+        $EOT = chr(4);  // ␄
+
+        // 2️⃣ Ambil data part yang dipilih
+        $part = AlcPeMasterData::where('part_code', $request->part_code)->firstOrFail();
+        // dd($part);
+        $truepartNumber = $part->part_code;
+        $sequenceCode = $part->alc_code;
+        $projectCode = $part->project_code;
+        // dd($sequenceCode);
+        // dd($projectCode);
+
+        $identifier1 = 'PEA';
+        $date1 = date('ymd'); // Format tanggal saat ini ddmmyy
+        $sequence1 = '0000'; // Mulai dari 0000
+        $baseIdentifier = $identifier1 . $date1 . $sequence1;  
+        // dd($baseIdentifier);
+
+
+        $labels = collect();
+
+        $code = substr($baseIdentifier, 0, 3); // PEA
+        $date = substr($baseIdentifier, 3, 6); // 251009
+        $sequence = substr($baseIdentifier, 9); // 0000
+
+        $sequenceLength = strlen($sequence); // simpan panjang sequence (4 digit)
+        $startSequence = (int)$sequence; // convert ke integer
+
+
+        $supplierCode = 'HAWX';
+        // $identifier = 'PEA2510090000';
+        $partNumber = $part->part_code;
+        $truepartNumber = str_replace('-', '', $part->part_code);
+        $sequenceCode = $part->alc_code;
+        $engineeringOrderNumber = '';
+        $trackingCode1 = '251009Y111@QAD:';
+        $trackingCode2 = $part->qad;
+        $trackingCode = $trackingCode1 . $trackingCode2;
+        $specificInfo = '12345'; // optional
+        $initialProductClassification = 'N'; // optional
+        $businessUnit = 'ABC'; // optional
+
+        //tambahin project code di sebelah PEA 
+        // Bersihin Part number dari - 
+
+          // Loop untuk generate multiple labels
+        $labels = [];
+        for ($i = $request->label_start; $i <= $request->label_end; $i++) {
+            $currentSequence = $startSequence + $i;
+            $identifier = $code . $date . str_pad($currentSequence, $sequenceLength, '0', STR_PAD_LEFT);
+
+             // Format sesuai standar ISO/IEC 15434
+            $dataMatrixString = "[)>"
+            . $RS . "06"
+            . $GS . "V" . $supplierCode
+            // . $GS . "E" . $engineeringOrderNumber
+            . $GS . "P" . $truepartNumber
+            . $GS . "S" . $sequenceCode
+            . $GS . "T" . $trackingCode
+            . $GS . "1A" . $specificInfo
+            . $GS . "M" . $initialProductClassification
+            . $GS . "C" . $businessUnit
+            . $GS . $RS . $EOT;
+
+        // Generate DataMatrix
+        $barcode = new DNS2D();
+        $image = $barcode->getBarcodePNG($dataMatrixString, 'DATAMATRIX');
+        // dd($dataMatrixString);
+            
+            $labels[] = [
+                'identifier' => $identifier,
+                'supplierCode' => $supplierCode,
+                'sequenceCode' => $sequenceCode,
+                'partNumber' => $partNumber,
+                'projectCode' => $projectCode,
+                'image' => $image,
+            ];
+        }
+
+          
+        return view('labelyanfeng', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
+    }
+
+    public function generateAllLabelYangeng(Request $request)
+{
+    $RS  = chr(30); // ␝
+    $GS  = chr(29); // ␟
+    $EOT = chr(4);  // ␄
+
+    // ✅ Ambil semua part
+    // $parts = AlcPeMasterData::all();
+
+    // $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')->get();
+
+    // $parts = AlcPeMasterData::where('ukuran_label', '25 x 10')->get();
+
+    $partCodes = [
+        '83930-I6000NNB',
+        '83930-I6000PPX',
+        '83940-I6000NNB',
+        '83940-I6000PPX',
+    ];
+
+    $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')
+                ->whereIn('part_code', $partCodes)
+                ->get();
+ 
+
+    if ($parts->isEmpty()) {
+        return back()->with('error', 'Tidak ada data part di database!');
+    }
+
+    $labels = [];
+
+    // Base config
+    $identifier1 = 'PEA';
+    $date1 = date('ymd');
+    $supplierCode = 'HAWX';
+    $specificInfo = '12345';
+    $initialProductClassification = 'N';
+    $businessUnit = 'ABC';
+    $date = $date1;
+
+    // ✅ Loop semua part
+    foreach ($parts as $part) {
+        $truepartNumber = str_replace('-', '', $part->part_code);
+        $sequenceCode = $part->alc_code;
+        $projectCode = $part->project_code;
+        $partNumber = $part->part_code;
+        $trackingCode = $date . 'Y111@QAD:' . $part->qad;
+
+        // 🔹 Buat 6 label untuk tiap part
+        for ($i = 1; $i <= 4; $i++) {
+            // Format urutan label 0001, 0002, dst
+            $sequenceFormatted = str_pad($i, 4, '0', STR_PAD_LEFT);
+            $identifier = $identifier1 . $date1 . $sequenceFormatted;
+
+            // Format GS1 DataMatrix
+            $dataMatrixString = "[)>"
+                . $RS . "06"
+                . $GS . "V" . $supplierCode
+                . $GS . "P" . $truepartNumber
+                . $GS . "S" . $sequenceCode
+                . $GS . "T" . $trackingCode
+                . $GS . "1A" . $specificInfo
+                . $GS . "M" . $initialProductClassification
+                . $GS . "C" . $businessUnit
+                . $GS . $RS . $EOT;
+
+            // Generate DataMatrix
+            $barcode = new DNS2D();
+            $image = $barcode->getBarcodePNG($dataMatrixString, 'DATAMATRIX');
+
+            $labels[] = [
+                'identifier' => $identifier,
+                'supplierCode' => $supplierCode,
+                'sequenceCode' => $sequenceCode,
+                'partNumber' => $partNumber,
+                'projectCode' => $projectCode,
+                'image' => $image,
+                'part_id' => $part->id,
+                'label_no' => $i, // Tambahan: urutan label 1–6
+            ];
+        }
+    }
+
+    return view('alllabelyanfeng', compact('labels'));
+}
+
 }

@@ -770,7 +770,9 @@
 
                                                         <button 
                                                             class="ml-2 bg-purple-500 text-white text-xs px-2 py-1 rounded hover:bg-purple-600"
-                                                            onclick="openNgModal({{ $slot->id }}, {{ $slot->NG ?? 0 }})"
+                                                            data-id="{{ $slot->id }}"
+                                                            data-ng='@json($slot->ngDetails)'
+                                                            onclick="openNgModal(this)"
                                                         >
                                                             Add NG
                                                         </button>
@@ -796,16 +798,99 @@
                                                     </div>
 
                                                     <div id="ngModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center">
-                                                        <div class="bg-white p-6 rounded shadow-lg w-96">
-                                                            <h2 class="text-lg font-semibold mb-4">Add NG</h2>
+                                                        <div class="bg-white p-6 rounded shadow-lg w-[450px]">
+                                                            
+                                                            <!-- Existing NG List -->
+                                                            <h2 class="text-lg font-semibold mb-3">NG Details</h2>
+                                                            <div id="ngList" class="mb-4 max-h-40 overflow-y-auto border p-2 rounded">
+                                                                <!-- Diisi via JS -->
+                                                            </div>
+
+                                                            <!-- Add New NG -->
+                                                            <h3 class="text-md font-semibold mb-2">Add NG</h3>
                                                             <form id="ngForm" method="POST">
                                                                 @csrf
-                                                                @method('PUT')
-                                                                <input type="number" name="NG" id="ngValue" class="w-full border rounded p-2 mb-4" min="0" required>
+                                                                @method('POST')
 
+                                                                <!-- Quantity -->
+                                                                <label class="text-sm font-medium">Quantity</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    name="ng_quantity" 
+                                                                    id="ngQuantity" 
+                                                                    class="w-full border rounded p-2 mb-3" 
+                                                                    min="1" 
+                                                                    required
+                                                                >
+
+                                                                <!-- NG Type -->
+                                                                <label class="text-sm font-medium">NG Type</label>
+                                                                <select 
+                                                                    name="ng_type_id" 
+                                                                    id="ngType" 
+                                                                    class="w-full border rounded p-2 mb-3"
+                                                                    required
+                                                                >
+                                                                    <option value="">-- Select Type --</option>
+                                                                    @foreach($ngData as $ng)
+                                                                        <option value="{{ $ng->id }}">{{ $ng->ng_type }}</option>
+                                                                    @endforeach
+                                                                </select>
+
+                                                                <!-- Remarks -->
+                                                                <label class="text-sm font-medium">Remark</label>
+                                                                <textarea 
+                                                                    name="ng_remarks" 
+                                                                    id="ngRemarks" 
+                                                                    class="w-full border rounded p-2 mb-3"
+                                                                    placeholder="Optional"
+                                                                ></textarea>
+
+                                                                <!-- Buttons -->
                                                                 <div class="flex justify-end space-x-2">
-                                                                    <button type="button" onclick="closeNgModal()" class="px-4 py-2 bg-gray-400 text-white rounded">Cancel</button>
-                                                                    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Submit</button>
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onclick="closeNgModal()" 
+                                                                        class="px-4 py-2 bg-gray-400 text-white rounded">
+                                                                        Cancel
+                                                                    </button>
+
+                                                                    <button 
+                                                                        type="submit" 
+                                                                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                                                        Submit
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="editNgModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                                                        <div class="bg-white p-4 rounded w-80 shadow-lg">
+                                                            <h3 class="font-bold mb-3">Edit NG</h3>
+
+                                                            <form id="editNgForm" method="POST">
+                                                                @csrf
+                                                                @method('PUT')
+
+                                                                <input type="hidden" id="edit_ng_id" name="id">
+
+                                                                <label class="text-sm block mb-1">NG Type</label>
+                                                                <select id="edit_ng_type" name="ng_type_id" class="w-full border p-2 mb-3 rounded" required>
+                                                                    @foreach ($ngData as $type)
+                                                                        <option value="{{ $type->id }}">{{ $type->ng_type }}</option>
+                                                                    @endforeach
+                                                                </select>
+
+                                                                <label class="text-sm block mb-1">Qty</label>
+                                                                <input id="edit_ng_qty" name="ng_quantity" type="number" class="w-full border p-2 mb-3 rounded" required>
+
+                                                                <label class="text-sm block mb-1">Remarks</label>
+                                                                <input id="edit_ng_remarks" name="ng_remarks" type="text" class="w-full border p-2 mb-4 rounded">
+
+                                                                <div class="flex gap-2">
+                                                                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Save</button>
+                                                                    <button type="button" onclick="closeEditNgModal()" class="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400">Cancel</button>
                                                                 </div>
                                                             </form>
                                                         </div>
@@ -1616,23 +1701,132 @@
             document.getElementById('productionModal').classList.add('hidden');
         }
 
-         function openNgModal(id, currentValue) {
-        let modal = document.getElementById('ngModal');
-        let form = document.getElementById('ngForm');
+        let currentHourlyRemarkId = null;
 
-        // Set form action
-        form.action = '/hourly-remarks/' + id + '/ng'; // pastikan route sesuai
-        document.getElementById('ngValue').value = currentValue;
+            function openNgModal(el) {
+                let hourlyRemarkId = el.getAttribute("data-id");
+                let ngDetails = JSON.parse(el.getAttribute("data-ng"));
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+                // Update form action
+                document.getElementById('ngForm').action = "/hourly-remark/" + hourlyRemarkId + "/add-ng";
 
-    function closeNgModal() {
-        let modal = document.getElementById('ngModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+                // Render NG list
+                let listHtml = "";
+
+                if (ngDetails.length === 0) {
+                    listHtml = `<p class="text-gray-500 text-sm">No NG recorded for this hour.</p>`;
+                } else {
+                    ngDetails.forEach(ng => {
+                        listHtml += `
+                            <div class="border-b py-1">
+                                <div class="text-sm font-semibold">${ng.ng_type?.ng_type ?? 'Unknown'}</div>
+                                <div class="text-xs">Qty: ${ng.ng_quantity}</div>
+                                <div class="text-xs text-gray-600">${ng.ng_remarks ?? ''}</div>
+                            </div>
+
+                              <div class="flex gap-2 mt-2">
+                                <button class="text-blue-600 text-xs hover:underline" onclick="editNg(${ng.id})">Edit</button>
+                                <button class="text-red-600 text-xs hover:underline" onclick="deleteNg(${ng.id})">Delete</button>
+                            </div>
+                        `;
+                    });
+                }
+
+                document.getElementById('ngList').innerHTML = listHtml;
+
+                // Show modal
+                document.getElementById('ngModal').classList.remove('hidden');
+                document.getElementById('ngModal').classList.add('flex');
+            }
+
+            function closeNgModal() {
+                document.getElementById('ngModal').classList.add('hidden');
+                document.getElementById('ngModal').classList.remove('flex');
+            }
+
+           function editNg(id) {
+                fetch(`/ng-detail/${id}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('Failed to fetch NG data');
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Isi form edit
+                        document.getElementById('edit_ng_id').value = data.id;
+                        document.getElementById('edit_ng_type').value = data.ng_type_id;
+                        document.getElementById('edit_ng_qty').value = data.ng_quantity;
+                        document.getElementById('edit_ng_remarks').value = data.ng_remarks ?? '';
+
+                        // Set form action
+                        document.getElementById('editNgForm').action = `/ng-detail/${data.id}`;
+
+                        // Tampilkan modal edit
+                        document.getElementById('editNgModal').classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to load NG data');
+                    });
+            }
+
+            function deleteNg(id) {
+                if (!confirm("Delete this NG?")) return;
+
+                fetch(`/ng-detail/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to delete');
+                    return res.json();
+                })
+                .then(res => {
+                    if (res.success) {
+                        alert('NG deleted successfully');
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete NG');
+                });
+            }
+
+            function closeEditNgModal() {
+                document.getElementById('editNgModal').classList.add('hidden');
+            }
+
+            // Handle form submit dengan AJAX (opsional, tapi lebih baik)
+            document.getElementById('editNgForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const id = document.getElementById('edit_ng_id').value;
+                
+                fetch(`/ng-detail/${id}`, {
+                    method: 'POST', // 
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        alert('NG updated successfully');
+                        closeEditNgModal();
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update NG');
+                });
+            });
 
         function openRemarkModal(id, existingRemark = '') {
             document.getElementById('remark_dic_id').value = id;

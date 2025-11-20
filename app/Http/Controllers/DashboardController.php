@@ -24,6 +24,10 @@ use App\Models\OperatorUser;
 use App\Models\User;
 use App\Models\HourlyRemark;
 use App\Models\ApiLog;
+
+use App\Models\ProductionNgDetail;
+use App\Models\ProductionNgType;
+
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -357,7 +361,7 @@ class DashboardController extends Controller
             if ($activeDIC) {
                 $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
                 $scannedCount = $activeDIC->scannedData->count();
-                $hourlyRemarksActiveDIC = HourlyRemark::where('dic_id', $activeDIC->id)
+                $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails', 'ngDetails.ngType')->where('dic_id', $activeDIC->id)
                     ->orderBy('start_time')
                     ->get();
                 // dd($hourlyRemarksActiveDIC);
@@ -385,7 +389,7 @@ class DashboardController extends Controller
                  $shiftTomorrow = Carbon::tomorrow('Asia/Jakarta')->toDateString();
              }
  
-             $hourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($shiftToday, $shiftTomorrow, $userId) {
+             $hourlyRemarks = HourlyRemark::with('ngDetails', 'ngDetails.ngType')->whereHas('dailyItemCode', function ($query) use ($shiftToday, $shiftTomorrow, $userId) {
                  $query->where(function ($q) use ($shiftToday, $shiftTomorrow) {
                      $q->whereDate('schedule_date', $shiftToday)
                      ->orWhereDate('schedule_date', $shiftTomorrow);
@@ -413,11 +417,105 @@ class DashboardController extends Controller
                 ->get();
             
             
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData', 'todayitems'));
+            $ngData = ProductionNgType::get();
+            
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData', 'todayitems','ngData'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
             return view('dashboard', compact('user'));
+        }
+    }
+
+
+    public function addNg(Request $request, $id)
+    {
+        $request->validate([
+            'ng_quantity' => 'required|integer|min:1',
+            'ng_type_id'  => 'required|integer',
+            'ng_remarks'  => 'nullable|string'
+        ]);
+
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $id,
+            'ng_type_id'       => $request->ng_type_id,
+            'ng_quantity'      => $request->ng_quantity,
+            'ng_remarks'       => $request->ng_remarks,
+        ]);
+
+        // Hitung ulang total NG
+        $totalNg = ProductionNgDetail::where('hourly_remark_id', $id)
+                                    ->sum('ng_quantity');
+
+        // Update kolom NG di hourly remarks
+        HourlyRemark::where('id', $id)
+                    ->update(['NG' => $totalNg]);
+
+        return back()->with('success', 'NG added successfully!');
+    }
+
+  // Controller yang diperbaiki
+    public function showNgDetail($id)
+    {
+        try {
+            $ng = ProductionNgDetail::with('ngType')->findOrFail($id);
+            return response()->json($ng);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'NG not found'], 404);
+        }
+    }
+
+    public function updateNgDetail(Request $request, $id)
+    {
+        try {
+            $ng = ProductionNgDetail::findOrFail($id);
+
+            $ng->update([
+                'ng_type_id'  => $request->ng_type_id,
+                'ng_quantity' => $request->ng_quantity,
+                'ng_remarks'  => $request->ng_remarks,
+            ]);
+
+            // Update total NG di hourly remark
+            $ng->hourlyRemark->update([
+                'NG' => $ng->hourlyRemark->ngDetails()->sum('ng_quantity')
+            ]);
+
+            // Return JSON response bukan back()
+            return response()->json([
+                'success' => true,
+                'message' => 'NG updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update NG'
+            ], 500);
+        }
+    }
+
+    public function destroyNgDetail($id)
+    {
+        try {
+            $ng = ProductionNgDetail::findOrFail($id);
+            $hourly = $ng->hourlyRemark;
+
+            $ng->delete();
+
+            // Update total
+            $hourly->update([
+                'NG' => $hourly->ngDetails()->sum('ng_quantity')
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'NG deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete NG'
+            ], 500);
         }
     }
 
@@ -898,147 +996,14 @@ class DashboardController extends Controller
         // Update status DIC jadi done
         DailyItemCode::where('id', $dicId)->update(['is_done' => 1]);
 
+        $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
+        $machineJob->update([
+            'item_code' => null,
+            'shift' => null,
+        ]);
+
         return redirect()->back()->with('success', 'SPK quantities updated successfully.');
     }
-
-
-    // public function procesProductionBarcodesLoss(Request $request)
-    // {
-    //     // dd($request->all());
-    //     // Decode the JSON input from the request
-    //     $datas = json_decode($request->input('datas'), true);
-    //     $uniquedata = json_decode($request->input('uniqueData'));
-    //     // dd($uniquedata);
-
-    //       // Retrieve the values from the request for creating scanned data
-    //       $spk_code = $request->input('spk_code');
-    //       $quantity = $request->input('quantity');
-    //       $warehouse = $request->input('warehouse');
-    //       $label = $request->input('label');
-    //       $user = $request->input('nik') ?? session('verifiedNIK'); // fallback ke session jika tidak dikirim
-       
-     
-    
-  
-    //     $item_code_spk = SpkMaster::where('spk_number', $spk_code)->first();
-    //     // dd($datas);
-    //     // Restructure the unique data based on item_code
-    //     $restructureduniquedata = [];
-    //     foreach ($uniquedata as $itemCode => $spkData) {
-    //         foreach ($spkData as $key => $data) {
-    //             // Store each SPK entry in an array instead of overwriting
-    //             $restructureduniquedata[$itemCode][$key] = $data;
-    //         }
-    //     }
-
-    //     // dd($restructureduniquedata);
-
-    //     $dic_id = null;
-    //     foreach ($datas as $data) {
-    //         // dd($data);
-    //         if ($data['item_code'] === $item_code_spk->item_code) {
-    //             $dic_id = $data['id'];  // Set dic_id to the matched data's id
-
-    //             break; // Exit the loop once the match is found
-    //         }
-
-    //     }
-    //     // Validate that a matching dic_id was found
-    //     if (!$dic_id) {
-    //         return redirect()->back()->withErrors(['error' => 'Item code not found in datas or no matching dic_id.']);
-    //     }
-
-
-
-    //     // Validate incoming request data
-    //     $request->validate([
-    //         'spk_code' => 'string',
-    //         'warehouse' => 'string',
-    //         'quantity' => 'integer',
-    //         'label' => 'string',
-    //     ]);
-
-
-    //     // Validation logic for SPK code and label ranges
-    //     $validator = Validator::make($request->all(), [
-    //         'spk_code' => 'string',
-    //         'warehouse' => 'string',
-    //         'quantity' => 'integer',
-    //         'label' => 'string',
-    //     ]);
-
-    //     $validator->after(function ($validator) use ($request, $restructureduniquedata, $item_code_spk) {
-    //         $spk_code = $request->input('spk_code');
-    //         $item_code = $item_code_spk->item_code;
-    //         $label = (int) $request->input('label');
-        
-    //         // Check if the provided item_code exists in restructureduniquedata
-    //         $foundSPKs = $restructureduniquedata[$item_code] ?? null;
-        
-    //         if (!$foundSPKs) {
-    //             $validator->errors()->add('spk_code', 'The provided SPK code or item code does not exist.');
-    //         } else {
-    //             $isValidLabel = false;
-    //             $validRanges = [];
-        
-    //             foreach ($foundSPKs as $spkData) {
-    //                 if ($spkData->spk === $spk_code) { // Use -> instead of []
-    //                     $start_label = (int) $spkData->start_label;
-    //                     $end_label = (int) $spkData->end_label;
-        
-    //                     // Store the valid ranges for error messages
-    //                     $validRanges[] = "$start_label - $end_label";
-        
-    //                     if ($label >= $start_label && $label <= $end_label) {
-    //                         $isValidLabel = true;
-    //                         break;
-    //                     }
-    //                 }
-    //             }
-        
-    //             if (!$isValidLabel) {
-    //                 $validRangesText = implode(', ', $validRanges);
-    //                 $validator->errors()->add('label', "The label must be within the valid range(s) for SPK $spk_code and item code $item_code. Valid range(s): $validRangesText.");
-    //             }
-    //         }
-    //     });
-        
-
-    //     // Return validation errors if validation fails
-    //     if ($validator->fails()) {
-    //         return redirect()->back()->withErrors($validator)->withInput();
-    //     }
-
-      
-        
-
-    //     // Check if the same scan already exists in the database
-    //     $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-    //         ->where('item_code', $item_code_spk->item_code)
-    //         ->where('label', $label)
-    //         ->first();
-        
-
-    //     if ($existingScan) {
-    //         return redirect()->back()->withErrors(['error' => 'Data already scanned']);
-    //     }
-
-    //     // Create a new ProductionScannedData entry
-    //     ProductionScannedData::create([
-    //         'spk_code' => $spk_code,
-    //         'dic_id' => $dic_id,  // The associated data ID
-    //         'item_code' => $item_code_spk->item_code,
-    //         'quantity' => $quantity,
-    //         'warehouse' => $warehouse,
-    //         'label' => $label,
-    //         'user' => $user,
-    //     ]);
-
-    //     // Redirect back to the dashboard with a success message
-    //     return redirect()->route('dashboard')->with('deactivateScanMode', false);
-    // }
-
-    public function finishJob(Request $request) {}
 
     public function resetJobs(Request $request)
     {
@@ -1080,7 +1045,6 @@ class DashboardController extends Controller
 
         // Get the current time (or a specific time if needed)
         $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
-        dd($currentTime);
         // Define shift times
         $shift1Start = Carbon::parse('07:30:00');
         $shift1End = Carbon::parse('15:30:00');
@@ -1156,37 +1120,6 @@ class DashboardController extends Controller
         return view('dashboard_plasticinjection', compact('datas'));
     }
 
-    // public function resetJob()
-    // {
-     
-    //     $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
-    //     // Define shift times
-    //     $shift1Start = Carbon::parse('07:30:00');
-    //     $shift1End = Carbon::parse('15:30:00');
-    //     $shift2Start = Carbon::parse('15:31:00');
-    //     $shift2End = Carbon::parse('23:30:00');
-    //     $shift3Start = Carbon::parse('23:31:00');
-    //     $shift3End = Carbon::parse('07:29:59');
-
-    //     // Determine the shift based on the current time
-    //     $shift = null;
-
-    //     if ($currentTime->between($shift1Start, $shift1End)) {
-    //         $shift = 1;
-    //     } elseif ($currentTime->between($shift2Start, $shift2End)) {
-    //         $shift = 2;
-    //     } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
-    //         $shift = 3;
-    //     }
-       
-    //     // Reset the machine job
-    //     MachineJob::where('user_id', auth()->user()->id)->update([
-    //         'item_code' => null,
-    //         'shift' => $shift,
-    //     ]);
-
-    //     return redirect()->back()->with('success', 'Job has been resetted!');
-    // }
 
     public function startMouldChange(Request $request)
     {
@@ -1260,10 +1193,8 @@ class DashboardController extends Controller
            'profile_path' => $operatorUser->profile_picture 
             ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
             : asset('images/default_profile.jpg'),  // Default profile image
-    ],]);
+        ],]);
     }
-
-
 
     public function startAdjustMachine(Request $request)
     {
@@ -1334,13 +1265,12 @@ class DashboardController extends Controller
         MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
 
         return response()->json(['message' => 'Adjust Machine started', 'log_id' => $adjustMachine->id,'operator' => [
-            'name' => $operatorUser->name,
-           'profile_path' => $operatorUser->profile_picture 
-            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
-            : asset('images/default_profile.jpg'),  // Default profile image
-    ],]);
+                'name' => $operatorUser->name,
+            'profile_path' => $operatorUser->profile_picture 
+                ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
+                : asset('images/default_profile.jpg'),  // Default profile image
+        ],]);
     }
-
 
     public function startRepairMachine(Request $request)
     {
@@ -1370,8 +1300,6 @@ class DashboardController extends Controller
             : asset('images/default_profile.jpg'),  // Default profile image
     ],]);
     }
-
-
 
     public function endMouldChange(Request $request)
     {
@@ -1429,7 +1357,6 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'Job has been resetted!');
     }
 
-
     public function endAdjustMachine(Request $request)
     {
         $request->validate([
@@ -1458,7 +1385,6 @@ class DashboardController extends Controller
         return response()->json(['error' => 'No active mould change found'], 400);
     }
     
-
     public function endRepairMachine(Request $request)
     {
         $request->validate([
@@ -1485,7 +1411,6 @@ class DashboardController extends Controller
 
         return response()->json(['error' => 'No active repair process found'], 400);
     }
-
 
     public function verifyNIKPassword(Request $request)
     {
@@ -1594,7 +1519,6 @@ class DashboardController extends Controller
             return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
-
 
     public function showROPData()
     {

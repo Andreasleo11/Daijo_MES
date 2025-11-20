@@ -323,6 +323,17 @@ class ProductionDashboardController extends Controller
                         'pic_profile_path' => $operatorProfilePath,
                         'created_at' => Carbon::parse($hourlyRemark->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
                         'updated_at' => Carbon::parse($hourlyRemark->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+                        'ng_details' => $hourlyRemark->ngDetails->map(function ($ng) {
+                            return [
+                                'id' => $ng->id,
+                                'ng_type_id' => $ng->ng_type_id,
+                                'ng_type' => $ng->ngType->ng_type ?? 'Unknown',
+                                'ng_quantity' => $ng->ng_quantity,
+                                'ng_remarks' => $ng->ng_remarks,
+                                'created_at' => $ng->created_at?->format('Y-m-d H:i:s'),
+                                'updated_at' => $ng->updated_at?->format('Y-m-d H:i:s')
+                            ];
+                        }),
                     ];
                 }
 

@@ -329,6 +329,13 @@
                                                 </td>
                                                 <td class="border px-4 py-2 text-center font-bold">
                                                     {{ $remark['ng'] ?? 0 }}
+                                                    <button 
+                                                        class="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
+                                                        onclick='showNgDetails(@json($remark["ng_details"]))'
+                                                    >
+                                                        Show
+                                                    </button>
+                                                    
                                                 </td>
                                                 <td class="border px-4 py-2 text-center">
                                                     <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
@@ -337,6 +344,21 @@
                                                 </td>
                                                 <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
                                             </tr>
+
+
+                                            <div id="ngDetailModal" class="fixed inset-0 hidden bg-black bg-opacity-40 justify-center items-center">
+                                                <div class="bg-white p-6 rounded shadow-lg w-96">
+                                                    <h2 class="text-lg font-bold mb-3">NG Details</h2>
+
+                                                    <div id="ngDetailList" class="space-y-2 max-h-64 overflow-y-auto"></div>
+
+                                                    <div class="mt-4 text-right">
+                                                        <button onclick="closeNgDetailModal()" class="px-4 py-1 bg-gray-500 text-white rounded">
+                                                            Close
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
 
                                             @php
                                                 $nextShift = $data['hourly_remarks'][$index + 1]['shift'] ?? null;
@@ -768,7 +790,7 @@
 });
 
 
-document.querySelectorAll('.toggle-hourly-details').forEach(button => {
+    document.querySelectorAll('.toggle-hourly-details').forEach(button => {
         button.addEventListener('click', () => {
             const hour = button.dataset.hour;
             const item = button.dataset.item;
@@ -781,45 +803,75 @@ document.querySelectorAll('.toggle-hourly-details').forEach(button => {
 
 
     document.getElementById('item_code').addEventListener('change', function() {
-    const itemCode = this.value;
-    const machineInfoDiv = document.getElementById('machine-info');
+        const itemCode = this.value;
+        const machineInfoDiv = document.getElementById('machine-info');
 
-    if (!itemCode) {
-        machineInfoDiv.innerHTML = '';
-        return;
+        if (!itemCode) {
+            machineInfoDiv.innerHTML = '';
+            return;
+        }
+
+        fetch(`/get-machines-by-item?item_code=${itemCode}`)
+            .then(res => res.json())
+            .then(data => {
+                machineInfoDiv.innerHTML = ''; // Kosongkan dulu
+
+                if (data.length === 0) {
+                    machineInfoDiv.innerHTML = '<p class="text-gray-500">No machines found for this item code.</p>';
+                    return;
+                }
+
+                data.forEach(row => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white shadow rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition";
+
+                    card.innerHTML = `
+                        <h3 class="text-lg font-semibold text-gray-800 mb-1">${row.machine}</h3>
+                        <p class="text-sm text-gray-600">Date: <span class="font-medium">${row.date}</span></p>
+                    `;
+
+                    // 👇 Tambahkan event redirect on click
+                    card.addEventListener('click', () => {
+                        const url = new URL("{{ route('djoni.dashboard') }}", window.location.origin);
+                        url.searchParams.set('machine_name', row.machine);
+                        url.searchParams.set('date', row.date);
+                        window.location.href = url.toString();
+                    });
+
+                    machineInfoDiv.appendChild(card);
+                });
+            });
+    });
+
+
+    function showNgDetails(ngDetails) {
+        let container = document.getElementById("ngDetailList");
+        let html = "";
+
+        if (!ngDetails || ngDetails.length === 0) {
+            html = `<p class="text-gray-500">No NG recorded.</p>`;
+        } else {
+            ngDetails.forEach(ng => {
+                html += `
+                    <div class="border p-2 rounded bg-gray-100">
+                        <div class="font-semibold text-sm">${ng.ng_type}</div>
+                        <div class="text-xs">Qty: ${ng.ng_quantity}</div>
+                        <div class="text-xs text-gray-600">${ng.ng_remarks ?? ''}</div>
+                    </div>
+                `;
+            });
+        }
+
+        container.innerHTML = html;
+
+        document.getElementById("ngDetailModal").classList.remove("hidden");
+        document.getElementById("ngDetailModal").classList.add("flex");
     }
 
-    fetch(`/get-machines-by-item?item_code=${itemCode}`)
-        .then(res => res.json())
-        .then(data => {
-            machineInfoDiv.innerHTML = ''; // Kosongkan dulu
-
-            if (data.length === 0) {
-                machineInfoDiv.innerHTML = '<p class="text-gray-500">No machines found for this item code.</p>';
-                return;
-            }
-
-            data.forEach(row => {
-                const card = document.createElement('div');
-                card.className = "bg-white shadow rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition";
-
-                card.innerHTML = `
-                    <h3 class="text-lg font-semibold text-gray-800 mb-1">${row.machine}</h3>
-                    <p class="text-sm text-gray-600">Date: <span class="font-medium">${row.date}</span></p>
-                `;
-
-                // 👇 Tambahkan event redirect on click
-                card.addEventListener('click', () => {
-                    const url = new URL("{{ route('djoni.dashboard') }}", window.location.origin);
-                    url.searchParams.set('machine_name', row.machine);
-                    url.searchParams.set('date', row.date);
-                    window.location.href = url.toString();
-                });
-
-                machineInfoDiv.appendChild(card);
-            });
-        });
-});
+    function closeNgDetailModal() {
+        document.getElementById("ngDetailModal").classList.remove("flex");
+        document.getElementById("ngDetailModal").classList.add("hidden");
+    }
 
 </script>
 </x-dashboard-layout>

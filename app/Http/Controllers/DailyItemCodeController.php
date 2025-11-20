@@ -78,9 +78,6 @@ class DailyItemCodeController extends Controller
         ]);
     }
     
-
-    
-
     private function transformUsername($username) {
         // Use regular expression to match the numeric part and the alphabetic part separately
         if (preg_match('/^0*(\d+)([A-Z])$/', $username, $matches)) {
@@ -348,4 +345,5 @@ class DailyItemCodeController extends Controller
         // return redirect()->back()->with('success', 'Daily Item Code deleted successfully!');
         return response()->json(['message' => 'Daily Item Code deleted successfully!']);
     }
+    
 }
