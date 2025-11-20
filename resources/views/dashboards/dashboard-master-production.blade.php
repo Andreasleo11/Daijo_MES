@@ -82,7 +82,7 @@
                             Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
                         </h1>
 
-                        @if(isset($data['pengawas']))
+                        <!-- @if(isset($data['pengawas']))
                             <div class="grid md:grid-cols-3 gap-4">
                                 @foreach($data['pengawas'] as $shift => $pengawasData)
                                     <div class="flex items-center space-x-3 border p-3 rounded-lg shadow-sm">
@@ -96,7 +96,7 @@
                             </div>
                         @endif
 
-                        {{-- Optional: You can show logs or other data next --}}
+                        {{-- Optional: You can show logs or other data next --}} -->
                     </div>
                 @endforeach
 

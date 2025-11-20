@@ -87,6 +87,14 @@
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
                     📊 JADWAL MESIN
                 </a>
+
+
+            <button 
+                id="reloadButton"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors fixed top-4 right-4"
+                >
+                Refresh
+            </button>
         </div>
     
         <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">
@@ -1298,6 +1306,17 @@
 
     <script>
 
+        document.getElementById("reloadButton").addEventListener("click", function() {
+            // 1. Hapus semua data localStorage
+            localStorage.clear();
+
+            // 2. (Opsional) Kalau kamu juga pakai sessionStorage
+            sessionStorage.clear();
+
+            // 3. Reload halaman
+            location.reload();
+        });
+
         document.addEventListener("DOMContentLoaded", function () {
             const startMouldChange = document.getElementById("startMouldChange");
             const endMouldChange = document.getElementById("endMouldChange");
@@ -1644,6 +1663,9 @@
                 location.reload();
             });
         }
+
+
+    
     </script>
 
 </x-app-layout>
