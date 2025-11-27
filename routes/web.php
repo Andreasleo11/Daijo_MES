@@ -29,6 +29,8 @@ use App\Http\Controllers\DaijoMesHomeController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\ProductionReportController;
 use App\Http\Controllers\ProductionNgController;
+use App\Http\Controllers\MasterItemPhotoController;
+
 
 
 use App\Livewire\Barcode\StoreDashboard;
@@ -74,6 +76,14 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 
+
+
+    //Route untuk photo master item 
+    Route::get('/master-items-photo', [MasterItemPhotoController::class, 'index'])->name('master.items');
+
+    Route::post('/master-items-photo/{itemCode}/upload', [MasterItemPhotoController::class, 'upload'])
+        ->name('master.items.upload');
+    //Route untuk photo master item
 
     //ROUTE untuk handle ng-type produksi 
     Route::get('/ng-types', [ProductionNgController::class, 'index'])->name('ngtypes.index');
