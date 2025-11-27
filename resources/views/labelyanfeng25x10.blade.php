@@ -3,9 +3,9 @@
 <head>
     <title>Label Generator - Zebra</title>
     <style>
-        /* 🔹 Total ukuran kertas: 82mm x 20mm */
+        /* 🔹 Ukuran total kertas: 53mm x 10mm */
         @page {
-            size: 82mm 20mm;
+            size: 53mm 10mm;
             margin: 0;
         }
 
@@ -15,57 +15,60 @@
             padding: 0 1mm; /* margin kiri-kanan 1mm */
             display: flex;
             flex-wrap: wrap;
-            width: 82mm;
+            width: 53mm;
             background: white;
             justify-content: flex-start;
         }
 
-        /* 🔹 Tiap label: 40mm x 20mm */
+        /* 🔹 Label: 25mm x 10mm */
         .label {
-            width: 40mm;
-            height: 20mm;
+            width: 25mm;
+            height: 10mm;
             box-sizing: border-box;
             border: 0.2mm solid #000;
             display: flex;
             align-items: center;
             justify-content: flex-start;
             background: #fff;
-            padding: 1mm 0.5mm 1mm 1mm; /* atas, kanan, bawah, kiri */
+            padding: 0.4mm;
+            padding-left: 0.5mm;
+            padding-top: 1.3mm;
         }
 
-        /* 🔹 Label kanan (genap) — sedikit geser biar gak nempel pinggir */
+        /* 🔹 Label kanan (urutan genap) — geser isi lebih ke kanan */
         .label:nth-child(even) {
-            padding-left: 3mm;
+            padding-left: 2mm; /* tambahin padding kiri */
+    
         }
 
         .barcode {
             flex-shrink: 0;
-            margin-right: 2mm;
+            margin-right: 1mm;
         }
 
         .barcode img {
-            width: 13mm;
-            height: 13mm;
+            width: 9mm;
+            height: 9mm;
         }
 
         .info {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            line-height: 1.3;
-            font-weight: bold;
+            line-height: 1.2;
+            font-weight: bold; 
         }
 
         .info div {
-            font-size: 2mm;
-            margin-bottom: 0.5mm;
+            font-size: 1.3mm;
+            margin-bottom: 0.2mm;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .project-line {
-            font-size: 2mm !important;
+            font-size: 1.1mm !important;
             font-weight: bold;
             letter-spacing: 0.1mm;
         }
@@ -75,7 +78,7 @@
             page-break-inside: avoid;
         }
 
-        /* 🔹 Gap antar label di tengah */
+        /* 🔹 Gap antar label (tengah 1mm) */
         .label:nth-child(odd) {
             margin-right: 1mm;
         }
@@ -84,6 +87,7 @@
             body {
                 background: none;
             }
+
             .label {
                 border: none;
             }
@@ -99,10 +103,22 @@
             <div class="info">
                 <div>{{ $label['supplierCode'] }}</div>
                 <div>{{ $label['sequenceCode'] }}</div>
-                <div class="project-line">{{ $label['projectCode'] }}{{ $label['identifier'] }}</div>
+                <div>{{ $label['projectCode'] }}</div>
+                <div >{{ $label['identifier'] }}</div>
                 <div>{{ $label['partNumber'] }}</div>
             </div>
         </div>
     @endforeach
 </body>
 </html>
+
+
+<!-- setting 
+
+width 53
+length 13 
+top 4  
+left 1 
+continues label 
+darkness 12 /13
+speed paling kecil -->

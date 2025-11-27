@@ -71,7 +71,7 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 
-    Route::get('/monitoring-spk', [MonitoringController::class, 'index'])
+     Route::get('/monitoring-spk', [MonitoringController::class, 'index'])
     ->name('monitoring.spk.index');
 
     Route::get('/monitoring-spkdetail/{spk}', [MonitoringController::class, 'show'])
@@ -98,7 +98,9 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
     Route::get('/all-label-yanfeng', [BarcodeController::class, 'generateAllLabelYangeng'])->name('all.label.yanfeng');
 
-    Route::post('/generate-label-yanfeng', [BarcodeController::class, 'generateLabelYangeng'])->name('generate.label.yanfeng');   
+    Route::post('/generate-label-yanfeng40x15', [BarcodeController::class, 'generateLabelYangeng40x15'])->name('generate.label.yanfeng40x15');   
+    Route::post('/generate-label-yanfeng25x10', [BarcodeController::class, 'generateLabelYangeng25x10'])->name('generate.label.yanfeng25x10');   
+    Route::post('/generate-label-yanfeng50x35', [BarcodeController::class, 'generateLabelYangeng50x35'])->name('generate.label.yanfeng50x35');   
     // Route untuk barcode ALC Engineering 
 
 
@@ -147,17 +149,19 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
 
 
-
+    //Route untuk cek data yang akan dikirim ke SAP 
     Route::get('/send-api', [DailyItemCodeController::class, 'generateDataForSap'])->name('send.api');
-    Route::get('/search-item-codes', [DailyItemCodeController::class, 'search']);
 
-
+    //Route untuk Home Daijo MES (Dashboard utama untuk semua fitur)
     Route::get('/daijo-mes-home', [DaijoMesHomeController::class, 'index'])
         ->name('daijo.mes.home');
+     //Route untuk Home Daijo MES (Dashboard utama untuk semua fitur)
 
+    //Route untuk production day dashboard dan api log dashboard
     Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
     Route::get('/api-log-dashboard', [DashboardController::class, 'apiLog'])->name('api.dashboard');
     Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
+    //Route untuk production day dashboard dan api log dashboard
 
     //Route untuk handle operator dan operator baru 
     Route::get('/id-card/operator', [OperatorUserController::class, 'showIdCard']);
@@ -289,12 +293,16 @@ Route::middleware('auth')->group(function (){
     Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
     Route::get('barcode/summary', [BarcodeController::class, 'summaryDashboard'])->name('summaryDashboard');
 
-    
+    //Route untuk tambahin customer di store barcode
     Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
     Route::post('/add-customer', [BarcodeController::class, 'storeCustomer'])->name('customer.store');
     Route::delete('/customer/{id}', [BarcodeController::class, 'destroyCustomer'])->name('customer.destroy');
-    
+    //Route untuk tambahin customer di store barcode
+
+    //Route untuk master item di store barcode
     Route::get('master-item', [MasterItemController::class, 'index'])->middleware(['auth', 'verified'])->name('master-item.index');
+    //Route untuk master item di store barcode
+
 
     Route::get('/initialbarcode', [InitialBarcodeController::class, 'index'])->name('barcode.index');
     Route::post('/barcodes/generate', [InitialBarcodeController::class, 'generate'])->name('barcode.generate');
@@ -316,8 +324,11 @@ Route::middleware('auth')->group(function (){
     Route::delete('/daily-item-codes/{id}', [DailyItemCodeController::class, 'destroy'])->name('daily-item-code.destroy');
     //ROUTE UNTUK FITUR DAILY ITEM CODES
 
+    //Route untuk bikin tanggal Maintenance (not finish)
     Route::get('/maintenance/index', [MaintenanceController::class, 'index'])->name('maintenance.index');
+    //Route untuk bikin tanggal Maintenance (not finish)
 
+    //Route untuk Handle SO dari diss 
     Route::get('/so/index', [SOController::class, 'index'])->name('so.index');
     Route::get('/so/filter', [SOController::class, 'index'])->name('so.filter');
     Route::get('/so/filterauto', [SoController::class, 'filter'])->name('so.filterauto');
@@ -325,6 +336,8 @@ Route::middleware('auth')->group(function (){
     Route::post('/so/scan', [SOController::class, 'scanBarcode'])->name('so.scanBarcode');
     Route::get('/update-so-data/{docNum}', [SOController::class, 'updateSoData'])->name('update.so.data');
     Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
+    //Route untuk Handle SO dari diss 
+
 
     Route::get('/second-daily-process', [SecondDailyController::class, 'index'])->name('second.daily.process.index');
     Route::get('/second-daily-process/create', [SecondDailyController::class, 'create'])->name('second.daily.process.create');
@@ -340,7 +353,7 @@ Route::middleware('auth')->group(function (){
     Route::post('/assembly-daily-process/store', [AssemblyDailyController::class, 'store'])->name('assembly.daily.process.store');
 
     //-- Production project route
-
+    //Route untuk program Moulding Bill of Material
     Route::get('/production/bom/index', [BillOfMaterialController::class, 'index'])->name('production.bom.index');
     Route::get('/production/bill-of-material/{id}', [BillOfMaterialController::class, 'show'])->name('production.bom.show');
     Route::delete('/production/delete-bill-of-material/{id}', [BillOfMaterialController::class, 'destroy'])->name('production.bom.destroy');
@@ -365,6 +378,7 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/dashboard/tv', [BillOfMaterialController::class, 'dashboardTv'])->name('dashboard.moulding.tv');
+    //Route untuk program Moulding Bill of Material
     
     //Route untuk admin moulding 
     Route::get('/production/bom/create', [BillOfMaterialController::class, 'create'])->name('production.bom.create');

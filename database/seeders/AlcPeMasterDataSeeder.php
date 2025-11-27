@@ -13,7 +13,7 @@ class AlcPeMasterDataSeeder extends Seeder
     public function run(): void
     {
       AlcPeMasterData::insert([
-            ['part_code' => '84715-I7RA0NNB', 'qad' => '25007779', 'part_name' => 'KS_PE GRILLE CTR SPEAKER', 'ukuran_label' => '40 x 15', 'alc_code' => 'F1NB', 'project_code' => 'KSPE'],
+            ['part_code' => '84715-I6RA0', 'qad' => '25007998', 'part_name' => 'KS_PE GRILLE CTR SPEAKER', 'ukuran_label' => '40 x 15', 'alc_code' => 'F1NB', 'project_code' => 'KSPE'],
             ['part_code' => '84767-I6AA0UFD', 'qad' => '25008134', 'part_name' => 'KS_PE CTR FACIA ASSY(8inch)_LHD', 'ukuran_label' => '40 x 15', 'alc_code' => 'D1FD', 'project_code' => 'KSPE'],
             ['part_code' => '84767-I6AB0UFD', 'qad' => '25008135', 'part_name' => 'KS_PE CTR FACIA ASSY(10inch)_LHD', 'ukuran_label' => '40 x 15', 'alc_code' => 'D2FD', 'project_code' => 'KSPE'],
             ['part_code' => '84750-I6AA0NNB', 'qad' => '25008136', 'part_name' => 'KS_PE PNL ASSY-CRASH PAD LWR D/SIDE(Non SW)_LHD', 'ukuran_label' => '40 x 15', 'alc_code' => 'K1NB', 'project_code' => 'KSPE'],
@@ -73,10 +73,10 @@ class AlcPeMasterDataSeeder extends Seeder
             ['part_code' => '84740-I6800PPX', 'qad' => '25007541', 'part_name' => 'PNL ASSY CTR FACIA RHD (KS CROSS)', 'ukuran_label' => '50 x 35', 'alc_code' => 'L8X', 'project_code' => 'KS'],
             ['part_code' => '84740-I6800RET', 'qad' => '25007465', 'part_name' => 'PNL ASSY CTR FACIA RHD (KS CROSS)', 'ukuran_label' => '50 x 35', 'alc_code' => 'L8T', 'project_code' => 'KS'],
 
-            ['part_code' => '83930-I6000NNB', 'qad' => '25006923', 'part_name' => 'COVER ASSY FR DR DELTA INR LH-NNB', 'ukuran_label' => '50 x 35', 'alc_code' => 'TES1', 'project_code' => 'KS'],
-            ['part_code' => '83930-I6000PPX', 'qad' => '25006924', 'part_name' => 'COVER ASSY FR DR DELTA INR LH-PPX', 'ukuran_label' => '50 x 35', 'alc_code' => 'TES2', 'project_code' => 'KS'],
-            ['part_code' => '83940-I6000NNB', 'qad' => '25006925', 'part_name' => 'COVER ASSY FR DR DELTA INR RH-NNB', 'ukuran_label' => '50 x 35', 'alc_code' => 'TES3', 'project_code' => 'KS'],
-            ['part_code' => '83940-I6000PPX', 'qad' => '25006926', 'part_name' => 'COVER ASSY FR DR DELTA INR RH-PPX', 'ukuran_label' => '50 x 35', 'alc_code' => 'TES4', 'project_code' => 'KS'],
+            ['part_code' => '83930-I6000NNB', 'qad' => '25006923', 'part_name' => 'COVER ASSY RR DR DELTA INR LH-NNB', 'ukuran_label' => '50 x 35', 'alc_code' => 'LNB', 'project_code' => 'KS'],
+            ['part_code' => '83930-I6000PPX', 'qad' => '25006924', 'part_name' => 'COVER ASSY RR DR DELTA INR LH-PPX', 'ukuran_label' => '50 x 35', 'alc_code' => 'LPX', 'project_code' => 'KS'],
+            ['part_code' => '83940-I6000NNB', 'qad' => '25006925', 'part_name' => 'COVER ASSY RR DR DELTA INR RH-NNB', 'ukuran_label' => '50 x 35', 'alc_code' => 'KNB', 'project_code' => 'KS'],
+            ['part_code' => '83940-I6000PPX', 'qad' => '25006926', 'part_name' => 'COVER ASSY RgR DR DELTA INR RH-PPX', 'ukuran_label' => '50 x 35', 'alc_code' => 'KPX', 'project_code' => 'KS'],
 
             ['part_code' => '84748-I7AA0NNB', 'qad' => '25007722', 'part_name' => 'PNL ASSY CTR FACIA UPR LHD', 'ukuran_label' => '40 x 15', 'alc_code' => 'UAB', 'project_code' => 'SU2ID'],
             ['part_code' => '84748-I7RA0NNB', 'qad' => '25007765', 'part_name' => 'PNL ASSY CTR FACIA UPR RHD', 'ukuran_label' => '50 x 20', 'alc_code' => 'URB', 'project_code' => 'SU2ID'],

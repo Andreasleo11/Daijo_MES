@@ -4,92 +4,70 @@
     <title>All Labels</title>
     <meta charset="UTF-8">
     <style>
-        @page {
-            size: 82mm 20mm;
-            margin: 0;
-        }
+          @page {
+        size: 86mm 18mm;
+        margin: 0;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: white;
+    }
 
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: white;
-            padding: 0;
-        }
+    /* Satu baris = 2 label */
+    .label-row {
+        width: 86mm;
+        height: 18mm;
+        display: flex;
+        padding: 0;
+        margin: 0;
+        page-break-after: always;
+    }
 
-        .label-row {
-            display: flex;
-            width: 82mm;
-            height: 20mm;
-            justify-content: flex-start;
-            padding: 0 1mm;
-            page-break-after: always;
-            page-break-inside: avoid;
-        }
+    /* dua label = 40 + 40 + 6 gap = 86 pas 
+    
+    SETTING DI PRINTER 
+    86 
+    18
 
-        .label {
-            width: 40mm;
-            height: 20mm;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            background: #fff;
-            padding: 1mm 0.5mm 1mm 1mm;
-        }
+    top 2
+    left 3 
+    
+    
+    */
+    .label {
+        width: 40mm;
+        height: 15mm;
+        display: flex;
+        align-items: center;
+        padding: 0;          /* NO PADDING  */
+        margin: 0;           /* NO MARGIN   */
+    }
 
-        .label:first-child {
-            margin-right: 2mm;
-        }
+    .label + .label {
+        margin-left: 6mm;    /* GAP TENGAH */
+    }
 
-        .label:nth-child(even) {
-            padding-left: 3mm;
-        }
+    .barcode img {
+        width: 12mm;
+        height: 12mm;
+    }
 
-        .barcode {
-            flex-shrink: 0;
-            margin-right: 2mm;
-        }
+    .info {
+        margin-left: 2mm;
+    }
 
-        .barcode img {
-            width: 13mm;
-            height: 13mm;
-            display: block;
-        }
+    .info div {
+        font-size: 1.8mm;
+        font-weight: bold;
+        white-space: nowrap;
+    }
 
-        .info {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            line-height: 1.3;
-        }
-
-        .info div {
-            font-size: 2mm;
-            margin-bottom: 0.5mm;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: bold;
-        }
-
-        .project-line {
-            font-size: 2mm !important;
-            font-weight: bold;
-            letter-spacing: 0.05mm;
-        }
-
-           .label:nth-child(odd) {
-            margin-right: 1mm;
-        }
-
-        .seq-line {
-                min-height: 1.8mm; /* atur sesuai kebutuhan */
-                line-height: 1.2;
-            }
+    .seq-line {
+        min-height: 2mm;
+    }
 
         @media print {
             body {

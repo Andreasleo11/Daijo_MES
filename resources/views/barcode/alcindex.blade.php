@@ -1,7 +1,7 @@
 <div class="max-w-xl mx-auto mt-10 bg-white p-6 rounded-lg shadow">
     <h2 class="text-xl font-bold mb-4">Generate Barcode</h2>
 
-    <form action="{{ route('generate.label.yanfeng') }}" method="POST" target="_blank">
+    <form id="generateForm" method="POST" target="_blank">
         @csrf
 
         <div class="mb-3">
@@ -31,8 +31,35 @@
             </div>
         </div>
 
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-            Generate Barcode
-        </button>
+        <div class="flex gap-3">
+
+            <button type="button"
+                onclick="submitTo('{{ route('generate.label.yanfeng40x15') }}')"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                Generate 40x15
+            </button>
+
+            <button type="button"
+                onclick="submitTo('{{ route('generate.label.yanfeng25x10') }}')"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                Generate 25x10
+            </button>
+
+            <button type="button"
+                onclick="submitTo('{{ route('generate.label.yanfeng50x35') }}')"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
+                Generate 50x35
+            </button>
+
+        </div>
+
     </form>
 </div>
+
+<script>
+    function submitTo(route) {
+        let form = document.getElementById('generateForm');
+        form.action = route;
+        form.submit();
+    }
+</script>

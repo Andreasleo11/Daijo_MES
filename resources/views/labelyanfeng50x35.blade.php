@@ -1,101 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>All Labels</title>
+
+  <!-- SETTING DI PRINTER 
+    106
+    35
+
+    left 3  -->
+    <title>All Labels 50x35</title>
     <meta charset="UTF-8">
     <style>
         @page {
-            size: 82mm 20mm;
+            size: 106mm 35mm; /* 50 + 50 + 6 gap = 106 */
             margin: 0;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
         }
 
         body {
+            margin: 0;
+            padding: 0;
             font-family: Arial, Helvetica, sans-serif;
             background: white;
-            padding: 0;
         }
 
+        /* Satu baris = 2 label */
         .label-row {
+            width: 106mm;  /* total 2 label + gap */
+            height: 35mm;
             display: flex;
-            width: 82mm;
-            height: 20mm;
-            justify-content: flex-start;
-            padding: 0 1mm;
+            padding: 0;
+            margin: 0;
             page-break-after: always;
-            page-break-inside: avoid;
         }
 
+        /* dua label = 50 + 50 + 6 gap = 106 pas */
         .label {
-            width: 40mm;
-            height: 20mm;
+            width: 50mm;
+            height: 35mm;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            background: #fff;
-            padding: 1mm 0.5mm 1mm 1mm;
+            padding: 0; 
+            margin: 0;
         }
 
-        .label:first-child {
-            margin-right: 2mm;
-        }
-
-        .label:nth-child(even) {
-            padding-left: 3mm;
-        }
-
-        .barcode {
-            flex-shrink: 0;
-            margin-right: 2mm;
+        .label + .label {
+            margin-left: 6mm;    /* GAP TENGAH */
         }
 
         .barcode img {
-            width: 13mm;
-            height: 13mm;
-            display: block;
+            width: 22mm;
+            height: 22mm;
         }
 
         .info {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            line-height: 1.3;
+            margin-left: 3mm;
         }
 
         .info div {
             font-size: 2mm;
-            margin-bottom: 0.5mm;
+            font-weight: bold;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: bold;
-        }
-
-        .project-line {
-            font-size: 2mm !important;
-            font-weight: bold;
-            letter-spacing: 0.05mm;
-        }
-
-           .label:nth-child(odd) {
-            margin-right: 1mm;
         }
 
         .seq-line {
-                min-height: 1.8mm; /* atur sesuai kebutuhan */
-                line-height: 1.2;
-            }
+            min-height: 3mm;
+        }
 
         @media print {
             body {
                 background: white;
             }
-
             * {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
@@ -145,5 +118,3 @@
     @endforeach
 </body>
 </html>
-
-
