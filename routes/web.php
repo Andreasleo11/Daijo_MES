@@ -30,6 +30,7 @@ use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\ProductionReportController;
 use App\Http\Controllers\ProductionNgController;
 use App\Http\Controllers\MasterItemPhotoController;
+use App\Http\Controllers\DeliveryVerificationController;
 
 
 
@@ -75,6 +76,13 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
+
+
+
+    //Route untuk delivery verification controller
+    Route::get('/delivery-verification', [DeliveryVerificationController::class, 'index'])->name('delivery.verification');
+    Route::post('/delivery-verification', [DeliveryVerificationController::class, 'check'])->name('delivery.verification.check');
+    //Route untuk delivery verification controller
 
 
 

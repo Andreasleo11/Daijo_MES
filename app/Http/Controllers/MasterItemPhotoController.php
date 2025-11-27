@@ -21,14 +21,14 @@ class MasterItemPhotoController extends Controller
     public function upload(Request $request, $itemCode)
     {
         $request->validate([
-            'photo' => 'required|image|max:2048'
+            'photo' => 'required|mimes:jpg,jpeg'
         ]);
 
         $item = MasterListItem::where('item_code', $itemCode)->firstOrFail();
 
        // Simpan file di storage/public/item_photos
         $path = $request->file('photo')->store('item_photos', 'public');
-    
+ 
         // cek apakah sudah ada
         $existing = MasterItemPhoto::where('item_code', $itemCode)->first();
 
