@@ -27,6 +27,9 @@ use App\Http\Controllers\ProductionDashboardController;
 use App\Http\Controllers\MasterListItemController;
 use App\Http\Controllers\DaijoMesHomeController;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\ProductionReportController;
+use App\Http\Controllers\ProductionNgController;
+
 
 use App\Livewire\Barcode\StoreDashboard;
 
@@ -71,12 +74,24 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 
-     Route::get('/monitoring-spk', [MonitoringController::class, 'index'])
-    ->name('monitoring.spk.index');
+
+    //ROUTE untuk handle ng-type produksi 
+    Route::get('/ng-types', [ProductionNgController::class, 'index'])->name('ngtypes.index');
+    Route::post('/ng-types', [ProductionNgController::class, 'store'])->name('ngtypes.store');
+    Route::delete('/ng-types/{id}', [ProductionNgController::class, 'destroy'])->name('ngtypes.delete');
+    //ROUTE untuk handle ng-type produksi 
+
+    Route::get('/production-daily-report', [ProductionReportController::class, 'index'])->name('production.report');
+
+
+    // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
+    Route::get('/monitoring-spk', [MonitoringController::class, 'index'])
+        ->name('monitoring.spk.index');
 
     Route::get('/monitoring-spkdetail/{spk}', [MonitoringController::class, 'show'])
         ->name('monitoring.spk.detail');
 
+    // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
     Route::get("/test-bomwip", function (LineProductionService $LineProductionService) {

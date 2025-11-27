@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDailyItemCodeRequest;
 use App\Models\DailyItemCode;
 use App\Models\MasterListItem;
+use App\Models\delivery\sapInventoryFg;
 use App\Models\delivery\sapLineProduction;
 use App\Models\SpkMaster;
 use App\Models\ProductionScannedData;
@@ -18,7 +19,7 @@ class DailyItemCodeController extends Controller
     {
         $users = User::all();
         $dailyItemCodes = DailyItemCode::all();
-        $itemCodes = MasterListItem::all()->pluck('item_code');
+        $itemCodes = sapInventoryFg::all()->pluck('item_code');
         
         return view('daily-item-codes.index', compact('dailyItemCodes', 'users', 'itemCodes'));
     }
@@ -48,7 +49,7 @@ class DailyItemCodeController extends Controller
 
         // Use the transformed machine name to query the MasterListItem
         // $masterListItem = sapLineProduction::where('line_production', $selectedMachine->name)->get();
-        $masterListItem = MasterListItem::get('item_code');
+        $masterListItem = sapInventoryFg::get('item_code');
         $dailyItemCodes = DailyItemCode::all();
 
         return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine', 'dailyItemCodes'));
@@ -60,7 +61,7 @@ class DailyItemCodeController extends Controller
         $search = $request->get('search', '');
         $limit = $request->get('limit', 100); // Limit hasil pencarian
         
-        $query = MasterListItem::select('item_code');
+        $query = sapInventoryFg::select('item_code');
         
         if ($search) {
             $query->where('item_code', 'LIKE', '%' . $search . '%');
