@@ -29,9 +29,16 @@
                    @if($item->photo_path)
                         <div class="mt-2 inline-block border border-gray-300 rounded overflow-hidden relative">
                             <img src="{{ asset('storage/' . $item->photo_path) }}" 
-                                class="w-32 h-32 object-cover cursor-pointer"
+                                class="w-256 h-256 object-cover cursor-pointer"
                                 onclick="document.getElementById('modalImage').src=this.src; document.getElementById('imgModal').classList.remove('hidden');">
                         </div>
+
+
+                        <button 
+                            onclick="window.location.href='{{ route('delivery.verification') }}'" 
+                            class="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full">
+                            OK
+                        </button>
                     @else
                         <p class="text-gray-500 mt-2">No Photo Available</p>
                     @endif
@@ -45,7 +52,7 @@
     {{-- Modal Foto Besar --}}
     <div id="imgModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
         <div class="relative border border-white rounded overflow-hidden">
-            <img id="modalImage" src="" class="max-w-[400px] max-h-[400px]">
+            <img id="modalImage" src="" class="w-[200px] max-h-[300px]">
             <button onclick="document.getElementById('imgModal').classList.add('hidden')"
                     class="absolute top-2 right-2 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center font-bold">&times;</button>
         </div>

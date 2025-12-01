@@ -21,7 +21,7 @@ class MasterItemPhotoController extends Controller
     public function upload(Request $request, $itemCode)
     {
         $request->validate([
-            'photo' => 'required|mimes:jpg,jpeg'
+            'photo' => 'required|mimes:jpg,jpeg,png'
         ]);
 
         $item = MasterListItem::where('item_code', $itemCode)->firstOrFail();
