@@ -29,7 +29,7 @@
                    @if($item->photo_path)
                         <div class="mt-2 inline-block border border-gray-300 rounded overflow-hidden relative">
                             <img src="{{ asset('storage/' . $item->photo_path) }}" 
-                                class="w-256 h-256 object-cover cursor-pointer"
+                                class="w-30 h-30 object-cover cursor-pointer"
                                 onclick="document.getElementById('modalImage').src=this.src; document.getElementById('imgModal').classList.remove('hidden');">
                         </div>
 
@@ -50,11 +50,20 @@
     </div>
 
     {{-- Modal Foto Besar --}}
-    <div id="imgModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-        <div class="relative border border-white rounded overflow-hidden">
-            <img id="modalImage" src="" class="w-[200px] max-h-[300px]">
+    <div id="imgModal" 
+        class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
+        onclick="if(event.target === this) document.getElementById('imgModal').classList.add('hidden')">
+        <div class="relative bg-white p-6 rounded-lg shadow-lg">
+            {{-- Close Button --}}
             <button onclick="document.getElementById('imgModal').classList.add('hidden')"
-                    class="absolute top-2 right-2 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center font-bold">&times;</button>
+                class="absolute -top-4 -right-4 bg-red-600 hover:bg-red-700 text-white rounded-full w-10 h-10 flex items-center justify-center text-2xl font-bold shadow-lg border-2 border-white transition">
+                ×
+            </button>
+            
+            {{-- Gambar ukuran sedang --}}
+            <img id="modalImage" 
+                src="" 
+                class="max-w-sm max-h-96 object-contain rounded">
         </div>
     </div>
 </x-dashboard-layout>

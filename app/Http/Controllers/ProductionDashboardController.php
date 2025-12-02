@@ -54,7 +54,7 @@ class ProductionDashboardController extends Controller
             $userName = $machineJob->user->name ?? 'Unknown User';
 
             $user = $machineJob->user;
-            $zoneId = $user->zone_id;
+            $zoneId = $user->zone_id ?? 'A';
             $zoneData = MasterZone::find($zoneId);
 
             $pengawas = []; // Initialize as array
