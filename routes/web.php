@@ -285,6 +285,9 @@ Route::middleware('auth')->group(function (){
     ->name('daily-item-codes.updateCycleTime');
     Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
 
+     Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
+    ->name('daily-item-codes.updatecavity');
+
     Route::post('/daily-item-codes/update-remark/{id}', [DashboardController::class, 'updateRemarkDIC']);
 
     Route::put('/hourly-remarks/{id}/update-actual-production', [DashboardController::class, 'updateActualProduction'])

@@ -59,7 +59,10 @@ class DashboardController extends Controller
                 $temporal = $remark->dailyItemCode->temporal_cycle_time ?? null;
 
                 if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                    $cavity = $remark->dailyItemCode->masterItem->cavity ?? 0;
+                    // $cavity = $remark->dailyItemCode->masterItem->cavity ?? 0;
+
+                     $cavity = $remark->dailyItemCode->temporal_cavity 
+                        ?? ($remark->dailyItemCode->masterItem->cavity ?? 0);
                     // dd($cavity);
                     // kalau cavity = 0 → ubah jadi 1
                     $cavity = $cavity > 0 ? $cavity : 1;
@@ -1736,6 +1739,23 @@ class DashboardController extends Controller
         $item->delete();
 
         return redirect()->back()->with('message', 'Daily Item Code dan data terkait berhasil dihapus.');
+    }
+
+    public function updateTemporalCavity(Request $request, $id)
+    {
+        // Validasi input
+        $validated = $request->validate([
+            'temporal_cavity' => 'nullable|integer|min:0',
+        ]);
+
+        // Ambil record
+        $dailyItemCode = DailyItemCode::findOrFail($id);
+        
+        // Update field temporal_cavity
+        $dailyItemCode->temporal_cavity = $validated['temporal_cavity'];
+        $dailyItemCode->save();
+
+        return redirect()->back()->with('success', 'Temporal cavity berhasil diperbarui.');
     }
 
 }

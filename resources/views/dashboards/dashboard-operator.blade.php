@@ -481,6 +481,14 @@
                                                         Set Remark
                                                     </button>
 
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded mt-1"
+                                                        onclick="openTemporalCavityModal('{{ $data->id }}', '{{ $data->temporal_cavity ?? '' }}')"
+                                                    >
+                                                        Set Temporal Cavity
+                                                    </button>
+
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -515,6 +523,49 @@
                                         </form>
                                     </div>
                                 </div>
+
+                                <div id="temporalCavityModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+                                        <h2 class="text-lg font-semibold mb-4">Set Temporal Cavity</h2>
+
+                                        <form id="temporalCavityForm" method="POST">
+                                            @csrf
+                                            @method('PUT')
+
+                                            <input type="hidden" name="data_id" id="tcDataIdInput">
+
+                                            <label for="temporal_cavity" class="block text-sm font-medium text-gray-700 mb-1">
+                                                Temporal Cavity
+                                            </label>
+
+                                            <input 
+                                                type="number"
+                                                id="tcInput"
+                                                name="temporal_cavity"
+                                                class="w-full border rounded p-2 mb-4"
+                                                required
+                                            >
+
+                                            <div class="flex justify-end gap-2">
+                                                <button 
+                                                    type="button" 
+                                                    onclick="closeTemporalCavityModal()" 
+                                                    class="bg-gray-400 text-white px-3 py-1 rounded"
+                                                >
+                                                    Cancel
+                                                </button>
+
+                                                <button 
+                                                    type="submit" 
+                                                    class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                >
+                                                    Submit
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
 
 
                             @else
@@ -1856,6 +1907,19 @@
                 closeRemarkModal();
                 location.reload();
             });
+        }
+
+        function openTemporalCavityModal(id, value) {
+            document.getElementById('tcDataIdInput').value = id;
+            document.getElementById('tcInput').value = value;
+            document.getElementById('temporalCavityModal').classList.remove('hidden');
+
+            // Set action URL (sesuai controller kamu)
+            document.getElementById('temporalCavityForm').action = `/daily-item-codes/${id}/temporal-cavity`;
+        }
+
+        function closeTemporalCavityModal() {
+            document.getElementById('temporalCavityModal').classList.add('hidden');
         }
 
 
