@@ -16,23 +16,44 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="font-sans antialiased">
+<body class="font-sans antialiased" x-data="{ sidebarOpen: false }">
     <div class="min-h-screen bg-gray-100">
-        <!-- Sidebar -->
+
+        {{-- Overlay untuk mobile ketika sidebar terbuka --}}
+        <div
+            x-show="sidebarOpen"
+            x-transition.opacity
+            class="fixed inset-0 bg-black/40 z-20 lg:hidden"
+            @click="sidebarOpen = false">
+        </div>
+
+        {{-- Sidebar (fixed di kiri) --}}
         <livewire:layout.sidebar />
 
-        <!-- Page Content -->
-        <div class="flex-1 ml-64 min-h-screen bg-gray-100">
+        {{-- Main content, DORONG ke kanan sebesar lebar sidebar saat lg+ --}}
+        <div class="flex-1 lg:pl-64 transition-all duration-300">
+
+            {{-- Tombol toggle sidebar di mobile --}}
+            <div class="lg:hidden flex items-center p-4">
+                <button @click="sidebarOpen = true" class="text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor"
+                         class="h-6 w-6">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+
             <livewire:alert />
-            {{-- <livewire:layout.navigation /> --}}
-            <!-- Page Heading -->
+
             @if (isset($header))
                 <header class="bg-white shadow">
                     {{ $header }}
                 </header>
             @endif
 
-            <!-- Main Content -->
             <main>
                 {{ $slot }}
             </main>
