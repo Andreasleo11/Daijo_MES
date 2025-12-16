@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ScannedData;
 use App\Models\SoData;
 use App\Models\UpdateLog;
+use App\Models\SpkItemHistory;
 use App\Models\MasterItemPhoto;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -15,6 +16,9 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class SOController extends Controller
 {
@@ -119,22 +123,28 @@ class SOController extends Controller
     public function scanBarcode(Request $request)
     {
         $request->validate([
-            'item_code' => 'required|string',
+            'spk_code' => 'required|string',
             'quantity' => 'required|integer',
             'warehouse' => 'required|string',
             'label' => 'required|integer',
         ]);
 
         $doc_num = $request->input('so_number');
-        $item_code = $request->input('item_code');
+        $spk_code = $request->input('spk_code');
         $quantity = $request->input('quantity');
         $warehouse = $request->input('warehouse');
         $label = $request->input('label');
+        
+
+
+
+        $item_code = SpkItemHistory::where('spk_number', $spk_code)
+        ->value('item_code');
+        
 
         // Fetch the item data
         $item = SoData::where('item_code', $item_code)->where('doc_num', $doc_num)->first();
-       
-        // dd($item);
+        
         if (! $item) {
             return redirect()->back()->withErrors(['error' => 'Item not found']);
         }
@@ -289,4 +299,81 @@ class SOController extends Controller
         // Redirect to the SO index route
         return redirect()->route('so.index');
     }
+
+    public function storeFromSap(Request $request)
+    {
+        if (!is_array($request->all())) {
+            return response()->json([
+                'message' => 'Invalid payload format'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($request->all() as $row) {
+
+                $validator = Validator::make($row, [
+                    'doc_num' => 'required|string',
+                    'customer' => 'required|string',
+                    'posting_date' => 'required|date',
+                    'item_code' => 'required|string',
+                    'item_name' => 'required|string',
+                    'quantity' => 'required|integer',
+                    'sales_uom' => 'nullable|string',
+                    'packaging_quantity' => 'required|integer',
+                    'sales_pack' => 'nullable|string',
+                    'create_date' => 'required|date',
+                    'update_date' => 'required|date',
+                    'update_fulltime' => 'required|integer',
+                ]);
+
+                if ($validator->fails()) {
+                    throw new \Exception($validator->errors()->first());
+                }
+
+                // Cari record, atau buat baru
+                $soData = SoData::firstOrNew([
+                    'doc_num' => $row['doc_num'],
+                    'item_code' => $row['item_code'],
+                ]);
+
+                // Set data dari SAP
+                $soData->customer = $row['customer'];
+                $soData->posting_date = $row['posting_date'];
+                $soData->item_name = $row['item_name'];
+                $soData->quantity = $row['quantity'];
+                $soData->sales_uom = $row['sales_uom'] ?? null;
+                $soData->packaging_quantity = $row['packaging_quantity'];
+                $soData->sales_pack = $row['sales_pack'] ?? null;
+                $soData->create_date = $row['create_date'];
+                $soData->update_date = $row['update_date'];
+                $soData->update_fulltime = $row['update_fulltime'];
+
+                // Hanya set 0 saat insert baru
+                if (!$soData->exists) {
+                    $soData->is_finish = 0;
+                    $soData->is_done = 0;
+                }
+
+                $soData->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'SO data processed successfully',
+                'total' => count($request->all())
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to process data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

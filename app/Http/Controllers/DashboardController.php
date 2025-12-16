@@ -53,6 +53,7 @@ class DashboardController extends Controller
         } elseif ($user->role->name === 'OPERATOR') {
 
             $hourlyRemarks = HourlyRemark::with('dailyItemCode.masterItem')->get();
+       
 
             foreach ($hourlyRemarks as $remark) {
 

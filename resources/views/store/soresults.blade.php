@@ -239,13 +239,13 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label for="item_code" class="block text-sm font-medium text-gray-700">
-                                    Item Code:
+                                <label for="spk_code" class="block text-sm font-medium text-gray-700">
+                                    SPK Code:
                                 </label>
                                 <input
                                     type="text"
-                                    id="item_code"
-                                    name="item_code"
+                                    id="spk_code"
+                                    name="spk_code"
                                     required
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 />
@@ -667,6 +667,13 @@
                 console.warn("⚠️ Camera requires HTTPS to work properly");
             }
 
+            labelInput.addEventListener('input', function () {
+                submitForm();
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.getElementById('spk_code').focus();
         });
     </script>
 </x-app-layout>
