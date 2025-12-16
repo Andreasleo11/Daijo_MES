@@ -5,10 +5,10 @@
         <form action="{{ route('delivery.verification.check') }}" method="POST">
             @csrf
             <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Scan / Enter Item Code</label>
-                <input type="text" name="item_code" value="{{ $item_code ?? '' }}"
-                       class="w-full border rounded px-3 py-2" placeholder="Item Code" autofocus>
-                @error('item_code')
+                <label class="block text-sm font-medium mb-1">Scan / Enter spk</label>
+                <input type="text" name="spk" maxlength="8" value="{{ $spk ?? '' }}"
+                       class="w-full border rounded px-3 py-2" placeholder="spk" autofocus>
+                @error('spk')
                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>

@@ -214,6 +214,20 @@ new class extends Component {
                     :active="request()->routeIs('updated.barcode.item.position')"
                     wire:navigate
                 />
+
+                <livewire:sidebar-link
+                    href="{{ route('so.index') }}"
+                    label="DATA SO"
+                    :active="request()->routeIs('so.index')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('pegawai.scan') }}"
+                    label="SCAN SO"
+                    :active="request()->routeIs('pegawai.scan')"
+                    wire:navigate
+                />
             @endif
 
             <hr>

@@ -1,4 +1,51 @@
 <x-app-layout>
+
+    @if (session('photo'))
+        {{-- Fancybox CSS --}}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/5.0.36/fancybox.min.css" />
+
+        {{-- Fancybox JS --}}
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/5.0.36/fancybox.umd.min.js"></script>
+
+        {{-- Photo Modal --}}
+        <div id="photoModal" class="hidden">
+            <a href="{{ asset('storage/' . session('photo')) }}" 
+                data-fancybox="gallery"
+                data-caption="Item Photo"
+                class="hidden">
+            </a>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize Fancybox
+                Fancybox.bind('[data-fancybox="gallery"]', {
+                    Thumbs: {
+                        autoStart: true,
+                    },
+                    Image: {
+                        zoom: true,
+                    },
+                    transitionEffect: "fade",
+                    on: {
+                        reveal: (fancybox, slide) => {
+                            // Optional: custom behavior when image is revealed
+                        }
+                    }
+                });
+
+                // Trigger the modal automatically on page load
+                const photoLink = document.querySelector('[data-fancybox="gallery"]');
+                if (photoLink) {
+                    setTimeout(() => {
+                        photoLink.click();
+                    }, 100);
+                }
+            });
+        </script>
+    @endif
+
+
     <div class="py-8 sm:py-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-4 sm:p-8">
@@ -12,22 +59,6 @@
                 <h2 class="text-lg sm:text-xl font-semibold text-gray-600 mb-4 sm:mb-6">
                     Date: {{ $date }}
                 </h2>
-
-                {{-- Success Alert --}}
-                @if (session('success'))
-                    <div
-                        class="bg-green-100 text-green-800 border border-green-300 rounded-md p-3 sm:p-4 mb-4 relative flex items-start sm:items-center justify-between alert-container text-sm sm:text-base"
-                    >
-                        <span>{{ session('success') }}</span>
-                        <button
-                            type="button"
-                            class="text-green-800 hover:text-green-900 ml-2 text-xl sm:text-2xl"
-                            onclick="this.parentElement.style.display='none';"
-                        >
-                            &times;
-                        </button>
-                    </div>
-                @endif
 
                 {{-- Error Alert --}}
                 @if ($errors->any())
@@ -48,6 +79,24 @@
                         </button>
                     </div>
                 @endif
+
+                <a href="{{ route('pegawai.scan') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 7h16M4 12h16M4 17h16" />
+                        </svg>
+                        Scan Pegawai
+                </a>
+
+                <button id="check-finish-btn"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5 13l4 4L19 7" />
+                    </svg>
+                    Check Finish
+                </button>
 
                 {{-- Tabel SO --}}
                 @if ($data->isEmpty())
@@ -328,264 +377,296 @@
     </div>
 
     
- <script src="https://unpkg.com/@zxing/browser@latest"></script>
+    <script src="https://unpkg.com/@zxing/browser@latest"></script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('barcode-form');
-    const labelInput = document.getElementById('label');
+    <script>
 
-    if (form && labelInput) {
-        function submitForm() {
-            form.submit();
-        }
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkBtn = document.getElementById('check-finish-btn');
 
-        labelInput.addEventListener('input', function () {
-            submitForm();
-        });
-    }
-
-    const itemCodeInput = document.getElementById('item_code');
-    if (itemCodeInput) {
-        itemCodeInput.focus();
-    }
-});
-
-document.addEventListener('DOMContentLoaded', function () {
-
-    const scanBtn = document.getElementById('scanModeBtn');
-    const scanView = document.getElementById('scanView');
-    const videoElem = document.getElementById('scannerVideo');
-    const alertBox = document.getElementById('scanAlert');
-
-    let scanMode = false;
-    let codeReader = null;
-    let lastScan = "";
-    let lastScanTime = 0;
-    const throttle = 1500;
-    let stream = null;
-
-    // Check if getUserMedia is supported
-    function isGetUserMediaSupported() {
-        return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    }
-
-    // Polyfill for older browsers
-    if (!navigator.mediaDevices && navigator.getUserMedia) {
-        navigator.mediaDevices = {};
-        navigator.mediaDevices.getUserMedia = function(constraints) {
-            const getUserMedia = navigator.getUserMedia || 
-                               navigator.webkitGetUserMedia || 
-                               navigator.mozGetUserMedia;
-            
-            if (!getUserMedia) {
-                return Promise.reject(new Error('getUserMedia is not implemented'));
-            }
-            
-            return new Promise((resolve, reject) => {
-                getUserMedia.call(navigator, constraints, resolve, reject);
-            });
-        };
-    }
-
-    function showAlert(msg, type = "success") {
-        alertBox.innerText = msg;
-        alertBox.classList.remove("hidden");
-        alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
-
-        setTimeout(() => alertBox.classList.add("hidden"), 3000);
-    }
-
-    async function startScanMode() {
-        try {
-            // Check support first
-            if (!isGetUserMediaSupported()) {
-                showAlert("Browser tidak support kamera. Gunakan Chrome/Safari terbaru dengan HTTPS", "error");
-                return;
-            }
-
-            // Check if running on HTTPS (required for camera)
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                showAlert("Kamera memerlukan HTTPS. Hubungi admin untuk setup SSL", "error");
-                return;
-            }
-
-            scanMode = true;
-            scanBtn.innerText = "Stop Scan Mode";
-            scanBtn.classList.remove("bg-green-600");
-            scanBtn.classList.add("bg-red-600");
-            scanView.classList.remove("hidden");
-
-            console.log("Requesting camera access...");
-
-            // Request camera permission
-            const constraints = {
-                video: { 
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            };
-
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            
-            console.log("Camera access granted");
-
-            videoElem.srcObject = stream;
-            videoElem.setAttribute("playsinline", "true");
-            videoElem.setAttribute("autoplay", "true");
-            videoElem.setAttribute("muted", "true");
-            
-            // Wait for video to be ready
-            videoElem.onloadedmetadata = () => {
-                videoElem.play().then(() => {
-                    console.log("Video playing");
-                    startDecoding();
-                }).catch(err => {
-                    console.error("Play error:", err);
-                    showAlert("Gagal memulai video: " + err.message, "error");
+            if (checkBtn) {
+                checkBtn.addEventListener('click', function () {
+                    location.reload(); // reload halaman
                 });
-            };
-
-        } catch (err) {
-            console.error("Camera error:", err);
-            let errorMsg = "Gagal mengakses kamera: ";
-            
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                errorMsg += "Permission ditolak. Izinkan akses kamera di browser settings.";
-            } else if (err.name === 'NotFoundError') {
-                errorMsg += "Kamera tidak ditemukan.";
-            } else if (err.name === 'NotReadableError') {
-                errorMsg += "Kamera sedang digunakan aplikasi lain.";
-            } else {
-                errorMsg += err.message;
             }
-            
-            showAlert(errorMsg, "error");
-            stopScanMode();
-        }
-    }
+        });
 
-    function startDecoding() {
-        try {
-            // Initialize ZXing reader
-            codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-            
-            console.log("Starting barcode detection...");
-            
-            // Start decoding
-            codeReader.decodeFromVideoDevice(
-                undefined,
-                videoElem,
-                (result, err) => {
-                    if (result) {
-                        const now = Date.now();
-                        if (result.text === lastScan && (now - lastScanTime < throttle)) {
-                            return;
-                        }
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('barcode-form');
+            const labelInput = document.getElementById('label');
 
-                        lastScan = result.text;
-                        lastScanTime = now;
-
-                        console.log("Barcode detected:", result.text);
-                        
-                        // Visual feedback
-                        videoElem.style.border = "5px solid #16a34a";
-                        setTimeout(() => {
-                            videoElem.style.border = "none";
-                        }, 500);
-
-                        sendScan(result.text);
-                    }
-                    if (err && err.name !== 'NotFoundException') {
-                        console.error("Decode error:", err);
-                    }
+            if (form && labelInput) {
+                function submitForm() {
+                    form.submit();
                 }
-            );
-        } catch (err) {
-            console.error("ZXing error:", err);
-            showAlert("Error starting scanner: " + err.message, "error");
-        }
-    }
 
-    function stopScanMode() {
-        scanMode = false;
-        scanBtn.innerText = "Start Scan Mode";
-        scanBtn.classList.remove("bg-red-600");
-        scanBtn.classList.add("bg-green-600");
-        scanView.classList.add("hidden");
-
-        // Stop ZXing
-        if (codeReader) {
-            try {
-                codeReader.reset();
-            } catch (e) {
-                console.error("Error resetting reader:", e);
+                labelInput.addEventListener('input', function () {
+                    submitForm();
+                });
             }
-            codeReader = null;
-        }
 
-        // Stop all video tracks
-        if (stream) {
-            stream.getTracks().forEach(track => {
-                track.stop();
-                console.log("Track stopped:", track.kind);
-            });
-            stream = null;
-        }
-
-        // Clear video source
-        if (videoElem.srcObject) {
-            videoElem.srcObject = null;
-        }
-
-        console.log("Camera stopped");
-    }
-
-    function sendScan(code) {
-        let formData = new FormData();
-        formData.append("so_number", "{{ $docNum }}");
-        formData.append("item_code", code);
-        formData.append("quantity", 1);
-        formData.append("warehouse", "AUTO");
-        formData.append("label", 0);
-        formData.append("_token", "{{ csrf_token() }}");
-
-        fetch("{{ route('so.scanBarcode') }}", {
-            method: "POST",
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            showAlert(data.message, data.success ? "success" : "error");
-            if (data.success) {
-                // Reload page after delay
-                setTimeout(() => location.reload(), 1500);
-            }
-        })
-        .catch(err => {
-            console.error("Fetch error:", err);
-            showAlert("Network error: " + err.message, "error");
-        });
-    }
-
-    // Button click handler
-    if (scanBtn) {
-        scanBtn.addEventListener("click", () => {
-            if (!scanMode) {
-                startScanMode();
-            } else {
-                stopScanMode();
+            const itemCodeInput = document.getElementById('item_code');
+            if (itemCodeInput) {
+                itemCodeInput.focus();
             }
         });
-    }
 
-    // Show warning if not HTTPS on page load (except localhost)
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        console.warn("⚠️ Camera requires HTTPS to work properly");
-    }
+        document.addEventListener('DOMContentLoaded', function () {
 
-});
-</script>
+            const scanBtn = document.getElementById('scanModeBtn');
+            const scanView = document.getElementById('scanView');
+            const videoElem = document.getElementById('scannerVideo');
+            const alertBox = document.getElementById('scanAlert');
+
+            let scanMode = false;
+            let codeReader = null;
+            let lastScan = "";
+            let lastScanTime = 0;
+            const throttle = 1500;
+            let stream = null;
+
+            // Check if getUserMedia is supported
+            function isGetUserMediaSupported() {
+                return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            }
+
+            // Polyfill for older browsers
+            if (!navigator.mediaDevices && navigator.getUserMedia) {
+                navigator.mediaDevices = {};
+                navigator.mediaDevices.getUserMedia = function(constraints) {
+                    const getUserMedia = navigator.getUserMedia || 
+                                    navigator.webkitGetUserMedia || 
+                                    navigator.mozGetUserMedia;
+                    
+                    if (!getUserMedia) {
+                        return Promise.reject(new Error('getUserMedia is not implemented'));
+                    }
+                    
+                    return new Promise((resolve, reject) => {
+                        getUserMedia.call(navigator, constraints, resolve, reject);
+                    });
+                };
+            }
+
+            function showAlert(msg, type = "success") {
+                alertBox.innerText = msg;
+                alertBox.classList.remove("hidden");
+                alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
+
+                setTimeout(() => alertBox.classList.add("hidden"), 3000);
+            }
+
+            async function startScanMode() {
+                try {
+                    // Debug 1
+                    alert("1. Mulai scan mode");
+                    
+                    // CHECK: Apakah navigator.mediaDevices ada?
+                    if (!navigator.mediaDevices) {
+                        alert("❌ navigator.mediaDevices tidak ada!\n\nKemungkinan:\n1. Browser terlalu lama\n2. Harus pakai HTTPS atau localhost\n3. Browser tidak support");
+                        showAlert("Browser tidak support kamera atau harus pakai HTTPS", "error");
+                        return;
+                    }
+
+                    // CHECK: Apakah getUserMedia ada?
+                    if (!navigator.mediaDevices.getUserMedia) {
+                        alert("❌ getUserMedia tidak ada!\n\nBrowser tidak support akses kamera.");
+                        showAlert("Browser tidak support akses kamera", "error");
+                        return;
+                    }
+
+                    // Debug 2
+                    alert("2. ✅ Browser support!\nProtocol: " + location.protocol + "\nHost: " + location.hostname);
+                    
+                    scanMode = true;
+                    scanBtn.innerText = "Stop Scan Mode";
+                    scanBtn.classList.remove("bg-green-600");
+                    scanBtn.classList.add("bg-red-600");
+                    scanView.classList.remove("hidden");
+
+                    // Request camera permission
+                    const constraints = {
+                        video: { 
+                            facingMode: { ideal: "environment" },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    };
+
+                    // Debug 3
+                    alert("3. Minta akses kamera...");
+                    
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    // Debug 4
+                    alert("4. ✅ Kamera berhasil diakses!");
+
+                    videoElem.srcObject = stream;
+                    videoElem.setAttribute("playsinline", "true");
+                    videoElem.setAttribute("autoplay", "true");
+                    videoElem.setAttribute("muted", "true");
+                    
+                    // Wait for video to be ready
+                    videoElem.onloadedmetadata = () => {
+                        videoElem.play().then(() => {
+                            alert("5. ✅ Video playing!");
+                            startDecoding();
+                        }).catch(err => {
+                            alert("❌ Play error:\n" + err.name + "\n" + err.message);
+                            showAlert("Gagal memulai video: " + err.message, "error");
+                        });
+                    };
+
+                } catch (err) {
+                    // Debug error dengan detail lengkap
+                    let debugMsg = "❌ ERROR CAMERA:\n\n";
+                    debugMsg += "Error Name: " + (err.name || "unknown") + "\n\n";
+                    debugMsg += "Error Message: " + (err.message || "unknown") + "\n\n";
+                    debugMsg += "Protocol: " + location.protocol + "\n";
+                    debugMsg += "Host: " + location.hostname;
+                    
+                    alert(debugMsg);
+                    
+                    // Alert user-friendly
+                    let errorMsg = "Gagal mengakses kamera: ";
+                    
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        errorMsg += "Permission ditolak. Izinkan akses kamera di browser settings.";
+                    } else if (err.name === 'NotFoundError') {
+                        errorMsg += "Kamera tidak ditemukan.";
+                    } else if (err.name === 'NotReadableError') {
+                        errorMsg += "Kamera sedang digunakan aplikasi lain.";
+                    } else if (err.name === 'NotSupportedError' || err.name === 'SecurityError') {
+                        errorMsg += "Browser tidak support atau harus pakai HTTPS/localhost.";
+                    } else {
+                        errorMsg += err.message;
+                    }
+                    
+                    showAlert(errorMsg, "error");
+                    stopScanMode();
+                }
+            }
+
+            function startDecoding() {
+                try {
+                    // Initialize ZXing reader
+                    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+                    
+                    console.log("Starting barcode detection...");
+                    
+                    // Start decoding
+                    codeReader.decodeFromVideoDevice(
+                        undefined,
+                        videoElem,
+                        (result, err) => {
+                            if (result) {
+                                const now = Date.now();
+                                if (result.text === lastScan && (now - lastScanTime < throttle)) {
+                                    return;
+                                }
+
+                                lastScan = result.text;
+                                lastScanTime = now;
+
+                                console.log("Barcode detected:", result.text);
+                                
+                                // Visual feedback
+                                videoElem.style.border = "5px solid #16a34a";
+                                setTimeout(() => {
+                                    videoElem.style.border = "none";
+                                }, 500);
+
+                                sendScan(result.text);
+                            }
+                            if (err && err.name !== 'NotFoundException') {
+                                console.error("Decode error:", err);
+                            }
+                        }
+                    );
+                } catch (err) {
+                    console.error("ZXing error:", err);
+                    showAlert("Error starting scanner: " + err.message, "error");
+                }
+            }
+
+            function stopScanMode() {
+                scanMode = false;
+                scanBtn.innerText = "Start Scan Mode";
+                scanBtn.classList.remove("bg-red-600");
+                scanBtn.classList.add("bg-green-600");
+                scanView.classList.add("hidden");
+
+                // Stop ZXing
+                if (codeReader) {
+                    try {
+                        codeReader.reset();
+                    } catch (e) {
+                        console.error("Error resetting reader:", e);
+                    }
+                    codeReader = null;
+                }
+
+                // Stop all video tracks
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log("Track stopped:", track.kind);
+                    });
+                    stream = null;
+                }
+
+                // Clear video source
+                if (videoElem.srcObject) {
+                    videoElem.srcObject = null;
+                }
+
+                console.log("Camera stopped");
+            }
+
+            function sendScan(code) {
+                let formData = new FormData();
+                formData.append("so_number", "{{ $docNum }}");
+                formData.append("item_code", code);
+                formData.append("quantity", 1);
+                formData.append("warehouse", "AUTO");
+                formData.append("label", 0);
+                formData.append("_token", "{{ csrf_token() }}");
+
+                fetch("{{ route('so.scanBarcode') }}", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    showAlert(data.message, data.success ? "success" : "error");
+                    if (data.success) {
+                        // Reload page after delay
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    showAlert("Network error: " + err.message, "error");
+                });
+            }
+
+            // Button click handler
+            if (scanBtn) {
+                scanBtn.addEventListener("click", () => {
+                    if (!scanMode) {
+                        startScanMode();
+                    } else {
+                        stopScanMode();
+                    }
+                });
+            }
+
+            // Show warning if not HTTPS on page load (except localhost)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                console.warn("⚠️ Camera requires HTTPS to work properly");
+            }
+
+        });
+    </script>
 </x-app-layout>

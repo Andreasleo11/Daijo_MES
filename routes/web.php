@@ -372,6 +372,8 @@ Route::middleware('auth')->group(function (){
     Route::post('/so/scan', [SOController::class, 'scanBarcode'])->name('so.scanBarcode');
     Route::get('/update-so-data/{docNum}', [SOController::class, 'updateSoData'])->name('update.so.data');
     Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
+
+    Route::get('/pegawai/scan', [SOController::class, 'indexpegawai'])->name('pegawai.scan');
     //Route untuk Handle SO dari diss 
 
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ScannedData;
 use App\Models\SoData;
 use App\Models\UpdateLog;
+use App\Models\MasterItemPhoto;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\SoImport;
@@ -38,6 +39,11 @@ class SOController extends Controller
         $docNums = $query->orderBy('doc_num', 'desc')->paginate(10);
     
         return view('store.soindex', compact('docNums'));
+    }
+
+    public function indexpegawai()
+    {
+        return view('store.sopegawaiindex');
     }
 
     public function process($docNum)
@@ -133,7 +139,11 @@ class SOController extends Controller
             return redirect()->back()->withErrors(['error' => 'Item not found']);
         }
 
-        $existingScans = ScannedData::where('item_code', $item_code)->get();
+        $existingScans = ScannedData::where('item_code', $item_code)
+        ->where('doc_num', $doc_num)
+        ->get();
+
+      
         $scannedTotalQuantity = $existingScans->sum('quantity') + $quantity;
        
         if ($scannedTotalQuantity > $item->quantity) {
@@ -141,14 +151,17 @@ class SOController extends Controller
             return redirect()->back()->withErrors(['error' => 'All required CTN have been scanned / Quantity Tidak benar']);
         }
 
+        $photo = MasterItemPhoto::where('item_code', $item_code)->first();
         // Check if the scanned data already exists
         $existingScan = ScannedData::where('item_code', $item_code)
             ->where('label', $label)
+            ->where('doc_num', $doc_num)
             ->first();
 
         if ($existingScan) {
             return redirect()->back()->withErrors(['error' => 'Data already scanned']);
         }
+
 
         // Add new scanned data
         ScannedData::create([
@@ -159,7 +172,10 @@ class SOController extends Controller
             'label' => $label,
         ]);
 
-        return redirect()->back()->with('success', 'Barcode scanned successfully');
+        return redirect()->back()->with([
+            'success' => 'Barcode scanned successfully',
+            'photo'   => $photo ? $photo->photo_path : null, // sesuaikan nama kolom foto
+        ]);
     }
 
     public function updateSoData($docNum)
