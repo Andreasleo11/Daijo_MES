@@ -13,4 +13,9 @@ class MasterListItem extends Model
     {
         return $this->hasMany(File::class, 'item_code', 'item_code');
     }
+
+    public function photo()
+    {
+        return $this->hasOne(MasterItemPhoto::class, 'item_code', 'item_code');
+    }
 }

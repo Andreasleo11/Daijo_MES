@@ -54,7 +54,7 @@ class ProductionDashboardController extends Controller
             $userName = $machineJob->user->name ?? 'Unknown User';
 
             $user = $machineJob->user;
-            $zoneId = $user->zone_id;
+            $zoneId = $user->zone_id ?? 'A';
             $zoneData = MasterZone::find($zoneId);
 
             $pengawas = []; // Initialize as array
@@ -208,7 +208,7 @@ class ProductionDashboardController extends Controller
                 $formattedDailyItem = [
                     'id' => $dailyItem->id,
                     'item_code' => $dailyItem->item_code,
-                    'item_name' => $dailyItem->masterItem->item_name,
+                    'item_name' => $dailyItem->masterItem?->item_name ?? '',
                     'quantity' => $dailyItem->quantity,
                     'final_quantity' => $dailyItem->final_quantity,
                     'loss_package_quantity' => $dailyItem->loss_package_quantity,
@@ -286,7 +286,10 @@ class ProductionDashboardController extends Controller
                     // Calculate achievement percentage
                     $achievementPercentage = 0;
                     if ($hourlyRemark->target > 0) {
-                        $achievementPercentage = round(($hourlyRemark->actual_production / $hourlyRemark->target) * 100, 2);
+                         $achievementPercentage = round(
+                            min(($hourlyRemark->actual_production / $hourlyRemark->target) * 100, 100),
+                            2
+                        );
                     }
 
                     $status = $hourlyRemark->is_achieve;
@@ -320,6 +323,17 @@ class ProductionDashboardController extends Controller
                         'pic_profile_path' => $operatorProfilePath,
                         'created_at' => Carbon::parse($hourlyRemark->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
                         'updated_at' => Carbon::parse($hourlyRemark->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
+                        'ng_details' => $hourlyRemark->ngDetails->map(function ($ng) {
+                            return [
+                                'id' => $ng->id,
+                                'ng_type_id' => $ng->ng_type_id,
+                                'ng_type' => $ng->ngType->ng_type ?? 'Unknown',
+                                'ng_quantity' => $ng->ng_quantity,
+                                'ng_remarks' => $ng->ng_remarks,
+                                'created_at' => $ng->created_at?->format('Y-m-d H:i:s'),
+                                'updated_at' => $ng->updated_at?->format('Y-m-d H:i:s')
+                            ];
+                        }),
                     ];
                 }
 

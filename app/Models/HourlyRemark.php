@@ -27,6 +27,11 @@ class HourlyRemark extends Model
         return $this->belongsTo(DailyItemCode::class, 'dic_id');
     }
 
+    public function ngDetails()
+    {
+        return $this->hasMany(ProductionNgDetail::class, 'hourly_remark_id');
+    }
+
     
     protected static function boot()
     {

@@ -18,6 +18,7 @@ class Index extends Component
     public $remark;
     public $tipe;
     public $pic; // <--- tambahin ini
+    public $remarkInput;
 
     public $showModal = false;
 
@@ -89,6 +90,7 @@ class Index extends Component
     public function openDetailModal($id)
     {
         $this->selectedMould = MaintenanceMould::find($id);
+        $this->remarkInput = $this->selectedMould->remark;
         $this->showDetailModal = true;
     }
 
@@ -101,6 +103,7 @@ class Index extends Component
     public function finishMaintenance()
     {
         if ($this->selectedMould) {
+             $this->selectedMould->remark = $this->remarkInput;
             $this->selectedMould->finished_at = now();
             $created = $this->selectedMould->created_at;
             $finished = $this->selectedMould->finished_at;
