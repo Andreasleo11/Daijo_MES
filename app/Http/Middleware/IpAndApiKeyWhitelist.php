@@ -11,10 +11,11 @@ class IpAndApiKeyWhitelist
     {
         // Daftar IP yang di-whitelist
         $whitelistedIps = [
-            '192.168.1.100',
-            '192.168.1.149',
-            '127.0.0.1', // localhost IPv4
-            '::1',       // localhost IPv6
+            '192.168.6.1',
+            // '192.168.6.100',
+            // '192.168.6.149',
+            // '127.0.0.1', // localhost IPv4
+            // '::1',       // localhost IPv6
         ];
 
         // Ambil IP pengirim

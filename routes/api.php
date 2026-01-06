@@ -20,6 +20,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 
-Route::middleware(['ip.and.apikey'])->group(function () {
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
     Route::post('/sap/so', [SOController::class, 'storeFromSap']);
 });

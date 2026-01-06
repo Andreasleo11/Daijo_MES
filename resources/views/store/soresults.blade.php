@@ -17,8 +17,7 @@
         </div>
 
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // Initialize Fancybox
+            document.addEventListener('DOMContentLoaded', function () {
                 Fancybox.bind('[data-fancybox="gallery"]', {
                     Thumbs: {
                         autoStart: true,
@@ -27,14 +26,26 @@
                         zoom: true,
                     },
                     transitionEffect: "fade",
+
                     on: {
                         reveal: (fancybox, slide) => {
-                            // Optional: custom behavior when image is revealed
+                            // Auto close after 2 seconds
+                            setTimeout(() => {
+                                fancybox.close();
+                            }, 2000);
+                        },
+
+                        destroy: () => {
+                            // Focus back to SPK input after modal closed
+                            const spkInput = document.getElementById('spk_code');
+                            if (spkInput) {
+                                spkInput.focus();
+                            }
                         }
                     }
                 });
 
-                // Trigger the modal automatically on page load
+                // Auto-open modal on page load
                 const photoLink = document.querySelector('[data-fancybox="gallery"]');
                 if (photoLink) {
                     setTimeout(() => {
@@ -43,6 +54,7 @@
                 }
             });
         </script>
+
     @endif
 
 
@@ -61,7 +73,7 @@
                 </h2>
 
                 {{-- Error Alert --}}
-                @if ($errors->any())
+                <!-- @if ($errors->any())
                     <div
                         class="bg-red-100 text-red-800 border border-red-300 rounded-md p-3 sm:p-4 mb-4 relative flex items-start sm:items-center justify-between alert-container text-sm sm:text-base"
                     >
@@ -78,7 +90,7 @@
                             &times;
                         </button>
                     </div>
-                @endif
+                @endif -->
 
                 <a href="{{ route('pegawai.scan') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
@@ -109,7 +121,7 @@
                         <table class="min-w-full bg-white border-collapse border border-gray-200 text-sm">
                             <thead class="bg-gray-100">
                                 <tr>
-                                    <th class="border border-gray-300 px-4 py-2 text-left">ID</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">No</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Model</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Description</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Delivery Qty</th>
@@ -122,15 +134,20 @@
                             </thead>
 
                             <tbody>
+                                @php
+                                    $totalCtn = 0;
+                                @endphp
+
                                 @foreach ($data as $item)
                                     @php
                                         $scannedTotalQuantity = $item->scannedData->where('item_code', $item->item_code)->sum('quantity');
                                         $ctn = ceil($item->quantity / $item->packaging_quantity);
+                                        $totalCtn += $ctn;
                                         $rowClass = $item->scannedCount > $ctn ? 'bg-red-100' : '';
                                     @endphp
 
                                     <tr class="hover:bg-green-50 {{ $rowClass }}">
-                                        <td class="border border-gray-300 px-4 py-2">{{ $item->id }}</td>
+                                        <td class="border border-gray-300 px-4 py-2">{{ $loop->iteration }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_code }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_name }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->quantity }}</td>
@@ -143,6 +160,22 @@
                                         <td class="border border-gray-300 px-4 py-2">{{ $scannedTotalQuantity }}</td>
                                     </tr>
                                 @endforeach
+
+                                <tr class="bg-gray-200 font-semibold">
+                                    <td class="border border-gray-300 px-4 py-2" colspan="4"></td>
+
+                                    <!-- Qty/Pack column -->
+                                    <td class="border border-gray-300 px-4 py-2 text-right">
+                                        Total Box
+                                    </td>
+
+                                    <!-- CTN column -->
+                                    <td class="border border-gray-300 px-4 py-2">
+                                        {{ number_format($totalCtn) }}
+                                    </td>
+
+                                    <td class="border border-gray-300 px-4 py-2" colspan="3"></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -225,6 +258,27 @@
                         </p>
                     @endif
                 </div>
+
+
+                 @if ($errors->any())
+                    <div
+                        class="bg-red-100 text-red-800 border border-red-300 rounded-md p-3 sm:p-4 mb-4 relative flex items-start sm:items-center justify-between alert-container text-sm sm:text-base"
+                    >
+                        <ul class="list-disc pl-5 space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        <button
+                            type="button"
+                            class="text-red-800 hover:text-red-900 ml-2 text-xl sm:text-2xl"
+                            onclick="this.parentElement.style.display='none';"
+                        >
+                            &times;
+                        </button>
+                    </div>
+                @endif
+
 
                 {{-- Form Scan Barcode --}}
                 @if (! $allDone)
@@ -323,6 +377,7 @@
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Warehouse</th>
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Label</th>
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Created At</th>
+                                    <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -343,6 +398,28 @@
                                         <td class="border border-gray-300 px-2 sm:px-4 py-2">
                                             {{ $scan->created_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}
                                         </td>
+                                        <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
+                                            <!-- Edit -->
+                                            <button
+                                                onclick="openEditModal({{ $scan->id }}, {{ $scan->quantity }})"
+                                                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                                                Edit
+                                            </button>
+
+                                            <!-- Delete -->
+                                            <form action="{{ route('scan.delete', $scan->id) }}"
+                                                method="POST"
+                                                class="inline"
+                                                onsubmit="return confirm('Yakin mau hapus data ini?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -354,6 +431,39 @@
                     </p>
                 @endforelse
             </div>
+
+            <div id="editModal"
+                class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-80">
+                    <h3 class="text-lg font-semibold mb-4">Edit Quantity</h3>
+
+                    <form id="editForm" method="POST">
+                        @csrf
+                        @method('PUT')
+
+                        <input type="number"
+                            name="quantity"
+                            id="editQuantity"
+                            class="w-full border rounded px-3 py-2 mb-4"
+                            required
+                            min="1">
+
+                        <div class="flex justify-end space-x-2">
+                            <button type="button"
+                                    onclick="closeEditModal()"
+                                    class="px-4 py-2 bg-gray-400 text-white rounded">
+                                Cancel
+                            </button>
+
+                            <button type="submit"
+                                    class="px-4 py-2 bg-green-600 text-white rounded">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
 
 
             {{-- Scan Mode Toggle for Mobile --}}
@@ -381,6 +491,25 @@
 
     <script>
 
+
+    function openEditModal(id, quantity) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+        const qtyInput = document.getElementById('editQuantity');
+
+        form.action = `/scan/${id}`;
+        qtyInput.value = quantity;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
         document.addEventListener('DOMContentLoaded', function () {
             const checkBtn = document.getElementById('check-finish-btn');
 
@@ -395,13 +524,18 @@
             const form = document.getElementById('barcode-form');
             const labelInput = document.getElementById('label');
 
-            if (form && labelInput) {
-                function submitForm() {
-                    form.submit();
-                }
+            let typingTimer;
+            const doneTypingInterval = 300; // ms (scanner cepat, 200–400 aman)
 
+            if (form && labelInput) {
                 labelInput.addEventListener('input', function () {
-                    submitForm();
+                    clearTimeout(typingTimer);
+
+                    typingTimer = setTimeout(() => {
+                        if (labelInput.value.trim() !== '') {
+                            form.submit();
+                        }
+                    }, doneTypingInterval);
                 });
             }
 

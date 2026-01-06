@@ -195,7 +195,7 @@ class SOController extends Controller
             ->update(['is_done' => true]);
 
         // Redirect back with a success message or to another route
-        return redirect()->route('so.index')->with('status', 'All records updated successfully.');
+        return redirect()->route('pegawai.scan')->with('status', 'All records updated successfully.');
     }
 
     public function import(Request $request)
@@ -298,6 +298,27 @@ class SOController extends Controller
 
         // Redirect to the SO index route
         return redirect()->route('so.index');
+    }
+
+     public function update(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $scan = ScannedData::findOrFail($id);
+        $scan->quantity = $request->quantity;
+        $scan->save();
+
+        return back()->with('success', 'Quantity updated successfully');
+    }
+
+    public function destroy($id)
+    {
+        $scan = ScannedData::findOrFail($id);
+        $scan->delete();
+
+        return back()->with('success', 'Data deleted successfully');
     }
 
     public function storeFromSap(Request $request)

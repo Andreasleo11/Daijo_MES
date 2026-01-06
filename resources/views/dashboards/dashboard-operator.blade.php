@@ -1158,14 +1158,72 @@
 
 
     <script type="module">
-        Fancybox.bind('[data-fancybox="gallery"]', {
-            Thumbs: {
-                autoStart: true,
-            },
-            Image: {
-                zoom: true,
-            },
-            transitionEffect: "fade",
+        document.addEventListener('DOMContentLoaded', function () {
+            // Bind Fancybox
+            Fancybox.bind('[data-fancybox="gallery"]', {
+                Thumbs: {
+                    autoStart: true,
+                },
+                Image: {
+                    zoom: true,
+                },
+                transitionEffect: "fade",
+                Slideshow: {
+                    autoStart: false, // Set ke false, kita handle manual
+                    timeout: 3000, // 3 detik per slide
+                },
+            });
+
+            const galleryItems = document.querySelectorAll('[data-fancybox="gallery"]');
+            if (galleryItems.length === 0) return;
+
+            function openRandomGallery() {
+                const randomIndex = Math.floor(Math.random() * galleryItems.length);
+                
+                // Buka gallery dengan random index
+                const fancybox = Fancybox.show(
+                    Array.from(galleryItems).map(el => ({
+                        src: el.getAttribute('href'),
+                        caption: el.getAttribute('data-caption') || '',
+                        type: 'image',
+                    })),
+                    {
+                        startIndex: randomIndex,
+                        Thumbs: {
+                            autoStart: true,
+                        },
+                        Slideshow: {
+                            autoStart: false,
+                            timeout: 3000,
+                        },
+                    }
+                );
+
+                // Tunggu gallery fully loaded, baru jalankan slideshow
+                setTimeout(() => {
+                    if (fancybox) {
+                        // Trigger slideshow toggle
+                        const slideshowBtn = document.querySelector('[data-fancybox-toggle-slideshow]');
+                        if (slideshowBtn) {
+                            slideshowBtn.click();
+                        } else {
+                            // Alternative: gunakan API Fancybox langsung
+                            if (fancybox.Slideshow) {
+                                fancybox.Slideshow.toggle();
+                            }
+                        }
+                    }
+                }, 500);
+            }
+
+            // ⏱️ Auto open setiap 5 menit (300000 ms) dengan slideshow
+            setInterval(() => {
+                openRandomGallery();
+            }, 300000); // 5 menit
+
+            // Optional: Juga buka di awal page load
+            // Uncomment jika mau langsung buka saat page load:
+            // openRandomGallery();
         });
 
         $(document).ready(function () {

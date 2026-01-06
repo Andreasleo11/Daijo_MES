@@ -2,6 +2,9 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Symfony\Component\HttpFoundation\Response;
+
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 
@@ -45,4 +48,17 @@ class Handler extends ExceptionHandler
             //
         });
     }
+
+    public function render($request, Throwable $e): Response
+    {
+        if ($e instanceof ThrottleRequestsException) {
+            return response()->json([
+                'message' => 'Rate limit exceeded',
+                'error_code' => 'RATE_LIMIT',
+            ], 429);
+        }
+
+        return parent::render($request, $e);
+    }
+    
 }

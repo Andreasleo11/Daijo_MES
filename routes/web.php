@@ -132,7 +132,9 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     Route::get('/all-label-yanfeng', [BarcodeController::class, 'generateAllLabelYangeng'])->name('all.label.yanfeng');
 
     Route::post('/generate-label-yanfeng40x15', [BarcodeController::class, 'generateLabelYangeng40x15'])->name('generate.label.yanfeng40x15');   
-    Route::post('/generate-label-yanfeng25x10', [BarcodeController::class, 'generateLabelYangeng25x10'])->name('generate.label.yanfeng25x10');   
+    Route::post('/generate-label-yanfeng25x10', [BarcodeController::class, 'generateLabelYangeng25x10'])->name('generate.label.yanfeng25x10');  
+    
+    Route::post('/generate-label-yanfeng50x20', [BarcodeController::class, 'generateLabelYangeng50x20'])->name('generate.label.yanfeng50x20');  
     Route::post('/generate-label-yanfeng50x35', [BarcodeController::class, 'generateLabelYangeng50x35'])->name('generate.label.yanfeng50x35');   
     // Route untuk barcode ALC Engineering 
 
@@ -375,6 +377,12 @@ Route::middleware('auth')->group(function (){
 
     Route::get('/pegawai/scan', [SOController::class, 'indexpegawai'])->name('pegawai.scan');
     //Route untuk Handle SO dari diss 
+
+    Route::put('/scan/{id}', [SOController::class, 'update'])
+        ->name('scan.update');
+
+    Route::delete('/scan/{id}', [SOController::class, 'destroy'])
+        ->name('scan.delete');
 
 
     Route::get('/second-daily-process', [SecondDailyController::class, 'index'])->name('second.daily.process.index');

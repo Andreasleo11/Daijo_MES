@@ -705,7 +705,13 @@ class BarcodeController extends Controller
         // dd($projectCode);
 
         $identifier1 = 'PEA';
-        $date1 = date('ymd'); // Format tanggal saat ini ddmmyy
+        if ($request->filled('production_date')) {
+            // production_date format: YYYY-MM-DD
+            $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                        ->format('ymd'); // jadi yymmdd
+        } else {
+            $date1 = date('ymd'); // default: tanggal hari ini
+        } // Format tanggal saat ini ddmmyy
         $sequence1 = '0000'; // Mulai dari 0000
         $baseIdentifier = $identifier1 . $date1 . $sequence1;  
         // dd($baseIdentifier);
@@ -727,7 +733,7 @@ class BarcodeController extends Controller
         $truepartNumber = str_replace('-', '', $part->part_code);
         $sequenceCode = $part->alc_code;
         $engineeringOrderNumber = '';
-        $trackingCode1 = '251009Y111@QAD:';
+        $trackingCode1 = $date . 'Y111@QAD:';
         $trackingCode2 = $part->qad;
         $trackingCode = $trackingCode1 . $trackingCode2;
         $specificInfo = '12345'; // optional
@@ -775,7 +781,7 @@ class BarcodeController extends Controller
         return view('labelyanfeng40x15', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
     }
 
-    public function generateLabelYangeng25x10(Request $request)
+    public function generateLabelYangeng50x20(Request $request)
     {
         $RS  = chr(30); // ␝
         $GS  = chr(29); // ␟
@@ -791,7 +797,13 @@ class BarcodeController extends Controller
         // dd($projectCode);
 
         $identifier1 = 'PEA';
-        $date1 = date('ymd'); // Format tanggal saat ini ddmmyy
+        if ($request->filled('production_date')) {
+            // production_date format: YYYY-MM-DD
+            $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                        ->format('ymd'); // jadi yymmdd
+        } else {
+            $date1 = date('ymd'); // default: tanggal hari ini
+        } // Format tanggal saat ini ddmmyy
         $sequence1 = '0000'; // Mulai dari 0000
         $baseIdentifier = $identifier1 . $date1 . $sequence1;  
         // dd($baseIdentifier);
@@ -813,7 +825,100 @@ class BarcodeController extends Controller
         $truepartNumber = str_replace('-', '', $part->part_code);
         $sequenceCode = $part->alc_code;
         $engineeringOrderNumber = '';
-        $trackingCode1 = '251009Y111@QAD:';
+        $trackingCode1 = $date . 'Y111@QAD:';
+        $trackingCode2 = $part->qad;
+        $trackingCode = $trackingCode1 . $trackingCode2;
+        $specificInfo = '12345'; // optional
+        $initialProductClassification = 'N'; // optional
+        $businessUnit = 'ABC'; // optional
+
+        //tambahin project code di sebelah PEA 
+        // Bersihin Part number dari - 
+
+          // Loop untuk generate multiple labels
+        $labels = [];
+        for ($i = $request->label_start; $i <= $request->label_end; $i++) {
+            $currentSequence = $startSequence + $i;
+            $identifier = $code . $date . str_pad($currentSequence, $sequenceLength, '0', STR_PAD_LEFT);
+
+             // Format sesuai standar ISO/IEC 15434
+            $dataMatrixString = "[)>"
+            . $RS . "06"
+            . $GS . "V" . $supplierCode
+            // . $GS . "E" . $engineeringOrderNumber
+            . $GS . "P" . $truepartNumber
+            . $GS . "S" . $sequenceCode
+            . $GS . "T" . $trackingCode
+            . $GS . "1A" . $specificInfo
+            . $GS . "M" . $initialProductClassification
+            . $GS . "C" . $businessUnit
+            . $GS . $RS . $EOT;
+
+        // Generate DataMatrix
+        $barcode = new DNS2D();
+        $image = $barcode->getBarcodePNG($dataMatrixString, 'DATAMATRIX');
+        // dd($dataMatrixString);
+            
+            $labels[] = [
+                'identifier' => $identifier,
+                'supplierCode' => $supplierCode,
+                'sequenceCode' => $sequenceCode,
+                'partNumber' => $partNumber,
+                'projectCode' => $projectCode,
+                'image' => $image,
+            ];
+        }
+
+          
+        return view('labelyanfeng50x20', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
+    }
+
+    public function generateLabelYangeng25x10(Request $request)
+    {
+        $RS  = chr(30); // ␝
+        $GS  = chr(29); // ␟
+        $EOT = chr(4);  // ␄
+
+        // 2️⃣ Ambil data part yang dipilih
+        $part = AlcPeMasterData::where('part_code', $request->part_code)->firstOrFail();
+        // dd($part);
+        $truepartNumber = $part->part_code;
+        $sequenceCode = $part->alc_code;
+        $projectCode = $part->project_code;
+        // dd($sequenceCode);
+        // dd($projectCode);
+
+        $identifier1 = 'PEA';
+        if ($request->filled('production_date')) {
+            // production_date format: YYYY-MM-DD
+            $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                        ->format('ymd'); // jadi yymmdd
+        } else {
+            $date1 = date('ymd'); // default: tanggal hari ini
+        } // Format tanggal saat ini ddmmyy
+        $sequence1 = '0000'; // Mulai dari 0000
+        $baseIdentifier = $identifier1 . $date1 . $sequence1;  
+        // dd($baseIdentifier);
+
+
+        $labels = collect();
+
+        $code = substr($baseIdentifier, 0, 3); // PEA
+        $date = substr($baseIdentifier, 3, 6); // 251009
+        $sequence = substr($baseIdentifier, 9); // 0000
+
+
+        $sequenceLength = strlen($sequence); // simpan panjang sequence (4 digit)
+        $startSequence = (int)$sequence; // convert ke integer
+
+
+        $supplierCode = 'HAWX';
+        // $identifier = 'PEA2510090000';
+        $partNumber = $part->part_code;
+        $truepartNumber = str_replace('-', '', $part->part_code);
+        $sequenceCode = $part->alc_code;
+        $engineeringOrderNumber = '';
+        $trackingCode1 = $date . 'Y111@QAD:';
         $trackingCode2 = $part->qad;
         $trackingCode = $trackingCode1 . $trackingCode2;
         $specificInfo = '12345'; // optional
@@ -877,7 +982,13 @@ class BarcodeController extends Controller
         // dd($projectCode);
 
         $identifier1 = 'PEA';
-        $date1 = date('ymd'); // Format tanggal saat ini ddmmyy
+        if ($request->filled('production_date')) {
+                // production_date format: YYYY-MM-DD
+                $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                            ->format('ymd'); // jadi yymmdd
+            } else {
+                $date1 = date('ymd'); // default: tanggal hari ini
+            } // Format tanggal saat ini ddmmyy
         $sequence1 = '0000'; // Mulai dari 0000
         $baseIdentifier = $identifier1 . $date1 . $sequence1;  
         // dd($baseIdentifier);
@@ -899,7 +1010,7 @@ class BarcodeController extends Controller
         $truepartNumber = str_replace('-', '', $part->part_code);
         $sequenceCode = $part->alc_code;
         $engineeringOrderNumber = '';
-        $trackingCode1 = '251009Y111@QAD:';
+        $trackingCode1 = $date . 'Y111@QAD:';
         $trackingCode2 = $part->qad;
         $trackingCode = $trackingCode1 . $trackingCode2;
         $specificInfo = '12345'; // optional
@@ -980,7 +1091,13 @@ class BarcodeController extends Controller
 
     // Base config
     $identifier1 = 'PEA';
-    $date1 = date('ymd');
+    if ($request->filled('production_date')) {
+            // production_date format: YYYY-MM-DD
+            $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                        ->format('ymd'); // jadi yymmdd
+        } else {
+            $date1 = date('ymd'); // default: tanggal hari ini
+        } // Format tanggal saat ini ddmmyy
     $supplierCode = 'HAWX';
     $specificInfo = '12345';
     $initialProductClassification = 'N';
