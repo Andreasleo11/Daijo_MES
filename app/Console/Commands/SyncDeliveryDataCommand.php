@@ -12,6 +12,7 @@ use App\Services\InventoryMtrService;
 use App\Services\LineProductionService;
 use App\Services\RejectService;
 use Illuminate\Support\Facades\Log;
+use App\Models\ApiLog;
 
 class SyncDeliveryDataCommand extends Command
 {
@@ -53,16 +54,44 @@ class SyncDeliveryDataCommand extends Command
             $this->line(str_repeat('=', 60));
             $this->info("➡️  Menjalankan {$serviceName}::SyncData()");
 
+            $startTime = microtime(true);
             try {
                 $service = app($serviceClass);
-                $service->SyncData();
+                $result = $service->SyncData();
 
-                $this->info("✅ {$serviceName} selesai disinkronkan.");
+                $duration = microtime(true) - $startTime;
+
+                $this->info("✅ {$serviceName} selesai disinkronkan. ({$duration}s)");
                 Log::info("{$serviceName} SyncData sukses.");
+
+                // Log Success to DB
+                ApiLog::create([
+                    'api_name' => "SyncDelivery:{$serviceName}",
+                    'method' => 'COMMAND',
+                    'endpoint' => 'sync:delivery-data',
+                    'request_payload' => ['service' => $serviceClass, 'start_time' => date('Y-m-d H:i:s')],
+                    'response_payload' => ['message' => 'Success', 'duration' => $duration],
+                    'status_code' => 200,
+                    'status' => 'SUCCESS',
+                    'message' => "{$serviceName} synced successfully",
+                ]);
+
             } catch (\Throwable $e) {
                 $this->error("❌ Gagal di {$serviceName}: {$e->getMessage()}");
                 Log::error("Gagal di {$serviceName}: " . $e->getMessage(), [
                     'trace' => $e->getTraceAsString(),
+                ]);
+
+                // Log Error to DB
+                ApiLog::create([
+                    'api_name' => "SyncDelivery:{$serviceName}",
+                    'method' => 'COMMAND',
+                    'endpoint' => 'sync:delivery-data',
+                    'request_payload' => ['service' => $serviceClass, 'start_time' => date('Y-m-d H:i:s')],
+                    'response_payload' => ['trace' => substr($e->getTraceAsString(), 0, 1000)], // Limit trace
+                    'status_code' => 500,
+                    'status' => 'ERROR',
+                    'message' => $e->getMessage(),
                 ]);
             }
         }

@@ -67,6 +67,7 @@ class BaseSapService
                 'Accept' => 'application/json',
                 'Host' => 'localhost',
             ])
+            ->timeout(300)
             ->get($this->baseUrl . $endpoint, $params);
             
         // Kalau masih 401 setelah fresh token, something is wrong
@@ -78,6 +79,7 @@ class BaseSapService
                     'Accept' => 'application/json',
                     'Host' => 'localhost',
                 ])
+                ->timeout(300)
                 ->get($this->baseUrl . $endpoint, $params);
         }
         
@@ -105,7 +107,8 @@ class BaseSapService
                     'Accept' => 'application/json',
                     'Host' => 'localhost',
                 ])
-                ->post($this->baseUrl . $endpoint, $payload);
+                ->timeout(300)
+            ->post($this->baseUrl . $endpoint, $payload);
         }
         
         return $response;

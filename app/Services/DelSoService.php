@@ -50,18 +50,23 @@ class DelSoService extends BaseSapService
         DB::table('sap_delso')->truncate();
         
         foreach ($delSo as $row) {
+            
+            if (!is_array($row)) {
+                Log::warning('DelSoService: Row bukan array', ['row' => $row]);
+                continue;
+            }
         
             $quantity = isset($row['Quantity']) ? (int) $row['Quantity'] : 0;
             $delquantity = isset($row['DeliveryQty']) ? (int) $row['DeliveryQty'] : 0;
 
             DB::table('sap_delso')->insert([
-                'doc_num'     => $row['DocNum'],
-                'doc_status' => $row['DocStatus'],
-                'item_no'      => $row['ItemCode'],
+                'doc_num'     => $row['DocNum'] ?? null,
+                'doc_status' => $row['DocStatus'] ?? null,
+                'item_no'      => $row['ItemCode'] ?? null,
                 'quantity'       => $quantity,
                 'delivered_qty'       => $delquantity,
-                'line_num'       => $row['LineNum'],
-                'row_status'       => $row['LineStatus'],
+                'line_num'       => $row['LineNum'] ?? null,
+                'row_status'       => $row['LineStatus'] ?? null,
             ]);
         }
 
