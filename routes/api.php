@@ -21,5 +21,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 
 Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
-    Route::post('/sap/so', [SOController::class, 'storeFromSap']);
+    Route::post('/sap/do', [SOController::class, 'storeFromSap']);
+});
+
+
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
+    Route::post('/sap/spk', [SOController::class, 'storeSpkNew']);
 });

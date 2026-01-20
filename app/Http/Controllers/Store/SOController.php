@@ -17,6 +17,8 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
+
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -383,7 +385,7 @@ class SOController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'SO data processed successfully',
+                'message' => 'DO data processed successfully',
                 'total' => count($request->all())
             ], 200);
 
@@ -393,6 +395,53 @@ class SOController extends Controller
             return response()->json([
                 'message' => 'Failed to process data',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function storeSpkNew(Request $request)
+    {
+        if (!is_array($request->all())) {
+            return response()->json([
+                'message' => 'Invalid payload format'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($request->all() as $row) {
+
+                $validator = Validator::make($row, [
+                    'spk_number' => 'required|string',
+                    'item_code'       => 'required|string',
+                ]);
+
+                if ($validator->fails()) {
+                    throw new \Exception($validator->errors()->first());
+                }
+
+                SpkItemHistory::create([
+                    'spk_number'      => $row['spk_number'],
+                    'item_code'       => $row['item_code'],
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'SPK data inserted successfully',
+                'total'   => count($request->all())
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to insert SPK data'
             ], 500);
         }
     }
