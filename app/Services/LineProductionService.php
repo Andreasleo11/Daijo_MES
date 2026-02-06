@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class LineProductionService extends BaseSapService
 {
   
-   public function getLineProduction($startDate = '2025-03-01')
+   public function getLineProduction($startDate = '2025-12-01')
     {
          $routes = [
             '/api/sap_lineproduction/list',
@@ -58,7 +58,7 @@ class LineProductionService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2025-12-01';
 
         $LineProduction = $this->getLineProduction($startDate); // udah array
         // dd($LineProduction);

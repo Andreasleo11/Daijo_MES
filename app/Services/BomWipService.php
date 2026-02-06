@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class BomWipService extends BaseSapService
 {
   
-   public function getBomWip($startDate = '2025-03-01', $itemGroupCode = '103')
+   public function getBomWip($startDate = '2025-12-01', $itemGroupCode = '103')
     {
         $response = $this->get('/api/sap_bom_wip/list', [
             'startDate' => $startDate,
@@ -27,7 +27,7 @@ class BomWipService extends BaseSapService
    
     }
 
-    public function getSemi($startDate = '2025-03-01', $itemGroupCode = '103')
+    public function getSemi($startDate = '2025-12-01', $itemGroupCode = '103')
     {
         $response = $this->get('/api/sap_bom_wip_semi/list', [
             'startDate' => $startDate,
@@ -46,7 +46,7 @@ class BomWipService extends BaseSapService
    
     }
 
-    public function getSemiSemi($startDate = '2025-03-01', $itemGroupCode = '103')
+    public function getSemiSemi($startDate = '2025-12-01', $itemGroupCode = '103')
     {
         $response = $this->get('/api/sap_bom_wip_semi_semi/list', [
             'startDate' => $startDate,
@@ -91,7 +91,7 @@ class BomWipService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2025-12-01';
 
         $bomWip = $this->getAllCombined($startDate); // udah array
         // dd($bomWip);

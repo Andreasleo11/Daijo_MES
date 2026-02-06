@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class InventoryMtrService extends BaseSapService
 {
   
-   public function getInventoryMtr($startDate = '2025-03-01')
+   public function getInventoryMtr($startDate = '2025-12-01')
     {
          $routes = [
             '/api/sap_inventory_mtr/list',
@@ -72,7 +72,7 @@ class InventoryMtrService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-10-01';
+        $startDate = '2025-12-01';
 
         $inventoryMtr = $this->getInventoryMtr($startDate); // udah array
 

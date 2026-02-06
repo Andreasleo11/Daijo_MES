@@ -10,7 +10,7 @@
         }
 
         body {
-            font-family: monospace;
+            font-family: "Times New Roman", Times, serif;
             margin: 0;
             padding: 0 1mm; /* margin kiri-kanan 1mm */
             display: flex;
@@ -60,7 +60,7 @@
         }
 
         .info div {
-            font-size: 1.3mm;
+            font-size: 1.1mm;
             margin-bottom: 0.2mm;
             white-space: nowrap;
             overflow: hidden;

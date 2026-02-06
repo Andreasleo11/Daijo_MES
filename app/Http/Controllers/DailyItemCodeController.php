@@ -61,7 +61,7 @@ class DailyItemCodeController extends Controller
         $search = $request->get('search', '');
         $limit = $request->get('limit', 100); // Limit hasil pencarian
         
-        $query = sapInventoryFg::select('item_code');
+        $query = MasterListItem::select('item_code');
         
         if ($search) {
             $query->where('item_code', 'LIKE', '%' . $search . '%');

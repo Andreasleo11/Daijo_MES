@@ -80,6 +80,7 @@
                         </h2>
                          <h1>
                             Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
+                             Efficiency Machine : {{ $data['machine_efficiency'] ?? 0 }} %
                         </h1>
 
                         <!-- @if(isset($data['pengawas']))
@@ -180,64 +181,112 @@
                             </div>
 
                            <!-- Button to show details -->
-                            <button id="showDetails" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">View Details</button>
+                            <button id="showDetails"
+                                class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                View Details
+                            </button>
 
-                            <div id="detailModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-                                <div class="bg-white p-6 rounded-lg shadow-lg w-3/4">
-                                    <h2 class="text-lg font-bold mb-4">Mould Change & Adjusting Machine Details</h2>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full border-collapse border border-gray-300">
-                                            <thead class="bg-gray-200">
-                                                <tr>
-                                                    <th class="border px-4 py-2">Machine</th>
-                                                    <th class="border px-4 py-2">Item Code</th>
-                                                    <th class="border px-4 py-2">Start Time</th>
-                                                    <th class="border px-4 py-2">End Time</th>
-                                                    <th class="border px-4 py-2">Predicted Time (min)</th>
-                                                    <th class="border px-4 py-2">Actual Time (min)</th>
-                                                    <th class="border px-4 py-2">PIC</th>
-                                                    <th class="border px-4 py-2">Remark</th>
-                                                    <th class="border px-4 py-2">Status</th>
-                                                    <th class="border px-4 py-2">Type</th>
-                                                    <th class="border px-4 py-2">Foto</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @php
-                                                    $combinedLogs = array_merge($data['mould_change_log'], $data['adjust_machine_logs']);
-                                                    usort($combinedLogs, fn($a, $b) => strcmp($a['item_code'], $b['item_code']));
-                                                @endphp
+                            <!-- Modal -->
+                            <div id="detailModal"
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
 
-                                                @foreach ($combinedLogs as $log)
-                                                    <tr class="{{ isset($log['status']) && $log['status'] == 'problem' ? 'bg-red-200' : 'bg-green-200' }}">
-                                                        <td class="border px-4 py-2">{{ $log['machine_name'] }}</td>
-                                                        <td class="border px-4 py-2">{{ $log['item_code'] }}</td>
-                                                        <td class="border px-4 py-2">
-                                                            {{ \Carbon\Carbon::parse($log['start_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
-                                                        </td>
-                                                        <td class="border px-4 py-2">
-                                                            {{ \Carbon\Carbon::parse($log['end_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
-                                                        </td>
-                                                        <td class="border px-4 py-2">{{ $log['predicted_time'] }} Min</td>
-                                                        <td class="border px-4 py-2">{{ $log['actual_time'] }} Min</td>
-                                                        <td class="border px-4 py-2">{{ $log['pic'] }}</td>
-                                                        <td class="border px-4 py-2">{{ $log['remark'] }}</td>
-                                                        <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status'] ?? 'N/A') }}</td>
-                                                        <td class="border px-4 py-2 font-bold">
-                                                            {{ in_array($log, $data['mould_change_log'], true) ? 'Mould Change' : 'Adjusting Machine' }}
-                                                        </td>
-                                                        <td class="border px-4 py-2 flex items-center gap-2">
-                                                            <img src="{{ asset($log['pic_profile_path']) }}" alt="{{ $log['pic'] }}" class="w-8 h-8 rounded-full object-cover">
-                                                        
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
+                                <!-- Modal Box -->
+                                <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 max-h-[90vh] flex flex-col">
+
+                                    <!-- Header -->
+                                    <div class="p-6 border-b">
+                                        <h2 class="text-lg font-bold">
+                                            Mould Change & Adjusting Machine Details
+                                        </h2>
                                     </div>
-                                    <button id="closeModal" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded">Close</button>
+
+                                    <!-- Scrollable Content -->
+                                    <div class="p-6 overflow-y-auto flex-1">
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full border-collapse border border-gray-300 text-sm">
+                                                <thead class="bg-gray-200 sticky top-0 z-10">
+                                                    <tr>
+                                                        <th class="border px-4 py-2">Machine</th>
+                                                        <th class="border px-4 py-2">Item Code</th>
+                                                        <th class="border px-4 py-2">Start Time</th>
+                                                        <th class="border px-4 py-2">End Time</th>
+                                                        <th class="border px-4 py-2">Predicted Time (min)</th>
+                                                        <th class="border px-4 py-2">Actual Time (min)</th>
+                                                        <th class="border px-4 py-2">PIC</th>
+                                                        <th class="border px-4 py-2">Remark</th>
+                                                        <th class="border px-4 py-2">Status</th>
+                                                        <th class="border px-4 py-2">Type</th>
+                                                        <th class="border px-4 py-2">Foto</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @php
+                                                        $combinedLogs = array_merge(
+                                                            $data['mould_change_log'],
+                                                            $data['adjust_machine_logs']
+                                                        );
+
+                                                        usort($combinedLogs, fn ($a, $b) =>
+                                                            strcmp($a['item_code'], $b['item_code'])
+                                                        );
+                                                    @endphp
+
+                                                    @foreach ($combinedLogs as $log)
+                                                        <tr class="{{ ($log['status'] ?? '') === 'problem'
+                                                            ? 'bg-red-200'
+                                                            : 'bg-green-200' }}">
+                                                            <td class="border px-4 py-2">{{ $log['machine_name'] }}</td>
+                                                            <td class="border px-4 py-2">{{ $log['item_code'] }}</td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ \Carbon\Carbon::parse($log['start_time'])
+                                                                    ->setTimezone('Asia/Jakarta')
+                                                                    ->format('Y-m-d H:i') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ \Carbon\Carbon::parse($log['end_time'])
+                                                                    ->setTimezone('Asia/Jakarta')
+                                                                    ->format('Y-m-d H:i') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ $log['predicted_time'] }} Min
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ $log['actual_time'] }} Min
+                                                            </td>
+                                                            <td class="border px-4 py-2">{{ $log['pic'] }}</td>
+                                                            <td class="border px-4 py-2">{{ $log['remark'] }}</td>
+                                                            <td class="border px-4 py-2 font-bold">
+                                                                {{ ucfirst($log['status'] ?? 'N/A') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2 font-bold">
+                                                                {{ in_array($log, $data['mould_change_log'], true)
+                                                                    ? 'Mould Change'
+                                                                    : 'Adjusting Machine' }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                <img src="{{ asset($log['pic_profile_path']) }}"
+                                                                    alt="{{ $log['pic'] }}"
+                                                                    class="w-8 h-8 rounded-full object-cover">
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div class="p-4 border-t flex justify-end">
+                                        <button id="closeModal"
+                                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                            Close
+                                        </button>
+                                    </div>
+
                                 </div>
                             </div>
+
+
 
                             
 
@@ -722,7 +771,7 @@
 </script>
 
 
-    <script type=module>
+    <!-- <script type=module>
         $(document).ready(function() {
         $('#showDetails').click(function() {
             $('#detailModal').removeClass('hidden'); // Show modal
@@ -731,7 +780,42 @@
         $('#closeModal').click(function() {
             $('#detailModal').addClass('hidden'); // Hide modal
         });
+    }); -->
+
+
+
+    <!-- JS -->
+<script>
+    const showBtn = document.getElementById('showDetails');
+    const modal = document.getElementById('detailModal');
+    const closeBtn = document.getElementById('closeModal');
+
+    showBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden'); // lock background scroll
     });
+
+    closeBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    });
+
+    // Click backdrop to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+    });
+
+    // ESC to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+    });
+</script>
     </script>
 
 <script>

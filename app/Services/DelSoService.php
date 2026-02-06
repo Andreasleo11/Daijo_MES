@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class DelSoService extends BaseSapService
 {
   
-   public function getDelSo($startDate = '2025-03-01')
+   public function getDelSo($startDate = '2025-12-01')
     {
         $response = $this->get('/api/sap_del_so/list', [
             'startDate' => $startDate,
@@ -43,7 +43,7 @@ class DelSoService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2025-12-01';
 
         $delSo = $this->getDelSo($startDate); // udah array
 

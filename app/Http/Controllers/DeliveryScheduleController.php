@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Log;
 use App\Exports\DeliveryScheduleExport;
 use App\Imports\DeliveryScheduleImport;
 
+
+use App\Models\ApiLog;
+
 use App\Models\Delivery\delsched_delfilter;
 use App\Models\Delivery\delsched_delsum;
 use App\Models\Delivery\delsched_final;
@@ -41,9 +44,20 @@ class DeliveryScheduleController extends Controller
 {
     public function index(DeliveryNewTableDataTable $dataTable)
     {
+
+		$latestSyncRejectTime = ApiLog::where('api_name', 'SyncDelivery:RejectService')
+        ->latest('created_at')
+        ->value('created_at'); // ambil 1 kolom aja
+
+		// convert ke WIB (Jakarta)
+		$latestSyncRejectTimeJakarta = $latestSyncRejectTime
+			? Carbon::parse($latestSyncRejectTime)
+				->timezone('Asia/Jakarta')
+			: null;
+			
 		$utiDateList = DB::table('uti_date_list')->find(13);
 		
-        return $dataTable->render("business.dsnewindex", compact('utiDateList'));
+        return $dataTable->render("business.dsnewindex", compact('utiDateList',  'latestSyncRejectTimeJakarta'));
     }
 
     public function indexfinal(WipFinalDsDataTable $dataTable)

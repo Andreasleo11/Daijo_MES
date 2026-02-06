@@ -16,7 +16,9 @@ class Kernel extends ConsoleKernel
         // $schedule->command('sap:dispatch-receipt')->hourly()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
 
         $schedule->command('summary:generate')->hourly();
-        $schedule->command('sync:delivery-data')->dailyAt('06:00');
+        $schedule->command('sync:delivery-data')->dailyAt('08:00')->timezone('Asia/Jakarta');
+        $schedule->command('sync:delivery-data')->dailyAt('13:00')->timezone('Asia/Jakarta');
+        $schedule->command('sync:delivery-data')->dailyAt('16:30')->timezone('Asia/Jakarta');
         // $schedule->command('app:send-daily-waiting-purchase-orders')->dailyAt('01:00'); // Adjust time as needed
         // $schedule->command('report:send-outstanding')
         //     ->dailyAt('09:00')

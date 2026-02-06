@@ -366,6 +366,26 @@ class ProductionDashboardController extends Controller
 
                 $structuredData[$machineName]['average_achievement'] = round($average, 2);
             }
+
+            foreach ($structuredData as $machineName => $machineData) {
+                $remarks = $machineData['hourly_remarks'] ?? [];
+
+                // Average Achievement
+                $average = collect($remarks)
+                    ->pluck('achievement_percentage')
+                    ->avg();
+
+                $structuredData[$machineName]['average_achievement'] = round($average, 2);
+
+                // ===============================
+                // Machine Efficiency
+                // ===============================
+                $totalHoursRunning = count($remarks); // jumlah jam mesin berjalan
+                $efficiency = ($totalHoursRunning / 24) * 100;
+
+                // maksimal 100%
+                $structuredData[$machineName]['machine_efficiency'] = round(min($efficiency, 100), 2);
+            }
         
         }
         

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class DelActualService extends BaseSapService
 {
   
-   public function getDelActual($startDate = '2025-03-01')
+   public function getDelActual($startDate = '2025-12-01')
     {
         $response = $this->get('/api/sap_del_actual/list', [
             'startDate' => $startDate,
@@ -43,7 +43,7 @@ class DelActualService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2025-12-01';
 
         $delActual = $this->getDelActual($startDate); // udah array
 
