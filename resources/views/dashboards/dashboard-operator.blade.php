@@ -1161,11 +1161,10 @@
         document.addEventListener('DOMContentLoaded', function () {
             // Bind Fancybox
             Fancybox.bind('[data-fancybox="gallery"]', {
-                Thumbs: {
-                    autoStart: true,
-                },
+                Thumbs: false,
                 Image: {
                     zoom: true,
+                    fit: "contain",
                 },
                 transitionEffect: "fade",
                 Slideshow: {
@@ -1173,13 +1172,11 @@
                     timeout: 3000, // 3 detik per slide
                 },
             });
-
             const galleryItems = document.querySelectorAll('[data-fancybox="gallery"]');
             if (galleryItems.length === 0) return;
-
             function openRandomGallery() {
                 const randomIndex = Math.floor(Math.random() * galleryItems.length);
-                
+
                 // Buka gallery dengan random index
                 const fancybox = Fancybox.show(
                     Array.from(galleryItems).map(el => ({
@@ -1189,16 +1186,13 @@
                     })),
                     {
                         startIndex: randomIndex,
-                        Thumbs: {
-                            autoStart: true,
-                        },
+                        Thumbs: false,
                         Slideshow: {
                             autoStart: false,
                             timeout: 3000,
                         },
                     }
                 );
-
                 // Tunggu gallery fully loaded, baru jalankan slideshow
                 setTimeout(() => {
                     if (fancybox) {
@@ -1213,14 +1207,12 @@
                             }
                         }
                     }
-                }, 500);
+                }, 5000);
             }
-
             // ⏱️ Auto open setiap 5 menit (300000 ms) dengan slideshow
             setInterval(() => {
                 openRandomGallery();
             }, 300000); // 5 menit
-
             // Optional: Juga buka di awal page load
             // Uncomment jika mau langsung buka saat page load:
             // openRandomGallery();
