@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 
 class FileController extends Controller
 {
+
+    // function untuk upload file ke dalam database 
     public function upload(Request $request)
     {
         $request->validate([
@@ -37,6 +39,7 @@ class FileController extends Controller
         return redirect()->back()->with('success', 'Files uploaded successfully!');
     }
 
+    // function untuk menghapus file dari database 
     public function destroy($id)
     {
         $file = File::find($id);

@@ -43,6 +43,11 @@ use App\Livewire\Maintenance\MaintenanceDashboard as DashboardMaintenance;
 use App\Livewire\Maintenance\MachineDashboard as DashboardMachine;
 use App\Livewire\Maintenance\MouldDashboard as DashboardMould;
 
+use App\Livewire\DeliveryScheduleForm;
+use App\Livewire\DeliveryScheduleCalendar;
+
+
+
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
@@ -65,6 +70,16 @@ use App\Services\RejectService;
 
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
+use App\Livewire\Asakai\AsakaiForm;
+use App\Livewire\Asakai\AsakaiList;
+use App\Livewire\Asakai\AsakaiDetail;
+use App\Livewire\Report\DailyReport;
+use App\Livewire\Report\WeeklyReport;
+use App\Livewire\Report\MonthlyReport;
+use App\Http\Controllers\ReportController;
+use App\Livewire\ProductionDashboard;
+
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -77,6 +92,31 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 */
 
 
+
+    Route::get('/production-dashboard', ProductionDashboard::class)
+        ->name('production-dashboard');
+    
+
+   Route::prefix('asakai')->name('asakai.')->group(function () {
+        Route::get('/', AsakaiList::class)->name('index');
+        Route::get('/create', AsakaiForm::class)->name('create');
+        Route::get('/{id}/edit', AsakaiForm::class)->name('edit');
+        Route::get('/{id}', AsakaiDetail::class)->name('detail');
+    });
+
+    // ============================================
+    // REPORT ROUTES (NO AUTH)
+    // ============================================
+    Route::prefix('report')->name('report.')->group(function () {
+        Route::get('/daily', DailyReport::class)->name('daily');
+        Route::get('/daily/export', [ReportController::class, 'exportDaily'])->name('daily.export');
+        
+        Route::get('/weekly', WeeklyReport::class)->name('weekly');
+        Route::get('/weekly/export', [ReportController::class, 'exportWeekly'])->name('weekly.export');
+        
+        Route::get('/monthly', MonthlyReport::class)->name('monthly');
+        Route::get('/monthly/export', [ReportController::class, 'exportMonthly'])->name('monthly.export');
+    });
 
 
     //Route untuk delivery verification controller
@@ -481,7 +521,11 @@ Route::middleware('auth')->group(function (){
     //Route untuk Delivery Schedule
 
 
-        
+    // route untuk add delivery schedule baru 
+    Route::get('/delivery-schedule-create', DeliveryScheduleForm::class)->name('delivery-schedule.form');
+    Route::get('/delivery-schedule/calendar', DeliveryScheduleCalendar::class)->name('delivery-schedule.calendar');
+
+    // route untuk show delivery schedule dalam table bisa export dan insert 
     Route::get('new-delivery-schedule', [DeliveryScheduleController::class, 'deliveryScheduleNewIndex'])->name('testnewdelivery');
     // Route::get('/login', LivewireLoginSwitcher::class)->name('login');
 

@@ -19,6 +19,12 @@ use App\Models\ZonePengawas;
 use App\Models\RepairMachineLog;
 use App\Models\HourlyRemark;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ProductionDashboardService;
+
+
+use App\Services\QualityDataService;
+
 
 class ProductionDashboardController extends Controller
 {
@@ -480,4 +486,6 @@ class ProductionDashboardController extends Controller
 
         return back()->with('success', 'Hourly remark berhasil dihapus.');
     }
+
+
 }

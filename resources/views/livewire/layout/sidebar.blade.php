@@ -53,7 +53,10 @@ new class extends Component {
 
         <!-- Navigation Links -->
         <div class="space-y-2 mt-4">
-            @if (!auth()->user()->can('view-store-links'))
+           @if (
+                    !auth()->user()->can('view-store-links') &&
+                    !auth()->user()->can('view-business-links')
+                )
                 <livewire:sidebar-link
                     href="{{ route('dashboard') }}"
                     label="Dashboard"
@@ -107,6 +110,31 @@ new class extends Component {
                     wire:navigate
                 />
             @endif
+
+            @if (auth()->user()->can('view-business-links'))
+                <livewire:sidebar-link
+                    href="{{ route('delivery-schedule.form') }}"
+                    label="Delivery Schedule Input (BARU)"
+                    :active="request()->routeIs('delivery-schedule.form')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('delivery-schedule.calendar') }}"
+                    label="Kalender Delivery Schedule"
+                    :active="request()->routeIs('delivery-schedule.calendar')"
+                    wire:navigate
+                />
+
+
+                <livewire:sidebar-link
+                    href="{{ route('indexds') }}"
+                    label="Delivery Schedule Data"
+                    :active="request()->routeIs('indexds')"
+                    wire:navigate
+                />
+            @endif
+
 
             <!-- Admin Links -->
             @if (auth()->user()->can('view-admin-links'))

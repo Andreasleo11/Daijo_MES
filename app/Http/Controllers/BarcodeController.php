@@ -19,10 +19,12 @@ use Illuminate\Support\Facades\Log;
 
 class BarcodeController extends Controller
 {
+    //index barcode store untuk scan box datang dan box keluar 
     public function index()
     {
         return view('barcodeinandout.index');
     }
+
 
     public function indexBarcode()
     {
@@ -33,6 +35,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.indexbarcode', compact('datas'));
     }
 
+    // unused | index untuk create barcode yang missing (notstable)
     public function missingbarcodeindex()
     {
         $datas = MasterDataRogPartName::get();
@@ -40,6 +43,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.missingbarcodeindex', compact('datas'));
     }
 
+    // unused | function untuk create barcode yang missing (notstable)
     public function missingbarcodegenerator(Request $request)
     {
         $partNo = $request->input('partNo');
@@ -93,6 +97,7 @@ class BarcodeController extends Controller
 
     }
 
+    // unused |function untuk generate barcode store in and out di box 
     public function generateBarcode(Request $request)
     {
         // dd($request->all());
@@ -167,6 +172,7 @@ class BarcodeController extends Controller
             'startnum' => $startnum, ]);
     }
 
+    //index page untuk scan box datang dan box keluar dengan memilih spesifikasi masuk atau keluar dan customer 
     public function inandoutpage()
     {
         $masters = BarcodePackagingMaster::with('detailBarcode')->get();
@@ -184,6 +190,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.inandoutpage' , compact('customers'));
     }
 
+    //function untuk process in and out box store -> generate view untuk scan barocodenya  
     public function processInAndOut(Request $request)
     {
         // dd($request->all());
@@ -267,6 +274,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.scanpage', compact('noDokumen', 'tanggalScanFull', 'position', 'HeaderScan', 'customer'));
     }
 
+    // function untuk memproses data dari processInAndOut masuk ke dalam database 
     public function storeInAndOut(Request $request)
     {
         $data = $request->all();
@@ -337,6 +345,7 @@ class BarcodeController extends Controller
         return redirect()->route('inandout.index')->with('success', $successMessage);
     }
 
+    // view summary barcode store in and out 
     public function barcodelist()
     {
         $items = BarcodePackagingMaster::with('detailbarcode')
@@ -386,6 +395,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.listfinishbarcode', compact('result'));
     }
 
+    // function untuk filter view summary barcode store in and out 
     public function filter(Request $request)
     {
         $query = BarcodePackagingMaster::with('detailbarcode');
@@ -442,7 +452,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.partials.barcode_table', compact('result'));
     }
 
-
+    // view summary barcode store in and out(2)
     public function latestitemdetails(Request $request)
     {
         // Fetch distinct part numbers for the dropdown
@@ -506,6 +516,7 @@ class BarcodeController extends Controller
 
     }
 
+    // view summary barcode store in and out (3)
     public function historybarcodelist(Request $request)
     {
         $query = BarcodePackagingMaster::with(['detailbarcode' => function ($query) use ($request) {
@@ -534,6 +545,7 @@ class BarcodeController extends Controller
         return view('barcodeinandout.historylisttable', compact('items', 'distinctPartNos'));
     }
 
+    // view stock all barcode store in and out (4)
     public function stockall($location = 'Jakarta')
     {
         // Define position mappings based on location
@@ -589,13 +601,14 @@ class BarcodeController extends Controller
         return view('barcodeinandout.stockallbarcode', compact('balances', 'location'));
     }
 
-
+    // function untuk add customer barcode store in and out 
     public function addCustomer()
     {
         $customers = Customer::latest()->get();
         return view('barcodeinandout.customeradd', compact('customers'));
     }
 
+    // function untuk store customer barcode store in and out 
     public function storeCustomer(Request $request)
     {
         $request->validate([
@@ -609,6 +622,7 @@ class BarcodeController extends Controller
         return redirect()->back()->with('success', 'Customer berhasil ditambahkan!');
     }
 
+    // function untuk destroy customer barcode store in and out 
     public function destroyCustomer($id)
     {
         $customer = Customer::findOrFail($id);
@@ -617,6 +631,7 @@ class BarcodeController extends Controller
         return redirect()->back()->with('success', 'Customer berhasil dihapus!');
     }
 
+    // function untuk summary dashboard barcode store in and out 
     public function summaryDashboard()
     {
         $partNumbers = BarcodePackagingDetail::select('partNo')->distinct()->pluck('partNo');
@@ -682,13 +697,17 @@ class BarcodeController extends Controller
     }
 
 
+
+    // section barcode plastic injection 
+
+    // view untuk pilih part dan no label barcode alc (plastic mba intan) untuk customer yanfeng 
     public function alcindex()
     {
         $items = AlcPeMasterData::orderBy('part_code')->get();
         return view('barcode.alcindex', compact('items'));
     }
 
-
+    // function untuk generate label yangeng 40x15 (plastic mba intan) untuk customer yanfeng 
     public function generateLabelYangeng40x15(Request $request)
     {
         $RS  = chr(30); // ␝
@@ -781,6 +800,7 @@ class BarcodeController extends Controller
         return view('labelyanfeng40x15', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
     }
 
+    // function untuk generate label yangeng 50x20 (plastic mba intan) untuk customer yanfeng 
     public function generateLabelYangeng50x20(Request $request)
     {
         $RS  = chr(30); // ␝
@@ -873,6 +893,7 @@ class BarcodeController extends Controller
         return view('labelyanfeng50x20', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
     }
 
+    // function untuk generate label yangeng 25x10 (plastic mba intan) untuk customer yanfeng 
     public function generateLabelYangeng25x10(Request $request)
     {
         $RS  = chr(30); // ␝
@@ -966,6 +987,7 @@ class BarcodeController extends Controller
         return view('labelyanfeng25x10', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
     }
 
+    // function untuk generate label yangeng 50x35 (plastic mba intan) untuk customer yanfeng 
     public function generateLabelYangeng50x35(Request $request)
     {
         $RS  = chr(30); // ␝
@@ -1058,96 +1080,97 @@ class BarcodeController extends Controller
         return view('labelyanfeng50x35', compact('image', 'engineeringOrderNumber', 'sequenceCode', 'supplierCode', 'partNumber', 'trackingCode','identifier', 'labels'));
     }
 
+    // Testing | Semi Used |function untuk generate all label yangeng (plastic mba intan) untuk customer yanfeng 
     public function generateAllLabelYangeng(Request $request)
-{
-    $RS  = chr(30); // ␝
-    $GS  = chr(29); // ␟
-    $EOT = chr(4);  // ␄
+    {
+        $RS  = chr(30); // ␝
+        $GS  = chr(29); // ␟
+        $EOT = chr(4);  // ␄
 
-    // ✅ Ambil semua part
-    // $parts = AlcPeMasterData::all();
+        // ✅ Ambil semua part
+        // $parts = AlcPeMasterData::all();
 
-    // $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')->get();
+        // $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')->get();
 
-    // $parts = AlcPeMasterData::where('ukuran_label', '25 x 10')->get();
+        // $parts = AlcPeMasterData::where('ukuran_label', '25 x 10')->get();
 
-    $partCodes = [
-        '83930-I6000NNB',
-        '83930-I6000PPX',
-        '83940-I6000NNB',
-        '83940-I6000PPX',
-    ];
+        $partCodes = [
+            '83930-I6000NNB',
+            '83930-I6000PPX',
+            '83940-I6000NNB',
+            '83940-I6000PPX',
+        ];
 
-    $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')
-                ->whereIn('part_code', $partCodes)
-                ->get();
- 
+        $parts = AlcPeMasterData::where('ukuran_label', '!=', '25 x 10')
+                    ->whereIn('part_code', $partCodes)
+                    ->get();
+    
 
-    if ($parts->isEmpty()) {
-        return back()->with('error', 'Tidak ada data part di database!');
-    }
-
-    $labels = [];
-
-    // Base config
-    $identifier1 = 'PEA';
-    if ($request->filled('production_date')) {
-            // production_date format: YYYY-MM-DD
-            $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
-                        ->format('ymd'); // jadi yymmdd
-        } else {
-            $date1 = date('ymd'); // default: tanggal hari ini
-        } // Format tanggal saat ini ddmmyy
-    $supplierCode = 'HAWX';
-    $specificInfo = '12345';
-    $initialProductClassification = 'N';
-    $businessUnit = 'ABC';
-    $date = $date1;
-
-    // ✅ Loop semua part
-    foreach ($parts as $part) {
-        $truepartNumber = str_replace('-', '', $part->part_code);
-        $sequenceCode = $part->alc_code;
-        $projectCode = $part->project_code;
-        $partNumber = $part->part_code;
-        $trackingCode = $date . 'Y111@QAD:' . $part->qad;
-
-        // 🔹 Buat 6 label untuk tiap part
-        for ($i = 1; $i <= 4; $i++) {
-            // Format urutan label 0001, 0002, dst
-            $sequenceFormatted = str_pad($i, 4, '0', STR_PAD_LEFT);
-            $identifier = $identifier1 . $date1 . $sequenceFormatted;
-
-            // Format GS1 DataMatrix
-            $dataMatrixString = "[)>"
-                . $RS . "06"
-                . $GS . "V" . $supplierCode
-                . $GS . "P" . $truepartNumber
-                . $GS . "S" . $sequenceCode
-                . $GS . "T" . $trackingCode
-                . $GS . "1A" . $specificInfo
-                . $GS . "M" . $initialProductClassification
-                . $GS . "C" . $businessUnit
-                . $GS . $RS . $EOT;
-
-            // Generate DataMatrix
-            $barcode = new DNS2D();
-            $image = $barcode->getBarcodePNG($dataMatrixString, 'DATAMATRIX');
-
-            $labels[] = [
-                'identifier' => $identifier,
-                'supplierCode' => $supplierCode,
-                'sequenceCode' => $sequenceCode,
-                'partNumber' => $partNumber,
-                'projectCode' => $projectCode,
-                'image' => $image,
-                'part_id' => $part->id,
-                'label_no' => $i, // Tambahan: urutan label 1–6
-            ];
+        if ($parts->isEmpty()) {
+            return back()->with('error', 'Tidak ada data part di database!');
         }
-    }
 
-    return view('alllabelyanfeng', compact('labels'));
-}
+        $labels = [];
+
+        // Base config
+        $identifier1 = 'PEA';
+        if ($request->filled('production_date')) {
+                // production_date format: YYYY-MM-DD
+                $date1 = \Carbon\Carbon::createFromFormat('Y-m-d', $request->production_date)
+                            ->format('ymd'); // jadi yymmdd
+            } else {
+                $date1 = date('ymd'); // default: tanggal hari ini
+            } // Format tanggal saat ini ddmmyy
+        $supplierCode = 'HAWX';
+        $specificInfo = '12345';
+        $initialProductClassification = 'N';
+        $businessUnit = 'ABC';
+        $date = $date1;
+
+        // ✅ Loop semua part
+        foreach ($parts as $part) {
+            $truepartNumber = str_replace('-', '', $part->part_code);
+            $sequenceCode = $part->alc_code;
+            $projectCode = $part->project_code;
+            $partNumber = $part->part_code;
+            $trackingCode = $date . 'Y111@QAD:' . $part->qad;
+
+            // 🔹 Buat 6 label untuk tiap part
+            for ($i = 1; $i <= 4; $i++) {
+                // Format urutan label 0001, 0002, dst
+                $sequenceFormatted = str_pad($i, 4, '0', STR_PAD_LEFT);
+                $identifier = $identifier1 . $date1 . $sequenceFormatted;
+
+                // Format GS1 DataMatrix
+                $dataMatrixString = "[)>"
+                    . $RS . "06"
+                    . $GS . "V" . $supplierCode
+                    . $GS . "P" . $truepartNumber
+                    . $GS . "S" . $sequenceCode
+                    . $GS . "T" . $trackingCode
+                    . $GS . "1A" . $specificInfo
+                    . $GS . "M" . $initialProductClassification
+                    . $GS . "C" . $businessUnit
+                    . $GS . $RS . $EOT;
+
+                // Generate DataMatrix
+                $barcode = new DNS2D();
+                $image = $barcode->getBarcodePNG($dataMatrixString, 'DATAMATRIX');
+
+                $labels[] = [
+                    'identifier' => $identifier,
+                    'supplierCode' => $supplierCode,
+                    'sequenceCode' => $sequenceCode,
+                    'partNumber' => $partNumber,
+                    'projectCode' => $projectCode,
+                    'image' => $image,
+                    'part_id' => $part->id,
+                    'label_no' => $i, // Tambahan: urutan label 1–6
+                ];
+            }
+        }
+
+        return view('alllabelyanfeng', compact('labels'));
+    }
 
 }

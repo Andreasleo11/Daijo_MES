@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Store\SOController;
 
+use App\Http\Controllers\ProductionDashboardController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -28,3 +30,4 @@ Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
 Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
     Route::post('/sap/spk', [SOController::class, 'storeSpkNew']);
 });
+

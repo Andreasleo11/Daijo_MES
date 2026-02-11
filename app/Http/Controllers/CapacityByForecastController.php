@@ -26,6 +26,8 @@ use App\DataTables\CapLineSummaryDataTable;
 use App\DataTables\CapLineDistributionDataTable;
 
 
+// HOLD | Unused | controller untuk pps capacity by forecast
+
 class CapacityByForecastController extends Controller
 {
     public function index(CapLineSummaryDataTable $dataTable)
@@ -63,7 +65,7 @@ class CapacityByForecastController extends Controller
         return $dataTable->render("production.capacity_forecast.distribution");
     }
 
-    public function detail(CapItemDataTable $dataTable)
+    public function detail(CapItemDataTable $dataTable)	
     {
         return $dataTable->render("production.capacity_forecast.detail");
     }

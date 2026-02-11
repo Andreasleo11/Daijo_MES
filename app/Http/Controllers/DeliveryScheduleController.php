@@ -19,6 +19,7 @@ use App\Imports\DeliveryScheduleImport;
 
 use App\Models\ApiLog;
 
+
 use App\Models\Delivery\delsched_delfilter;
 use App\Models\Delivery\delsched_delsum;
 use App\Models\Delivery\delsched_final;
@@ -31,6 +32,10 @@ use App\Models\Delivery\SapInventoryMtr;
 use App\Models\Delivery\SapInventoryFg;
 use App\Models\Delivery\SapReject;
 use App\Models\Delivery\DeliveryScheduleNew;
+use App\Models\MasterListItem;
+
+
+use App\Models\MasterDeliverySchedule;
 
 use App\Models\Delivery\DelschedFinal;
 use App\Models\Delivery\DelschedFinalWip;
@@ -60,29 +65,17 @@ class DeliveryScheduleController extends Controller
         return $dataTable->render("business.dsnewindex", compact('utiDateList',  'latestSyncRejectTimeJakarta'));
     }
 
-    public function indexfinal(WipFinalDsDataTable $dataTable)
+    public function indexfinal()
     {
-        // $datas = DelschedFinalWip::paginate(10);
-
-        // foreach($datas as $data)
-        // {
-        //     dd($data);
-        // }
-		$utiDateList = DB::table('uti_date_list')->find(13);
-        return $dataTable->render("business.dsnewindexwip", compact('utiDateList'));
+        $utiDateList = DB::table('uti_date_list')->find(13);
+        
+        return view('business.dsnewindexwip', compact('utiDateList'));
     }
 
 
-	public function indexraw(SapDelschedDataTable $dataTable)
+	public function indexraw()
     {
-        // $datas = DelschedFinalWip::paginate(10);
-
-        // foreach($datas as $data)
-        // {
-        //     dd($data);
-        // }
-
-        return $dataTable->render("business.rawdelsched");
+        return view('business.rawdelsched');
     }
 
 
@@ -173,14 +166,26 @@ class DeliveryScheduleController extends Controller
 		DB::table('delsched_finalwip')->truncate();
 		DB::table('delsched_stockwip')->truncate();
 
-        $tab_sap_delsched = DB::table('sap_delsched')->orderBy('delivery_date','asc')->orderBy('item_code','asc')->get();
+		// old delsched
+        // $tab_sap_delsched = DB::table('sap_delsched')->orderBy('delivery_date','asc')->orderBy('item_code','asc')->get();
+
+		//new master delsched
+		$tab_sap_delsched = DB::table('master_delivery_schedule')->orderBy('tanggal','asc')->orderBy('item_code','asc')->get();
+
 
         foreach($tab_sap_delsched as $sap_delsched){
 
+
+			// $val_item_code_i = $sap_delsched->item_code;
+			// $val_delivery_date_i = $sap_delsched->delivery_date;
+			// $val_delivery_qty_i = $sap_delsched->delivery_qty;
+			// $val_so_number_i = $sap_delsched->so_number;
+
+			//pakai master delivery schedule
 			$val_item_code_i = $sap_delsched->item_code;
-			$val_delivery_date_i = $sap_delsched->delivery_date;
-			$val_delivery_qty_i = $sap_delsched->delivery_qty;
-			$val_so_number_i = $sap_delsched->so_number;
+			$val_delivery_date_i = $sap_delsched->tanggal;
+			$val_delivery_qty_i = $sap_delsched->quantity;
+			$val_so_number_i = $sap_delsched->so_num;
 
 			$tab_sap_inventoryfg = DB::table('sap_inventory_fg')->where('item_code',$val_item_code_i)->first();
 			if (is_null($tab_sap_inventoryfg)) {
@@ -202,13 +207,18 @@ class DeliveryScheduleController extends Controller
 				$val_departement = 362;
 			}
 
-			$tab_sap_customer = DB::table('sap_fg_customers')->where('item_code',$val_item_code_i)->first();
+			//old code 
+			// $tab_sap_customer = DB::table('sap_inventory_fg')->where('item_code',$val_item_code_i)->first();
+			
+			$tab_sap_customer = MasterListItem::with('customer')
+			->where('item_code', $val_item_code_i)
+			->first();
 			if(empty($tab_sap_customer->item_code)){
 				$val_customer_code = '';
 				$val_customer_name = '';
 			} else {
 				$val_customer_code = $tab_sap_customer->customer_code;
-				$val_customer_name = $tab_sap_customer->customer_name;
+				$val_customer_name = $tab_sap_customer->customer?->customer_name;
 			}
 
 			$ins_final = array('delivery_date' => $val_delivery_date_i,
@@ -222,6 +232,7 @@ class DeliveryScheduleController extends Controller
 			'customer_code' => $val_customer_code,
 			'customer_name' => $val_customer_name,
 			'departement' => $val_departement);
+
 			DelschedFinal::insert($ins_final);
 		}
 
@@ -446,7 +457,7 @@ class DeliveryScheduleController extends Controller
 
 					if($val_delivery_date <= $date_now_plus){
 						$rcd_status = 'danger';
-						$rcd_remark = '';
+						$rcd_remark = 'Need Attention - No Stock';
 					} else {
 						$rcd_status = 'light';	
 						$rcd_remark = 'far - no stock';				
@@ -461,7 +472,7 @@ class DeliveryScheduleController extends Controller
 
 						if($val_delivery_date <= $date_now_plus){
 							$rcd_status = 'warning';
-							$rcd_remark = '';
+							$rcd_remark = 'Need Attention - Stock Available';
 						} else {
 							$rcd_status = 'light';
 							$rcd_remark = 'far - stock available';
@@ -690,9 +701,6 @@ class DeliveryScheduleController extends Controller
 
 		return redirect()->route('indexfinalwip');
     }
-
-
-
 
 
 	public function statusFinish()
@@ -990,5 +998,91 @@ class DeliveryScheduleController extends Controller
 
 		return redirect()->back()->with('success', 'Delivery schedule imported successfully.');
 	}
+
+
+	public function storeNewDelivery(Request $request)
+    {
+        // Validasi input
+        $validator = Validator::make($request->all(), [
+            'customer_code' => 'required|string|max:255',
+            'item_code' => 'required|string|max:255',
+            'month' => 'required|integer|between:1,12',
+            'year' => 'required|integer|min:2020',
+            'so_num' => 'nullable|string|max:255',
+            'schedules' => 'required|array',
+            'schedules.*.date' => 'required|integer|between:1,31',
+            'schedules.*.quantity' => 'required|integer|min:0',
+        ], [
+            'customer_code.required' => 'Customer code wajib diisi',
+            'item_code.required' => 'Item code wajib diisi',
+            'month.required' => 'Bulan wajib dipilih',
+            'year.required' => 'Tahun wajib diisi',
+            'schedules.required' => 'Schedule wajib diisi',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            $inserted = 0;
+            
+            foreach ($request->schedules as $schedule) {
+                // Skip jika quantity 0 atau kosong
+                if (!isset($schedule['quantity']) || $schedule['quantity'] <= 0) {
+                    continue;
+                }
+
+                // Buat tanggal lengkap
+                $tanggal = Carbon::createFromDate(
+                    $request->year,
+                    $request->month,
+                    $schedule['date']
+                )->format('Y-m-d');
+
+                // Insert ke database
+                MasterDeliverySchedule::create([
+                    'customer_code' => $request->customer_code,
+                    'item_code' => $request->item_code,
+                    'tanggal' => $tanggal,
+                    'quantity' => $schedule['quantity'],
+                    'so_num' => $request->so_num ?? null,
+                ]);
+
+                $inserted++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil menyimpan {$inserted} schedule delivery",
+                'data' => [
+                    'total_inserted' => $inserted,
+                    'customer_code' => $request->customer_code,
+                    'item_code' => $request->item_code,
+                    'period' => Carbon::createFromDate($request->year, $request->month, 1)->format('F Y')
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
 }
 

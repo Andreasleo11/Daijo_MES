@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\MasterItemPhoto;
 use App\Models\ProductionScannedData;
 
+// HOLD // should be fitur store untuk check item / scan item lalu muncul detail tentang barang tresebut 
 class DeliveryVerificationController extends Controller
 {
     // Tampilkan halaman form scan

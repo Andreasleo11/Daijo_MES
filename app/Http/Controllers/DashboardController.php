@@ -45,6 +45,8 @@ use Endroid\QrCode\Writer\ValidationException;
 
 class DashboardController extends Controller
 {
+
+    // index untuk 3 role , operator , workshop , dan gudang moulding 
     public function index()
     {
         $user = auth()->user();
@@ -97,15 +99,6 @@ class DashboardController extends Controller
 
             $machineJobShift = MachineJob::where('user_id', auth()->user()->id)->first()->shift;
             $machineJobShift = $machineJob->shift ?? 1;
-
-            // dd($machineJobShift);
-
-            // $zone = $user->zone;
-            // $pengawasName = $zone?->pengawas;
-            // $pengawasUser = $zone?->pengawasUser;
-            // $pengawasProfile = $pengawasUser?->profile_picture;
-
-            // $machineJobShift = $machineJob->shift ?? 1;
 
             $zone = $user->zone;
 
@@ -214,96 +207,10 @@ class DashboardController extends Controller
 
                 // Simpan file
                 $fileData = File::where('item_code', $itemCodeAll)->get();
-
-                // $fallbackItemCode = $machinejobid->item_code ?? null;
-         
-                // $fileData = File::where('item_code', $fallbackItemCode)->get();
                 
         
-
                 $files[$mainItemCode] = $fileData->isEmpty() ? collect() : $fileData;
-
-                
-                
-                // dd($files[$mainItemCode]);
-                \Illuminate\Support\Facades\Log::info("files" . $fileData);
-                \Illuminate\Support\Facades\Log::info("files" . $files[$mainItemCode]);
-                // dd($fileData); ini aku dd muncul mon coba di viewnyua deh , kauanya kalol pair ke
-                // Jika ada pair, ambil juga file-nya
-                // if ($pairCode) {
-                //     $fileDataPair = File::where('item_code', $pairCode)->get(); // ini
-                //     dd($fileDataPair);
-                //     $files[$mainItemCode] = $fileDataPair->isEmpty() ? collect() : $fileDataPair;
-                // }
             }
-
-            // Fungsi bantu untuk alokasi SPK berdasarkan item_code
-            // function allocateSPKsForItem($itemCode, $totalQty, &$itemCollections, $mainItemCode)
-            // {
-                
-            //     $datas = SpkMaster::where('item_code', $itemCode)
-            //        // atau 'created_at', tergantung nama kolomnya
-            //         ->get();
-            
-            //     $masterItem = MasterListItem::where('item_code', $itemCode)->first();
-            //     $perpack = $masterItem->standart_packaging_list ?? 1;
-
-            //     $labelstart = 0;
-
-            //     foreach ($datas as $spk) {
-            //         $available_quantity = $spk->planned_quantity - $spk->completed_quantity;
-
-            //         if ($totalQty <= 0) break;
-
-            //         if ($totalQty <= $available_quantity) {
-            //             $available_quantity = $totalQty;
-            //         }
-
-            //         $labelstart = ($spk->completed_quantity === 0) ? 0 : ceil($spk->completed_quantity / $perpack);
-
-            //         while ($available_quantity > 0) {
-            //             $labelstart++;
-            //             $pack_quantity = min($perpack, $available_quantity);
-            //             $key = $spk->spk_number . '|' . $spk->item_code;
-
-            //             if (!isset($itemCollections[$mainItemCode][$key])) {
-            //                 $itemCollections[$mainItemCode][$key] = [
-            //                     'spk' => $spk->spk_number,
-            //                     'item_code' => $spk->item_code,
-            //                     'item_perpack' => $perpack,
-            //                     'available_quantity' => 0,
-            //                     'count' => 0,
-            //                     'start_label' => $labelstart,
-            //                     'end_label' => $labelstart,
-            //                     'scannedData' => 0,
-            //                 ];
-            //             }
-
-            //             $itemCollections[$mainItemCode][$key]['count']++;
-            //             $itemCollections[$mainItemCode][$key]['end_label'] = $labelstart;
-            //             $itemCollections[$mainItemCode][$key]['available_quantity'] += $pack_quantity;
-
-            //             $available_quantity -= $pack_quantity;
-            //             $totalQty -= $pack_quantity;
-            //         }
-            //     }
-            // }
-
-            // // Alokasikan SPK untuk semua item_code, pakai key utama (gabungan)
-            // foreach ($datas as $data) {
-            //     $itemCodeAll = $data->item_code;
-            //     $pairCode = $data->masterItem->pair ?? null;
-
-            //     $mainItemCode = getMainItemCode($itemCodeAll, $pairCode);
-
-            //     // SPK untuk item utama
-            //     allocateSPKsForItem($itemCodeAll, $data->quantity, $itemCollections, $mainItemCode);
-
-            //     // SPK untuk pair-nya jika ada (juga masuk ke key utama!)
-            //     if ($pairCode) {
-            //         allocateSPKsForItem($pairCode, $data->quantity, $itemCollections, $mainItemCode);
-            //     }
-            // }
 
             // Ambil data scanned dan total quantity per SPK
             foreach ($itemCollections as $mainItemCode => &$spkList) {
@@ -409,9 +316,6 @@ class DashboardController extends Controller
        
             $spkData = ProductionScannedData::where('dic_id', $activeID)
                 ->get();
-            // dd($spkData);
-            // dd($hourlyRemarks);
-            // dd($activeDIC);
             
 
              $todayitems = DailyItemCode::where('user_id', $user->id)
@@ -431,7 +335,7 @@ class DashboardController extends Controller
         }
     }
 
-
+    // function untuk add NG (operator)
     public function addNg(Request $request, $id)
     {
         $request->validate([
@@ -458,7 +362,7 @@ class DashboardController extends Controller
         return back()->with('success', 'NG added successfully!');
     }
 
-  // Controller yang diperbaiki
+    // function untuk show ng detail (operator)
     public function showNgDetail($id)
     {
         try {
@@ -469,6 +373,7 @@ class DashboardController extends Controller
         }
     }
 
+    // function untuk update ng detail (operator)
     public function updateNgDetail(Request $request, $id)
     {
         try {
@@ -498,6 +403,7 @@ class DashboardController extends Controller
         }
     }
 
+    // function untuk delete ng detail (operator)
     public function destroyNgDetail($id)
     {
         try {
@@ -523,6 +429,7 @@ class DashboardController extends Controller
         }
     }
 
+    // function untuk update remark (operator)
     public function updateRemark(Request $request, $id)
     {
         $request->validate([
@@ -536,17 +443,7 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
 
-
-    // public function updateData()
-    // {
-    //     $parents = PRD_BillOfMaterialParent::all();
-    //     $childs = PRD_BillOfMaterialChild::all();
-    //     $materialLogs = PRD_MaterialLog::all();
-    //     $mouldingUserLogs = PRD_MouldingUserLog::all();
-
-    //     event(new ParentDataUpdated($parents, $childs, $materialLogs, $mouldingUserLogs));
-    // }
-
+    // function untuk update employee name di table machine job (operator)
     public function updateEmployeeName(Request $request)
     {
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
@@ -559,6 +456,7 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'Employee name updated successfully.');
     }
 
+    // function untuk update item code di table machine job (operator)
     public function updateMachineJob(Request $request)
     {
         // Validate the input
@@ -644,6 +542,7 @@ class DashboardController extends Controller
         }
     }
 
+    // UNUSED | function untuk generate barcode berdasarkan spk dan item code yang ada (UNSTABLE)
     public function itemCodeBarcode($item_code, $quantity)
     {
         try {
@@ -831,7 +730,7 @@ class DashboardController extends Controller
         }
     }
 
-
+    // function untuk proses barcode produk per box (operator)
     public function procesProductionBarcodes(Request $request)
     {
         $datas = json_decode($request->input('datas'), true);
@@ -971,6 +870,7 @@ class DashboardController extends Controller
         return redirect()->route('dashboard')->with('deactivateScanMode', false);
     }
 
+    // function untuk submit spk jika shift sudah selesai (operator)
     public function submitSPK(Request $request)
     {
         $all = $request->all(); // atau dd($request->all());
@@ -1009,6 +909,7 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'SPK quantities updated successfully.');
     }
 
+    // function untuk reset jobs manual (operator)
     public function resetJobs(Request $request)
     {
         
@@ -1116,6 +1017,8 @@ class DashboardController extends Controller
         return redirect()->back()->with('success', 'Jobs have been reset successfully.');
     }
 
+
+    
     public function dashboardPlastic()
     {
         $datas = DailyItemCode::with('machinerelation', 'user', 'scannedData')->get();
@@ -1302,7 +1205,7 @@ class DashboardController extends Controller
            'profile_path' => $operatorUser->profile_picture 
             ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
             : asset('images/default_profile.jpg'),  // Default profile image
-    ],]);
+        ],]);
     }
 
     public function endMouldChange(Request $request)
@@ -1416,6 +1319,7 @@ class DashboardController extends Controller
         return response()->json(['error' => 'No active repair process found'], 400);
     }
 
+    //verify untuk login operator 
     public function verifyNIKPassword(Request $request)
     {
         $nik = $request->input('nik');
@@ -1441,6 +1345,7 @@ class DashboardController extends Controller
         return response()->json(['success' => false, 'message' => 'Invalid NIK or Password'], 400);
     }
 
+    ////verify untuk adjuster, dan change moulder saat scan id card 
     public function verifyNik(Request $request)
     {
         $request->validate([
@@ -1464,6 +1369,7 @@ class DashboardController extends Controller
         ]);
     }
 
+    //function untuk auto-login semua user dengan link/auto-login/{user}
     public function autoLogin($user, Request $request)
     {
         // Find the user in the database
@@ -1480,6 +1386,7 @@ class DashboardController extends Controller
         return redirect()->route('dashboard');
     }
 
+    //route untuk delete scan data operator
     public function deleteScanData($id)
     {
         $scan = ProductionScannedData::find($id);
@@ -1524,6 +1431,7 @@ class DashboardController extends Controller
         }
     }
 
+
     public function showROPData()
     {
         $today = Carbon::today(); // ambil tanggal hari ini tanpa jam
@@ -1535,6 +1443,7 @@ class DashboardController extends Controller
         return response()->json($data);
     }
 
+    //function untuk update cycletime per shift ( per item code)
     public function updateCycleTime(Request $request, $id)
     {
         $request->validate([
@@ -1548,6 +1457,7 @@ class DashboardController extends Controller
         return back()->with('success', 'Temporal cycle time updated successfully.');
     }
 
+    // function untuk update actual produksi yang didapat operator perjam 
     public function updateActualProduction(Request $request, $id)
     {
         $request->validate([
@@ -1561,6 +1471,7 @@ class DashboardController extends Controller
         return back()->with('success', 'Actual Production updated successfully.');
     }
 
+    // function untuk update ng produksi yang didapat operator perjam 
     public function updateNgProduction(Request $request, $id)
     {
         // dd($request->all());
@@ -1575,6 +1486,7 @@ class DashboardController extends Controller
         return back()->with('success', 'NG updated successfully.');
     }
 
+    // function untuk update remark dic perjam
     public function updateRemarkDIC(Request $request, $id)
     {
         $validated = $request->validate([
@@ -1588,6 +1500,7 @@ class DashboardController extends Controller
         return response()->json(['message' => 'Remark updated']);
     }
 
+    // function untuk store hourly remark perjam 
     public function storeHourlyRemark(Request $request)
     {
         $activedic = json_decode($request->activedic, true);
@@ -1639,12 +1552,14 @@ class DashboardController extends Controller
         return back()->with('success', 'Hourly Remark berhasil ditambahkan!');
     }
 
+    // view untuk lihat log api yang berjalan di website 
     public function apiLog()
     {
         $logs = ApiLog::latest()->take(150)->get(); 
         return view('Log.api_logs', compact('logs'));
     }
 
+    // function untuk melihat semua operator 
     public function operatoradmin()
     {
         $user = auth()->user();
@@ -1669,6 +1584,7 @@ class DashboardController extends Controller
         return view('dashboards.adminoperator', compact('datas')); // atau halaman kamu
     }
 
+    // function untuk membuat data operator baru 
     public function createFromAdmin(Request $request)
     {
         $validated = $request->validate([
@@ -1706,6 +1622,8 @@ class DashboardController extends Controller
         return redirect()->back()->with('message', 'Daily Item Code berhasil ditambahkan!');
     }
 
+
+    // function untuk menghapus remark dic 
     public function deleteremark($id)
     {
         //works
@@ -1729,6 +1647,7 @@ class DashboardController extends Controller
         return redirect()->back()->with('message', 'Hourly Remark dan data terkait berhasil dihapus.');
     }
 
+    // function untuk menghapus daily item code oleh operator
     public function deletedic($id)
     {
         $item = DailyItemCode::findOrFail($id);
@@ -1742,6 +1661,7 @@ class DashboardController extends Controller
         return redirect()->back()->with('message', 'Daily Item Code dan data terkait berhasil dihapus.');
     }
 
+    // function untuk update temporal cavity oleh operator per shift per itemcode 
     public function updateTemporalCavity(Request $request, $id)
     {
         // Validasi input

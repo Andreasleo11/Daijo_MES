@@ -18,4 +18,13 @@ class MasterListItem extends Model
     {
         return $this->hasOne(MasterItemPhoto::class, 'item_code', 'item_code');
     }
+
+    public function customer()
+    {
+        return $this->belongsTo(
+            MasterCustomerDelivery::class,
+            'customer_code',   // foreign key di master_list_items
+            'customer_code'    // owner key di master_customer_delivery
+        );
+    }
 }

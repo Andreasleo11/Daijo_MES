@@ -15,6 +15,28 @@ class Kernel extends ConsoleKernel
 
         // $schedule->command('sap:dispatch-receipt')->hourly()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
 
+
+
+
+        // Push quality data shift 1 setiap hari jam 07:35 WIB
+        // $schedule->command('quality:push-shift1')
+        //     ->dailyAt('07:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+        // // Push quality data shift 2 setiap hari jam 15:35 WIB
+        // $schedule->command('quality:push-shift2')
+        //     ->dailyAt('15:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+        // // Push quality data shift 3 setiap hari jam 22:35 WIB
+        // $schedule->command('quality:push-shift3')
+        //     ->dailyAt('22:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+
         $schedule->command('summary:generate')->hourly();
         $schedule->command('sync:delivery-data')->dailyAt('08:00')->timezone('Asia/Jakarta');
         $schedule->command('sync:delivery-data')->dailyAt('13:00')->timezone('Asia/Jakarta');
