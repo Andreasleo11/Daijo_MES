@@ -167,25 +167,25 @@ class DeliveryScheduleController extends Controller
 		DB::table('delsched_stockwip')->truncate();
 
 		// old delsched
-        // $tab_sap_delsched = DB::table('sap_delsched')->orderBy('delivery_date','asc')->orderBy('item_code','asc')->get();
+        $tab_sap_delsched = DB::table('sap_delsched')->orderBy('delivery_date','asc')->orderBy('item_code','asc')->get();
 
 		//new master delsched
-		$tab_sap_delsched = DB::table('master_delivery_schedule')->orderBy('tanggal','asc')->orderBy('item_code','asc')->get();
+		// $tab_sap_delsched = DB::table('master_delivery_schedule')->orderBy('tanggal','asc')->orderBy('item_code','asc')->get();
 
 
         foreach($tab_sap_delsched as $sap_delsched){
 
 
-			// $val_item_code_i = $sap_delsched->item_code;
-			// $val_delivery_date_i = $sap_delsched->delivery_date;
-			// $val_delivery_qty_i = $sap_delsched->delivery_qty;
-			// $val_so_number_i = $sap_delsched->so_number;
+			$val_item_code_i = $sap_delsched->item_code;
+			$val_delivery_date_i = $sap_delsched->delivery_date;
+			$val_delivery_qty_i = $sap_delsched->delivery_qty;
+			$val_so_number_i = $sap_delsched->so_number;
 
 			//pakai master delivery schedule
-			$val_item_code_i = $sap_delsched->item_code;
-			$val_delivery_date_i = $sap_delsched->tanggal;
-			$val_delivery_qty_i = $sap_delsched->quantity;
-			$val_so_number_i = $sap_delsched->so_num;
+			// $val_item_code_i = $sap_delsched->item_code;
+			// $val_delivery_date_i = $sap_delsched->tanggal;
+			// $val_delivery_qty_i = $sap_delsched->quantity;
+			// $val_so_number_i = $sap_delsched->so_num;
 
 			$tab_sap_inventoryfg = DB::table('sap_inventory_fg')->where('item_code',$val_item_code_i)->first();
 			if (is_null($tab_sap_inventoryfg)) {
@@ -422,92 +422,122 @@ class DeliveryScheduleController extends Controller
 
 		}
 
-		$tab_delsched_final = DB::table('delsched_final')->orderBy('id','asc')->get();
+		$tab_delsched_final = DB::table('delsched_final')
+			->orderBy('id','asc')
+			->get();
 
-		foreach($tab_delsched_final as $delsched_final){
+		foreach ($tab_delsched_final as $delsched_final) {
 
-			$date_now = Carbon::now();
-			$date_now_plus = Carbon::now()->addDays(2);
+			$today = Carbon::today();
 
-			$val_final_id = $delsched_final->id;
-			$val_item_code_final = $delsched_final->item_code;
-			$val_status = $delsched_final->status;
-			$val_delivery_date = $delsched_final->delivery_date;
+			$final_id      = $delsched_final->id;
+			$dept          = $delsched_final->departement;
+			$item_code     = $delsched_final->item_code;
+			$delivery_date = Carbon::parse($delsched_final->delivery_date);
+			$outstanding   = $delsched_final->outstanding;
+			$deliver_qty   = $delsched_final->delivery_qty;
+			$delivered     = $delsched_final->delivered;
 
-			$tab_delsched_stock = DB::table('delsched_stock')->where('item_code','=',$val_item_code_final)->first();
-			$val_stock_id = $tab_delsched_stock->id;
-			$val_stock_new = $tab_delsched_stock->quantity;
-			$val_total_after = $tab_delsched_stock->total_after;
+			// ======================
+			// GET STOCK (LIVE VALUE)
+			// ======================
+			$stock = DB::table('delsched_stock')
+				->where('item_code', $item_code)
+				->first();
 
-			if($val_status == 'success'){
+			if (!$stock) continue;
 
-				$update_final = DB::table('delsched_final')->where('id', $val_final_id)->update([
-					'stock' => $val_stock_new,
-					'balance' => $val_total_after,
+			$stock_id    = $stock->id;
+			$stock_qty   = $stock->quantity;
+			$total_after = $stock->total_after;
+
+			// ======================
+			// CEK CLOSE
+			// ======================
+			if ($deliver_qty == $delivered) {
+
+				DB::table('delsched_final')->where('id', $final_id)->update([
+					'stock'   => $stock_qty,
+					'balance' => $total_after,
+					'status'  => 'SUCCESS',
+					'remark'  => 'FINISHED'
 				]);
+
+				continue;
+			}
+
+			// ======================
+			// HITUNG SISA STOCK
+			// ======================
+			if ($total_after >= $outstanding) {
+
+				$cal_outstanding_st = 0;
+				$cal_total_after_now = $total_after - $outstanding;
+				$stock_ready = true;
 
 			} else {
 
-				$val_outstanding_st = $delsched_final->outstanding;
-
-				if($val_total_after < 0){
-
-					$cal_outstanding_st = $val_outstanding_st;
-					$cal_total_after_now = $val_total_after - $val_outstanding_st;
-
-					if($val_delivery_date <= $date_now_plus){
-						$rcd_status = 'danger';
-						$rcd_remark = 'Need Attention - No Stock';
-					} else {
-						$rcd_status = 'light';	
-						$rcd_remark = 'far - no stock';				
-					}
-
-				} else {
-
-					if($val_total_after >= $val_outstanding_st){
-
-						$cal_outstanding_st = 0;
-						$cal_total_after_now = $val_total_after - $val_outstanding_st;
-
-						if($val_delivery_date <= $date_now_plus){
-							$rcd_status = 'warning';
-							$rcd_remark = 'Need Attention - Stock Available';
-						} else {
-							$rcd_status = 'light';
-							$rcd_remark = 'far - stock available';
-						}
-
-					} else {
-
-						$cal_outstanding_st = $val_outstanding_st-$val_total_after;
-						$cal_total_after_now = $val_total_after-$val_outstanding_st;
-
-						if($val_delivery_date <= $date_now_plus){
-							$rcd_status = 'danger';
-							$rcd_remark = '';
-						} else {
-							$rcd_status = 'light';
-							$rcd_remark = 'date still far';
-						}
-
-					}
-				}
-
-				$update_stock = DB::table('delsched_stock')->where('id', $val_stock_id)->update([
-					'total_after' => $cal_total_after_now,
-				]);
-
-				$update_final = DB::table('delsched_final')->where('id', $val_final_id)->update([
-					'stock' => $val_stock_new,
-					'balance' => $cal_total_after_now,
-					'outstanding_stk' => $cal_outstanding_st,
-					'status' => $rcd_status,
-					'remark' => $rcd_remark,
-				]);
-
+				$cal_outstanding_st = $outstanding - $total_after;
+				$cal_total_after_now = $total_after - $outstanding; // bisa minus
+				$stock_ready = false;
 			}
 
+			// ======================
+			// TENTUKAN DAY LIMIT
+			// ======================
+			$day_limit = 0;
+
+			if ($dept == 390) {
+				$day_limit = 2;
+			} elseif (in_array($dept, [361, 362])) {
+				$day_limit = 3;
+			}
+
+			$limit_date = $today->copy()->addDays($day_limit);
+
+			// ======================
+			// CEK STATUS & REMARK
+			// ======================
+			if ($delivery_date->lte($limit_date)) {
+
+				// ===== PAST DUE =====
+				if ($stock_ready) {
+					$rcd_status = 'WARNING';
+					$rcd_remark = 'PAST DUE DATE - STOCK READY';
+				} else {
+					$rcd_status = 'DANGER';
+					$rcd_remark = 'PAST DUE DATE - NO STOCK';
+				}
+
+			} else {
+
+				// ===== OPEN =====
+				if ($stock_ready) {
+					$rcd_status = 'MUTED';
+					$rcd_remark = 'OPEN - STOCK READY';
+				} else {
+					$rcd_status = 'INFO';
+					$rcd_remark = 'OPEN - NO STOCK';
+				}
+			}
+
+			// ======================
+			// UPDATE STOCK BERJALAN
+			// ======================
+			DB::table('delsched_stock')->where('id', $stock_id)->update([
+				'total_after' => $cal_total_after_now
+			]);
+
+			// ======================
+			// UPDATE FINAL
+			// ======================
+			DB::table('delsched_final')->where('id', $final_id)->update([
+				'stock'           => $stock_qty,
+				'balance'         => $cal_total_after_now,
+				'outstanding_stk' => $cal_outstanding_st,
+				'status'          => $rcd_status,
+				'remark'          => $rcd_remark,
+			]);
 		}
 
 		$now = new DateTime();
@@ -624,69 +654,192 @@ class DeliveryScheduleController extends Controller
 
 		}
 
-		$tab_delsched_finalwip = DB::table('delsched_finalwip')->orderBy('id','asc')->get();
+		// $tab_delsched_finalwip = DB::table('delsched_finalwip')->orderBy('id','asc')->get();
 
-		foreach($tab_delsched_finalwip as $delsched_finalwip){
+		// foreach($tab_delsched_finalwip as $delsched_finalwip){
 
-			$date_now = Carbon::now();
+		// 	$date_now = Carbon::now();
 
-			$val_finalwip_id = $delsched_finalwip->id;
-			$val_wip_code_finalwip = $delsched_finalwip->wip_code;
-			$val_delivery_date = $delsched_finalwip->delivery_date;
-			$val_req_quantity = $delsched_finalwip->req_quantity;
-			$val_outstanding_wip = $delsched_finalwip->outstanding_wip;
+		// 	$val_finalwip_id = $delsched_finalwip->id;
+		// 	$val_wip_code_finalwip = $delsched_finalwip->wip_code;
+		// 	$val_delivery_date = $delsched_finalwip->delivery_date;
+		// 	$val_req_quantity = $delsched_finalwip->req_quantity;
+		// 	$val_outstanding_wip = $delsched_finalwip->outstanding_wip;
 
-			$tab_delsched_stockwip = DB::table('delsched_stockwip')->where('item_code','=',$val_wip_code_finalwip)->first();
-			$val_stockwip_id = $tab_delsched_stockwip->id;
-			$val_stockwip_new = $tab_delsched_stockwip->quantity;
-			$val_total_after = $tab_delsched_stockwip->total_after;
+		// 	$tab_delsched_stockwip = DB::table('delsched_stockwip')->where('item_code','=',$val_wip_code_finalwip)->first();
+		// 	$val_stockwip_id = $tab_delsched_stockwip->id;
+		// 	$val_stockwip_new = $tab_delsched_stockwip->quantity;
+		// 	$val_total_after = $tab_delsched_stockwip->total_after;
 
-			if($val_total_after < 0){
+		// 	if($val_total_after < 0){
 
-				$cal_outstanding_wip_new = $val_req_quantity;
-				$cal_total_after_now = $val_total_after-$val_req_quantity;
+		// 		$cal_outstanding_wip_new = $val_req_quantity;
+		// 		$cal_total_after_now = $val_total_after-$val_req_quantity;
 
-				if($val_delivery_date <= $date_now){
-						$rcd_status = 'danger';
+		// 		if($val_delivery_date <= $date_now){
+		// 				$rcd_status = 'danger';
+		// 		} else {
+		// 			$rcd_status = 'light';
+		// 		}
+
+		// 	} else {
+		// 		if($val_total_after >= $val_req_quantity){
+
+		// 			$cal_outstanding_wip_new = 0;
+		// 			$cal_total_after_now = $val_total_after-$val_req_quantity;
+
+		// 			if($val_delivery_date <= $date_now){
+		// 					$rcd_status = 'danger';
+		// 			} else {
+		// 				$rcd_status = 'light';
+		// 			}
+
+		// 		} else {
+
+		// 			$cal_outstanding_wip_new = $val_req_quantity-$val_total_after;
+		// 			$cal_total_after_now = $val_total_after-$val_req_quantity;
+
+		// 			if($val_delivery_date <= $date_now){
+		// 				$rcd_status = 'danger';
+		// 			} else {
+		// 				$rcd_status = 'light';
+		// 			}
+
+		// 		}
+		// 	}
+
+		// 	$update_stock = DB::table('delsched_stockwip')->where('id', $val_stockwip_id)->update([
+		// 			'total_after' => $cal_total_after_now,
+		// 		]);
+
+		// 	$update_final = DB::table('delsched_finalwip')->where('id', $val_finalwip_id)->update([
+		// 		'stock_wip' => $val_stockwip_new,
+		// 		'balance_wip' => $cal_total_after_now,
+		// 		'outstanding_wip' => $cal_outstanding_wip_new,
+		// 		'status' => $rcd_status,
+		// 	]);
+		// }
+
+
+		
+		$tab_delsched_finalwip = DB::table('delsched_finalwip')
+			->orderBy('id','asc')
+			->get();
+
+		foreach ($tab_delsched_finalwip as $delsched_finalwip) {
+
+			$today = Carbon::today();
+
+			$finalwip_id     = $delsched_finalwip->id;
+			$dept            = $delsched_finalwip->departement;
+			$wip_code        = $delsched_finalwip->wip_code;
+			$delivery_date   = Carbon::parse($delsched_finalwip->delivery_date);
+			$req_qty         = $delsched_finalwip->req_quantity;
+			$stock_wip       = $delsched_finalwip->stock_wip;
+			$outstanding_wip = $delsched_finalwip->outstanding_wip;
+
+			// ======================
+			// GET STOCK WIP
+			// ======================
+			$stockwip = DB::table('delsched_stockwip')
+				->where('item_code', $wip_code)
+				->first();
+
+			if (!$stockwip) continue;
+
+			$stockwip_id   = $stockwip->id;
+			$stock_qty     = $stockwip->quantity;
+			$total_after   = $stockwip->total_after;
+
+			// ======================
+			// CEK CLOSE
+			// ======================
+			if ($req_qty == $stock_wip) {
+
+				DB::table('delsched_finalwip')->where('id', $finalwip_id)->update([
+					'stock_wip'   => $stock_qty,
+					'balance_wip' => $total_after,
+					'status'  => 'SUCCESS',
+					'remark'  => 'SAFE'
+				]);
+
+				continue;
+			}
+
+			// ======================
+			// HITUNG STOCK BERJALAN
+			// ======================
+			if ($total_after >= $req_qty) {
+
+				$cal_outstanding_wip = 0;
+				$cal_total_after_now = $total_after - $outstanding_wip;
+				$stock_ready = true;
+				$cal_outstanding_wip_new = 0;
+
+			} else {
+
+
+				$cal_total_after_now = $total_after-$req_qty;
+
+				$stock_ready = false;
+				$cal_outstanding_wip_new = $cal_total_after_now;
+			}
+
+			// ======================
+			// TENTUKAN DAY LIMIT
+			// ======================
+			$day_limit = 0;
+
+			if ($dept == 390) {
+				$day_limit = 7;
+			} elseif (in_array($dept, [361, 362])) {
+				$day_limit = 4;
+			}
+
+			$limit_date = $today->copy()->addDays($day_limit);
+
+			// ======================
+			// CEK STATUS & REMARK
+			// ======================
+			if ($delivery_date->lte($limit_date)) {
+
+				// ===== PAST DUE =====
+				if ($stock_ready) {
+					$rcd_status = 'WARNING';
+					$rcd_remark = 'PAST DUE DATE - STOCK READY';
 				} else {
-					$rcd_status = 'light';
+					$rcd_status = 'DANGER';
+					$rcd_remark = 'PAST DUE DATE - NO STOCK';
 				}
 
 			} else {
-				if($val_total_after >= $val_req_quantity){
 
-					$cal_outstanding_wip_new = 0;
-					$cal_total_after_now = $val_total_after-$val_req_quantity;
-
-					if($val_delivery_date <= $date_now){
-							$rcd_status = 'danger';
-					} else {
-						$rcd_status = 'light';
-					}
-
+				// ===== OPEN =====
+				if ($stock_ready) {
+					$rcd_status = 'MUTED';
+					$rcd_remark = 'OPEN - STOCK READY';
 				} else {
-
-					$cal_outstanding_wip_new = $val_req_quantity-$val_total_after;
-					$cal_total_after_now = $val_total_after-$val_req_quantity;
-
-					if($val_delivery_date <= $date_now){
-						$rcd_status = 'danger';
-					} else {
-						$rcd_status = 'light';
-					}
-
+					$rcd_status = 'INFO';
+					$rcd_remark = 'OPEN - NO STOCK';
 				}
 			}
 
-			$update_stock = DB::table('delsched_stockwip')->where('id', $val_stockwip_id)->update([
-					'total_after' => $cal_total_after_now,
-				]);
+			// ======================
+			// UPDATE STOCK WIP
+			// ======================
+			DB::table('delsched_stockwip')->where('id', $stockwip_id)->update([
+				'total_after' => $cal_total_after_now
+			]);
 
-			$update_final = DB::table('delsched_finalwip')->where('id', $val_finalwip_id)->update([
-				'stock_wip' => $val_stockwip_new,
-				'balance_wip' => $cal_total_after_now,
-				'outstanding_wip' => $cal_outstanding_wip_new,
-				'status' => $rcd_status,
+			// ======================
+			// UPDATE FINAL WIP
+			// ======================
+			DB::table('delsched_finalwip')->where('id', $finalwip_id)->update([
+				'stock_wip'            => $stock_qty,
+				'balance_wip'          => $cal_total_after_now,
+				'outstanding_wip'  => $cal_outstanding_wip_new,
+				'status'           => $rcd_status,
+				'remark'           => $rcd_remark,
 			]);
 		}
 
@@ -713,56 +866,56 @@ class DeliveryScheduleController extends Controller
 		 $today = Carbon::today();
 		//  dd($today);
 
-		 foreach ($datas as $data) {
-			 // Check if doc_status is 'C' or if delivery_qty is equal to delivered
-			 if ($data->doc_status === 'C' || $data->delivery_qty === $data->delivered) {
-				// Update the status to 'Finish' if the doc_status is 'C' or if delivery_qty equals delivered
-				$data->status = 'Finish';
-			} elseif ($data->doc_status === 'O' && $today->diffInDays($data->delivery_date, false) == 2) {
-				// Update the status to 'Danger' if the doc_status is 'O' and the delivery_date is 2 days from today
-				$data->status = 'Danger';
-			} elseif ($data->doc_status === 'O' && $today->diffInDays($data->delivery_date, false) == -2) {
-				// Update the status to 'Warning' if the doc_status is 'O' and the delivery_date was 2 days ago
-				$data->status = 'Warning';
-			} else {
-				// For all other conditions, set the status to 'Warning'
-				$data->status = 'Open';
-			}
+		// foreach ($datas as $data) {
+		// 	 // Check if doc_status is 'C' or if delivery_qty is equal to delivered
+		// 	 if ($data->doc_status === 'C' || $data->delivery_qty === $data->delivered) {
+		// 		// Update the status to 'Finish' if the doc_status is 'C' or if delivery_qty equals delivered
+		// 		$data->status = 'Finish';
+		// 	} elseif ($data->doc_status === 'O' && $today->diffInDays($data->delivery_date, false) == 2) {
+		// 		// Update the status to 'Danger' if the doc_status is 'O' and the delivery_date is 2 days from today
+		// 		$data->status = 'Danger';
+		// 	} elseif ($data->doc_status === 'O' && $today->diffInDays($data->delivery_date, false) == -2) {
+		// 		// Update the status to 'Warning' if the doc_status is 'O' and the delivery_date was 2 days ago
+		// 		$data->status = 'Warning';
+		// 	} else {
+		// 		// For all other conditions, set the status to 'Warning'
+		// 		$data->status = 'Open';
+		// 	}
 
 
 
-			$data->save();
-		 }
+		// 	$data->save();
+		// }
 
 
-		 foreach ($datas2 as $dataw) {
-			// Check if doc_status is 'C' or if delivery_qty is equal to delivered
+		// foreach ($datas2 as $dataw) {
+		// 	// Check if doc_status is 'C' or if delivery_qty is equal to delivered
 
-			if($dataw->balance_wip < 0) {
-				// Update the status to 'Finish'
-			   $dataw->status = 'Warning';
-		   	}
-
-			if($dataw->balance_wip > 0) {
-				 // Update the status to 'Finish'
-				$dataw->status = 'Finish';
-			}
-
-			if($dataw->balance_wip < 0 && $today->diffInDays($dataw->delivery_date, false) == 5) {
-				// Update the status to 'Danger'
-				$dataw->status = 'Danger';
-			}
-
-
-		//    if($today->diffInDays($dataw->delivery_date, false) == -5) {
-		// 	   // Update the status to 'Warning'
+		// 	if($dataw->balance_wip < 0) {
+		// 		// Update the status to 'Finish'
 		// 	   $dataw->status = 'Warning';
-		//    }
+		//    	}
+
+		// 	if($dataw->balance_wip > 0) {
+		// 		 // Update the status to 'Finish'
+		// 		$dataw->status = 'Finish';
+		// 	}
+
+		// 	if($dataw->balance_wip < 0 && $today->diffInDays($dataw->delivery_date, false) == 5) {
+		// 		// Update the status to 'Danger'
+		// 		$dataw->status = 'Danger';
+		// 	}
+
+
+		// 	//    if($today->diffInDays($dataw->delivery_date, false) == -5) {
+		// 	// 	   // Update the status to 'Warning'
+		// 	// 	   $dataw->status = 'Warning';
+		// 	//    }
 
 
 
-		   $dataw->save();
-		}
+		// 	$dataw->save();
+		// }
 
 
 

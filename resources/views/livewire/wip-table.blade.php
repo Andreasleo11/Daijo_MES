@@ -17,9 +17,11 @@
                 class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
                 <option value="">All Status</option>
-                <option value="Finish">Finish</option>
-                <option value="Danger">Danger</option>
-                <option value="Warning">Warning</option>
+                <option value="SUCCESS">SUCCESS</option>
+                <option value="DANGER">DANGER</option>
+                <option value="WARNING">WARNING</option>
+                <option value="MUTED">MUTED</option>
+                <option value="INFO">INFO</option>
             </select>
         </div>
         
@@ -79,6 +81,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Stock WIP</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Balance WIP</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Outstanding WIP</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Remark</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -86,12 +89,14 @@
                         <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white
-                                    @if($wip->status === 'Finish')
+                                    @if($wip->status === 'SUCCESS')
                                         bg-green-500
-                                    @elseif($wip->status === 'Danger')
+                                    @elseif($wip->status === 'DANGER')
                                         bg-red-500
-                                    @elseif($wip->status === 'Warning')
+                                    @elseif($wip->status === 'WARNING')
                                         bg-yellow-500
+                                    @elseif($wip->status === 'INFO')
+                                        bg-blue-500
                                     @else
                                         bg-gray-500
                                     @endif
@@ -115,6 +120,7 @@
                             <td class="px-4 py-3 text-sm text-gray-700 font-medium whitespace-nowrap">{{ $wip->stock_wip ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 font-medium whitespace-nowrap">{{ $wip->balance_wip ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 font-medium whitespace-nowrap">{{ $wip->outstanding_wip ?? '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 font-medium whitespace-nowrap">{{ $wip->remark ?? '-' }}</td>
                         </tr>
                     @empty
                         <tr>

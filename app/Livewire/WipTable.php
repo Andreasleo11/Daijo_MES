@@ -39,7 +39,10 @@ class WipTable extends Component
             ->when($this->search, function ($query) {
                 $query->where('so_number', 'like', '%' . $this->search . '%')
                     ->orWhere('customer_name', 'like', '%' . $this->search . '%')
+                    ->orWhere('customer_code', 'like', '%' . $this->search . '%')
                     ->orWhere('item_name', 'like', '%' . $this->search . '%')
+                    ->orWhere('wip_code', 'like', '%' . $this->search . '%')
+                    ->orWhere('wip_name', 'like', '%' . $this->search . '%')
                     ->orWhere('item_code', 'like', '%' . $this->search . '%');
             })
             ->when($this->statusFilter, function ($query) {

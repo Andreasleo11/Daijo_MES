@@ -67,6 +67,7 @@ class ProductionDashboardService
             $target = 0;
             $actual = 0;
             $ng = 0;
+            
 
             foreach ($dayData as $daily) {
                 foreach ($daily->hourlyRemarks as $hourly) {
@@ -112,6 +113,234 @@ class ProductionDashboardService
             'chart_data' => $chartData,
             'summary' => $summary,
         ];
+    }
+
+    /**
+     * Get downtime analysis
+     * Calculate downtime for hours that didn't meet target
+     * 
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @param string|null $itemCode
+     * @param string|null $machineUserId
+     * @return array
+     */
+    public function getDowntimeAnalysis(Carbon $startDate, Carbon $endDate, ?string $itemCode = null, ?string $machineUserId = null): array
+    {
+        $query = DailyItemCode::query()
+            ->with(['hourlyRemarks.ngDetails'])
+            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+
+        if ($itemCode) {
+            $query->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $query->where('user_id', $machineUserId);
+        }
+
+        $dailyData = $query->get();
+        
+        $totalDowntime = 0; // in minutes
+        $downtimeByHour = [];
+        $problemHours = [];
+
+        foreach ($dailyData as $daily) {
+            // Group hourly remarks by hour, keep only highest actual_production if duplicate
+            $hourlyByHour = [];
+            
+            foreach ($daily->hourlyRemarks as $hourly) {
+                $hour = $hourly->start_time ?? 0;
+                
+                // If hour exists, keep the one with higher actual_production
+                if (isset($hourlyByHour[$hour])) {
+                    $existingActual = $hourlyByHour[$hour]->actual_production ?? 0;
+                    $newActual = $hourly->actual_production ?? 0;
+                    
+                    if ($newActual > $existingActual) {
+                        $hourlyByHour[$hour] = $hourly;
+                    }
+                } else {
+                    $hourlyByHour[$hour] = $hourly;
+                }
+            }
+
+            // Calculate downtime for each hour
+            foreach ($hourlyByHour as $hour => $hourly) {
+                $target = $hourly->target ?? 0;
+                $actualProduction = $hourly->actual_production ?? 0;
+                
+                // Calculate total NG for this hour
+                $ng = 0;
+                if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
+                    foreach ($hourly->ngDetails as $ngDetail) {
+                        $ng += $ngDetail->ng_quantity ?? 0;
+                    }
+                }
+                
+                $actual = $actualProduction + $ng;
+                
+                // If actual < target, calculate downtime
+                if ($actual < $target && $target > 0) {
+                    // Formula: Downtime (minutes) = (Target - Actual) × (60 / Target)
+                    $downtime = ($target - $actual) * (60 / $target);
+                    $totalDowntime += $downtime;
+                    
+                    // Group by hour (0-23)
+                    if (!isset($downtimeByHour[$hour])) {
+                        $downtimeByHour[$hour] = [
+                            'hour' => str_pad($hour, 2, '0', STR_PAD_LEFT),
+                            'total_downtime' => 0,
+                            'occurrences' => 0,
+                        ];
+                    }
+                    
+                    $downtimeByHour[$hour]['total_downtime'] += $downtime;
+                    $downtimeByHour[$hour]['occurrences']++;
+                    
+                    // Collect problem hours for remarks
+                    $problemHours[] = [
+                        'id' => $hourly->id,
+                        'date' => $daily->start_date,
+                        'hour' => $hour,
+                        'target' => $target,
+                        'actual' => $actual,
+                        'downtime' => $downtime,
+                        'remark' => $hourly->remark ?? '',
+                    ];
+                }
+            }
+        }
+
+        // Sort downtime by hour (sort berdasarkan jam)
+        // ksort($downtimeByHour);
+
+        //sort berdasarkan occurence 
+        uasort($downtimeByHour, function ($a, $b) {
+            return $b['occurrences'] <=> $a['occurrences'];
+        });
+        // dd($downtimeByHour);
+        
+        return [
+            'total_downtime_minutes' => round($totalDowntime, 2),
+            'total_downtime_hours' => round($totalDowntime / 60, 2),
+            'downtime_by_hour' => array_values($downtimeByHour),
+            'problem_hours_count' => count($problemHours),
+        ];
+    }
+
+    /**
+     * Get top 10 remarks from problem hours (where actual < target)
+     * 
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @param string|null $itemCode
+     * @param string|null $machineUserId
+     * @return array
+     */
+    public function getTopProblematicRemarks(Carbon $startDate, Carbon $endDate, ?string $itemCode = null, ?string $machineUserId = null): array
+    {
+        $query = DailyItemCode::query()
+            ->with(['hourlyRemarks.ngDetails', 'user'])
+            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+
+        if ($itemCode) {
+            $query->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $query->where('user_id', $machineUserId);
+        }
+
+        $dailyData = $query->get();
+        
+        $problemRemarks = [];
+
+        foreach ($dailyData as $daily) {
+            // Group hourly remarks by hour, keep only highest actual_production if duplicate
+            $hourlyByHour = [];
+            
+            foreach ($daily->hourlyRemarks as $hourly) {
+                $hour = $hourly->start_time ?? 0;
+                
+                if (isset($hourlyByHour[$hour])) {
+                    $existingActual = $hourlyByHour[$hour]->actual_production ?? 0;
+                    $newActual = $hourly->actual_production ?? 0;
+                    
+                    if ($newActual > $existingActual) {
+                        $hourlyByHour[$hour] = $hourly;
+                    }
+                } else {
+                    $hourlyByHour[$hour] = $hourly;
+                }
+            }
+
+            // Find problem hours
+            foreach ($hourlyByHour as $hour => $hourly) {
+                $target = $hourly->target ?? 0;
+                $actualProduction = $hourly->actual_production ?? 0;
+                
+                // Calculate total NG
+                $ng = 0;
+                if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
+                    foreach ($hourly->ngDetails as $ngDetail) {
+                        $ng += $ngDetail->ng_quantity ?? 0;
+                    }
+                }
+                
+                $actual = $actualProduction + $ng;
+                
+                // If actual < target and has remark
+                if ($actual < $target && !empty($hourly->remark)) {
+                    $downtime = $target > 0 ? ($target - $actual) * (60 / $target) : 0;
+                    $gap = $target - $actual;
+                    
+                    $problemRemarks[] = [
+                        'date' => $daily->start_date,
+                        'hour' => str_pad($hour, 2, '0', STR_PAD_LEFT),
+                        'machine' => $daily->user->name ?? 'Unknown',
+                        'item_code' => $daily->item_code,
+                        'target' => $target,
+                        'actual' => $actual,
+                        'gap' => $gap,
+                        'downtime_minutes' => round($downtime, 2),
+                        'remark' => $hourly->remark,
+                        'severity' => $this->calculateSeverity($gap, $target),
+                    ];
+                }
+            }
+        }
+
+        // Sort by gap (descending) - worst problems first
+        usort($problemRemarks, function($a, $b) {
+            return $b['gap'] - $a['gap'];
+        });
+
+        // usort($problemRemarks, function($a, $b) {
+        //     return strtotime($a['date']) - strtotime($b['date']);
+        // });
+
+        // Return top 10
+        return array_slice($problemRemarks, 0, 20);
+    }
+
+    /**
+     * Calculate severity level based on gap percentage
+     * 
+     * @param int $gap
+     * @param int $target
+     * @return string
+     */
+    private function calculateSeverity(int $gap, int $target): string
+    {
+        if ($target == 0) return 'low';
+        
+        $percentage = ($gap / $target) * 100;
+        
+        if ($percentage >= 50) return 'critical';
+        if ($percentage >= 30) return 'high';
+        if ($percentage >= 15) return 'medium';
+        return 'low';
     }
 
     /**

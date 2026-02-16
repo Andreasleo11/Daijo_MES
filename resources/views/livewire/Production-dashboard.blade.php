@@ -126,7 +126,7 @@
                 </div>
             </div>
 
-            {{-- Reset Button --}}
+            {{-- Reset Button & Filter Info --}}
             <div class="mt-4 flex items-center gap-4">
                 <button 
                     wire:click="resetFilters" 
@@ -135,7 +135,6 @@
                     Reset Filters
                 </button>
                 
-                {{-- Filter info --}}
                 @if($itemCode || $machineUserId)
                 <div class="text-sm text-gray-500">
                     Active filters: 
@@ -154,7 +153,7 @@
             </div>
         </div>
 
-        {{-- Summary Cards --}}
+        {{-- Summary Cards (4 existing cards) --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {{-- Total Target --}}
             <div class="bg-white rounded-lg shadow-md p-6">
@@ -218,7 +217,80 @@
             </div>
         </div>
 
-        {{-- Chart Section --}}
+        {{-- ✅ NEW: Downtime Cards (2-column grid) --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {{-- Downtime Summary Card --}}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Downtime</p>
+                        <p class="text-3xl font-bold text-orange-600 mt-2">
+                            {{ number_format($downtimeAnalysis['total_downtime_hours'] ?? 0, 1) }} hrs
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ number_format($downtimeAnalysis['total_downtime_minutes'] ?? 0, 1) }} minutes
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ $downtimeAnalysis['problem_hours_count'] ?? 0 }} problem hours
+                        </p>
+                    </div>
+                    <div class="bg-orange-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+                
+                {{-- Top problem hours --}}
+                @if(count($downtimeAnalysis['downtime_by_hour'] ?? []) > 0)
+                <div class="border-t pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Worst Hours:</h3>
+                    @foreach(array_slice($downtimeAnalysis['downtime_by_hour'] ?? [], 0, 5) as $hourData)
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-600">{{ $hourData['hour'] }}</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium text-orange-600">
+                                {{ number_format($hourData['total_downtime'], 1) }}m
+                            </span>
+                            <span class="text-xs text-gray-400">({{ $hourData['occurrences'] }}x)</span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+
+            {{-- Downtime Distribution Chart --}}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Downtime Distribution by Hour</h2>
+                <div class="space-y-2 max-h-80 overflow-y-auto">
+                    @forelse($downtimeAnalysis['downtime_by_hour'] ?? [] as $hourData)
+                        @php
+                            $maxDowntime = max(array_column($downtimeAnalysis['downtime_by_hour'], 'total_downtime'));
+                            $width = $maxDowntime > 0 ? ($hourData['total_downtime'] / $maxDowntime) * 100 : 0;
+                        @endphp
+                        <div class="flex items-center">
+                            <span class="text-xs font-medium text-gray-600 w-16">{{ $hourData['hour'] }}</span>
+                            <div class="flex-1 mx-3">
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-orange-500 h-3 rounded-full transition-all" style="width: {{ $width }}%"></div>
+                                </div>
+                            </div>
+                            <span class="text-xs font-medium text-orange-600 w-20 text-right">
+                                {{ number_format($hourData['total_downtime'], 1) }}m
+                            </span>
+                            <span class="text-xs text-gray-400 w-12 text-right">({{ $hourData['occurrences'] }})</span>
+                        </div>
+                    @empty
+                        <div class="text-center py-8 text-gray-500">
+                            <p class="text-sm">No downtime recorded</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        {{-- Chart & NG Breakdown Section --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">Production Overview</h2>
@@ -254,6 +326,83 @@
                     @endforelse
                 </div>
             </div>
+        </div>
+
+        {{-- ✅ NEW: Top 10 Problematic Remarks Table --}}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Top 10 Problem Hours</h2>
+            
+            @if(count($topRemarks) > 0)
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                            <th class="px-4 py-3">Date</th>
+                            <th class="px-4 py-3">Hour</th>
+                            <th class="px-4 py-3">Machine</th>
+                            <th class="px-4 py-3">Item</th>
+                            <th class="px-4 py-3 text-right">Target</th>
+                            <th class="px-4 py-3 text-right">Actual</th>
+                            <th class="px-4 py-3 text-right">Gap</th>
+                            <th class="px-4 py-3 text-right">Downtime</th>
+                            <th class="px-4 py-3">Remark</th>
+                            <th class="px-4 py-3 text-center">Severity</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($topRemarks as $index => $remark)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-700">
+                                {{ \Carbon\Carbon::parse($remark['date'])->format('d M Y') }}
+                            </td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                {{ $remark['hour'] }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700">
+                                {{ $remark['machine'] }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700">
+                                {{ $remark['item_code'] }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                {{ number_format($remark['target']) }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                {{ number_format($remark['actual']) }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right font-medium text-red-600">
+                                {{ number_format($remark['gap']) }} pcs
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right font-medium text-orange-600">
+                                {{ number_format($remark['downtime_minutes'], 1) }}m
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title="{{ $remark['remark'] }}">
+                                {{ $remark['remark'] }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                    @if($remark['severity'] === 'critical') bg-red-100 text-red-800
+                                    @elseif($remark['severity'] === 'high') bg-orange-100 text-orange-800
+                                    @elseif($remark['severity'] === 'medium') bg-yellow-100 text-yellow-800
+                                    @else bg-blue-100 text-blue-800
+                                    @endif">
+                                    {{ ucfirst($remark['severity']) }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @else
+            <div class="text-center py-12 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-lg font-medium">No Problem Hours Found</p>
+                <p class="text-sm mt-1">All production hours met their targets!</p>
+            </div>
+            @endif
         </div>
     </div>
 

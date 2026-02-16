@@ -24,6 +24,8 @@ class ProductionDashboard extends Component
     public array $chartData = [];
     public array $summary = [];
     public array $ngBreakdown = [];
+    public array $downtimeAnalysis = []; // ✅ NEW
+    public array $topRemarks = []; // ✅ NEW
 
     public array $years = [];
     public array $months = [];
@@ -63,9 +65,9 @@ class ProductionDashboard extends Component
         ];
 
         $this->updateWeeks();
-        $this->updateItemCodes(); // Load item codes based on current filters
+        $this->updateItemCodes();
         
-        // ✅ Get actual users with their IDs for machine mapping
+        // ✅ Get users with IDs for machine mapping
         $machineUsers = \App\Models\User::whereIn('name', [
             '0350F', '0450F', '0450G', '0450H', '0450I', '0450J',
             '0550B', '0650D', '0650E', '0850D',
@@ -74,7 +76,6 @@ class ProductionDashboard extends Component
             'K0750A', 'K0750B', 'K0450A',
         ])->get(['id', 'name']);
         
-        // Map to array with id and name
         $this->machines = $machineUsers->map(function($user) {
             return [
                 'id' => $user->id,
@@ -83,18 +84,12 @@ class ProductionDashboard extends Component
         })->sortBy('name')->values()->toArray();
     }
 
-    /**
-     * Update item codes based on current year/month filter
-     */
     private function updateItemCodes()
     {
         $this->itemCodes = $this->productionService->getItemCodes($this->year, $this->month);
         $this->filteredItemCodes = $this->itemCodes;
     }
 
-    /**
-     * Search item codes when user types
-     */
     public function updatedItemCodeSearch()
     {
         if (empty($this->itemCodeSearch)) {
@@ -108,9 +103,6 @@ class ProductionDashboard extends Component
         }
     }
 
-    /**
-     * Select item code from dropdown
-     */
     public function selectItemCode($code)
     {
         $this->itemCode = $code;
@@ -119,9 +111,6 @@ class ProductionDashboard extends Component
         $this->loadData();
     }
 
-    /**
-     * Clear item code selection
-     */
     public function clearItemCode()
     {
         $this->itemCode = null;
@@ -134,14 +123,14 @@ class ProductionDashboard extends Component
     public function updatedYear()
     {
         $this->updateWeeks();
-        $this->updateItemCodes(); // ✅ Update item codes when year changes
+        $this->updateItemCodes();
         $this->loadData();
     }
 
     public function updatedMonth()
     {
         $this->updateWeeks();
-        $this->updateItemCodes(); // ✅ Update item codes when month changes
+        $this->updateItemCodes();
         $this->loadData();
     }
 
@@ -178,6 +167,7 @@ class ProductionDashboard extends Component
     {
         [$startDate, $endDate] = $this->getDateRange();
 
+        // Existing data
         $data = $this->productionService->getProductionData(
             $startDate,
             $endDate,
@@ -194,6 +184,22 @@ class ProductionDashboard extends Component
             $this->itemCode,
             $this->machineUserId
         ) ?? [];
+
+        // ✅ NEW: Get downtime analysis
+        $this->downtimeAnalysis = $this->productionService->getDowntimeAnalysis(
+            $startDate,
+            $endDate,
+            $this->itemCode,
+            $this->machineUserId
+        );
+
+        // ✅ NEW: Get top problematic remarks
+        $this->topRemarks = $this->productionService->getTopProblematicRemarks(
+            $startDate,
+            $endDate,
+            $this->itemCode,
+            $this->machineUserId
+        );
 
         $this->dispatch('chartDataUpdated', chartData: $this->chartData);
     }

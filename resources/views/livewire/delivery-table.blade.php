@@ -17,9 +17,11 @@
                 class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
                 <option value="">All Status</option>
-                <option value="Finish">Finish</option>
-                <option value="Danger">Danger</option>
-                <option value="Warning">Warning</option>
+                <option value="SUCCESS">SUCCESS</option>
+                <option value="DANGER">DANGER</option>
+                <option value="WARNING">WARNING</option>
+                <option value="MUTED">MUTED</option>
+                <option value="INFO">INFO</option>
             </select>
         </div>
         
@@ -100,12 +102,14 @@
                         <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white
-                                    @if($delivery->status === 'Finish')
+                                     @if($delivery->status === 'SUCCESS')
                                         bg-green-500
-                                    @elseif($delivery->status === 'Danger')
+                                    @elseif($delivery->status === 'DANGER')
                                         bg-red-500
-                                    @elseif($delivery->status === 'Warning')
+                                    @elseif($delivery->status === 'WARNING')
                                         bg-yellow-500
+                                    @elseif($delivery->status === 'INFO')
+                                        bg-blue-500
                                     @else
                                         bg-gray-500
                                     @endif

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Store\SOController;
 
 use App\Http\Controllers\ProductionDashboardController;
+use App\Http\Controllers\MasterListItemController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,5 +30,9 @@ Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
 
 Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
     Route::post('/sap/spk', [SOController::class, 'storeSpkNew']);
+});
+
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
+    Route::post('/sap/master-list-item', [MasterListItemController::class, 'storeFromSap']);
 });
 

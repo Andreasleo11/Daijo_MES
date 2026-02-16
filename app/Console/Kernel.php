@@ -37,6 +37,19 @@ class Kernel extends ConsoleKernel
         //     ->onOneServer();
 
 
+        //START HARI SENIN 10 menit setelah update
+    // $schedule->command('delivery:send')
+    //     ->dailyAt('08:00')
+    //     ->timezone('Asia/Jakarta')
+    //     ->withoutOverlapping();
+
+    // $schedule->command('delivery:send')
+    //     ->dailyAt('15:00')
+    //     ->timezone('Asia/Jakarta')
+    //     ->withoutOverlapping();
+
+
+
         $schedule->command('summary:generate')->hourly();
         $schedule->command('sync:delivery-data')->dailyAt('08:00')->timezone('Asia/Jakarta');
         $schedule->command('sync:delivery-data')->dailyAt('13:00')->timezone('Asia/Jakarta');

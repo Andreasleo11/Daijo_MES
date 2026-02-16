@@ -9,6 +9,21 @@ class MasterListItem extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
+     protected $fillable = [
+        'item_code',
+        'item_name',
+        'tipe_mesin',
+        'standart_packaging_list',
+        'setup_time_minute',
+        'pair',
+        'cavity',
+        'customer_code',
+        'cycle_time',
+    ];
+    
+
     public function files()
     {
         return $this->hasMany(File::class, 'item_code', 'item_code');
