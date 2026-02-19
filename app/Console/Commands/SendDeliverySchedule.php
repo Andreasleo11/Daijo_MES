@@ -31,7 +31,10 @@ class SendDeliverySchedule extends Command
             'sriyati@daijo.co.id',
             'erizal@daijo.co.id',
             'andika@daijo.co.id',
-            'timo@daijo.co.id'
+            'timo@daijo.co.id',
+            'bayu_setiadji@daijo.co.id',
+            'djkarawang_200@daijo.co.id'
+            // 'andreas@daijo.co.id'
         ])->send(new DeliveryScheduleMail($data));
 
         $this->info('Delivery schedule email sent successfully!');

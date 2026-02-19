@@ -86,7 +86,22 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($wipData as $wip)
-                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                         <tr
+                            class="transition-colors duration-150
+                            @if($wip->status === 'SUCCESS')
+                                bg-green-200 hover:bg-green-100
+                            @elseif($wip->status === 'DANGER')
+                                bg-red-200 hover:bg-red-100
+                            @elseif($wip->status === 'WARNING')
+                                bg-yellow-200 hover:bg-yellow-100
+                            @elseif($wip->status === 'INFO')
+                                bg-blue-200 hover:bg-blue-100
+                            @elseif($wip->status === 'MUTED')
+                                bg-gray-100 hover:bg-gray-200
+                            @else
+                                hover:bg-gray-200
+                            @endif
+                        ">
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white
                                     @if($wip->status === 'SUCCESS')
