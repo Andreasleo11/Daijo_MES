@@ -133,6 +133,14 @@ new class extends Component {
                     :active="request()->routeIs('indexds')"
                     wire:navigate
                 />
+                
+                <livewire:sidebar-link
+                    href="{{ route('delivery.analysis') }}"
+                    label="Delivery Schedule Terbaru"
+                    :active="request()->routeIs('delivery.analysis')"
+                    wire:navigate
+                />
+
             @endif
 
 

@@ -38,13 +38,26 @@ class Kernel extends ConsoleKernel
 
 
         //START HARI SENIN 10 menit setelah update
+
+        $schedule->command('delsched:run')
+        ->dailyAt('08:10')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+
+        $schedule->command('delsched:run')
+        ->dailyAt('14:10')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+
     $schedule->command('delivery:send')
-        ->dailyAt('08:00')
+        ->dailyAt('09:00')
         ->timezone('Asia/Jakarta')
         ->withoutOverlapping();
 
     $schedule->command('delivery:send')
-        ->dailyAt('15:00')
+        ->dailyAt('16:00')
         ->timezone('Asia/Jakarta')
         ->withoutOverlapping();
 
@@ -52,7 +65,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('summary:generate')->hourly();
         $schedule->command('sync:delivery-data')->dailyAt('08:00')->timezone('Asia/Jakarta');
-        $schedule->command('sync:delivery-data')->dailyAt('13:00')->timezone('Asia/Jakarta');
+        $schedule->command('sync:delivery-data')->dailyAt('14:00')->timezone('Asia/Jakarta');
         $schedule->command('sync:delivery-data')->dailyAt('16:30')->timezone('Asia/Jakarta');
         // $schedule->command('app:send-daily-waiting-purchase-orders')->dailyAt('01:00'); // Adjust time as needed
         // $schedule->command('report:send-outstanding')
