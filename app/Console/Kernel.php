@@ -57,7 +57,7 @@ class Kernel extends ConsoleKernel
         ->withoutOverlapping();
 
     $schedule->command('delivery:send')
-        ->dailyAt('16:00')
+        ->dailyAt('15:00')
         ->timezone('Asia/Jakarta')
         ->withoutOverlapping();
 

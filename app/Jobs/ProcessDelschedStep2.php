@@ -22,14 +22,18 @@ class ProcessDelschedStep2 implements ShouldQueue
         $this->updateLog('delsched_main', 'step2', 'running', 'Step 2: Filter SO closed...');
 
         try {
-            $tab_delsched_final = DB::table('delsched_final')->where('so_number', '<>', '')->get();
+            $tab_delsched_final = DB::table('delsched_final')
+                ->where('so_number', '<>', '')
+                ->get();
 
             foreach ($tab_delsched_final as $delsched_final) {
-                $val_final_id    = $delsched_final->id;
-                $val_so_number   = $delsched_final->so_number;
+                $val_final_id     = $delsched_final->id;
+                $val_so_number    = $delsched_final->so_number;
                 $val_delivery_qty = $delsched_final->delivery_qty;
 
-                $tab_solist    = DB::table('delsched_solist')->where('so_number', $val_so_number)->first();
+                $tab_solist    = DB::table('delsched_solist')
+                    ->where('so_number', $val_so_number)
+                    ->first();
                 $val_so_status = $tab_solist->so_status ?? null;
 
                 if ($val_so_status == 'C') {
@@ -44,7 +48,7 @@ class ProcessDelschedStep2 implements ShouldQueue
             }
 
             ProcessDelschedStep3::dispatch();
-            $this->updateLog('delsched_main', 'step2', 'running', 'Step 2 selesai, Step 3 dijadwalkan...');
+            $this->updateLog('delsched_main', 'step2', 'done', 'Step 2 selesai, Step 3 dijadwalkan...');
 
         } catch (\Exception $e) {
             $this->updateLog('delsched_main', 'step2', 'failed', 'Step 2 gagal: ' . $e->getMessage());

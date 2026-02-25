@@ -28,23 +28,34 @@ class ProcessDelschedStep3 implements ShouldQueue
                 ->get();
 
             foreach ($tab_delsched_final as $delsched_final) {
-                $val_final_id    = $delsched_final->id;
-                $val_item_code   = $delsched_final->item_code;
+                $val_final_id     = $delsched_final->id;
+                $val_item_code    = $delsched_final->item_code;
                 $val_delivery_qty = $delsched_final->delivery_qty;
 
-                $tab_delsched_delsum = DB::table('delsched_delsum')->where('item_code', $val_item_code)->first();
+                $tab_delsched_delsum = DB::table('delsched_delsum')
+                    ->where('item_code', $val_item_code)
+                    ->first();
 
-                $val_total_after = empty($tab_delsched_delsum->item_code) ? 0 : $tab_delsched_delsum->total_after;
+                if (empty($tab_delsched_delsum->item_code)) {
+                    $val_total_after = 0;
+                } else {
+                    $val_total_after = $tab_delsched_delsum->total_after;
+                }
 
                 if ($val_total_after <= 0) {
+
                     DB::table('delsched_final')->where('id', $val_final_id)->update([
                         'delivered'       => 0,
                         'outstanding'     => $val_delivery_qty,
                         'outstanding_stk' => $val_delivery_qty,
                         'status'          => 'danger',
                     ]);
+
                 } else {
+
                     if ($val_total_after >= $val_delivery_qty) {
+
+                        $cal_outstanding     = 0;
                         $cal_total_after_now = $val_total_after - $val_delivery_qty;
 
                         if (!empty($tab_delsched_delsum)) {
@@ -60,7 +71,9 @@ class ProcessDelschedStep3 implements ShouldQueue
                             'status'          => 'success',
                             'remark'          => 'finished',
                         ]);
+
                     } else {
+
                         $cal_outstanding     = $val_delivery_qty - $val_total_after;
                         $outstanding         = $val_delivery_qty - $cal_outstanding;
                         $cal_total_after_now = 0;
@@ -82,7 +95,7 @@ class ProcessDelschedStep3 implements ShouldQueue
             }
 
             ProcessDelschedStep4::dispatch();
-            $this->updateLog('delsched_main', 'step3', 'running', 'Step 3 selesai, Step 4 dijadwalkan...');
+            $this->updateLog('delsched_main', 'step3', 'done', 'Step 3 selesai, Step 4 dijadwalkan...');
 
         } catch (\Exception $e) {
             $this->updateLog('delsched_main', 'step3', 'failed', 'Step 3 gagal: ' . $e->getMessage());

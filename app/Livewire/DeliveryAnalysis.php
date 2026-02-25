@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 use App\Models\MasterListItem;
+use App\Models\Delivery\SapReject;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -66,6 +67,16 @@ class DeliveryAnalysis extends Component
     }
 
 
+    private function getAdjustedStock($itemCode, $baseStock): int
+    {
+        $rejectRecord = SapReject::where('item_no', $itemCode)->first();
+        
+        if ($rejectRecord && $rejectRecord->in_stock) {
+            return max(0, $baseStock - $rejectRecord->in_stock);
+        }
+        
+        return $baseStock;
+    }
 
     private function generateDateRange(): array
     {
@@ -257,7 +268,9 @@ class DeliveryAnalysis extends Component
                     $semiCode  = $level['code'];
                     $multi     = $level['multiplier'];
                     $semiInv   = $inventory->get($semiCode);
-                    $semiStock = $semiInv?->stock     ?? 0;
+                    $semiBaseStock = $semiInv?->stock ?? 0;
+                    $semiStock     = $this->getAdjustedStock($semiCode, $semiBaseStock);
+
                     $semiName  = $semiInv?->item_name ?? $semiCode;
 
                     // Requirement semi = FG qty × multiplier
@@ -386,7 +399,9 @@ class DeliveryAnalysis extends Component
             $inv         = $inventory->get($itemCode);
             $itemActuals = $actuals->get($itemCode, collect());
 
-            $inStock      = $inv?->stock      ?? 0;
+            $baseStock      = $inv?->stock ?? 0;
+            $inStock        = $this->getAdjustedStock($itemCode, $baseStock);
+
             $itemName     = $inv?->item_name  ?? $itemActuals->first()?->item_name ?? $itemCode;
             $cycleTime    = $masterItem?->cycle_time    ?? null;
             $customerName = $masterItem?->customer?->customer_name ?? null;
