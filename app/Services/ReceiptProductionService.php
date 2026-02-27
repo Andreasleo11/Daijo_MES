@@ -12,14 +12,11 @@ class ReceiptProductionService extends BaseSapService
 
     public function pushAllUnprocessed()
     {
-        $records = DB::table('production_scanned_data')
-        ->where('processed', 0)
-        // ->where('spk_code', '25023034') 
-        ->where('spk_code', '99999999') 
-        ->get();
-
-        // ->whereIn('spk_code', [25024585, 25024610])
-        // ->whereIn('spk_code', [25023034])
+        // Ambil dari production_summary yang belum dikirim ke SAP
+        $records = DB::table('production_summary')
+            ->where('sap_sent', 0)
+            ->where('warehouse', strtoupper('KRFG'))
+            ->get();
 
         \Log::info('Scheduler jalan, records count: ' . $records->count());
 
@@ -42,22 +39,39 @@ class ReceiptProductionService extends BaseSapService
             }
         }
 
-        // Group by SPK
-        $grouped = $records->groupBy('spk_code');
-       
+        Log::info("SAP Push START", ['summary_count' => $records->count()]);
 
-        Log::info("SAP Push START", ['spk_count' => $grouped->count()]);
+        foreach ($records as $summary) {
+            // Cari item_code dari production_scanned_data menggunakan spk_code
+            $scannedData = DB::table('production_scanned_data')
+                ->where('spk_code', $summary->spk_code)
+                ->first();
 
-        foreach ($grouped as $spkCode => $items) {
-            $payload = [];
-            $payload[] = [
-                'spk_code'  => $spkCode,
-                'item_code' => $items->first()->item_code,
-                'warehouse' => $items->first()->warehouse,
-                'quantity'  => $items->sum('quantity'),
-                'label'     => $items->count(),
+            if (!$scannedData) {
+                Log::warning("Scanned data not found for SPK", ['spk_code' => $summary->spk_code]);
+                
+                $this->saveApiLog(
+                    'receipt_production',
+                    'POST',
+                    $this->endpoint,
+                    [],
+                    [],
+                    404,
+                    'failed',
+                    'SPK ' . $summary->spk_code . ' - scanned data not found'
+                );
+                continue;
+            }
+
+            $payload = [
+                [
+                    'spk_code'  => $summary->spk_code,
+                    'item_code' => $scannedData->item_code,
+                    'warehouse' => $summary->warehouse,
+                    'quantity'  => $summary->total_quantity,
+                    'label'     => $summary->label,
+                ]
             ];
-            
 
             try {
                 $response = Http::withHeaders([
@@ -71,12 +85,16 @@ class ReceiptProductionService extends BaseSapService
                 $status = $response->successful() && isset($json['status']) && $json['status'] === true;
 
                 if ($status) {
-                    DB::table('production_scanned_data')
-                        ->whereIn('id', $items->pluck('id'))
-                        ->update(['processed' => 1]);
+                    // Update production_summary set sap_sent = 1 dan sap_sent_at = now()
+                    DB::table('production_summary')
+                        ->where('id', $summary->id)
+                        ->update([
+                            'sap_sent' => 1,
+                            'sap_sent_at' => now(),
+                        ]);
 
                     Log::info("SAP Push SUCCESS", [
-                        'spk_code' => $spkCode,
+                        'spk_code' => $summary->spk_code,
                         'payload'  => $payload,
                         'response' => $json,
                     ]);
@@ -89,11 +107,11 @@ class ReceiptProductionService extends BaseSapService
                         $json,
                         $response->status(),
                         'success',
-                        'SPK ' . $spkCode . ' processed successfully'
+                        'SPK ' . $summary->spk_code . ' sent to SAP successfully'
                     );
                 } else {
                     Log::error("SAP Push FAILED", [
-                        'spk_code' => $spkCode,
+                        'spk_code' => $summary->spk_code,
                         'status'   => $response->status(),
                         'body'     => $response->body(),
                         'json'     => $json,
@@ -107,12 +125,12 @@ class ReceiptProductionService extends BaseSapService
                         $json,
                         $response->status(),
                         'failed',
-                        'SPK ' . $spkCode . ' failed: ' . $response->body()
+                        'SPK ' . $summary->spk_code . ' failed: ' . $response->body()
                     );
                 }
             } catch (\Throwable $e) {
                 Log::error("SAP Push EXCEPTION", [
-                    'spk_code' => $spkCode,
+                    'spk_code' => $summary->spk_code,
                     'error'    => $e->getMessage(),
                 ]);
 
@@ -124,11 +142,10 @@ class ReceiptProductionService extends BaseSapService
                     [],
                     500,
                     'failed',
-                    'SPK ' . $spkCode . ' exception: ' . $e->getMessage()
+                    'SPK ' . $summary->spk_code . ' exception: ' . $e->getMessage()
                 );
             }
         }
-
     }
 
     protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)

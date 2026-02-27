@@ -1,4 +1,4 @@
-<div x-data="{}" class="min-h-screen" style="background:#F0EEE9; font-family:'IBM Plex Mono',monospace;">
+<div x-data="{ viewMode: 'horizontal' }" class="min-h-screen" style="background:#F0EEE9; font-family:'IBM Plex Mono',monospace;">
 
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -109,6 +109,14 @@
         .head-sticky-1 { position: sticky; left: 0;     z-index: 20; background: #F7F5F2; }
         .head-sticky-2 { position: sticky; left: 115px; z-index: 20; background: #F7F5F2; }
 
+        /* Vertical mode sticky */
+        .vertical-sticky-date {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background: #F7F5F2;
+        }
+
         /* Pill status */
         .pill {
             display: inline-flex; align-items: center; gap: 4px;
@@ -173,6 +181,29 @@
         .val-neutral  { color: var(--text); }
         .val-actual   { color: #166534; font-weight: 600; }
         .val-seid     { color: var(--text); font-weight: 500; }
+
+        /* Toggle button */
+        .toggle-btn {
+            padding: 6px 12px;
+            font-size: 10px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-weight: 600;
+            letter-spacing: .05em;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all .15s;
+            text-transform: uppercase;
+        }
+        .toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .toggle-btn.active { 
+            background: var(--accent); 
+            border-color: var(--accent); 
+            color: #fff; 
+        }
+        .toggle-btn:first-child { border-radius: 2px 0 0 2px; }
+        .toggle-btn:last-child { border-radius: 0 2px 2px 0; border-left: none; }
     </style>
 
     {{-- ═══ TOPBAR ═══ --}}
@@ -197,8 +228,6 @@
 
         {{-- ═══ FILTER ROW ═══ --}}
         <div class="ds-card p-4 mb-5">
-          {{-- di dalam filter card, tambah kolom customer sebelum item code --}}
-            {{-- ubah grid jadi 5 kolom --}}
             <div style="display:grid; grid-template-columns:1.5fr 1.5fr 1fr 1fr 1fr; gap:12px; align-items:end;">
 
                 {{-- Customer filter --}}
@@ -243,10 +272,33 @@
                     </select>
                 </div>
 
+                {{-- Cut Off Date --}}
+                <div>
+                    <label class="ds-label">CutOffDate</label>
+                    <input type="date" wire:model.live="filterCutOffDate" class="form-control">
+                </div>
+
             </div>
 
-            {{-- di dalam filter card, tambah di pojok kanan --}}
-            <div style="grid-column: span 4; display:flex; justify-content:flex-end; margin-top:4px;">
+            <div style="grid-column: span 4; display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                {{-- Toggle View Mode --}}
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ds-label" style="margin-bottom:0;">VIEW:</span>
+                    <div style="display:flex;">
+                        <button @click="viewMode = 'horizontal'; $wire.call('setExportMode', 'horizontal')" 
+                                :class="viewMode === 'horizontal' ? 'active' : ''"
+                                class="toggle-btn">
+                            ⬌ Horizontal
+                        </button>
+                        <button @click="viewMode = 'vertical'; $wire.call('setExportMode', 'vertical')" 
+                                :class="viewMode === 'vertical' ? 'active' : ''"
+                                class="toggle-btn">
+                            ⬍ Vertical
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Export Button --}}
                 <button wire:click="exportExcel"
                     wire:loading.attr="disabled"
                     wire:target="exportExcel"
@@ -359,7 +411,6 @@
                         <div style="font-size:8px; color:#5A554E; text-transform:uppercase; letter-spacing:.1em; font-family:'IBM Plex Sans',sans-serif;">Actual</div>
                         <div style="font-size:14px; font-weight:700; color:#4ADE80; font-family:'IBM Plex Mono',monospace;">{{ number_format($item['total_actual']) }}</div>
                     </div>
-                    {{-- di dalam item-header, setelah In Stock --}}
                     <div style="text-align:right;">
                         <div style="font-size:8px; color:#5A554E; text-transform:uppercase; letter-spacing:.1em; font-family:'IBM Plex Sans',sans-serif;">Cycle Time</div>
                         <div style="font-size:14px; font-weight:700; color:#9A9590; font-family:'IBM Plex Mono',monospace;">
@@ -391,8 +442,8 @@
                 </div>
             </div>
 
-            {{-- Scroll Table --}}
-            <div style="overflow-x:auto;">
+            {{-- HORIZONTAL VIEW --}}
+            <div x-show="viewMode === 'horizontal'" style="overflow-x:auto;">
                 <table class="ds-table" style="min-width:max-content;">
                     <thead>
                         <tr>
@@ -482,11 +533,9 @@
                             @endforeach
                         </tr>
 
-                        {{-- Setelah row Balance Stock --}}
+                        {{-- Children (horizontal) --}}
                         @if(!empty($item['children']))
                             @foreach($item['children'] as $child)
-
-                            {{-- Child header row --}}
                             <tr>
                                 <td class="col-sticky-1" colspan="2"
                                     style="background:#F0EEE9; padding:3px 10px 3px {{ 8 + ($child['level'] * 8) }}px;
@@ -508,7 +557,6 @@
                                 @endforeach
                             </tr>
 
-                            {{-- 4 baris child --}}
                             @php
                                 $childRows = [
                                     ['SEID Req',  'seid_request',  '#FAFAF8', '#1A1816'],
@@ -555,6 +603,139 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- VERTICAL VIEW --}}
+            <div x-show="viewMode === 'vertical'" style="overflow-x:auto;">
+                <table class="ds-table" style="min-width:max-content;">
+                    <thead>
+                        <tr>
+                            <th class="vertical-sticky-date" style="min-width:100px; text-align:left; border-right:2px solid var(--border);">
+                                Tanggal
+                            </th>
+                            <th style="min-width:80px;">Stk Awal</th>
+                            <th style="min-width:90px; background:#FAFAF8;">SEID Request</th>
+                            <th style="min-width:90px; background:#F6FBF8;">Actual Del</th>
+                            <th style="min-width:90px; background:#FFFBF5;">Balance Del</th>
+                            <th style="min-width:100px; background:#F5F8FF;">Balance Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($dateRange as $date)
+                        @php
+                            $isWeekend = in_array(\Carbon\Carbon::parse($date)->dayOfWeek, [0, 6]);
+                            $isToday   = $date === now()->format('Y-m-d');
+                            $seidVal   = $item['daily'][$date]['seid_request'] ?? 0;
+                            $actualVal = $item['daily'][$date]['actual'] ?? 0;
+                            $balDelVal = $item['daily'][$date]['balance_del'] ?? 0;
+                            $balStockVal = $item['daily'][$date]['balance_stock'] ?? $item['in_stock'];
+                            
+                            $balDelCls = $balDelVal < 0 ? 'val-neg' : ($balDelVal > 0 ? 'val-pos' : 'val-zero');
+                            $balStockCls = $balStockVal < 0 ? 'val-neg' : ($balStockVal > 0 ? 'val-pos' : 'val-zero');
+                        @endphp
+                        <tr style="{{ $isToday ? 'background:#FFFEF8;' : '' }}">
+                            <td class="vertical-sticky-date" style="font-family:'IBM Plex Sans',sans-serif; font-size:10px; font-weight:600; border-right:2px solid var(--border); {{ $isToday ? 'background:#FFF3E0; color:var(--accent);' : ($isWeekend ? 'color:#A09890;' : '') }}">
+                                {{ \Carbon\Carbon::parse($date)->format('d M Y') }}
+                                @if($isWeekend)
+                                <span style="font-size:8px; color:#A09890;">(Weekend)</span>
+                                @endif
+                            </td>
+                            <td style="color:var(--muted); font-size:10px; text-align:center;">
+                                @if($loop->first)
+                                {{ number_format($item['in_stock']) }}
+                                @else
+                                —
+                                @endif
+                            </td>
+                            <td class="{{ $seidVal > 0 ? 'val-seid' : 'val-zero' }}" style="background:#FAFAF8;">
+                                {{ $seidVal > 0 ? number_format($seidVal) : '' }}
+                            </td>
+                            <td class="{{ $actualVal > 0 ? 'val-actual' : 'val-zero' }}" style="background:#F6FBF8;">
+                                {{ $actualVal > 0 ? number_format($actualVal) : '' }}
+                            </td>
+                            <td class="{{ $balDelCls }}" style="background:#FFFBF5;">
+                                {{ $balDelVal != 0 ? number_format($balDelVal) : '0' }}
+                            </td>
+                            <td class="{{ $balStockCls }}" style="background:#F5F8FF; font-weight:{{ $balStockVal < 0 ? '700' : '500' }};">
+                                {{ number_format($balStockVal) }}
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                {{-- Children table (vertical) --}}
+                @if(!empty($item['children']))
+                    @foreach($item['children'] as $child)
+                    <div style="margin-top:16px; padding-left:{{ $child['level'] * 12 }}px;">
+                        <div style="background:#F0EEE9; padding:6px 12px; border-left:3px solid #7A756E; margin-bottom:8px;">
+                            <span style="font-size:9px; font-weight:700; color:#1A1816;">
+                                {{ $child['semi_code'] }}
+                            </span>
+                            <span style="color:#7A756E; font-size:9px; margin-left:6px;">{{ $child['semi_name'] }}</span>
+                            <span style="background:#1A1816; color:#fff; font-size:7px; padding:1px 5px;
+                                        border-radius:2px; margin-left:6px;">×{{ $child['multiplier'] }}</span>
+                            <span style="color:#7A756E; font-size:8px; margin-left:8px;">
+                                Stk: {{ number_format($child['in_stock']) }}
+                            </span>
+                        </div>
+
+                        <table class="ds-table" style="min-width:max-content;">
+                            <thead>
+                                <tr>
+                                    <th class="vertical-sticky-date" style="min-width:100px; text-align:left; border-right:2px solid var(--border);">
+                                        Tanggal
+                                    </th>
+                                    <th style="min-width:80px;">Stk Awal</th>
+                                    <th style="min-width:90px; background:#FAFAF8;">SEID Req</th>
+                                    <th style="min-width:90px; background:#F0FAF4;">Actual</th>
+                                    <th style="min-width:90px; background:#FFFBF0;">Bal Del</th>
+                                    <th style="min-width:100px; background:#F0F5FF;">Bal Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($dateRange as $date)
+                                @php
+                                    $isToday = $date === now()->format('Y-m-d');
+                                    $seidVal = $child['daily'][$date]['seid_request'] ?? 0;
+                                    $actualVal = $child['daily'][$date]['actual'] ?? 0;
+                                    $balDelVal = $child['daily'][$date]['balance_del'] ?? 0;
+                                    $balStockVal = $child['daily'][$date]['balance_stock'] ?? 0;
+                                    
+                                    $balDelCls = $balDelVal < 0 ? 'val-neg' : ($balDelVal > 0 ? 'val-pos' : 'val-zero');
+                                    $balStockCls = $balStockVal < 0 ? 'val-neg' : ($balStockVal > 0 ? 'val-pos' : 'val-zero');
+                                @endphp
+                                <tr>
+                                    <td class="vertical-sticky-date" style="font-size:9px; border-right:2px solid var(--border); {{ $isToday ? 'background:#FFF3E0; color:var(--accent);' : '' }}">
+                                        {{ \Carbon\Carbon::parse($date)->format('d M') }}
+                                    </td>
+                                    <td style="font-size:9px; text-align:center;">
+                                        @if($loop->first)
+                                        {{ number_format($child['in_stock']) }}
+                                        @else
+                                        —
+                                        @endif
+                                    </td>
+                                    <td class="{{ $seidVal > 0 ? 'val-seid' : 'val-zero' }}" style="background:#FAFAF8; font-size:9px;">
+                                        {{ $seidVal > 0 ? number_format($seidVal) : '' }}
+                                    </td>
+                                    <td class="{{ $actualVal > 0 ? 'val-actual' : 'val-zero' }}" style="background:#F0FAF4; font-size:9px;">
+                                        {{ $actualVal > 0 ? number_format($actualVal) : '' }}
+                                    </td>
+                                    <td class="{{ $balDelCls }}" style="background:#FFFBF0; font-size:9px;">
+                                        {{ $balDelVal != 0 ? number_format($balDelVal) : '0' }}
+                                    </td>
+                                    <td class="{{ $balStockCls }}" style="background:#F0F5FF; font-size:9px;">
+                                        {{ number_format($balStockVal) }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endforeach
+                @endif
+            </div>
+
         </div>
         @empty
         <div class="ds-card" style="padding:60px; text-align:center;">

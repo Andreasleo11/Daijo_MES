@@ -26,7 +26,9 @@ class DeliveryAnalysis extends Component
     public $filterDateFrom = '';
     public $filterDateTo   = '';
     public $filterStatus   = '';
+    public $filterCutOffDate = '';
     public $perPage        = 10;
+    public $exportMode = 'horizontal';
 
     public function mount()
     {
@@ -35,21 +37,19 @@ class DeliveryAnalysis extends Component
 
         $this->filterDateFrom = $minDate ?? now()->format('Y-m-d');
         $this->filterDateTo   = $maxDate ?? now()->format('Y-m-d');
-
-        // dd($this->getCustomerList());
+        $this->filterCutOffDate = '';
     }
 
     public function updatingFilterItemCode() { $this->resetPage(); }
     public function updatingFilterDateFrom() { $this->resetPage(); }
     public function updatingFilterDateTo()   { $this->resetPage(); }
     public function updatingFilterStatus()   { $this->resetPage(); }
+    public function updatingFilterCutOffDate() { $this->resetPage(); }
 
-    // Tambah property
     public $filterCustomer = '';
 
     public function updatingFilterCustomer() { $this->resetPage(); }
 
-    // Tambah method untuk load customer list (untuk dropdown)
     public function getCustomerList(): array
     {
         return MasterListItem::with('customer')
@@ -66,7 +66,6 @@ class DeliveryAnalysis extends Component
             ->toArray();
     }
 
-
     private function getAdjustedStock($itemCode, $baseStock): int
     {
         $rejectRecord = SapReject::where('item_no', $itemCode)->first();
@@ -78,10 +77,21 @@ class DeliveryAnalysis extends Component
         return $baseStock;
     }
 
+    /**
+     * Helper: Tentukan tanggal mulai berdasarkan cut off date
+     */
+    private function getStartDate(): string
+    {
+        if ($this->filterCutOffDate) {
+            return $this->filterCutOffDate;
+        }
+        return $this->filterDateFrom;
+    }
+
     private function generateDateRange(): array
     {
         $dates   = [];
-        $current = Carbon::parse($this->filterDateFrom);
+        $current = Carbon::parse($this->getStartDate());
         $end     = Carbon::parse($this->filterDateTo);
         while ($current->lte($end)) {
             $dates[] = $current->format('Y-m-d');
@@ -93,6 +103,7 @@ class DeliveryAnalysis extends Component
     public function getAnalysisData(): array
     {
         $dateRange = $this->generateDateRange();
+        $startDate = $this->getStartDate();
 
         // ── 1. Kumpulkan item codes (dengan filter) ────────────
         $customerItemCodes = $this->filterCustomer
@@ -209,9 +220,10 @@ class DeliveryAnalysis extends Component
             $inv          = $inventory->get($itemCode);
             $itemActuals  = $actuals->get($itemCode, collect());
 
-            // ← FG stock sekarang di-adjust reject
-            $inStock      = $adjustStock($itemCode, $inv?->stock ?? 0);
-            $itemName     = $inv?->item_name ?? $itemActuals->first()?->item_name ?? $itemCode;
+            $baseStock    = $inv?->stock ?? 0;
+            $inStock      = $this->getAdjustedStock($itemCode, $baseStock);
+
+            $itemName     = $inv?->item_name  ?? $itemActuals->first()?->item_name ?? $itemCode;
             $cycleTime    = $masterItem?->cycle_time    ?? null;
             $customerCode = $masterItem?->customer_code ?? null;
             $customerName = $masterItem?->customer?->customer_name ?? null;
@@ -328,12 +340,22 @@ class DeliveryAnalysis extends Component
             ->count('item_code');
     }
 
-    public function exportExcel(): StreamedResponse
+    public function exportExcel()
+    {
+        if ($this->exportMode === 'vertical') {
+            return $this->exportExcelVertical();
+        } else {
+            return $this->exportExcelHorizontal();
+        }
+    }
+
+    public function exportExcelHorizontal(): StreamedResponse
     {
         set_time_limit(300);
         ini_set('memory_limit', '512M');
 
         $dateRange = $this->generateDateRange();
+        $startDate = $this->getStartDate();
         $today     = Carbon::today()->format('Y-m-d');
         $filename  = 'delivery_analysis_' . now()->format('Ymd_His') . '.xlsx';
 
@@ -438,8 +460,10 @@ class DeliveryAnalysis extends Component
                     $levels[] = ['code' => $bom->semi_third,  'multiplier' => ($bom->qty_first ?? 1) * ($bom->qty_second ?? 1) * $bom->qty_third, 'level' => 3];
 
                 foreach ($levels as $level) {
-                    $semiInv   = $inventory->get($level['code']);
-                    $semiStock = $semiInv?->stock     ?? 0;
+                    $semiInv       = $inventory->get($level['code']);
+                    $semiBaseStock = $semiInv?->stock ?? 0;
+                    $semiStock     = $this->getAdjustedStock($level['code'], $semiBaseStock);
+                    
                     $semiName  = $semiInv?->item_name ?? $level['code'];
                     $multi     = $level['multiplier'];
 
@@ -475,7 +499,7 @@ class DeliveryAnalysis extends Component
         ];
 
         // ══════════════════════════════════════════════════════
-        // SHEET 1: SUMMARY (tidak berubah)
+        // SHEET 1: SUMMARY
         // ══════════════════════════════════════════════════════
         $ws = $ss->getActiveSheet()->setTitle('SUMMARY');
         $ws->setShowGridLines(false);
@@ -485,6 +509,7 @@ class DeliveryAnalysis extends Component
 
         $filterInfo = implode('  |  ', array_filter([
             "Period: {$this->filterDateFrom} – {$this->filterDateTo}",
+            $this->filterCutOffDate ? "Cut Off: {$this->filterCutOffDate}" : null,
             $this->filterCustomer ? "Customer: {$this->filterCustomer}" : null,
             $this->filterItemCode ? "Item: {$this->filterItemCode}" : null,
             $this->filterStatus   ? "Status: " . strtoupper($this->filterStatus) : null,
@@ -577,7 +602,7 @@ class DeliveryAnalysis extends Component
         $ws->freezePane('A5');
 
         // ══════════════════════════════════════════════════════
-        // SHEET 2: ANALYSIS (FG + BOM children dalam 1 sheet)
+        // SHEET 2: ANALYSIS
         // ══════════════════════════════════════════════════════
         $wsAn = $ss->createSheet()->setTitle('ANALYSIS');
         $wsAn->setShowGridLines(false);
@@ -744,7 +769,7 @@ class DeliveryAnalysis extends Component
         }
 
         // ══════════════════════════════════════════════════════
-        // SHEET 3: RAW DATA — FG + WIP rows
+        // SHEET 3: RAW DATA
         // ══════════════════════════════════════════════════════
         $wsRaw = $ss->createSheet()->setTitle('RAW DATA');
         $wsRaw->setShowGridLines(false);
@@ -841,6 +866,273 @@ class DeliveryAnalysis extends Component
         ]);
     }
 
+    /**
+     * Export format VERTICAL
+     */
+    private function exportExcelVertical()
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
+
+        $dateRange = $this->generateDateRange();
+        $filename  = 'delivery_analysis_vertical_' . now()->format('Ymd_His') . '.xlsx';
+
+        $customerItemCodes = $this->filterCustomer
+            ? MasterListItem::where('customer_code', $this->filterCustomer)->pluck('item_code')
+            : null;
+
+        $schedules = DB::table('sap_delsched')
+            ->whereBetween('delivery_date', [$this->filterDateFrom, $this->filterDateTo])
+            ->when($this->filterItemCode,  fn($q) => $q->where('item_code', 'like', "%{$this->filterItemCode}%"))
+            ->when($customerItemCodes,     fn($q) => $q->whereIn('item_code', $customerItemCodes))
+            ->get()->groupBy('item_code');
+
+        $actuals = DB::table('sap_delactual')
+            ->whereBetween('delivery_date', [$this->filterDateFrom, $this->filterDateTo])
+            ->when($this->filterItemCode,  fn($q) => $q->where('item_no', 'like', "%{$this->filterItemCode}%"))
+            ->when($customerItemCodes,     fn($q) => $q->whereIn('item_no', $customerItemCodes))
+            ->get()->groupBy('item_no');
+
+        $itemCodes   = $schedules->keys()->merge($actuals->keys())->unique()->values();
+        $masterItems = MasterListItem::with('customer')->whereIn('item_code', $itemCodes)->get()->keyBy('item_code');
+
+        $bomRows = DB::table('sap_bom_wip')
+            ->whereIn('fg_code', $itemCodes)
+            ->get()
+            ->groupBy('fg_code')
+            ->map(fn($rows) =>
+                $rows->groupBy('semi_first')
+                    ->map(fn($semiRows) =>
+                        $semiRows->sortByDesc(fn($r) =>
+                            (($r->semi_first  && $r->qty_first)  ? 1 : 0) +
+                            (($r->semi_second && $r->qty_second) ? 1 : 0) +
+                            (($r->semi_third  && $r->qty_third)  ? 1 : 0)
+                        )->first()
+                    )->values()
+            );
+
+        $semiCodes = $bomRows->flatMap(fn($rows) =>
+            $rows->flatMap(fn($b) => array_filter([$b->semi_first, $b->semi_second, $b->semi_third]))
+        )->unique()->values();
+
+        $inventory = DB::table('sap_inventory_fg')
+            ->whereIn('item_code', $itemCodes->merge($semiCodes)->unique())
+            ->get()->keyBy('item_code');
+
+        $calcDaily = function (array $seidPerDate, array $actualPerDate, int $inStock) use ($dateRange): array {
+            $daily = []; $prevBDel = null; $prevBStock = null;
+            foreach ($dateRange as $date) {
+                $seid   = $seidPerDate[$date]   ?? 0;
+                $actual = $actualPerDate[$date] ?? 0;
+                $bDel   = $prevBDel   === null ? $actual - $seid            : $prevBDel   + $actual - $seid;
+                $bStock = $prevBStock === null ? $inStock + $actual - $seid : $prevBStock + $actual - $seid;
+                $daily[$date] = compact('seid', 'actual', 'bDel', 'bStock');
+                $prevBDel = $bDel; $prevBStock = $bStock;
+            }
+            return $daily;
+        };
+
+        $allItems = [];
+
+        foreach ($itemCodes as $itemCode) {
+            $masterItem  = $masterItems->get($itemCode);
+            $inv         = $inventory->get($itemCode);
+            $itemActuals = $actuals->get($itemCode, collect());
+
+            $baseStock      = $inv?->stock ?? 0;
+            $inStock        = $this->getAdjustedStock($itemCode, $baseStock);
+
+            $itemName     = $inv?->item_name  ?? $itemActuals->first()?->item_name ?? $itemCode;
+            $cycleTime    = $masterItem?->cycle_time    ?? null;
+            $customerName = $masterItem?->customer?->customer_name ?? null;
+
+            $seidPerDate   = $schedules->get($itemCode, collect())
+                ->groupBy('delivery_date')->map(fn($r) => $r->sum('delivery_qty'))->toArray();
+            $actualPerDate = $itemActuals
+                ->groupBy('delivery_date')->map(fn($r) => $r->sum('quantity'))->toArray();
+
+            $dailyData   = $calcDaily($seidPerDate, $actualPerDate, $inStock);
+            $totalSched  = collect($dailyData)->sum('seid');
+            $totalActual = collect($dailyData)->sum('actual');
+            $diff        = $totalActual - $totalSched;
+            $status      = $diff < 0 ? 'SHORTFALL' : ($diff > 0 ? 'OVERDELIVERY' : 'ON TIME');
+
+            if ($this->filterStatus) {
+                $map = ['shortfall' => 'SHORTFALL', 'overdelivery' => 'OVERDELIVERY', 'on-time' => 'ON TIME'];
+                if (($map[$this->filterStatus] ?? '') !== $status) continue;
+            }
+
+            $children = [];
+            foreach ($bomRows->get($itemCode, collect()) as $bom) {
+                $levels = [];
+                if ($bom->semi_first  && $bom->qty_first)
+                    $levels[] = ['code' => $bom->semi_first,  'multiplier' => $bom->qty_first, 'level' => 1];
+                if ($bom->semi_second && $bom->qty_second)
+                    $levels[] = ['code' => $bom->semi_second, 'multiplier' => ($bom->qty_first ?? 1) * $bom->qty_second, 'level' => 2];
+                if ($bom->semi_third  && $bom->qty_third)
+                    $levels[] = ['code' => $bom->semi_third,  'multiplier' => ($bom->qty_first ?? 1) * ($bom->qty_second ?? 1) * $bom->qty_third, 'level' => 3];
+
+                foreach ($levels as $level) {
+                    $semiInv       = $inventory->get($level['code']);
+                    $semiBaseStock = $semiInv?->stock ?? 0;
+                    $semiStock     = $this->getAdjustedStock($level['code'], $semiBaseStock);
+                    
+                    $semiName  = $semiInv?->item_name ?? $level['code'];
+                    $multi     = $level['multiplier'];
+
+                    $semiSeid   = collect($dailyData)->mapWithKeys(fn($d, $dt) => [$dt => $d['seid']   * $multi])->toArray();
+                    $semiActual = collect($dailyData)->mapWithKeys(fn($d, $dt) => [$dt => $d['actual'] * $multi])->toArray();
+
+                    $children[] = [
+                        'semi_code'  => $level['code'],
+                        'semi_name'  => $semiName,
+                        'multiplier' => $multi,
+                        'level'      => $level['level'],
+                        'in_stock'   => $semiStock,
+                        'daily'      => $calcDaily($semiSeid, $semiActual, $semiStock),
+                    ];
+                }
+            }
+
+            $allItems[] = compact(
+                'itemCode', 'itemName', 'inStock', 'cycleTime',
+                'customerName', 'totalSched', 'totalActual',
+                'dailyData', 'status', 'diff', 'children'
+            );
+        }
+
+        // ── VERTICAL FORMAT: 1 sheet per item ──────────────────
+        $ss = new Spreadsheet();
+        $ss->removeSheetByIndex(0);
+
+        $hdrStyle = fn($fg = 'FFFFFFFF', $bg = 'FF1A1816') => [
+            'font'      => ['bold' => true, 'size' => 10, 'color' => ['argb' => $fg], 'name' => 'Arial'],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => $bg]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFD8D4CC']]],
+        ];
+
+        foreach ($allItems as $idx => $item) {
+            $sheetName = substr($item['itemCode'], 0, 31); // Excel sheet name max 31 chars
+            $ws = $ss->createSheet()->setTitle($sheetName);
+            $ws->setShowGridLines(false);
+
+            // Header
+            $ws->mergeCells('A1:F1');
+            $ws->setCellValue('A1', $item['itemCode'] . ' · ' . $item['itemName']);
+            $ws->getStyle('A1')->applyFromArray([
+                'font'      => ['bold' => true, 'size' => 12, 'color' => ['argb' => 'FFFFFFFF'], 'name' => 'Arial'],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF1A1816']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'indent' => 2, 'vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $ws->getRowDimension(1)->setRowHeight(24);
+
+            // Column headers
+            $headers = ['Tanggal', 'Stk Awal', 'SEID Request', 'Actual Del', 'Balance Del', 'Balance Stock'];
+            foreach ($headers as $col => $label) {
+                $cell = chr(65 + $col) . '2';
+                $ws->setCellValue($cell, $label);
+                $ws->getStyle($cell)->applyFromArray($hdrStyle());
+            }
+
+            $ws->getColumnDimension('A')->setWidth(14);
+            $ws->getColumnDimension('B')->setWidth(12);
+            $ws->getColumnDimension('C')->setWidth(14);
+            $ws->getColumnDimension('D')->setWidth(12);
+            $ws->getColumnDimension('E')->setWidth(12);
+            $ws->getColumnDimension('F')->setWidth(14);
+            $ws->getRowDimension(2)->setRowHeight(18);
+
+            // Data rows
+            $row = 3;
+            foreach ($dateRange as $date) {
+                $seid   = $item['dailyData'][$date]['seid'] ?? 0;
+                $actual = $item['dailyData'][$date]['actual'] ?? 0;
+                $bDel   = $item['dailyData'][$date]['bDel'] ?? 0;
+                $bStock = $item['dailyData'][$date]['bStock'] ?? $item['inStock'];
+
+                $ws->setCellValue("A{$row}", Carbon::parse($date)->format('d-M-Y'));
+                $ws->setCellValue("B{$row}", $row === 3 ? $item['inStock'] : null);
+                $ws->setCellValue("C{$row}", $seid ?? null);
+                $ws->setCellValue("D{$row}", $actual ?? null);
+                $ws->setCellValue("E{$row}", $bDel ?? null);
+                $ws->setCellValue("F{$row}", $bStock ?? null);
+
+                $ws->getStyle("A{$row}:F{$row}")->applyFromArray([
+                    'font'      => ['size' => 10, 'name' => 'Arial'],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFD8D4CC']]],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
+                ]);
+
+                // Number format
+                foreach (['B', 'C', 'D', 'E', 'F'] as $col) {
+                    $ws->getStyle("{$col}{$row}")->getNumberFormat()->setFormatCode('#,##0;[Red]-#,##0;-');
+                }
+
+                $row++;
+            }
+
+            // Children data
+            if (!empty($item['children'])) {
+                $row++;
+                foreach ($item['children'] as $child) {
+                    // Child header
+                    $ws->mergeCells("A{$row}:F{$row}");
+                    $ws->setCellValue("A{$row}", $child['semi_code'] . ' · ' . $child['semi_name'] . ' (×' . $child['multiplier'] . ')');
+                    $ws->getStyle("A{$row}:F{$row}")->applyFromArray([
+                        'font'      => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF3D3935'], 'name' => 'Arial'],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FFF7F5F2']],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'indent' => 2],
+                    ]);
+                    $ws->getRowDimension($row)->setRowHeight(16);
+                    $row++;
+
+                    foreach ($dateRange as $date) {
+                        $seid   = $child['daily'][$date]['seid'] ?? 0;
+                        $actual = $child['daily'][$date]['actual'] ?? 0;
+                        $bDel   = $child['daily'][$date]['bDel'] ?? 0;
+                        $bStock = $child['daily'][$date]['bStock'] ?? 0;
+
+                        $ws->setCellValue("A{$row}", Carbon::parse($date)->format('d-M-Y'));
+                        $ws->setCellValue("B{$row}", null);
+                        $ws->setCellValue("C{$row}", $seid ?? null);
+                        $ws->setCellValue("D{$row}", $actual ?? null);
+                        $ws->setCellValue("E{$row}", $bDel ?? null);
+                        $ws->setCellValue("F{$row}", $bStock ?? null);
+
+                        $ws->getStyle("A{$row}:F{$row}")->applyFromArray([
+                            'font'      => ['size' => 9, 'name' => 'Arial', 'color' => ['argb' => 'FF7A756E']],
+                            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFE8E4DC']]],
+                            'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
+                        ]);
+
+                        foreach (['B', 'C', 'D', 'E', 'F'] as $col) {
+                            $ws->getStyle("{$col}{$row}")->getNumberFormat()->setFormatCode('#,##0;[Red]-#,##0;-');
+                        }
+
+                        $row++;
+                    }
+                    $row++;
+                }
+            }
+        }
+
+        return response()->streamDownload(function () use ($ss) {
+            (new Xlsx($ss))->save('php://output');
+        }, $filename, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control'       => 'max-age=0',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+
+    public function setExportMode($mode)
+    {
+        $this->exportMode = $mode;
+    }
+
+
     public function render()
     {
         $analysisData = $this->getAnalysisData();
@@ -855,7 +1147,7 @@ class DeliveryAnalysis extends Component
             'totalItems'   => $totalItems,
             'totalPages'   => $totalPages,
             'currentPage'  => $currentPage,
-            'customerList' => $this->getCustomerList(), // ← tambah
+            'customerList' => $this->getCustomerList(),
         ]);
     }
 }
