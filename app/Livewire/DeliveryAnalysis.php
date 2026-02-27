@@ -134,26 +134,23 @@ class DeliveryAnalysis extends Component
 
         // ── 4. BOM — ambil semua children untuk pagedCodes ────
         $bomRows = DB::table('sap_bom_wip')
-        ->whereIn('fg_code', $pagedCodes)
-        ->get()
-        ->groupBy('fg_code')
-        ->map(function ($rows) {
-            // Per fg_code, group lagi by semi_first
-            // Ambil 1 row per semi_first yang paling lengkap (punya semi paling banyak)
-            return $rows
-                ->groupBy('semi_first')
-                ->map(function ($semiRows) {
-                    // Hitung "kelengkapan" tiap row: berapa level yang terisi
-                    return $semiRows->sortByDesc(function ($row) {
-                        $score = 0;
-                        if ($row->semi_first  && $row->qty_first)  $score++;
-                        if ($row->semi_second && $row->qty_second) $score++;
-                        if ($row->semi_third  && $row->qty_third)  $score++;
-                        return $score;
-                    })->first(); // ambil yang paling lengkap
-                })
-                ->values(); // jadi collection of rows, 1 per semi_first
-        });
+            ->whereIn('fg_code', $pagedCodes)
+            ->get()
+            ->groupBy('fg_code')
+            ->map(function ($rows) {
+                return $rows
+                    ->groupBy('semi_first')
+                    ->map(function ($semiRows) {
+                        return $semiRows->sortByDesc(function ($row) {
+                            $score = 0;
+                            if ($row->semi_first  && $row->qty_first)  $score++;
+                            if ($row->semi_second && $row->qty_second) $score++;
+                            if ($row->semi_third  && $row->qty_third)  $score++;
+                            return $score;
+                        })->first();
+                    })
+                    ->values();
+            });
 
         // Kumpulkan semua semi codes untuk 1x query inventory
         $semiCodes = $bomRows->flatMap(fn($rows) =>
@@ -162,10 +159,20 @@ class DeliveryAnalysis extends Component
             ]))
         )->unique()->values();
 
+        $allCodes = $pagedCodes->merge($semiCodes)->unique();
+
         // 1 query inventory untuk FG + semi sekaligus
         $inventory = DB::table('sap_inventory_fg')
-            ->whereIn('item_code', $pagedCodes->merge($semiCodes)->unique())
+            ->whereIn('item_code', $allCodes)
             ->get()->keyBy('item_code');
+
+        // ── Preload reject sekaligus — hindari N+1 ────────────
+        $rejectMap = SapReject::whereIn('item_no', $allCodes)
+            ->whereNotNull('in_stock')
+            ->pluck('in_stock', 'item_no');
+
+        $adjustStock = fn(string $code, int $base): int =>
+            max(0, $base - ($rejectMap->get($code) ?? 0));
 
         // ── 5. Helper: hitung daily rolling ───────────────────
         $calcDaily = function (array $seidPerDate, array $actualPerDate, int $inStock) use ($dateRange): array {
@@ -202,8 +209,9 @@ class DeliveryAnalysis extends Component
             $inv          = $inventory->get($itemCode);
             $itemActuals  = $actuals->get($itemCode, collect());
 
-            $inStock      = $inv?->stock      ?? 0;
-            $itemName     = $inv?->item_name  ?? $itemActuals->first()?->item_name ?? $itemCode;
+            // ← FG stock sekarang di-adjust reject
+            $inStock      = $adjustStock($itemCode, $inv?->stock ?? 0);
+            $itemName     = $inv?->item_name ?? $itemActuals->first()?->item_name ?? $itemCode;
             $cycleTime    = $masterItem?->cycle_time    ?? null;
             $customerCode = $masterItem?->customer_code ?? null;
             $customerName = $masterItem?->customer?->customer_name ?? null;
@@ -237,30 +245,27 @@ class DeliveryAnalysis extends Component
             $children = [];
 
             foreach ($bomRows->get($itemCode, collect()) as $bom) {
-                // Flatten levels: [code, multiplier]
-                // Level 2 multiplier = qty_first × qty_second (karena per 1 FG butuh qty_first unit semi_first,
-                // dan per 1 semi_first butuh qty_second unit semi_second, dst)
                 $levels = [];
 
                 if ($bom->semi_first && $bom->qty_first) {
                     $levels[] = [
-                        'code' => $bom->semi_first,
+                        'code'       => $bom->semi_first,
                         'multiplier' => $bom->qty_first,
-                        'level' => 1,
+                        'level'      => 1,
                     ];
                 }
                 if ($bom->semi_second && $bom->qty_second) {
                     $levels[] = [
-                        'code' => $bom->semi_second,
+                        'code'       => $bom->semi_second,
                         'multiplier' => ($bom->qty_first ?? 1) * $bom->qty_second,
-                        'level' => 2,
+                        'level'      => 2,
                     ];
                 }
                 if ($bom->semi_third && $bom->qty_third) {
                     $levels[] = [
-                        'code' => $bom->semi_third,
+                        'code'       => $bom->semi_third,
                         'multiplier' => ($bom->qty_first ?? 1) * ($bom->qty_second ?? 1) * $bom->qty_third,
-                        'level' => 3,
+                        'level'      => 3,
                     ];
                 }
 
@@ -268,12 +273,11 @@ class DeliveryAnalysis extends Component
                     $semiCode  = $level['code'];
                     $multi     = $level['multiplier'];
                     $semiInv   = $inventory->get($semiCode);
-                    $semiBaseStock = $semiInv?->stock ?? 0;
-                    $semiStock     = $this->getAdjustedStock($semiCode, $semiBaseStock);
 
+                    // ← Semi stock juga di-adjust reject, pakai preloaded $rejectMap
+                    $semiStock = $adjustStock($semiCode, $semiInv?->stock ?? 0);
                     $semiName  = $semiInv?->item_name ?? $semiCode;
 
-                    // Requirement semi = FG qty × multiplier
                     $semiSeidPerDate   = collect($dailyData)
                         ->mapWithKeys(fn($d, $date) => [$date => $d['seid_request'] * $multi])
                         ->toArray();
@@ -283,12 +287,12 @@ class DeliveryAnalysis extends Component
                         ->toArray();
 
                     $children[] = [
-                        'semi_code'   => $semiCode,
-                        'semi_name'   => $semiName,
-                        'multiplier'  => $multi,
-                        'level'       => $level['level'],
-                        'in_stock'    => $semiStock,
-                        'daily'       => $calcDaily($semiSeidPerDate, $semiActualPerDate, $semiStock),
+                        'semi_code'  => $semiCode,
+                        'semi_name'  => $semiName,
+                        'multiplier' => $multi,
+                        'level'      => $level['level'],
+                        'in_stock'   => $semiStock,
+                        'daily'      => $calcDaily($semiSeidPerDate, $semiActualPerDate, $semiStock),
                     ];
                 }
             }
@@ -313,7 +317,7 @@ class DeliveryAnalysis extends Component
         }
 
         return $result;
-    }
+    }   
 
     public function getTotalItems(): int
     {
