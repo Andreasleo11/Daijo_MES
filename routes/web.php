@@ -46,7 +46,7 @@ use App\Livewire\Maintenance\MouldDashboard as DashboardMould;
 use App\Livewire\DeliveryScheduleForm;
 use App\Livewire\DeliveryScheduleCalendar;
 
-
+use App\Livewire\MasterListItemView;
 
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -132,6 +132,8 @@ use App\Livewire\ProductionDashboard;
     Route::post('/master-items-photo/{itemCode}/upload', [MasterItemPhotoController::class, 'upload'])
         ->name('master.items.upload');
     //Route untuk photo master item
+
+    Route::get('/master-list-item', MasterListItemView::class)->name('master-list-item');
 
     //ROUTE untuk handle ng-type produksi 
     Route::get('/ng-types', [ProductionNgController::class, 'index'])->name('ngtypes.index');
@@ -608,9 +610,9 @@ Route::middleware('auth')->group(function (){
     //ROUTE UNTUK CAPACITY BY FORECASTING BAWAAN DISS 
 
 
-    Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
-    Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
-    ->name('generate.machine.list');
+    // Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
+    // Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
+    // ->name('generate.machine.list');
 
 
     Route::post('/submit/spk', [DashboardController::class, 'submitSPK'])->name('submit.spk');

@@ -14,6 +14,7 @@ use App\Models\MasterListItem;
 use App\Models\Delivery\delsched_solist;
 use App\Models\Delivery\delsched_delfilter;
 use App\Models\Delivery\delsched_delsum;
+use Carbon\Carbon;
 
 class ProcessDelschedStep1 implements ShouldQueue
 {
@@ -37,7 +38,10 @@ class ProcessDelschedStep1 implements ShouldQueue
 
             $this->updateLog('delsched_main', 'step1', 'running', 'Step 1: Processing sap_delsched...');
 
+            $startOfMonth = Carbon::now()->startOfMonth();
+
             $tab_sap_delsched = DB::table('sap_delsched')
+                ->where('delivery_date', '>=', $startOfMonth)
                 ->orderBy('delivery_date', 'asc')
                 ->orderBy('item_code', 'asc')
                 ->get();

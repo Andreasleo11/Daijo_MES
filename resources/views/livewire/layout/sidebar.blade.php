@@ -205,6 +205,12 @@ new class extends Component {
                     :active="request()->routeIs('daily-item-code.index')"
                     wire:navigate
                 />
+            <livewire:sidebar-link
+                    href="{{ route('master-list-item') }}"
+                    label="Master List Item"
+                    :active="request()->routeIs('master-list-item')"
+                    wire:navigate
+                />
             @endif
 
             <!-- Store Links -->

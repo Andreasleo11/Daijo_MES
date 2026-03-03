@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DailyItemCode;
+use App\Models\MasterListItem;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
@@ -125,6 +126,111 @@ class ProductionDashboardService
      * @param string|null $machineUserId
      * @return array
      */
+    // public function getDowntimeAnalysis(Carbon $startDate, Carbon $endDate, ?string $itemCode = null, ?string $machineUserId = null): array
+    // {
+    //     $query = DailyItemCode::query()
+    //         ->with(['hourlyRemarks.ngDetails'])
+    //         ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+
+    //     if ($itemCode) {
+    //         $query->where('item_code', $itemCode);
+    //     }
+
+    //     if ($machineUserId) {
+    //         $query->where('user_id', $machineUserId);
+    //     }
+
+    //     $dailyData = $query->get();
+        
+    //     $totalDowntime = 0; // in minutes
+    //     $downtimeByHour = [];
+    //     $problemHours = [];
+
+    //     foreach ($dailyData as $daily) {
+    //         // Group hourly remarks by hour, keep only highest actual_production if duplicate
+    //         $hourlyByHour = [];
+            
+    //         foreach ($daily->hourlyRemarks as $hourly) {
+    //             $hour = $hourly->start_time ?? 0;
+                
+    //             // If hour exists, keep the one with higher actual_production
+    //             if (isset($hourlyByHour[$hour])) {
+    //                 $existingActual = $hourlyByHour[$hour]->actual_production ?? 0;
+    //                 $newActual = $hourly->actual_production ?? 0;
+                    
+    //                 if ($newActual > $existingActual) {
+    //                     $hourlyByHour[$hour] = $hourly;
+    //                 }
+    //             } else {
+    //                 $hourlyByHour[$hour] = $hourly;
+    //             }
+    //         }
+
+    //         // Calculate downtime for each hour
+    //         foreach ($hourlyByHour as $hour => $hourly) {
+    //             $target = $hourly->target ?? 0;
+    //             $actualProduction = $hourly->actual_production ?? 0;
+                
+    //             // Calculate total NG for this hour
+    //             // $ng = 0;
+    //             // if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
+    //             //     foreach ($hourly->ngDetails as $ngDetail) {
+    //             //         $ng += $ngDetail->ng_quantity ?? 0;
+    //             //     }
+    //             // }
+                
+    //             // $actual = $actualProduction + $ng;
+    //             $actual = $actualProduction;
+                
+    //             // If actual < target, calculate downtime
+    //             if ($actual < $target && $target > 0) {
+    //                 // Formula: Downtime (minutes) = (Target - Actual) × (60 / Target)
+    //                 $downtime = ($target - $actual) * (60 / $target);
+    //                 $totalDowntime += $downtime;
+                    
+    //                 // Group by hour (0-23)
+    //                 if (!isset($downtimeByHour[$hour])) {
+    //                     $downtimeByHour[$hour] = [
+    //                         'hour' => str_pad($hour, 2, '0', STR_PAD_LEFT),
+    //                         'total_downtime' => 0,
+    //                         'occurrences' => 0,
+    //                     ];
+    //                 }
+                    
+    //                 $downtimeByHour[$hour]['total_downtime'] += $downtime;
+    //                 $downtimeByHour[$hour]['occurrences']++;
+                    
+    //                 // Collect problem hours for remarks
+    //                 $problemHours[] = [
+    //                     'id' => $hourly->id,
+    //                     'date' => $daily->start_date,
+    //                     'hour' => $hour,
+    //                     'target' => $target,
+    //                     'actual' => $actual,
+    //                     'downtime' => $downtime,
+    //                     'remark' => $hourly->remark ?? '',
+    //                 ];
+    //             }
+    //         }
+    //     }
+
+    //     // Sort downtime by hour (sort berdasarkan jam)
+    //     // ksort($downtimeByHour);
+
+    //     //sort berdasarkan occurence 
+    //     uasort($downtimeByHour, function ($a, $b) {
+    //         return $b['occurrences'] <=> $a['occurrences'];
+    //     });
+    //     // dd($downtimeByHour);
+        
+    //     return [
+    //         'total_downtime_minutes' => round($totalDowntime, 2),
+    //         'total_downtime_hours' => round($totalDowntime / 60, 2),
+    //         'downtime_by_hour' => array_values($downtimeByHour),
+    //         'problem_hours_count' => count($problemHours),
+    //     ];
+    // }
+
     public function getDowntimeAnalysis(Carbon $startDate, Carbon $endDate, ?string $itemCode = null, ?string $machineUserId = null): array
     {
         $query = DailyItemCode::query()
@@ -140,23 +246,35 @@ class ProductionDashboardService
         }
 
         $dailyData = $query->get();
-        
-        $totalDowntime = 0; // in minutes
+
+        // Preload cycle time semua item sekaligus
+        $masterItems = MasterListItem::whereIn('item_code', $dailyData->pluck('item_code')->unique())
+            ->pluck('cycle_time', 'item_code');
+
+        $totalDowntime  = 0;
         $downtimeByHour = [];
-        $problemHours = [];
+        $problemHours   = [];
+        $mergedHours    = [];
 
         foreach ($dailyData as $daily) {
-            // Group hourly remarks by hour, keep only highest actual_production if duplicate
             $hourlyByHour = [];
-            
+
             foreach ($daily->hourlyRemarks as $hourly) {
-                $hour = $hourly->start_time ?? 0;
-                
-                // If hour exists, keep the one with higher actual_production
+                $rawTime = $hourly->start_time ?? '0';
+
+                // Ambil integer hour untuk key (07:30:00 → 7)
+                $hour = is_numeric($rawTime)
+                    ? (int) $rawTime
+                    : (int) Carbon::parse($rawTime)->format('H');
+
+                // Simpan label original (07:30:00 → "07:30")
+                $hourly->_hour_label = is_numeric($rawTime)
+                    ? str_pad((int) $rawTime, 2, '0', STR_PAD_LEFT) . ':00'
+                    : Carbon::parse($rawTime)->format('H:i');
+
                 if (isset($hourlyByHour[$hour])) {
                     $existingActual = $hourlyByHour[$hour]->actual_production ?? 0;
-                    $newActual = $hourly->actual_production ?? 0;
-                    
+                    $newActual      = $hourly->actual_production ?? 0;
                     if ($newActual > $existingActual) {
                         $hourlyByHour[$hour] = $hourly;
                     }
@@ -165,67 +283,98 @@ class ProductionDashboardService
                 }
             }
 
-            // Calculate downtime for each hour
             foreach ($hourlyByHour as $hour => $hourly) {
-                $target = $hourly->target ?? 0;
-                $actualProduction = $hourly->actual_production ?? 0;
-                
-                // Calculate total NG for this hour
-                $ng = 0;
-                if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
-                    foreach ($hourly->ngDetails as $ngDetail) {
-                        $ng += $ngDetail->ng_quantity ?? 0;
-                    }
-                }
-                
-                $actual = $actualProduction + $ng;
-                
-                // If actual < target, calculate downtime
-                if ($actual < $target && $target > 0) {
-                    // Formula: Downtime (minutes) = (Target - Actual) × (60 / Target)
-                    $downtime = ($target - $actual) * (60 / $target);
-                    $totalDowntime += $downtime;
-                    
-                    // Group by hour (0-23)
-                    if (!isset($downtimeByHour[$hour])) {
-                        $downtimeByHour[$hour] = [
-                            'hour' => str_pad($hour, 2, '0', STR_PAD_LEFT),
-                            'total_downtime' => 0,
-                            'occurrences' => 0,
-                        ];
-                    }
-                    
-                    $downtimeByHour[$hour]['total_downtime'] += $downtime;
-                    $downtimeByHour[$hour]['occurrences']++;
-                    
-                    // Collect problem hours for remarks
-                    $problemHours[] = [
-                        'id' => $hourly->id,
-                        'date' => $daily->start_date,
-                        'hour' => $hour,
-                        'target' => $target,
-                        'actual' => $actual,
-                        'downtime' => $downtime,
-                        'remark' => $hourly->remark ?? '',
+                $target = $hourly->target            ?? 0;
+                $actual = $hourly->actual_production ?? 0;
+
+                // Skip kalau target 0 atau actual >= target
+                if ($target <= 0 || $actual >= $target) continue;
+
+                $cycleTimeSec = ($daily->temporal_cycle_time && $daily->temporal_cycle_time > 0)
+                    ? $daily->temporal_cycle_time
+                    : $masterItems->get($daily->item_code);
+
+                if (!$cycleTimeSec || $cycleTimeSec <= 0) continue;
+
+                $cycleTimeMinutes = $cycleTimeSec / 60;
+                $actualMinutes    = $actual * $cycleTimeMinutes;
+
+                // Key unik: mesin + tanggal + jam
+                $key = ($daily->user_id ?? 'unknown') . '_' . $daily->start_date . '_' . $hour;
+
+                if (!isset($mergedHours[$key])) {
+                    // Buat label "07:30 - 08:30" dari original start_time
+                    $startLabel = $hourly->_hour_label ?? str_pad($hour, 2, '0', STR_PAD_LEFT) . ':00';
+                    $endLabel   = Carbon::parse($daily->start_date . ' ' . $startLabel)
+                        ->addHour()
+                        ->format('H:i');
+
+                    $mergedHours[$key] = [
+                        'machine'        => $daily->user_id ?? 'unknown',
+                        'date'           => $daily->start_date,
+                        'hour'           => $hour,
+                        'hour_label'     => $startLabel . ' - ' . $endLabel,
+                        'total_prod_min' => 0,
+                        'remarks'        => [],
+                        'items'          => [],
                     ];
                 }
+
+                $mergedHours[$key]['total_prod_min'] += $actualMinutes;
+                $mergedHours[$key]['remarks'][]       = $hourly->remark ?? '';
+                $mergedHours[$key]['items'][]         = [
+                    'id'           => $hourly->id,
+                    'item_code'    => $daily->item_code,
+                    'target'       => $target,
+                    'actual'       => $actual,
+                    'cycle_time'   => $cycleTimeSec,
+                    'prod_minutes' => round($actualMinutes, 2),
+                ];
             }
         }
 
-        // Sort downtime by hour (sort berdasarkan jam)
-        // ksort($downtimeByHour);
+        // Hitung downtime dari merged hours
+        foreach ($mergedHours as $merged) {
+            $hour      = $merged['hour'];
+            $hourLabel = $merged['hour_label'];
 
-        //sort berdasarkan occurence 
-        uasort($downtimeByHour, function ($a, $b) {
-            return $b['occurrences'] <=> $a['occurrences'];
-        });
-        // dd($downtimeByHour);
-        
+            // Downtime = 60 menit - total menit produksi aktual
+            $finalDowntime = max(0, 60 - $merged['total_prod_min']);
+
+            if ($finalDowntime <= 0) continue;
+
+            $totalDowntime += $finalDowntime;
+
+            if (!isset($downtimeByHour[$hour])) {
+                $downtimeByHour[$hour] = [
+                    'hour'           => $hourLabel,
+                    'total_downtime' => 0,
+                    'occurrences'    => 0,
+                ];
+            }
+
+            $downtimeByHour[$hour]['total_downtime'] += $finalDowntime;
+            $downtimeByHour[$hour]['occurrences']++;
+
+            $problemHours[] = [
+                'id'             => $merged['items'][0]['id'] ?? null,
+                'date'           => $merged['date'],
+                'hour'           => $hourLabel,
+                'total_prod_min' => round($merged['total_prod_min'], 2),
+                'downtime'       => round($finalDowntime, 2),
+                'remark'         => implode(' | ', array_filter($merged['remarks'])),
+                'items'          => $merged['items'],
+            ];
+        }
+
+        // Sort berdasarkan occurrences
+        uasort($downtimeByHour, fn($a, $b) => $b['occurrences'] <=> $a['occurrences']);
+
         return [
             'total_downtime_minutes' => round($totalDowntime, 2),
-            'total_downtime_hours' => round($totalDowntime / 60, 2),
-            'downtime_by_hour' => array_values($downtimeByHour),
-            'problem_hours_count' => count($problemHours),
+            'total_downtime_hours'   => round($totalDowntime / 60, 2),
+            'downtime_by_hour'       => array_values($downtimeByHour),
+            'problem_hours_count'    => count($problemHours),
         ];
     }
 
@@ -253,20 +402,30 @@ class ProductionDashboardService
         }
 
         $dailyData = $query->get();
-        
-        $problemRemarks = [];
+
+        // Preload cycle time — sama seperti getDowntimeAnalysis
+        $masterItems = MasterListItem::whereIn('item_code', $dailyData->pluck('item_code')->unique())
+            ->pluck('cycle_time', 'item_code');
+
+        $mergedHours = [];
 
         foreach ($dailyData as $daily) {
-            // Group hourly remarks by hour, keep only highest actual_production if duplicate
             $hourlyByHour = [];
-            
+
             foreach ($daily->hourlyRemarks as $hourly) {
-                $hour = $hourly->start_time ?? 0;
-                
+                $rawTime = $hourly->start_time ?? '0';
+
+                $hour = is_numeric($rawTime)
+                    ? (int) $rawTime
+                    : (int) Carbon::parse($rawTime)->format('H');
+
+                $hourly->_hour_label = is_numeric($rawTime)
+                    ? str_pad((int) $rawTime, 2, '0', STR_PAD_LEFT) . ':00'
+                    : Carbon::parse($rawTime)->format('H:i');
+
                 if (isset($hourlyByHour[$hour])) {
                     $existingActual = $hourlyByHour[$hour]->actual_production ?? 0;
-                    $newActual = $hourly->actual_production ?? 0;
-                    
+                    $newActual      = $hourly->actual_production ?? 0;
                     if ($newActual > $existingActual) {
                         $hourlyByHour[$hour] = $hourly;
                     }
@@ -275,52 +434,85 @@ class ProductionDashboardService
                 }
             }
 
-            // Find problem hours
             foreach ($hourlyByHour as $hour => $hourly) {
-                $target = $hourly->target ?? 0;
-                $actualProduction = $hourly->actual_production ?? 0;
-                
-                // Calculate total NG
-                $ng = 0;
-                if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
-                    foreach ($hourly->ngDetails as $ngDetail) {
-                        $ng += $ngDetail->ng_quantity ?? 0;
-                    }
-                }
-                
-                $actual = $actualProduction + $ng;
-                
-                // If actual < target and has remark
-                if ($actual < $target && !empty($hourly->remark)) {
-                    $downtime = $target > 0 ? ($target - $actual) * (60 / $target) : 0;
-                    $gap = $target - $actual;
-                    
-                    $problemRemarks[] = [
-                        'date' => $daily->start_date,
-                        'hour' => str_pad($hour, 2, '0', STR_PAD_LEFT),
-                        'machine' => $daily->user->name ?? 'Unknown',
-                        'item_code' => $daily->item_code,
-                        'target' => $target,
-                        'actual' => $actual,
-                        'gap' => $gap,
-                        'downtime_minutes' => round($downtime, 2),
-                        'remark' => $hourly->remark,
-                        'severity' => $this->calculateSeverity($gap, $target),
+                $target = $hourly->target            ?? 0;
+                $actual = $hourly->actual_production ?? 0;
+
+                // Skip kalau target 0 atau actual >= target
+                if ($target <= 0 || $actual >= $target) continue;
+
+                // Skip kalau tidak ada remark
+                if (empty($hourly->remark)) continue;
+
+                $cycleTimeSec = ($daily->temporal_cycle_time && $daily->temporal_cycle_time > 0)
+                    ? $daily->temporal_cycle_time
+                    : $masterItems->get($daily->item_code);
+
+                if (!$cycleTimeSec || $cycleTimeSec <= 0) continue;
+
+                $cycleTimeMinutes = $cycleTimeSec / 60;
+                $actualMinutes    = $actual * $cycleTimeMinutes;
+
+                $key = ($daily->user_id ?? 'unknown') . '_' . $daily->start_date . '_' . $hour;
+
+                if (!isset($mergedHours[$key])) {
+                    $startLabel = $hourly->_hour_label ?? str_pad($hour, 2, '0', STR_PAD_LEFT) . ':00';
+                    $endLabel   = Carbon::parse($daily->start_date . ' ' . $startLabel)
+                        ->addHour()
+                        ->format('H:i');
+
+                    $mergedHours[$key] = [
+                        'date'           => $daily->start_date,
+                        'hour'           => $hour,
+                        'hour_label'     => $startLabel . ' - ' . $endLabel,
+                        'machine'        => $daily->user->name ?? 'Unknown',
+                        'total_prod_min' => 0,
+                        'remarks'        => [],
+                        'items'          => [],
                     ];
                 }
+
+                $mergedHours[$key]['total_prod_min'] += $actualMinutes;
+                $mergedHours[$key]['remarks'][]       = $hourly->remark;
+                $mergedHours[$key]['items'][]         = [
+                    'item_code' => $daily->item_code,
+                    'target'    => $target,
+                    'actual'    => $actual,
+                    'cycle_time'=> $cycleTimeSec,
+                ];
             }
         }
 
-        // Sort by gap (descending) - worst problems first
-        usort($problemRemarks, function($a, $b) {
-            return $b['gap'] - $a['gap'];
-        });
+        // Build problem remarks dari merged hours
+        $problemRemarks = [];
 
-        // usort($problemRemarks, function($a, $b) {
-        //     return strtotime($a['date']) - strtotime($b['date']);
-        // });
+        foreach ($mergedHours as $merged) {
+            $finalDowntime = max(0, 60 - $merged['total_prod_min']);
 
-        // Return top 10
+            if ($finalDowntime <= 0) continue;
+
+            // Gabungkan semua target & actual dari items untuk hitung gap
+            $totalTarget = collect($merged['items'])->sum('target');
+            $totalActual = collect($merged['items'])->sum('actual');
+            $gap         = $totalTarget - $totalActual;
+
+            $problemRemarks[] = [
+                'date'             => $merged['date'],
+                'hour'             => $merged['hour_label'],
+                'machine'          => $merged['machine'],
+                'item_code'        => collect($merged['items'])->pluck('item_code')->unique()->implode(', '),
+                'target'           => $totalTarget,
+                'actual'           => $totalActual,
+                'gap'              => $gap,
+                'downtime_minutes' => round($finalDowntime, 2),
+                'remark'           => implode(' | ', array_filter($merged['remarks'])),
+                'severity'         => $this->calculateSeverity($gap, $totalTarget),
+            ];
+        }
+
+        // Sort by gap descending — worst problems first
+        usort($problemRemarks, fn($a, $b) => $b['gap'] - $a['gap']);
+
         return array_slice($problemRemarks, 0, 20);
     }
 
