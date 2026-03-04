@@ -128,8 +128,9 @@ class BaseSapService
             
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
-                    'Accept' => 'application/json',
-                    'Host' => 'localhost',
+                    'Accept'        => 'application/json',
+                    'Content-Type'  => 'application/json',  // ← tambah ini
+                    'Host'          => 'localhost',
                 ])
                 ->timeout(30)
                 ->post($this->baseUrl . $endpoint, $payload);
@@ -138,18 +139,17 @@ class BaseSapService
                 return $response;
             }
             
-            // 401 = token expired
             if ($response->status() === 401) {
                 Log::warning('SAP token expired during POST, refreshing...');
                 Cache::forget('sap_token');
                 $this->token = null;
                 
-                // Retry once with fresh token
                 $token = $this->getToken();
                 $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $token,
-                        'Accept' => 'application/json',
-                        'Host' => 'localhost',
+                        'Authorization' => 'Bearer ' . $token,  // ← fix typo ini
+                        'Accept'        => 'application/json',
+                        'Content-Type'  => 'application/json',  // ← tambah ini
+                        'Host'          => 'localhost',
                     ])
                     ->timeout(30)
                     ->post($this->baseUrl . $endpoint, $payload);
@@ -164,9 +164,14 @@ class BaseSapService
             throw $e;
         }
     }
-    
+        
     public function testGet($endpoint, $params = [])
     {
         return $this->get($endpoint, $params);
+    }
+
+    public function testPost()
+    {
+        return $this->post($this->endpoint, []);
     }
 }

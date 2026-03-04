@@ -15,7 +15,7 @@ class ReceiptProductionService extends BaseSapService
         // Ambil dari production_summary yang belum dikirim ke SAP
         $records = DB::table('production_summary')
             ->where('sap_sent', 0)
-            ->where('warehouse', strtoupper('KRFG'))
+            ->where('warehouse', strtoupper('FG'))
             ->get();
 
         \Log::info('Scheduler jalan, records count: ' . $records->count());
@@ -74,16 +74,11 @@ class ReceiptProductionService extends BaseSapService
             ];
 
             try {
-                $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $this->token,
-                        'Accept'        => 'application/json',
-                        'Host'          => 'localhost',
-                    ])
-                    ->post($this->baseUrl . $this->endpoint, $payload);
+                $response = $this->post($this->endpoint, $payload);
 
                 $json   = $response->json();
                 $status = $response->successful() && isset($json['status']) && $json['status'] === true;
-
+                
                 if ($status) {
                     // Update production_summary set sap_sent = 1 dan sap_sent_at = now()
                     DB::table('production_summary')
