@@ -79,6 +79,8 @@ use App\Livewire\Report\MonthlyReport;
 use App\Http\Controllers\ReportController;
 use App\Livewire\ProductionDashboard;
 
+use App\Livewire\ProductionSummaryMonitor;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -314,6 +316,12 @@ use App\Livewire\ProductionDashboard;
     // Route untuk auto login
 
 Route::middleware('auth')->group(function (){
+
+
+    Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');
+
+
+
     //-- Production project route
     Route::post('/dashboard/update-machine-job', [DashboardController::class, 'updateMachineJob'])->name('update.machine_job');
     Route::get('/generate-barcode/{item_code}/{quantity}', [DashboardController::class, 'itemCodeBarcode'])->name('generate.itemcode.barcode');

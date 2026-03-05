@@ -140,6 +140,7 @@ new class extends Component {
                     :active="request()->routeIs('delivery.analysis')"
                     wire:navigate
                 />
+                
 
             @endif
 
@@ -256,6 +257,14 @@ new class extends Component {
                     :active="request()->routeIs('updated.barcode.item.position')"
                     wire:navigate
                 />
+
+                  <livewire:sidebar-link
+                    href="{{ route('production-summary-monitor') }}"
+                    label="Cek stock dari Program ke SAP"
+                    :active="request()->routeIs('production-summary-monitor')"
+                    wire:navigate
+                />
+
 
                 <livewire:sidebar-link
                     href="{{ route('so.index') }}"
