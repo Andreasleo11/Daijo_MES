@@ -514,6 +514,7 @@
                                                 <th class="border px-4 py-2">Planned Quantity</th>
                                                 <th class="border px-4 py-2">Quantity Produksi</th>
                                                 <th class="border px-4 py-2">Cycle Time</th>
+                                                <th class="border px-4 py-2">SAP Cycle Time</th>
                                                 <th class="border px-4 py-2">Start Time</th>
                                                 <th class="border px-4 py-2">End Time</th>
                                                 <th class="border px-4 py-2">Delivery Schedule</th>
@@ -533,6 +534,7 @@
                                                     <td class="border px-4 py-2">{{ $dailyItem['quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['total_scanned_quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['cycle_time_seconds'] }} Detik </td>
+                                                    <td class="border px-4 py-2">{{ $dailyItem['sap_cycle_time'] }} Detik </td>
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['start_date'] }} {{ \Carbon\Carbon::parse($dailyItem['start_time'])->subHours(7)->format('H:i') }}
                                                     </td>

@@ -46,8 +46,10 @@ class GenerateProductionSummary extends Command
                     'warehouse'      => $warehouse,
                     'label'          => 'all', // Label is always 'all'
                     'created_date'   => $created_date,
-                    'sap_sent'       => 0, // Default: belum dikirim ke SAP
-                    'sap_sent_at'    => null, // Null sampai dikirim
+                    // 'sap_sent'       => 0, // Default: belum dikirim ke SAP
+                    // 'sap_sent_at'    => null, // Null sampai dikirim
+                    'sap_sent'       => 1, // Default: belum dikirim ke SAP
+                    'sap_sent_at'    => now(), // Null sampai dikirim
                 ]);
 
                 // Collect IDs of processed records
@@ -57,6 +59,40 @@ class GenerateProductionSummary extends Command
             // Mark processed records
             // INI UNTUK UPDATE PROCESSED JADI TRUE NANTI KALAU METHOD SUDAH AMAN 
             ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
+
+            // Kumpulkan semua payload yang dibuat
+            $allPayloads = [];
+            foreach ($summaries as $spk_code => $group) {
+                $first = $group->first();
+                $allPayloads[] = [
+                    'spk_code'       => $spk_code,
+                    'total_quantity' => $group->sum('quantity'),
+                    'warehouse'      => $first->warehouse,
+                    'label'          => 'all',
+                    'used_label'     => $group->pluck('label')->unique()->values()->toArray(),
+                    'created_date'   => $first->created_at->toDateString(),
+                    'records_count'  => $group->count(),
+                ];
+            }
+
+            DB::table('api_logs')->insert([
+                'api_name'         => 'PRODUCTION_SUMMARY',
+                'method'           => 'INTERNAL',
+                'endpoint'         => 'summary:generate',
+                'request_payload'  => json_encode(['processed_ids' => $processedIds], JSON_PRETTY_PRINT),
+                'response_payload' => json_encode([
+                    'generated_at'   => now()->toDateTimeString(),
+                    'total_spk'      => count($allPayloads),
+                    'total_records'  => count($processedIds),
+                    'label_used'     => collect($allPayloads)->pluck('label')->unique()->values(),
+                    'summaries'      => $allPayloads,
+                ], JSON_PRETTY_PRINT),
+                'status_code'      => 200,
+                'status'           => 'success',
+                'message'          => 'Generated ' . count($allPayloads) . ' summaries from ' . count($processedIds) . ' records',
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
 
             DB::commit();
             $this->info('Production summary generated and data marked as processed.');

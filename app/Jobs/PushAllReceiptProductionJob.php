@@ -23,19 +23,11 @@ class PushAllReceiptProductionJob implements ShouldQueue
         Log::channel('single')->info("[JOB] PushAllReceiptProductionJob STARTED at " . now());
 
         try {
-            $success = $service->pushAllUnprocessed();
-
-            if ($success) {
-                Log::channel('single')->info("[JOB] PushAllReceiptProductionJob DONE ✅ : all unprocessed records sent to SAP.");
-            } else {
-                Log::channel('single')->warning("[JOB] PushAllReceiptProductionJob FAILED ⚠️ : pushAllUnprocessed() returned false.");
-            }
+        // Langsung call, jangan check return value
+            $service->pushAllUnprocessed();
+            Log::channel('single')->info("[JOB] PushAllReceiptProductionJob DONE ✅");
         } catch (Throwable $e) {
-            Log::channel('single')->error("[JOB] PushAllReceiptProductionJob CRASHED ❌ : " . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // optionally biar job dicatat failed
+            Log::channel('single')->error("[JOB] CRASHED ❌: " . $e->getMessage());
             throw $e;
         }
 

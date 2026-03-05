@@ -56,7 +56,7 @@
             flex-direction: column;
             justify-content: center;
             line-height: 1.2;
-            font-weight: bold; 
+            /* font-weight: bold;  */
         }
 
         .info div {
@@ -69,7 +69,7 @@
 
         .project-line {
             font-size: 1.1mm !important;
-            font-weight: bold;
+            /* font-weight: bold; */
             letter-spacing: 0.1mm;
         }
 

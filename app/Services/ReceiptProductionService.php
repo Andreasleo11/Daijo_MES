@@ -15,7 +15,7 @@ class ReceiptProductionService extends BaseSapService
         // Ambil dari production_summary yang belum dikirim ke SAP
         $records = DB::table('production_summary')
             ->where('sap_sent', 0)
-            ->where('warehouse', strtoupper('FG'))
+            ->where('warehouse', strtoupper('FFI'))
             ->get();
 
         \Log::info('Scheduler jalan, records count: ' . $records->count());
@@ -72,6 +72,7 @@ class ReceiptProductionService extends BaseSapService
                     'label'     => $summary->label,
                 ]
             ];
+
 
             try {
                 $response = $this->post($this->endpoint, $payload);

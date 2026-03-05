@@ -14,7 +14,7 @@ class DispatchReceiptProduction extends Command
     {
         \Log::info("[SCHEDULE] sap:dispatch-receipt triggered at " . now());
 
-        PushAllReceiptProductionJob::dispatch();
+        PushAllReceiptProductionJob::dispatchSync();
 
         $this->info("Dispatched PushAllReceiptProductionJob to queue.");
         \Log::info("[SCHEDULE] Job dispatched to queue.");

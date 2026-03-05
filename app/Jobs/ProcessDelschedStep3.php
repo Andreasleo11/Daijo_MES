@@ -94,7 +94,6 @@ class ProcessDelschedStep3 implements ShouldQueue
                 }
             }
 
-            ProcessDelschedStep4::dispatch();
             $this->updateLog('delsched_main', 'step3', 'done', 'Step 3 selesai, Step 4 dijadwalkan...');
 
         } catch (\Exception $e) {

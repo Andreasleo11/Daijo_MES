@@ -61,7 +61,7 @@
 
     .info div {
         font-size: 2.2mm;
-        font-weight: bold;
+        /* font-weight: bold; */
         white-space: nowrap;
     }
 

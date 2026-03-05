@@ -14,6 +14,7 @@ use App\Models\DailyItemCode;
 use App\Models\MouldChangeLog;
 use App\Models\AdjustMachineLog;
 use App\Models\MasterZone;
+use App\Models\MasterListItem;
 use App\Models\ZoneLog;
 use App\Models\ZonePengawas;
 use App\Models\RepairMachineLog;
@@ -211,6 +212,9 @@ class ProductionDashboardController extends Controller
                     $cycleTimeInSeconds = $cycleTime ? $cycleTime * 60 : null;
                 }
 
+                $sapCycleTime = MasterListItem::where('item_code', $dailyItem->item_code)
+                ->value('cycle_time');
+
                 $formattedDailyItem = [
                     'id' => $dailyItem->id,
                     'item_code' => $dailyItem->item_code,
@@ -227,6 +231,7 @@ class ProductionDashboardController extends Controller
                     'end_time' => Carbon::parse($dailyItem->end_time)->timezone('Asia/Jakarta')->format('H:i:s'),
                     'total_scanned_quantity' => $totalScannedQuantity,
                     'cycle_time_seconds' => $cycleTimeInSeconds,
+                    'sap_cycle_time' => $sapCycleTime,  
                     'scanned_data' => [],
                     'delsched' => $delschedData
                 ];

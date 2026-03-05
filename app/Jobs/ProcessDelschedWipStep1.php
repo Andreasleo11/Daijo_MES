@@ -105,7 +105,7 @@ class ProcessDelschedWipStep1 implements ShouldQueue
                 }
             }
 
-            ProcessDelschedWipStep2::dispatch();
+           
             $this->updateLog('delsched_wip', 'step1', 'running', 'WIP Step 1 selesai, Step 2 dijadwalkan...');
 
         } catch (\Exception $e) {

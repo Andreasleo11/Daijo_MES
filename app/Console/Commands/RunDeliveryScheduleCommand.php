@@ -31,7 +31,7 @@ class RunDeliveryScheduleCommand extends Command
         foreach ($jobs as $name => $jobClass) {
             $start = microtime(true);
 
-            $jobClass::dispatchSync();
+            $jobClass::dispatch();
 
             $duration = round(microtime(true) - $start, 4);
             $this->info("✅ {$name} dispatched — {$duration}s");
