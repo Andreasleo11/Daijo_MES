@@ -80,7 +80,9 @@
                         </h2>
                          <h1>
                             Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
-                             Efficiency Machine : {{ $data['machine_efficiency'] ?? 0 }} %
+    |                       Efficiency: {{ $data['machine_efficiency'] ?? 0 }}%
+    |                       Jam Aktif: {{ $data['total_jam_aktif'] ?? 0 }} jam
+    |                       Prod: {{ $data['total_prod_menit'] ?? 0 }} menit
                         </h1>
 
                         <!-- @if(isset($data['pengawas']))
@@ -351,7 +353,8 @@
 
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
-                                                $statusClass = $remark['is_achieve'] ? 'bg-green-100' : 'bg-red-100';
+                                                $effectiveAchieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
+                                                $statusClass = $effectiveAchieved ? 'bg-green-100' : 'bg-red-100';
 
                                                 // Cek jika ganti shift
                                                 if ($currentShift !== $remark['shift']) {
@@ -387,9 +390,16 @@
                                                     
                                                 </td>
                                                 <td class="border px-4 py-2 text-center">
-                                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
-                                                        {{ ucfirst($remark['status']) }}
+                                                    <span class="px-2 py-1 rounded text-xs font-bold 
+                                                        {{ $effectiveAchieved ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
+                                                        {{ $effectiveAchieved ? 'Achieved' : 'Not Achieved' }}
                                                     </span>
+
+                                                    @if(!empty($remark['is_multi_item']))
+                                                    <div style="font-size:9px; color:#888; margin-top:3px;">
+                                                        combined: {{ min(round($remark['combined_actual_seconds'] / 60, 1), 60) }}m / 60m
+                                                    </div>
+                                                    @endif
                                                 </td>
                                                 <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
                                             </tr>
