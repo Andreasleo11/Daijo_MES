@@ -64,17 +64,26 @@ class ReceiptProductionLogs extends Component
             $totalQty     = collect($payloads)->sum('quantity');
             $totalItems   = count($payloads);
 
-            // Ambil spk_codes — filter yang null/kosong
-            $spkCodes = collect($payloads)
-                ->pluck('spk_code')
-                ->filter(fn($v) => !is_null($v) && $v !== '')
-                ->unique()
-                ->values()
-                ->toArray();
+            // Ambil summary_ids dan spk_codes dari payload
+            $summaryIds = collect($payloads)->pluck('summary_id')->filter()->unique()->values()->toArray();
+            $spkCodes   = collect($payloads)->pluck('spk_code')->filter()->unique()->values()->toArray();
 
-            // Query production_summary hanya kalau ada spk_codes
             $summaryMap = collect();
-            if (!empty($spkCodes)) {
+
+            if (!empty($summaryIds)) {
+                // Data baru — query by summary_id
+                $summaryMap = DB::table('production_summary')
+                    ->whereIn('id', $summaryIds)
+                    ->get()
+                    ->keyBy('id')
+                    ->map(fn($s) => [
+                        'sap_sent'    => $s->sap_sent,
+                        'sap_sent_at' => $s->sap_sent_at,
+                        'total_qty'   => $s->total_quantity,
+                        'warehouse'   => $s->warehouse,
+                    ]);
+            } elseif (!empty($spkCodes)) {
+                // Data lama — fallback query by spk_code
                 $summaryMap = DB::table('production_summary')
                     ->whereIn('spk_code', $spkCodes)
                     ->get()
@@ -87,15 +96,15 @@ class ReceiptProductionLogs extends Component
                     ]);
             }
 
-            // Enrich payloads
+            // Enrich — pakai summary_id kalau ada, fallback ke spk_code
             $enrichedPayloads = collect($payloads)->map(function ($p) use ($summaryMap) {
-                $spk     = $p['spk_code'] ?? null;
-                $summary = $spk ? $summaryMap->get($spk) : null;
+                $key     = ($p['summary_id'] ?? null) ?: ($p['spk_code'] ?? null);
+                $summary = $key ? $summaryMap->get($key) : null;
                 return array_merge($p, [
                     'sap_sent'    => $summary['sap_sent']    ?? null,
                     'sap_sent_at' => $summary['sap_sent_at'] ?? null,
                 ]);
-            })->toArray();
+})->toArray();
 
             return [
                 'id'             => $log->id,

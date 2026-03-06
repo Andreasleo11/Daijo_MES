@@ -65,6 +65,7 @@ class ReceiptProductionService extends BaseSapService
 
             $payload = [
                 [
+                    'summary_id' => $summary->id, 
                     'spk_code'  => $summary->spk_code,
                     'item_code' => $scannedData->item_code,
                     'warehouse' => $summary->warehouse,
