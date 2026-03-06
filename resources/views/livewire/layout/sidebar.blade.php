@@ -206,10 +206,17 @@ new class extends Component {
                     :active="request()->routeIs('daily-item-code.index')"
                     wire:navigate
                 />
-            <livewire:sidebar-link
-                    href="{{ route('master-list-item') }}"
-                    label="Master List Item"
-                    :active="request()->routeIs('master-list-item')"
+                <livewire:sidebar-link
+                        href="{{ route('master-list-item') }}"
+                        label="Master List Item"
+                        :active="request()->routeIs('master-list-item')"
+                        wire:navigate
+                    />
+
+                <livewire:sidebar-link
+                    href="{{ route('receipt-production-logs') }}"
+                    label="Cek Data SPK ke SAP"
+                    :active="request()->routeIs('receipt-production-logs')"
                     wire:navigate
                 />
             @endif

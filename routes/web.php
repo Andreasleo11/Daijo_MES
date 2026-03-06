@@ -80,6 +80,8 @@ use App\Http\Controllers\ReportController;
 use App\Livewire\ProductionDashboard;
 
 use App\Livewire\ProductionSummaryMonitor;
+use App\Livewire\ReceiptProductionLogs;
+
 
 
 /*
@@ -319,6 +321,9 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');
+
+
+    Route::get('/receipt-production-logs', ReceiptProductionLogs::class)->name('receipt-production-logs');
 
 
 

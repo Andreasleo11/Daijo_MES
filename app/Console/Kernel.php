@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // PASTIKAN PRODUCTION SUMMARY SUDAH DI 1 dulu semua sebelum RUN 
-        // $schedule->command('sap:dispatch-receipt')->hourlyAt(8)->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
+        // $schedule->command('sap:dispatch-receipt')->everyThirtyMinutes()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
         
 
 
@@ -64,7 +64,7 @@ class Kernel extends ConsoleKernel
 
 
 
-        $schedule->command('summary:generate')->hourly();
+        $schedule->command('summary:generate')->everyThirtyMinutes();
         $schedule->command('sync:delivery-data')->dailyAt('08:15')->timezone('Asia/Jakarta');
         $schedule->command('sync:delivery-data')->dailyAt('14:00')->timezone('Asia/Jakarta');
         $schedule->command('sync:delivery-data')->dailyAt('16:30')->timezone('Asia/Jakarta');
