@@ -150,13 +150,15 @@
                         </td>
                         <td style="padding:10px 16px;">
                             <div style="display:flex; gap:3px; flex-wrap:wrap;">
-                                @foreach($summary['used_label'] as $lbl)
+                                @forelse($summary['used_label'] ?? [] as $lbl)
                                 <span style="background:#1C1A16; border:1px solid #2E2B24;
-                                             color:#7A9E7E; font-size:9px; font-weight:700;
-                                             padding:1px 5px; border-radius:2px;">
+                                            color:#7A9E7E; font-size:9px; font-weight:700;
+                                            padding:1px 5px; border-radius:2px;">
                                     {{ $lbl }}
                                 </span>
-                                @endforeach
+                                @empty
+                                <span style="color:#3D3935; font-size:9px;">—</span>
+                                @endforelse
                             </div>
                         </td>
                         <td style="padding:10px 16px; font-size:11px; color:#5A554E;

@@ -79,8 +79,8 @@
                             @endif
                         </h2>
                          <h1>
-                            Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
-    |                       Efficiency: {{ $data['machine_efficiency'] ?? 0 }}%
+                            <!-- Daily Percentage : {{ $data['average_achievement'] ?? 0 }} % -->
+                            Efficiency: {{ $data['machine_efficiency'] ?? 0 }}%
     |                       Jam Aktif: {{ $data['total_jam_aktif'] ?? 0 }} jam
     |                       Prod: {{ $data['total_prod_menit'] ?? 0 }} menit
                         </h1>

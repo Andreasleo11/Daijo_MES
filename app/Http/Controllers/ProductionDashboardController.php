@@ -379,7 +379,7 @@ class ProductionDashboardController extends Controller
             $groupedByTimeRange = collect($structuredData[$userName]['hourly_remarks'])
                 ->groupBy('time_range');
 
-            foreach ($groupedByTimeRange as $timeRange => $remarks) {
+           foreach ($groupedByTimeRange as $timeRange => $remarks) {
                 $totalProdSeconds = 0;
                 $singleItem       = $remarks->count() === 1;
 
@@ -390,9 +390,14 @@ class ProductionDashboardController extends Controller
                     }
                 }
 
-                if ($totalProdSeconds > 0) {
+                if ($singleItem) {
+                    // Single item — pakai logic original: actual >= target
+                    $combinedAchieved = $remarks->first()['actual_production'] >= $remarks->first()['target'];
+                } elseif ($totalProdSeconds > 0) {
+                    // Multi item — pakai cycle time
                     $combinedAchieved = $totalProdSeconds >= 3600;
                 } else {
+                    // Multi item tapi cycle time tidak ada — fallback sum actual vs max target
                     $combinedAchieved = $remarks->sum('actual_production') >= $remarks->max('target');
                 }
 
@@ -406,62 +411,63 @@ class ProductionDashboardController extends Controller
                 unset($remark);
             }
 
-            foreach ($structuredData as $machineName => $machineData) {
-                $remarks = $machineData['hourly_remarks'] ?? [];
+            // foreach ($structuredData as $machineName => $machineData) {
+            //     $remarks = $machineData['hourly_remarks'] ?? [];
 
-                $average = collect($remarks)
-                    ->pluck('achievement_percentage')
-                    ->avg();
+            //     $average = collect($remarks)
+            //         ->pluck('achievement_percentage')
+            //         ->avg();
 
-                $structuredData[$machineName]['average_achievement'] = round($average, 2);
-            }
+            //     $structuredData[$machineName]['average_achievement'] = round($average, 2);
+            // }
 
            foreach ($structuredData as $machineName => $machineData) {
-    $remarks = collect($machineData['hourly_remarks'] ?? []);
+                $remarks = collect($machineData['hourly_remarks'] ?? []);
 
-    // Preload cycle time
-    $itemCodes     = $remarks->pluck('item_code')->unique()->values()->toArray();
-    $cycleTimeMap  = MasterListItem::whereIn('item_code', $itemCodes)
-        ->pluck('cycle_time', 'item_code');
+                // Preload cycle time
+                $itemCodes    = $remarks->pluck('item_code')->unique()->values()->toArray();
+                $cycleTimeMap = MasterListItem::whereIn('item_code', $itemCodes)
+                    ->pluck('cycle_time', 'item_code');
 
-    // Group by time_range
-    $groupedByHour = $remarks->groupBy('time_range');
-    $totalJamAktif = $groupedByHour->count(); // jumlah jam unik
+                // Group by time_range
+                $groupedByHour = $remarks->groupBy('time_range');
+                $totalJamAktif = $groupedByHour->count();
+                $totalProdDetik = 0;
 
-    $totalProdDetik = 0;
+                foreach ($groupedByHour as $timeRange => $hourRemarks) {
+                    $jamProdDetik = 0;
+                    foreach ($hourRemarks as $remark) {
+                        $cycleTimeSec = $cycleTimeMap->get($remark['item_code']);
+                        if ($cycleTimeSec && $cycleTimeSec > 0) {
+                            $jamProdDetik += $remark['actual_production'] * $cycleTimeSec;
+                        }
+                    }
+                    // Cap per jam maksimal 3600 detik
+                    $totalProdDetik += min($jamProdDetik, 3600);
+                }
 
-    foreach ($groupedByHour as $timeRange => $hourRemarks) {
-        $jamProdDetik = 0;
+                // Patokan berdasarkan shift aktif × 8 jam
+                $activeShifts = $remarks->pluck('shift')->unique()->count();
+                $patokanJam   = $activeShifts * 8;
+                $maxDetik     = $patokanJam * 3600;
 
-        foreach ($hourRemarks as $remark) {
-            $cycleTimeSec = $cycleTimeMap->get($remark['item_code']);
-            if ($cycleTimeSec && $cycleTimeSec > 0) {
-                $jamProdDetik += $remark['actual_production'] * $cycleTimeSec;
+                $efficiency = $maxDetik > 0 ? ($totalProdDetik / $maxDetik) * 100 : 0;
+
+                $structuredData[$machineName]['machine_efficiency']   = round(min($efficiency, 100), 2);
+                $structuredData[$machineName]['total_jam_aktif']      = $totalJamAktif;
+                $structuredData[$machineName]['patokan_jam']          = $patokanJam;
+                $structuredData[$machineName]['total_prod_menit']     = round($totalProdDetik / 60, 1);
+                $structuredData[$machineName]['total_downtime_menit'] = round(($maxDetik - $totalProdDetik) / 60, 1);
+
+                // Daily percentage
+                $average = $remarks->avg(function ($remark) {
+                    $achieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
+                    return $achieved ? 100 : ($remark['achievement_percentage'] ?? 0);
+                });
+
+                $structuredData[$machineName]['average_achievement'] = round($average ?? 0, 2);
             }
-        }
-
-        // Cap per jam maksimal 3600 detik
-        $totalProdDetik += min($jamProdDetik, 3600);
-    }
-
-    // Efficiency = total produksi / (jam aktif × 3600) × 100
-    $maxDetik   = $totalJamAktif * 3600;
-    $efficiency = $maxDetik > 0 ? ($totalProdDetik / $maxDetik) * 100 : 0;
-
-    $structuredData[$machineName]['machine_efficiency']  = round(min($efficiency, 100), 2);
-    $structuredData[$machineName]['total_jam_aktif']     = $totalJamAktif;
-    $structuredData[$machineName]['total_prod_menit']    = round($totalProdDetik / 60, 1);
-    $structuredData[$machineName]['total_downtime_menit']= round(($maxDetik - $totalProdDetik) / 60, 1);
-
-    // Daily percentage tetap sama
-    $average = $remarks->avg(function ($remark) {
-        $achieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
-        return $achieved ? 100 : ($remark['achievement_percentage'] ?? 0);
-    });
-
-    $structuredData[$machineName]['average_achievement'] = round($average ?? 0, 2);
-}
-        
+                    
         }
         
 
