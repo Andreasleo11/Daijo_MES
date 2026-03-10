@@ -46,10 +46,10 @@ class GenerateProductionSummary extends Command
                     'warehouse'      => $warehouse,
                     'label'          => 'all', // Label is always 'all'
                     'created_date'   => $created_date,
-                    // 'sap_sent'       => 0, // Default: belum dikirim ke SAP
-                    // 'sap_sent_at'    => null, // Null sampai dikirim
-                    'sap_sent'       => 1, // Default: belum dikirim ke SAP
-                    'sap_sent_at'    => now(), // Null sampai dikirim
+                    'sap_sent'       => 0, // Default: belum dikirim ke SAP
+                    'sap_sent_at'    => null, // Null sampai dikirim
+                    // 'sap_sent'       => 1, // Default: belum dikirim ke SAP
+                    // 'sap_sent_at'    => now(), // Null sampai dikirim
                 ]);
 
                 // Collect IDs of processed records

@@ -225,6 +225,24 @@ class DashboardController extends Controller
                 }
             }
 
+            // Auto expire jadwal lama yang sudah lewat end_time + 1 jam dan tidak ada aktivitas
+            $expiredCandidates = DailyItemCode::where('user_id', $user->id)
+                ->whereNull('is_done')
+                ->whereDoesntHave('hourlyRemarks')
+                ->get()
+                ->filter(function ($dic) {
+                    // Gabung end_date + end_time, tambah 1 jam
+                    $endDateTime = Carbon::parse($dic->end_date . ' ' . $dic->end_time)
+                        ->addHour();
+                    return Carbon::now('Asia/Jakarta')->gt($endDateTime);
+                })
+                ->pluck('id');
+
+            if ($expiredCandidates->isNotEmpty()) {
+                DailyItemCode::whereIn('id', $expiredCandidates)
+                    ->update(['is_done' => 99]);
+            }
+
 
             $hourlyRemarksActiveDIC = null;
             $todayDIC = DailyItemCode::where('user_id', $user->id)

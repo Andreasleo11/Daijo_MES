@@ -55,7 +55,8 @@ new class extends Component {
         <div class="space-y-2 mt-4">
            @if (
                     !auth()->user()->can('view-store-links') &&
-                    !auth()->user()->can('view-business-links')
+                    !auth()->user()->can('view-business-links') &&
+                    !auth()->user()->can('view-production-links')
                 )
                 <livewire:sidebar-link
                     href="{{ route('dashboard') }}"
@@ -197,6 +198,25 @@ new class extends Component {
                     wire:navigate
                 />
             @endif
+
+
+
+            @if (auth()->user()->can('view-production-links'))
+                <livewire:sidebar-link
+                    href="{{ route('receipt-production-logs') }}"
+                    label="Cek Data masuk ke SAP"
+                    :active="request()->routeIs('receipt-production-logs')"
+                    wire:navigate
+                />
+
+                  <livewire:sidebar-link
+                    href="{{ route('production-summary-monitor') }}"
+                    label="Cek stock dari Program ke SAP"
+                    :active="request()->routeIs('production-summary-monitor')"
+                    wire:navigate
+                />
+            @endif
+
 
             <!-- PPIC Links -->
             @if (auth()->user()->can('view-ppic-links'))

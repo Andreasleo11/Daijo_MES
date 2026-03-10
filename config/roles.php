@@ -12,6 +12,7 @@ return [
         'MAINTENANCE' => ['MAINTENANCE'],
         'SECONDPROCESS' => ['SECONDPROCESS'],
         'ASSEMBLYPROCESS' => ['ASSEMBLYPROCESS'],
-        'BUSINESS' => ['BUSINESS']
+        'BUSINESS' => ['BUSINESS'],
+        'PRODUCTION' => ['PRODUCTION']
     ],
 ];

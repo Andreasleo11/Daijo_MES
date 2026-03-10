@@ -25,6 +25,30 @@
                 {{ count($this->summaryLogs) }} batch runs
             </div>
         </div>
+
+        {{-- Di bagian header filters --}}
+        <div style="display:flex; align-items:center; gap:10px;">
+            <input wire:model.live="filterDate" type="date"
+                style="padding:8px 12px; background:#1C1A16; border:1px solid #2E2B24;
+                        border-radius:3px; color:#E8E4DC; font-size:12px;
+                        font-family:'IBM Plex Mono',monospace;">
+
+            <select wire:model.live="filterWarehouse"
+                    style="padding:8px 12px; background:#1C1A16; border:1px solid #2E2B24;
+                        border-radius:3px; color:#E8E4DC; font-size:12px;
+                        font-family:'IBM Plex Mono',monospace; cursor:pointer;">
+                <option value="">ALL WH</option>
+                <option value="FFI">FFI</option>
+                <option value="FG">FG</option>
+                <option value="WIP">WIP</option>
+            </select>
+
+            <div style="background:#1C1A16; border:1px solid #2E2B24; border-radius:3px;
+                        padding:8px 14px; font-size:11px; color:#5A554E;
+                        font-family:'IBM Plex Mono',monospace;">
+                {{ count($this->summaryLogs) }} batch runs
+            </div>
+        </div>
     </div>
 
     {{-- Logs --}}
@@ -110,6 +134,9 @@
                         <th style="padding:8px 16px; text-align:left; font-size:9px; font-weight:700;
                                    color:#5A554E; letter-spacing:.1em; text-transform:uppercase;
                                    border-bottom:1px solid #2E2B24; white-space:nowrap;">SPK Code</th>
+                        <th style="padding:8px 16px; text-align:left; font-size:9px; font-weight:700;
+                                    color:#5A554E; letter-spacing:.1em; text-transform:uppercase;
+                                    border-bottom:1px solid #2E2B24;">Item Code</th>
                         <th style="padding:8px 16px; text-align:right; font-size:9px; font-weight:700;
                                    color:#5A554E; letter-spacing:.1em; text-transform:uppercase;
                                    border-bottom:1px solid #2E2B24;">Qty</th>
@@ -133,6 +160,9 @@
                                background:{{ $i % 2 === 0 ? '#141210' : '#161410' }};">
                         <td style="padding:10px 16px; font-size:12px; font-weight:700; color:#E8E4DC;">
                             {{ $summary['spk_code'] }}
+                        </td>
+                        <td style="padding:10px 16px; font-size:11px; color:#9A9590;">
+                            {{ $summary['item_code'] ?? '—' }}
                         </td>
                         <td style="padding:10px 16px; font-size:13px; font-weight:800;
                                    color:#C8A97E; text-align:right;">

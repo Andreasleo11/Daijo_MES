@@ -91,6 +91,7 @@ class ReceiptProductionService extends BaseSapService
                         ]);
 
                     Log::info("SAP Push SUCCESS", [
+                        'summary_id' => $summary->id,
                         'spk_code' => $summary->spk_code,
                         'payload'  => $payload,
                         'response' => $json,
@@ -108,6 +109,7 @@ class ReceiptProductionService extends BaseSapService
                     );
                 } else {
                     Log::error("SAP Push FAILED", [
+                        'summary_id' => $summary->id,
                         'spk_code' => $summary->spk_code,
                         'status'   => $response->status(),
                         'body'     => $response->body(),
@@ -127,6 +129,7 @@ class ReceiptProductionService extends BaseSapService
                 }
             } catch (\Throwable $e) {
                 Log::error("SAP Push EXCEPTION", [
+                    'summary_id' => $summary->id,
                     'spk_code' => $summary->spk_code,
                     'error'    => $e->getMessage(),
                 ]);
