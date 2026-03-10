@@ -171,6 +171,7 @@ new class extends Component {
                 <livewire:parent-dropdown label="Inventory" :childRoutes="[
                     ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
                     ['name' => 'inventory.fg', 'label' => 'Master FG'],
+                    ['name' => 'inventory.stock-health', 'label' => 'Stock Health'],
                     ['name' => 'invlinelist', 'label' => 'Machine List'],
                 ]" />
 

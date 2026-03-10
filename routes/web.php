@@ -598,6 +598,7 @@ Route::middleware('auth')->group(function (){
     //ROUTE UNTUK INVENTORY MATERIAL DAN FINISHED GOODS
     Route::get('/inventory/mtr', [InventoryController::class, 'showMtrInventory'])->name('inventory.mtr');
     Route::get('/inventory/fg', [InventoryController::class, 'showFgInventory'])->name('inventory.fg');
+    Route::get('/inventory/stock-health', [\App\Http\Controllers\Inventory\StockHealthController::class, 'index'])->name('inventory.stock-health');
     Route::get('/inventory/line-list',  [InvLineListController::class, "index"])->name('invlinelist');
     Route::post("/add/line", [InvLineListController::class, "addline"])->name('addline');
     Route::put("/edit/line/{id}", [InvLineListController::class, "editline"])->name('editline');
