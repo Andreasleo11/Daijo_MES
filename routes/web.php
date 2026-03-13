@@ -81,6 +81,8 @@ use App\Livewire\ProductionDashboard;
 
 use App\Livewire\ProductionSummaryMonitor;
 use App\Livewire\ReceiptProductionLogs;
+use App\Livewire\ManualSync;
+
 
 
 
@@ -318,6 +320,9 @@ use App\Livewire\ReceiptProductionLogs;
     // Route untuk auto login
 
 Route::middleware('auth')->group(function (){
+
+
+    Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
 
 
     Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');

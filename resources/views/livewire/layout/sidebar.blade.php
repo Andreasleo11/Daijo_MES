@@ -293,6 +293,13 @@ new class extends Component {
                     wire:navigate
                 />
 
+                <livewire:sidebar-link
+                    href="{{ route('receipt-production-logs') }}"
+                    label="Cek Data masuk ke SAP"
+                    :active="request()->routeIs('receipt-production-logs')"
+                    wire:navigate
+                />
+
 
                 <livewire:sidebar-link
                     href="{{ route('so.index') }}"

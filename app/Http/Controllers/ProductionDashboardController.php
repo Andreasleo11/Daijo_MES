@@ -421,28 +421,38 @@ class ProductionDashboardController extends Controller
             //     $structuredData[$machineName]['average_achievement'] = round($average, 2);
             // }
 
-           foreach ($structuredData as $machineName => $machineData) {
+            foreach ($structuredData as $machineName => $machineData) {
                 $remarks = collect($machineData['hourly_remarks'] ?? []);
 
-                // Preload cycle time
+                // Preload cycle time dari MasterListItem
                 $itemCodes    = $remarks->pluck('item_code')->unique()->values()->toArray();
                 $cycleTimeMap = MasterListItem::whereIn('item_code', $itemCodes)
                     ->pluck('cycle_time', 'item_code');
 
+                // Preload temporal_cycle_time dari DailyItemCode via dic_id
+                $dicIds          = $remarks->pluck('dic_id')->filter()->unique()->values()->toArray();
+                $temporalCycleMap = DailyItemCode::whereIn('id', $dicIds)
+                    ->pluck('temporal_cycle_time', 'id'); // key = dic_id
+
                 // Group by time_range
-                $groupedByHour = $remarks->groupBy('time_range');
-                $totalJamAktif = $groupedByHour->count();
+                $groupedByHour  = $remarks->groupBy('time_range');
+                $totalJamAktif  = $groupedByHour->count();
                 $totalProdDetik = 0;
 
                 foreach ($groupedByHour as $timeRange => $hourRemarks) {
                     $jamProdDetik = 0;
                     foreach ($hourRemarks as $remark) {
-                        $cycleTimeSec = $cycleTimeMap->get($remark['item_code']);
+                        // Prioritas: temporal_cycle_time (dari dic_id) → MasterListItem cycle_time
+                        $dicId        = $remark['dic_id'] ?? null;
+                        $temporal     = $dicId ? $temporalCycleMap->get($dicId) : null;
+                        $cycleTimeSec = ($temporal && $temporal > 0)
+                            ? $temporal
+                            : $cycleTimeMap->get($remark['item_code']);
+
                         if ($cycleTimeSec && $cycleTimeSec > 0) {
                             $jamProdDetik += $remark['actual_production'] * $cycleTimeSec;
                         }
                     }
-                    // Cap per jam maksimal 3600 detik
                     $totalProdDetik += min($jamProdDetik, 3600);
                 }
 
@@ -451,6 +461,7 @@ class ProductionDashboardController extends Controller
                 $patokanJam   = $activeShifts * 8;
                 $maxDetik     = $patokanJam * 3600;
 
+                
                 $efficiency = $maxDetik > 0 ? ($totalProdDetik / $maxDetik) * 100 : 0;
 
                 $structuredData[$machineName]['machine_efficiency']   = round(min($efficiency, 100), 2);
@@ -458,7 +469,7 @@ class ProductionDashboardController extends Controller
                 $structuredData[$machineName]['patokan_jam']          = $patokanJam;
                 $structuredData[$machineName]['total_prod_menit']     = round($totalProdDetik / 60, 1);
                 $structuredData[$machineName]['total_downtime_menit'] = round(($maxDetik - $totalProdDetik) / 60, 1);
-
+                // dd($totalProdDetik);
                 // Daily percentage
                 $average = $remarks->avg(function ($remark) {
                     $achieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
