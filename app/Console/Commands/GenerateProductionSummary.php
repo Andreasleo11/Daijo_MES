@@ -30,35 +30,36 @@ class GenerateProductionSummary extends Command
 
             $processedIds = [];
 
-            foreach ($summaries as $spk_code => $group) {
-                // Sum quantity for this spk_code
-                $total_quantity = $group->sum('quantity');
+                foreach ($summaries as $spk_code => $group) {
+                    $total_quantity = $group->sum('quantity');
+                    $first          = $group->first();
+                    $warehouse      = $first->warehouse;
+                    $created_date   = $first->created_at->toDateString();
 
-                // Get the first record’s warehouse and created_at date
-                $first = $group->first();
-                $warehouse = $first->warehouse;
-                $created_date = $first->created_at->toDateString();
+                    $summary = ProductionSummary::create([
+                        'spk_code'       => $spk_code,
+                        'total_quantity' => $total_quantity,
+                        'warehouse'      => $warehouse,
+                        'label'          => 'all',
+                        'created_date'   => $created_date,
+                        'sap_sent'       => 0,
+                        'sap_sent_at'    => null,
+                    ]);
 
-                // Insert into summary table
-                ProductionSummary::create([
-                    'spk_code'       => $spk_code,
-                    'total_quantity' => $total_quantity,
-                    'warehouse'      => $warehouse,
-                    'label'          => 'all', // Label is always 'all'
-                    'created_date'   => $created_date,
-                    'sap_sent'       => 0, // Default: belum dikirim ke SAP
-                    'sap_sent_at'    => null, // Null sampai dikirim
-                    // 'sap_sent'       => 1, // Default: belum dikirim ke SAP
-                    // 'sap_sent_at'    => now(), // Null sampai dikirim
-                ]);
+                    $groupIds     = $group->pluck('id')->toArray();
+                    $processedIds = array_merge($processedIds, $groupIds);
 
-                // Collect IDs of processed records
-                $processedIds = array_merge($processedIds, $group->pluck('id')->toArray());
-            }
-
+                    // ← ini harus di dalam loop, tiap group update pakai summary->id masing-masing
+                    ProductionScannedData::whereIn('id', $groupIds)
+                        ->update([
+                            'processed'  => true,
+                            'summary_id' => $summary->id,
+                        ]);
+                }
             // Mark processed records
             // INI UNTUK UPDATE PROCESSED JADI TRUE NANTI KALAU METHOD SUDAH AMAN 
-            ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
+            // ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
+          
 
             // Kumpulkan semua payload yang dibuat
             $allPayloads = [];

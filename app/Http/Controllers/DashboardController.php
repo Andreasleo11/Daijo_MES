@@ -237,6 +237,7 @@ class DashboardController extends Controller
                     return Carbon::now('Asia/Jakarta')->gt($endDateTime);
                 })
                 ->pluck('id');
+            // dd($expiredCandidates);
 
             if ($expiredCandidates->isNotEmpty()) {
                 DailyItemCode::whereIn('id', $expiredCandidates)
