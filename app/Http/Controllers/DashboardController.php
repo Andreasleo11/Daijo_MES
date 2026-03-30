@@ -334,6 +334,7 @@ class DashboardController extends Controller
              ->get();
        
             $spkData = ProductionScannedData::where('dic_id', $activeID)
+                ->with('summary')
                 ->get();
             
 

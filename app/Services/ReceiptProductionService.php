@@ -148,6 +148,109 @@ class ReceiptProductionService extends BaseSapService
         }
     }
 
+     public function pushSingleRecord($summary, $scannedData)
+    {
+        try {
+            $payload = [
+                [
+                    'summary_id' => $summary->id, 
+                    'spk_code'  => $summary->spk_code,
+                    'item_code' => $scannedData->item_code,
+                    'warehouse' => $summary->warehouse,
+                    'quantity'  => $summary->total_quantity,
+                    'label'     => $summary->label,
+                ]
+            ];
+ 
+            $response = $this->post($this->endpoint, $payload);
+            $json = $response->json();
+            $status = $response->successful() && isset($json['status']) && $json['status'] === true;
+ 
+            if ($status) {
+                // Update production_summary set sap_sent = 1 dan sap_sent_at = now()
+                DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->update([
+                        'sap_sent' => 1,
+                        'sap_sent_at' => now(),
+                    ]);
+ 
+                Log::info("SAP Push SUCCESS (Manual)", [
+                    'summary_id' => $summary->id,
+                    'spk_code' => $summary->spk_code,
+                    'payload'  => $payload,
+                    'response' => $json,
+                ]);
+ 
+                $this->saveApiLog(
+                    'receipt_production',
+                    'POST',
+                    $this->endpoint,
+                    $payload,
+                    $json,
+                    $response->status(),
+                    'success',
+                    'SPK ' . $summary->spk_code . ' sent to SAP successfully (Manual)'
+                );
+ 
+                return [
+                    'success' => true,
+                    'message' => 'Berhasil dikirim ke SAP',
+                    'response' => $json,
+                ];
+            } else {
+                Log::error("SAP Push FAILED (Manual)", [
+                    'summary_id' => $summary->id,
+                    'spk_code' => $summary->spk_code,
+                    'status'   => $response->status(),
+                    'body'     => $response->body(),
+                    'json'     => $json,
+                ]);
+ 
+                $this->saveApiLog(
+                    'receipt_production',
+                    'POST',
+                    $this->endpoint,
+                    $payload,
+                    $json,
+                    $response->status(),
+                    'failed',
+                    'SPK ' . $summary->spk_code . ' failed: ' . $response->body()
+                );
+ 
+                return [
+                    'success' => false,
+                    'message' => $response->body() ?? 'SAP returned error status',
+                    'response' => $json,
+                ];
+            }
+ 
+        } catch (\Throwable $e) {
+            Log::error("SAP Push EXCEPTION (Manual)", [
+                'summary_id' => $summary->id ?? null,
+                'spk_code' => $summary->spk_code ?? null,
+                'error'    => $e->getMessage(),
+            ]);
+ 
+            $this->saveApiLog(
+                'receipt_production',
+                'POST',
+                $this->endpoint,
+                $payload ?? [],
+                [],
+                500,
+                'failed',
+                'SPK ' . ($summary->spk_code ?? 'unknown') . ' exception: ' . $e->getMessage()
+            );
+ 
+            return [
+                'success' => false,
+                'message' => 'Exception: ' . $e->getMessage(),
+            ];
+        }
+    }
+    
+
     protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
     {
         DB::table('api_logs')->insert([

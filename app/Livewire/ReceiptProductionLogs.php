@@ -5,7 +5,9 @@ namespace App\Livewire;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Services\ReceiptProductionService;
 
 class ReceiptProductionLogs extends Component
 {
@@ -18,13 +20,18 @@ class ReceiptProductionLogs extends Component
 
     public string $filterItemCode = '';
 
+    public array $expandedRows = [];
+    public array $rowDetails   = [];
+    public array $pushingRows  = []; // Track which rows are currently pushing
+    public array $pushResults  = []; // Store push results
+
     public function mount(): void
     {
         Carbon::setLocale('id');
         $this->filterDate = now()->timezone('Asia/Jakarta')->format('Y-m-d');
     }
 
-   public function updatingFilterItemCode() 
+    public function updatingFilterItemCode() 
     { 
         $this->resetPage(); 
         cache()->forget("receipt_stats_{$this->filterDate}");
@@ -57,8 +64,8 @@ class ReceiptProductionLogs extends Component
                 'updated_at'  => now(),
             ]);
 
-        // Clear cache stats biar update
         cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK berhasil diabaikan']);
     }
 
     public function markAsPending(int $id): void
@@ -72,6 +79,196 @@ class ReceiptProductionLogs extends Component
             ]);
 
         cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK direset ke pending']);
+    }
+
+    /**
+     * Manual push single SPK to SAP
+     */
+    public function pushToSapManual(int $summaryId): void
+    {
+        try {
+            $this->pushingRows[$summaryId] = true;
+
+            $summary = DB::table('production_summary')
+                ->where('id', $summaryId)
+                ->first();
+
+            if (!$summary) {
+                $this->pushResults[$summaryId] = [
+                    'status' => 'error',
+                    'message' => 'SPK tidak ditemukan'
+                ];
+                unset($this->pushingRows[$summaryId]);
+                return;
+            }
+
+            // Cari scanned data
+            $scannedData = DB::table('production_scanned_data')
+                ->where('spk_code', $summary->spk_code)
+                ->first();
+
+            if (!$scannedData) {
+                $this->pushResults[$summaryId] = [
+                    'status' => 'error',
+                    'message' => 'Data scanning tidak ditemukan untuk SPK ini'
+                ];
+                unset($this->pushingRows[$summaryId]);
+                return;
+            }
+
+            // Gunakan ReceiptProductionService untuk push
+            $service = app(ReceiptProductionService::class);
+            $response = $service->pushSingleRecord($summary, $scannedData);
+
+            if ($response['success']) {
+                $this->pushResults[$summaryId] = [
+                    'status' => 'success',
+                    'message' => 'SPK berhasil dikirim ke SAP'
+                ];
+                
+                // Refresh logs
+                $this->dispatch('sap-push-success');
+            } else {
+                $this->pushResults[$summaryId] = [
+                    'status' => 'error',
+                    'message' => $response['message'] ?? 'Gagal mengirim ke SAP'
+                ];
+            }
+
+            unset($this->pushingRows[$summaryId]);
+            cache()->forget("receipt_stats_{$this->filterDate}");
+
+        } catch (\Throwable $e) {
+            Log::error('Manual push error', [
+                'summary_id' => $summaryId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->pushResults[$summaryId] = [
+                'status' => 'error',
+                'message' => 'Error: ' . $e->getMessage()
+            ];
+
+            unset($this->pushingRows[$summaryId]);
+        }
+    }
+
+    /**
+     * Manual push multiple pending SPKs (Batch)
+     */
+    public function pushPendingBatchToSap(): void
+    {
+        try {
+            $this->dispatch('batch-push-start');
+
+            $service = app(ReceiptProductionService::class);
+            
+            // Ambil semua pending records sesuai filter
+            $summaries = DB::table('production_summary')
+                ->where('warehouse', 'FFI')
+                ->where('sap_sent', 0)
+                ->when($this->filterDate, fn($q) =>
+                    $q->whereDate('created_date', $this->filterDate)
+                )
+                ->when($this->filterSpk, fn($q) =>
+                    $q->where('spk_code', 'like', "%{$this->filterSpk}%")
+                )
+                ->get();
+
+            if ($summaries->isEmpty()) {
+                $this->dispatch('push-notification', [
+                    'status' => 'warning',
+                    'message' => 'Tidak ada SPK pending untuk dikirim'
+                ]);
+                return;
+            }
+
+            $successCount = 0;
+            $failCount = 0;
+
+            foreach ($summaries as $summary) {
+                $scannedData = DB::table('production_scanned_data')
+                    ->where('spk_code', $summary->spk_code)
+                    ->first();
+
+                if (!$scannedData) {
+                    $failCount++;
+                    continue;
+                }
+
+                $response = $service->pushSingleRecord($summary, $scannedData);
+                if ($response['success']) {
+                    $successCount++;
+                } else {
+                    $failCount++;
+                }
+            }
+
+            cache()->forget("receipt_stats_{$this->filterDate}");
+
+            $this->dispatch('push-notification', [
+                'status' => 'success',
+                'message' => "Batch push selesai: {$successCount} berhasil, {$failCount} gagal"
+            ]);
+
+            $this->dispatch('sap-push-success');
+
+        } catch (\Throwable $e) {
+            Log::error('Batch push error', ['error' => $e->getMessage()]);
+            $this->dispatch('push-notification', [
+                'status' => 'error',
+                'message' => 'Error batch push: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Push single scanned detail item (jika perlu)
+     */
+    public function pushDetailToSap(int $detailId, int $summaryId): void
+    {
+        try {
+            $detail = DB::table('production_scanned_data')
+                ->where('id', $detailId)
+                ->first();
+
+            if (!$detail) {
+                $this->dispatch('push-notification', [
+                    'status' => 'error',
+                    'message' => 'Detail tidak ditemukan'
+                ]);
+                return;
+            }
+
+            // Get summary for context
+            $summary = DB::table('production_summary')
+                ->where('id', $summaryId)
+                ->first();
+
+            $service = app(ReceiptProductionService::class);
+            $response = $service->pushSingleRecord($summary, $detail);
+
+            if ($response['success']) {
+                $this->dispatch('push-notification', [
+                    'status' => 'success',
+                    'message' => 'Detail berhasil dikirim ke SAP'
+                ]);
+                $this->dispatch('sap-push-success');
+            } else {
+                $this->dispatch('push-notification', [
+                    'status' => 'error',
+                    'message' => $response['message'] ?? 'Gagal mengirim detail'
+                ]);
+            }
+
+        } catch (\Throwable $e) {
+            Log::error('Detail push error', ['error' => $e->getMessage()]);
+            $this->dispatch('push-notification', [
+                'status' => 'error',
+                'message' => 'Error: ' . $e->getMessage()
+            ]);
+        }
     }
 
     private function baseQuery()
@@ -153,9 +350,9 @@ class ReceiptProductionLogs extends Component
     {
         $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}";
     
-            return cache()->remember(
-                $cacheKey,
-                now()->addSeconds(30),
+        return cache()->remember(
+            $cacheKey,
+            now()->addSeconds(30),
             function () {
                 $base = DB::table('production_summary')
                     ->where('warehouse', 'FFI')
@@ -182,6 +379,33 @@ class ReceiptProductionLogs extends Component
                 ];
             }
         );
+    }
+
+    public function toggleDetail(int $summaryId): void
+    {
+        if (isset($this->expandedRows[$summaryId])) {
+            unset($this->expandedRows[$summaryId]);
+            unset($this->rowDetails[$summaryId]);
+            return;
+        }
+
+        $this->expandedRows[$summaryId] = true;
+
+        $this->rowDetails[$summaryId] = DB::table('production_scanned_data')
+            ->where('summary_id', $summaryId)
+            ->select('id', 'spk_code', 'item_code', 'quantity', 'label', 'user', 'created_at')
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(fn($d) => [
+                'id'         => $d->id,
+                'spk_code'   => $d->spk_code,
+                'item_code'  => $d->item_code,
+                'quantity'   => $d->quantity,
+                'label'      => $d->label,
+                'user'       => $d->user,
+                'created_at' => Carbon::parse($d->created_at)->timezone('Asia/Jakarta')->format('H:i:s'),
+            ])
+            ->toArray();
     }
 
     public function render()

@@ -77,6 +77,22 @@
                 <option value="ignored">⊘ Diabaikan</option>
             </select>
         </div>
+
+        {{-- Batch Push Button --}}
+        @if($this->stats['pending'] > 0)
+        <div style="margin-left:auto;">
+            <button wire:click="pushPendingBatchToSap()"
+                    @if(collect($pushingRows)->count() > 0) disabled @endif
+                    wire:confirm="Yakin ingin mengirim semua {{ $this->stats['pending'] }} SPK pending ke SAP?"
+                    style="background:#22C55E; color:#fff; border:none; border-radius:2px; 
+                           padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; 
+                           font-family:'IBM Plex Sans',sans-serif; text-transform:uppercase; 
+                           letter-spacing:.08em; transition:all 0.2s;
+                           @if(collect($pushingRows)->count() > 0) opacity:0.5; cursor:not-allowed; @else hover:background:#16A34A; @endif">
+                🚀 Push Semua Pending ({{ $this->stats['pending'] }})
+            </button>
+        </div>
+        @endif
     </div>
 
     {{-- Table --}}
@@ -86,6 +102,8 @@
                 <tr style="background:#1A1816; color:#fff;">
                     <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
                                letter-spacing:.12em; text-transform:uppercase;">Tanggal</th>
+                    <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
+                               letter-spacing:.12em; text-transform:uppercase;">ID</th>
                     <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
                                letter-spacing:.12em; text-transform:uppercase;">No. SPK</th>
                     <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
@@ -114,6 +132,9 @@
                     $bl          = $sent ? '3px solid #22C55E' : ($ignored ? '3px solid #7C3AED' : '3px solid #F97316');
                     $createdAt   = Carbon\Carbon::parse($row->created_at)->timezone('Asia/Jakarta');
                     $createdDate = Carbon\Carbon::parse($row->created_date);
+                    $isPushing   = isset($pushingRows[$row->id]);
+                    $pushResult  = $pushResults[$row->id] ?? null;
+                    $errorType   = $pushResult['type'] ?? 'unknown';
                 @endphp
                 <tr wire:key="row-{{ $row->id }}"
                     style="border-bottom:1px solid #F0EDE8; background:{{ $bg }}; border-left:{{ $bl }};">
@@ -131,29 +152,35 @@
                         </div>
                     </td>
 
+                    {{-- ID --}}
+                    <td style="padding:10px 14px; font-weight:700; color:#1A1816;
+                            font-family:'IBM Plex Mono',monospace;">
+                        {{ $row->id }}
+                    </td>
+
                     {{-- No SPK --}}
                     <td style="padding:10px 14px; font-weight:700; color:#1A1816;
-                               font-family:'IBM Plex Mono',monospace;">
+                            font-family:'IBM Plex Mono',monospace;">
                         {{ $row->spk_code }}
                     </td>
 
                     {{-- Item Code --}}
                     <td style="padding:10px 14px; font-size:11px; color:#3D3935;
-                               font-family:'IBM Plex Mono',monospace;">
+                            font-family:'IBM Plex Mono',monospace;">
                         {{ $row->item_code ?? '—' }}
                     </td>
 
                     {{-- Gudang --}}
                     <td style="padding:10px 14px; text-align:center;">
                         <span style="background:#F5F3EF; color:#5A554E; font-size:10px;
-                                     font-weight:700; padding:2px 8px; border-radius:2px;">
+                                    font-weight:700; padding:2px 8px; border-radius:2px;">
                             {{ $row->warehouse }}
                         </span>
                     </td>
 
                     {{-- Qty --}}
                     <td style="padding:10px 14px; text-align:right; font-weight:700;
-                               color:#1A1816; font-family:'IBM Plex Mono',monospace;">
+                            color:#1A1816; font-family:'IBM Plex Mono',monospace;">
                         {{ number_format($row->total_quantity) }}
                     </td>
 
@@ -166,17 +193,17 @@
                     <td style="padding:10px 14px; text-align:center;">
                         @if($ignored)
                         <span style="background:#F3E8FF; color:#7C3AED; font-size:10px;
-                                     font-weight:700; padding:3px 10px; border-radius:20px;">
+                                    font-weight:700; padding:3px 10px; border-radius:20px;">
                             ⊘ Diabaikan
                         </span>
                         @elseif($sent)
                         <span style="background:#DCFCE7; color:#15803D; font-size:10px;
-                                     font-weight:700; padding:3px 10px; border-radius:20px;">
+                                    font-weight:700; padding:3px 10px; border-radius:20px;">
                             ✓ Terkirim
                         </span>
                         @else
                         <span style="background:#FEE2E2; color:#B91C1C; font-size:10px;
-                                     font-weight:700; padding:3px 10px; border-radius:20px;">
+                                    font-weight:700; padding:3px 10px; border-radius:20px;">
                             ✕ Belum
                         </span>
                         @endif
@@ -194,9 +221,7 @@
                             <span style="font-size:10px; color:#C8C4BC;">Tidak dikirim ke SAP</span>
                         </div>
                         @elseif($row->sap_sent_at)
-                        @php
-                            $sentAt = Carbon\Carbon::parse($row->sap_sent_at)->timezone('Asia/Jakarta');
-                        @endphp
+                        @php $sentAt = Carbon\Carbon::parse($row->sap_sent_at)->timezone('Asia/Jakarta'); @endphp
                         <div style="font-weight:700; color:#15803D; font-size:13px;">
                             {{ $sentAt->format('H:i') }}
                             <span style="font-size:10px; font-weight:400;">WIB</span>
@@ -217,32 +242,231 @@
                     </td>
 
                     {{-- Aksi --}}
-                    <td style="padding:10px 14px; text-align:center;">
-                        @if($row->sap_sent == 0)
-                        <button wire:click="markAsIgnored({{ $row->id }})"
-                                wire:confirm="Yakin ingin mengabaikan SPK {{ $row->spk_code }}? Data ini tidak akan dikirim ke SAP."
-                                style="background:#F3E8FF; border:1px solid #DDD6FE; color:#7C3AED;
-                                       padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
-                                       cursor:pointer; font-family:'IBM Plex Sans',sans-serif; white-space:nowrap;">
-                            ⊘ Abaikan
-                        </button>
-                        @elseif($row->sap_sent == 99)
-                        <button wire:click="markAsPending({{ $row->id }})"
-                                wire:confirm="Reset SPK {{ $row->spk_code }} ke status pending?"
-                                style="background:#FEF3C7; border:1px solid #FDE68A; color:#B45309;
-                                       padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
-                                       cursor:pointer; font-family:'IBM Plex Sans',sans-serif; white-space:nowrap;">
-                            ↩ Reset
-                        </button>
-                        @else
-                        <span style="color:#C8C4BC; font-size:10px;">—</span>
-                        @endif
+                    <td style="padding:10px 14px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            {{-- Detail Button --}}
+                            <button wire:click="toggleDetail({{ $row->id }})"
+                                    style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8;
+                                        padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                        cursor:pointer; font-family:'IBM Plex Sans',sans-serif;
+                                        white-space:nowrap; width:100%; transition:all 0.2s;
+                                        hover:background:#DBEAFE;">
+                                {{ isset($expandedRows[$row->id]) ? '▲ Tutup' : '▼ Detail' }}
+                            </button>
+
+                            {{-- Push or Manage Buttons --}}
+                            @if($row->sap_sent == 0)
+                                {{-- Pending: Show Push Button --}}
+                                @if($isPushing)
+                                <button disabled style="background:#E0E7FF; border:1px solid #C7D2FE; color:#818CF8;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:not-allowed; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%;">
+                                    ⏳ Mengirim...
+                                </button>
+                                @else
+                                <button wire:click="pushToSapManual({{ $row->id }})"
+                                        wire:confirm="Kirim SPK {{ $row->spk_code }} ke SAP sekarang?"
+                                        style="background:#FEF3C7; border:1px solid #FDE68A; color:#B45309;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#FCD34D;">
+                                    🚀 Kirim SAP
+                                </button>
+                                @endif
+
+                                {{-- Show Result if any --}}
+                                @if($pushResult)
+                                @php
+                                    // Determine styling based on error type
+                                    $bgColor = '#DCFCE7';
+                                    $textColor = '#15803D';
+                                    $borderColor = '#86EFAC';
+                                    $icon = '✓';
+                                    
+                                    if ($pushResult['status'] === 'error') {
+                                        $icon = '✕';
+                                        switch ($errorType) {
+                                            case 'business_logic':
+                                                // Data issue - light red
+                                                $bgColor = '#FEE2E2';
+                                                $textColor = '#B91C1C';
+                                                $borderColor = '#FECACA';
+                                                break;
+                                            case 'connection':
+                                                // Connection issue - orange
+                                                $bgColor = '#FEF3C7';
+                                                $textColor = '#B45309';
+                                                $borderColor = '#FDE68A';
+                                                break;
+                                            case 'system_config':
+                                                // System config issue - red
+                                                $bgColor = '#FECACA';
+                                                $textColor = '#7F1D1D';
+                                                $borderColor = '#F87171';
+                                                break;
+                                            default:
+                                                // Unknown error - purple
+                                                $bgColor = '#F3E8FF';
+                                                $textColor = '#6B21A8';
+                                                $borderColor = '#DDD6FE';
+                                                break;
+                                        }
+                                    }
+                                @endphp
+                                <div style="padding:6px 8px; border-radius:2px; font-size:9px; 
+                                           background:{{ $bgColor }}; color:{{ $textColor }}; 
+                                           border:1px solid {{ $borderColor }}; 
+                                           line-height:1.3; word-break:break-word;">
+                                    <div style="font-weight:700; margin-bottom:2px;">
+                                        {{ $icon }} {{ $pushResult['status'] === 'success' ? 'Berhasil' : 'Error' }}
+                                    </div>
+                                    <div style="font-size:8px;">
+                                        {{ $pushResult['message'] }}
+                                    </div>
+                                    @if($pushResult['raw_message'] && $pushResult['status'] === 'error')
+                                    <div style="margin-top:3px; padding-top:3px; border-top:1px solid {{ $borderColor }}; 
+                                               font-size:8px; font-family:'IBM Plex Mono',monospace;">
+                                        📋 Detail: {{ substr($pushResult['raw_message'], 0, 80) }}{{ strlen($pushResult['raw_message']) > 80 ? '...' : '' }}
+                                    </div>
+                                    @endif
+                                </div>
+
+                                {{-- Clear button (optional) --}}
+                                <button wire:click="$set('pushResults.{{ $row->id }}', null)"
+                                        style="background:#F5F3EF; border:1px solid #D8D4CC; color:#5A554E;
+                                            padding:3px 8px; border-radius:2px; font-size:9px; font-weight:600;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#E8E4DC;">
+                                    ✕ Tutup
+                                </button>
+                                @endif
+
+                                {{-- Ignore Button --}}
+                                <button wire:click="markAsIgnored({{ $row->id }})"
+                                        wire:confirm="Yakin ingin mengabaikan SPK {{ $row->spk_code }}?"
+                                        style="background:#F3E8FF; border:1px solid #DDD6FE; color:#7C3AED;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#F3E8FF;">
+                                    ⊘ Abaikan
+                                </button>
+                            @elseif($row->sap_sent == 99)
+                                {{-- Ignored: Show Reset Button --}}
+                                <button wire:click="markAsPending({{ $row->id }})"
+                                        wire:confirm="Reset SPK {{ $row->spk_code }} ke pending?"
+                                        style="background:#FEF3C7; border:1px solid #FDE68A; color:#B45309;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#FCD34D;">
+                                    ↩ Reset
+                                </button>
+                            @else
+                                {{-- Sent: Show Status Only --}}
+                                <span style="color:#C8C4BC; font-size:10px; text-align:center; display:block; padding:5px;">
+                                    Sudah terkirim
+                                </span>
+                            @endif
+                        </div>
                     </td>
 
                 </tr>
+
+                {{-- Expanded detail row — di LUAR <tr> utama, sejajar --}}
+                @if(isset($expandedRows[$row->id]))
+                <tr wire:key="detail-{{ $row->id }}" style="background:#F0F7FF; border-left:3px solid #1D4ED8;">
+                    <td colspan="10" style="padding:0;">
+                        <div style="padding:14px 20px;">
+                            <div style="font-size:10px; font-weight:700; color:#1D4ED8; letter-spacing:.1em;
+                                        text-transform:uppercase; margin-bottom:10px;">
+                                📋 Detail Scanned Data — SPK {{ $row->spk_code }}
+                                <span style="background:#1D4ED8; color:#fff; font-size:9px; padding:1px 6px;
+                                            border-radius:2px; margin-left:6px;">
+                                    {{ count($rowDetails[$row->id] ?? []) }} records
+                                </span>
+                            </div>
+
+                            @if(!empty($rowDetails[$row->id]))
+                            <table style="width:100%; border-collapse:collapse; font-size:11px;
+                                        font-family:'IBM Plex Mono',monospace; margin-bottom:10px;">
+                                <thead>
+                                    <tr style="background:#DBEAFE;">
+                                        <th style="padding:5px 10px; text-align:left; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">ID</th>
+                                        <th style="padding:5px 10px; text-align:left; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">Item Code</th>
+                                        <th style="padding:5px 10px; text-align:right; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">Qty</th>
+                                        <th style="padding:5px 10px; text-align:center; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">Label</th>
+                                        <th style="padding:5px 10px; text-align:left; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">User</th>
+                                        <th style="padding:10px 10px; text-align:left; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">Waktu Scan</th>
+                                        <th style="padding:5px 10px; text-align:center; font-size:9px; font-weight:700;
+                                                color:#1E40AF; letter-spacing:.08em; text-transform:uppercase;
+                                                border-bottom:1px solid #BFDBFE;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($rowDetails[$row->id] as $j => $detail)
+                                    <tr style="border-bottom:1px solid #EFF6FF;
+                                            background:{{ $j % 2 === 0 ? '#F0F7FF' : '#fff' }};">
+                                        <td style="padding:5px 10px; color:#5A554E;">{{ $detail['id'] }}</td>
+                                        <td style="padding:5px 10px; font-weight:700; color:#1A1816;">{{ $detail['item_code'] }}</td>
+                                        <td style="padding:5px 10px; text-align:right; font-weight:700; color:#1A1816;">
+                                            {{ number_format($detail['quantity']) }}
+                                        </td>
+                                        <td style="padding:5px 10px; text-align:center; color:#5A554E;">{{ $detail['label'] }}</td>
+                                        <td style="padding:5px 10px; color:#5A554E;">{{ $detail['user'] ?? '—' }}</td>
+                                        <td style="padding:5px 10px; color:#5A554E;">{{ $detail['created_at'] }}</td>
+                                        <td style="padding:5px 10px; text-align:center;">
+                                            <button wire:click="pushDetailToSap({{ $detail['id'] }}, {{ $row->id }})"
+                                                    style="background:#DBEAFE; border:1px solid #93C5FD; color:#1D4ED8;
+                                                        padding:3px 8px; border-radius:2px; font-size:9px; font-weight:700;
+                                                        cursor:pointer; font-family:'IBM Plex Sans',sans-serif;
+                                                        white-space:nowrap; transition:all 0.2s;
+                                                        hover:background:#BFDBFE;">
+                                                → SAP
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background:#DBEAFE; border-top:2px solid #BFDBFE;">
+                                        <td colspan="2" style="padding:5px 10px; font-size:10px; font-weight:700; color:#1E40AF;">
+                                            TOTAL
+                                        </td>
+                                        <td style="padding:5px 10px; text-align:right; font-weight:800; color:#1E40AF;">
+                                            {{ number_format(collect($rowDetails[$row->id])->sum('quantity')) }}
+                                        </td>
+                                        <td colspan="4"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            @else
+                            <div style="text-align:center; padding:20px; color:#93C5FD; font-size:12px;">
+                                Tidak ada detail scanned data
+                            </div>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @endif
                 @empty
                 <tr wire:key="row-empty">
-                    <td colspan="9" style="padding:60px; text-align:center; color:#C8C4BC;">
+                    <td colspan="10" style="padding:60px; text-align:center; color:#C8C4BC;">
                         <div style="font-size:28px; margin-bottom:8px;">◈</div>
                         Tidak ada data
                     </td>

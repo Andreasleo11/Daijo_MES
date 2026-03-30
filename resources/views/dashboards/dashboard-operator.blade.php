@@ -684,6 +684,7 @@
                                             <th class="border border-gray-300 px-3 py-2">Label</th>
                                             <th class="border border-gray-300 px-3 py-2">User</th>
                                             <th class="border border-gray-300 px-3 py-2">Created At</th>
+                                            <th class="border border-gray-300 px-3 py-1">SAP Status</th>
                                             <th class="border border-gray-300 px-3 py-2">Action</th>
                                         </tr>
                                     </thead>
@@ -699,6 +700,25 @@
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->label }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->user }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}</td>
+                                                <td class="border border-gray-300 px-3 py-1 text-center">
+                                                    @if($scan->summary)
+                                                        @if($scan->summary->sap_sent == 1)
+                                                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ✓ Terkirim
+                                                            </span>
+                                                        @elseif($scan->summary->sap_sent == 99)
+                                                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ⊘ Diabaikan
+                                                            </span>
+                                                        @else
+                                                            <span class="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ⏳ Pending
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-gray-400 text-xs">—</span>
+                                                    @endif
+                                                </td>
                                                 <td>
                                                 <form method="POST" action="{{ route('spk-scan.destroy', $scan->id) }}">
                                                         @csrf
@@ -710,7 +730,7 @@
                                                 </td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="9" class="text-center py-4">Tidak ada data scan.</td></tr>
+                                            <tr><td colspan="10" class="text-center py-4">Tidak ada data scan.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
