@@ -16,7 +16,7 @@ class Kernel extends ConsoleKernel
         
         $schedule->command('summary:generate')->everyTenMinutes()->withoutOverlapping();
         // PASTIKAN PRODUCTION SUMMARY SUDAH DI 1 dulu semua sebelum RUN 
-        $schedule->command('sap:dispatch-receipt')->everyTenMinutes()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
+        // $schedule->command('sap:dispatch-receipt')->everyTenMinutes()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
         
 
 
