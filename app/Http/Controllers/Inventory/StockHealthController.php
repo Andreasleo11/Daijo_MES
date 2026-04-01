@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Application\Inventory\DTOs\StockHealthFilterDTO;
-use App\Application\Inventory\UseCases\GetStockHealthDashboard;
+use App\Services\Inventory\DTOs\StockHealthFilterDTO;
+use App\Services\Inventory\StockHealthService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,7 +19,7 @@ use Illuminate\View\View;
 class StockHealthController extends Controller
 {
     public function __construct(
-        private readonly GetStockHealthDashboard $useCase,
+        private readonly StockHealthService $service,
     ) {}
 
     public function index(Request $request): View
@@ -28,7 +28,7 @@ class StockHealthController extends Controller
             $request->only(['search', 'process_owner', 'family'])
         );
 
-        $data = $this->useCase->execute($filter);
+        $data = $this->service->getDashboardData($filter);
 
         return view('inventory.stock-health', [
             'items'         => $data['items'],

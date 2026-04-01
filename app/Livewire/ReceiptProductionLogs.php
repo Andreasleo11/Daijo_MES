@@ -7,7 +7,7 @@ use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use App\Services\ReceiptProductionService;
+use App\Services\Sap\ReceiptProductionService;
 
 class ReceiptProductionLogs extends Component
 {

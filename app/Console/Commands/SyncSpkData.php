@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Services\SpkMasterService;
+use App\Services\Sap\SpkMasterService;
 
 class SyncSpkData extends Command
 {

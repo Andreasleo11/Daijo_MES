@@ -3,14 +3,14 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Services\BomWipService;
-use App\Services\DelActualService;
-use App\Services\DelSchedService;
-use App\Services\DelSoService;
-use App\Services\InventoryFgService;
-use App\Services\InventoryMtrService;
-use App\Services\LineProductionService;
-use App\Services\RejectService;
+use App\Services\Sap\BomWipService;
+use App\Services\Sap\DelActualService;
+use App\Services\Sap\DelSchedService;
+use App\Services\Sap\DelSoService;
+use App\Services\Sap\InventoryFgService;
+use App\Services\Sap\InventoryMtrService;
+use App\Services\Sap\LineProductionService;
+use App\Services\Sap\RejectService;
 use Illuminate\Support\Facades\Log;
 use App\Models\ApiLog;
 

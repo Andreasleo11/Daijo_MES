@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Services\ProductionDashboardService;
+use App\Services\Production\ProductionDashboardService;
 use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\Attributes\Layout;

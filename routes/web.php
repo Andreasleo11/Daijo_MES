@@ -52,7 +52,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
 use App\Services\BaseSapService;
-use App\Services\SpkMasterService;
+use App\Services\Sap\SpkMasterService;
 
 use App\Services\BomWipService;
 

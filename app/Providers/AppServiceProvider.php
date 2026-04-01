@@ -8,11 +8,6 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
 
-// DDD — Inventory feature bindings
-use App\Domain\Inventory\Contracts\FgInventoryRepositoryInterface;
-use App\Domain\Inventory\Contracts\RejectRepositoryInterface;
-use App\Infrastructure\Persistence\Eloquent\EloquentFgInventoryRepository;
-use App\Infrastructure\Persistence\Eloquent\EloquentRejectRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,9 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Inventory — Stock Health Dashboard
-        $this->app->bind(FgInventoryRepositoryInterface::class, EloquentFgInventoryRepository::class);
-        $this->app->bind(RejectRepositoryInterface::class,      EloquentRejectRepository::class);
+
     }
 
     /**
