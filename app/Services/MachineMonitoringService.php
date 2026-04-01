@@ -251,6 +251,7 @@ class MachineMonitoringService
                     'id' => $dic->id,
                     'item_code' => $dic->item_code,
                     'start_date' => $dic->start_date,
+                    'shift' => $dic->shift,
                     'is_done' => $dic->is_done,
                     'quantity' => $dic->quantity * $multiplier,
                     'actual_quantity' => \App\Models\ProductionScannedData::where('dic_id', $dic->id)->sum('quantity') ?? 0

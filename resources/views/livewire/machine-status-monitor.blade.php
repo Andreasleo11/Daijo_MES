@@ -187,7 +187,10 @@
                                     <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors transition-all group overflow-hidden relative">
                                         <div class="absolute inset-y-0 left-0 w-1 bg-{{ $job['is_done'] ? 'emerald' : 'blue' }}-500 opacity-50"></div>
                                         <div class="flex justify-between items-start mb-2">
-                                            <span class="text-sm font-black text-white tracking-tight">{{ $job['item_code'] }}</span>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-black text-white tracking-tight">{{ $job['item_code'] }}</span>
+                                                <span class="text-[8px] font-black text-blue-400 uppercase tracking-widest leading-none mt-1">Shift {{ $job['shift'] }}</span>
+                                            </div>
                                             <span class="text-[9px] font-bold text-gray-500 uppercase font-mono">{{ Carbon\Carbon::parse($job['start_date'])->format('M d') }}</span>
                                         </div>
                                         <div class="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
