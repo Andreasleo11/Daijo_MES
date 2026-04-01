@@ -9,18 +9,12 @@ use App\Models\AdjustMachineLog;
 use App\Models\MouldChangeLog;
 use App\Models\RepairMachineLog;
 use App\Models\MasterListItem;
+use App\Models\HourlyRemark;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class MachineMonitoringService
 {
-    /**
-     * Get statuses for all machines with zone_id
-     *
-     * @param string|null $zoneId
-     * @param string|null $search
-     * @return Collection
-     */
     public function getMachineStatuses(?string $zoneId = null, ?string $search = null): Collection
     {
         $query = User::with(['zone', 'jobs'])
@@ -31,159 +25,168 @@ class MachineMonitoringService
         }
 
         if ($search) {
-            $query->where('name', 'like', "%{$search}%")
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
                   ->orWhere('username', 'like', "%{$search}%");
+            });
         }
 
         $machines = $query->get();
 
         return $machines->map(function ($machine) {
-            $statusData = $this->calculateStatusAndTime($machine);
-            $productionData = $this->getProductionDetails($machine);
+            $statusData     = $this->calculateStatusAndTime($machine);
+            $productionData = $this->getProductionDetails($machine, $statusData['status']);
 
             return array_merge([
-                'id' => $machine->id,
-                'zone' => $machine->zone->zone_name ?? '-',
+                'id'           => $machine->id,
+                'zone'         => $machine->zone->zone_name ?? '-',
                 'machine_code' => $machine->username,
-                'name' => $machine->name,
+                'name'         => $machine->name,
             ], $statusData, $productionData);
         });
     }
 
-    /**
-     * Calculate status and non-running time
-     *
-     * @param User $machine
-     * @return array
-     */
     private function calculateStatusAndTime(User $machine): array
     {
-        $now = Carbon::now();
-        $status = 'IDLE';
-        $timeNotRunning = 0;
-        $startTime = null;
+        $now       = Carbon::now();
+        $today     = Carbon::today();
+        $yesterday = Carbon::yesterday();
 
-        // 1. Check for SETUP (Adjust or Mould Change)
+        // 1. SETUP — ada adjust/mould log yang belum selesai
         $setupLog = AdjustMachineLog::where('user_id', $machine->id)
             ->whereNull('end_time')
+            ->whereBetween('created_at', [$yesterday->startOfDay(), $now])
             ->orderBy('created_at', 'desc')
-            ->first() 
+            ->first()
             ?? MouldChangeLog::where('user_id', $machine->id)
             ->whereNull('end_time')
+            ->whereBetween('created_at', [$yesterday->startOfDay(), $now])
             ->orderBy('created_at', 'desc')
             ->first();
 
         if ($setupLog) {
-            $status = 'SETUP';
-            $timeNotRunning = $now->diffInMinutes($setupLog->created_at);
             return [
-                'status' => $status,
-                'total_time_not_running' => $timeNotRunning,
-                'start_running' => '-',
+                'status'                => 'SETUP',
+                'total_time_not_running' => $now->diffInMinutes($setupLog->created_at),
+                'start_running'         => '-',
             ];
         }
 
-        // 2. Check for REPAIR (IDLE)
+        // 2. REPAIR
         $repairLog = RepairMachineLog::where('user_id', $machine->id)
             ->whereNull('finish_repair')
             ->orderBy('created_at', 'desc')
             ->first();
 
         if ($repairLog) {
-            $status = 'IDLE';
-            $timeNotRunning = $now->diffInMinutes($repairLog->created_at);
             return [
-                'status' => $status,
-                'total_time_not_running' => $timeNotRunning,
-                'start_running' => '-',
+                'status'                => 'IDLE',
+                'total_time_not_running' => $now->diffInMinutes($repairLog->created_at),
+                'start_running'         => '-',
             ];
         }
 
-        // 3. Check for RUNNING (MachineJob)
-        $job = $machine->jobs; // hasOne relation
+        // 3. RUNNING — ada job aktif
+        $job = $machine->jobs;
         if ($job && !empty($job->item_code)) {
-            // Find start time from DailyItemCode
+            // Cari DIC aktif — whereNull is_done ATAU is_done = 0
             $dic = DailyItemCode::where('user_id', $machine->id)
                 ->where('item_code', $job->item_code)
-                ->where('is_done', 0)
+                ->where(fn($q) => $q->whereNull('is_done')->orWhere('is_done', 0))
+                ->whereBetween('start_date', [$yesterday->toDateString(), $today->toDateString()])
                 ->orderBy('start_date', 'desc')
                 ->orderBy('start_time', 'desc')
                 ->first();
 
             return [
-                'status' => 'RUNNING',
+                'status'                => 'RUNNING',
                 'total_time_not_running' => 0,
-                'start_running' => $dic ? Carbon::parse($dic->start_date . ' ' . $dic->start_time)->format('d/m/Y H:i') : '-',
+                'start_running'         => $dic
+                    ? Carbon::parse($dic->start_date . ' ' . $dic->start_time)->format('d/m/Y H:i')
+                    : '-',
             ];
         }
 
-        // 4. Default to IDLE if no job
-        // To calculate time not running for "No Job", we look for the last finished Job or Log
-        $lastActivity = $this->getLastActivityTime($machine->id);
-        if ($lastActivity) {
-            $timeNotRunning = $now->diffInMinutes($lastActivity);
-        }
+        // 4. IDLE default
+        $lastActivity   = $this->getLastActivityTime($machine->id);
+        $timeNotRunning = $lastActivity ? $now->diffInMinutes($lastActivity) : 0;
 
         return [
-            'status' => 'IDLE',
+            'status'                => 'IDLE',
             'total_time_not_running' => $timeNotRunning,
-            'start_running' => '-',
+            'start_running'         => '-',
         ];
     }
 
-    /**
-     * Get production details (Part, Target, Achieve, Next)
-     *
-     * @param User $machine
-     * @return array
-     */
-    private function getProductionDetails(User $machine): array
+    private function getProductionDetails(User $machine, string $status): array
     {
-        $job = $machine->jobs;
-        $partRunning = $job->item_code ?? '-';
-        $targetQty = '-';
+        $job           = $machine->jobs;
+        $partRunning   = $job->item_code ?? '-';
+        $targetQty     = '-';
         $targetAchieve = '-';
-        $nextPart = '-';
+        $nextPart      = '-';
+        $today         = Carbon::today();
+        $yesterday     = Carbon::yesterday();
 
-        // Get all pending DICs sorted by schedule
+        // Ambil semua DIC pending — is_done null ATAU 0
         $pendingDics = DailyItemCode::where('user_id', $machine->id)
-            ->where('is_done', 0)
+            ->where(fn($q) => $q->whereNull('is_done')->orWhere('is_done', 0))
+            ->whereBetween('start_date', [$yesterday->toDateString(), $today->toDateString()])
             ->orderBy('start_date', 'asc')
             ->orderBy('start_time', 'asc')
             ->get();
 
         $currentDicId = null;
+        $currentDic   = null;
 
         if ($job && !empty($job->item_code)) {
-            // Find the DIC that matches current job's item and shift if possible
-            $currentDic = $pendingDics->first(function($d) use ($job) {
-                return $d->item_code === $job->item_code && $d->shift == $job->shift;
-            }) ?? $pendingDics->first(function($d) use ($job) {
-                return $d->item_code === $job->item_code;
-            });
+            $currentDic = $pendingDics->first(fn($d) =>
+                $d->item_code === $job->item_code && $d->shift == $job->shift
+            ) ?? $pendingDics->first(fn($d) =>
+                $d->item_code === $job->item_code
+            );
 
             if ($currentDic) {
                 $currentDicId = $currentDic->id;
-                
-                // 1. Calculate Target with Pair Multiplier
+
                 $masterItem = MasterListItem::where('item_code', $job->item_code)->first();
                 $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
-                $targetQty = $currentDic->quantity * $multiplier;
-                
-                // 2. Calculate Achievement from ProductionScannedData
-                $targetAchieve = \App\Models\ProductionScannedData::where('dic_id', $currentDic->id)->sum('quantity') ?? 0;
+                $targetQty  = $currentDic->quantity * $multiplier;
+
+                // Achieve dari hourly_remarks
+                $targetAchieve = HourlyRemark::where('dic_id', $currentDic->id)
+                    ->whereNotNull('actual_production')
+                    ->sum('actual_production');
+            } else {
+                // Job ada tapi DIC tidak ketemu di pending
+                // Cari DIC yang sudah done untuk ambil achieve terakhir
+                $doneDic = DailyItemCode::where('user_id', $machine->id)
+                    ->where('item_code', $job->item_code)
+                    ->where('is_done', 1)
+                    ->orderBy('updated_at', 'desc')
+                    ->first();
+
+                if ($doneDic) {
+                    $masterItem = MasterListItem::where('item_code', $job->item_code)->first();
+                    $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
+                    $targetQty  = $doneDic->quantity * $multiplier;
+
+                    $targetAchieve = HourlyRemark::where('dic_id', $doneDic->id)
+                        ->whereNotNull('actual_production')
+                        ->sum('actual_production');
+                }
             }
         }
 
-        // Get Next Part (the first item in pending list that is NOT the current DIC)
+        // Next part
         $nextDic = null;
         if ($currentDicId) {
-            $nextDic = $pendingDics->first(function($d) use ($currentDicId) {
-                return $d->id !== $currentDicId;
-            });
+            $nextDic = $pendingDics
+                ->filter(fn($d) => $d->id !== $currentDicId)
+                ->sortBy([['start_date', 'asc'], ['start_time', 'asc']])
+                ->first();
         } else {
-            // If no current job match, next is the 2nd item or maybe the 1st
-            $nextDic = $pendingDics->count() > 1 ? $pendingDics[1] : null;
+            $nextDic = $pendingDics->first();
         }
 
         if ($nextDic) {
@@ -191,61 +194,52 @@ class MachineMonitoringService
         }
 
         return [
-            'part_running' => $partRunning,
-            'target_qty' => $targetQty,
-            'target_achieve' => $targetAchieve,
+            'part_running'      => $partRunning,
+            'target_qty'        => $targetQty,
+            'target_achieve'    => $targetAchieve,
             'next_part_running' => $nextPart,
         ];
     }
 
-    /**
-     * Helper to get last activity time to calculate Idle duration
-     */
     private function getLastActivityTime(int $userId): ?Carbon
     {
         $lastDic = DailyItemCode::where('user_id', $userId)
             ->where('is_done', 1)
             ->orderBy('updated_at', 'desc')
             ->first();
-            
+
         $lastAdjust = AdjustMachineLog::where('user_id', $userId)
             ->whereNotNull('end_time')
             ->orderBy('end_time', 'desc')
             ->first();
-            
+
         $lastMould = MouldChangeLog::where('user_id', $userId)
             ->whereNotNull('end_time')
             ->orderBy('end_time', 'desc')
             ->first();
-            
+
         $lastRepair = RepairMachineLog::where('user_id', $userId)
             ->whereNotNull('finish_repair')
-            ->orderBy('created_at', 'desc') // finish_repair might not be cast to date
+            ->orderBy('finish_repair', 'desc')
             ->first();
 
-        // Use finish_repair if it's a valid date string
         $repairTime = null;
         if ($lastRepair && $lastRepair->finish_repair) {
             try {
                 $repairTime = Carbon::parse($lastRepair->finish_repair);
             } catch (\Exception $e) {
-                $repairTime = $lastRepair->created_at; 
+                $repairTime = $lastRepair->created_at;
             }
         }
 
-        $times = collect([
-            $lastDic ? $lastDic->updated_at : null,
-            ($lastAdjust && $lastAdjust->end_time) ? Carbon::parse($lastAdjust->end_time) : null,
-            ($lastMould && $lastMould->end_time) ? Carbon::parse($lastMould->end_time) : null,
+        return collect([
+            $lastDic?->updated_at,
+            $lastAdjust?->end_time ? Carbon::parse($lastAdjust->end_time) : null,
+            $lastMould?->end_time  ? Carbon::parse($lastMould->end_time)  : null,
             $repairTime,
-        ])->filter()->sortDesc();
-
-        return $times->first();
+        ])->filter()->sortDesc()->first();
     }
 
-    /**
-     * Get detailed history and logs for a specific machine
-     */
     public function getMachineDetailedHistory(int $userId): array
     {
         $recentDics = DailyItemCode::where('user_id', $userId)
@@ -253,43 +247,55 @@ class MachineMonitoringService
             ->orderBy('start_time', 'desc')
             ->limit(5)
             ->get()
-            ->map(function($dic) {
-                // Apply the same logic as dashboard for consistency
+            ->map(function ($dic) {
                 $masterItem = MasterListItem::where('item_code', $dic->item_code)->first();
                 $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
-                
+
                 return [
-                    'id' => $dic->id,
-                    'item_code' => $dic->item_code,
-                    'start_date' => $dic->start_date,
-                    'shift' => $dic->shift,
-                    'is_done' => $dic->is_done,
-                    'quantity' => $dic->quantity * $multiplier,
-                    'actual_quantity' => \App\Models\ProductionScannedData::where('dic_id', $dic->id)->sum('quantity') ?? 0
+                    'id'              => $dic->id,
+                    'item_code'       => $dic->item_code,
+                    'start_date'      => $dic->start_date,
+                    'shift'           => $dic->shift,
+                    'is_done'         => $dic->is_done,
+                    'quantity'        => $dic->quantity * $multiplier,
+                    'actual_quantity' => HourlyRemark::where('dic_id', $dic->id)
+                        ->whereNotNull('actual_production')
+                        ->sum('actual_production'),
                 ];
             });
 
-        $recentLogs = collect();
-
         $adjustLogs = AdjustMachineLog::where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->limit(3)
-            ->get()
-            ->map(fn($l) => array_merge($l->toArray(), ['log_type' => 'ADJUST']));
+            ->orderBy('created_at', 'desc')->limit(3)->get()
+            ->map(fn($l) => array_merge($l->toArray(), [
+                'log_type'   => 'ADJUST',
+                'created_at' => Carbon::parse($l->created_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s'),
+                'end_time'   => $l->end_time
+                    ? Carbon::parse($l->end_time)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s')
+                    : null,
+            ]));
 
         $mouldLogs = MouldChangeLog::where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->limit(3)
-            ->get()
-            ->map(fn($l) => array_merge($l->toArray(), ['log_type' => 'MOULD']));
+            ->orderBy('created_at', 'desc')->limit(3)->get()
+            ->map(fn($l) => array_merge($l->toArray(), [
+                'log_type'   => 'MOULD',
+                'created_at' => Carbon::parse($l->created_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s'),
+                'end_time'   => $l->end_time
+                    ? Carbon::parse($l->end_time)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s')
+                    : null,
+            ]));
 
         $repairLogs = RepairMachineLog::where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->limit(3)
-            ->get()
-            ->map(fn($l) => array_merge($l->toArray(), ['log_type' => 'REPAIR']));
+            ->orderBy('created_at', 'desc')->limit(3)->get()
+            ->map(fn($l) => array_merge($l->toArray(), [
+                'log_type'      => 'REPAIR',
+                'created_at'    => Carbon::parse($l->created_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s'),
+                'finish_repair' => $l->finish_repair
+                    ? Carbon::parse($l->finish_repair)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s')
+                    : null,
+            ]));
 
-        $recentLogs = $recentLogs->concat($adjustLogs)
+        $recentLogs = collect()
+            ->concat($adjustLogs)
             ->concat($mouldLogs)
             ->concat($repairLogs)
             ->sortByDesc('created_at')
@@ -298,7 +304,7 @@ class MachineMonitoringService
 
         return [
             'recent_jobs' => $recentDics,
-            'recent_logs' => $recentLogs
+            'recent_logs' => $recentLogs,
         ];
     }
 }

@@ -114,9 +114,28 @@
                                         <span class="text-gray-500">{{ number_format($machine['target_achieve']) }} / {{ number_format($machine['target_qty']) }}</span>
                                         <span class="text-{{ $statusColor }}-400">{{ $pct }}%</span>
                                     </div>
-                                    <div class="w-full bg-white/5 h-1.5 rounded-full ring-1 ring-white/10 overflow-hidden">
-                                        <div class="h-full bg-gradient-to-r from-{{ $statusColor }}-600 to-{{ $statusColor }}-400 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                                             style="width: {{ $pct }}%"></div>
+                                   @php
+                                        $barColor = match($machine['status']) {
+                                            'RUNNING'  => 'linear-gradient(to right, #16a34a, #4ade80)',
+                                            'SETUP'    => 'linear-gradient(to right, #b45309, #fbbf24)',
+                                            'IDLE'     => 'linear-gradient(to right, #6b7280, #9ca3af)',
+                                            default    => 'linear-gradient(to right, #16a34a, #4ade80)',
+                                        };
+                                        $glowColor = match($machine['status']) {
+                                            'RUNNING'  => 'rgba(74,222,128,0.5)',
+                                            'SETUP'    => 'rgba(251,191,36,0.5)',
+                                            'IDLE'     => 'rgba(156,163,175,0.3)',
+                                            default    => 'rgba(74,222,128,0.5)',
+                                        };
+                                    @endphp
+
+                                    <div class="w-full h-2 rounded-full overflow-hidden"
+                                        style="background:rgba(255,255,255,0.05); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);">
+                                        <div class="h-full rounded-full transition-all duration-1000"
+                                            style="width:{{ $pct }}%;
+                                                    background:{{ $barColor }};
+                                                    box-shadow:0 0 10px {{ $glowColor }};">
+                                        </div>
                                     </div>
                                 </div>
                             @endif
@@ -228,7 +247,9 @@
                                         <div class="flex flex-col gap-1">
                                             <div class="flex justify-between items-center">
                                                 <span class="text-[10px] font-black text-{{ $logColor }}-400 uppercase tracking-widest">{{ $log['log_type'] }} OPERATION</span>
-                                                <span class="text-[9px] font-bold text-gray-600 uppercase font-mono">{{ Carbon\Carbon::parse($log['created_at'])->format('M d, H:i') }}</span>
+                                                <span class="text-[9px] font-bold text-gray-600 uppercase font-mono">
+                                                    {{ $log['created_at'] }}
+                                                </span>
                                             </div>
                                             <p class="text-xs font-medium text-gray-400 break-words">{{ $log['remark'] ?? $log['problem'] ?? 'Ongoing technical operation...' }}</p>
                                             <div class="flex items-center gap-2 mt-1">
