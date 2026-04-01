@@ -185,15 +185,15 @@
                             <div class="space-y-3">
                                 @forelse($machineDetails['recent_jobs'] as $job)
                                     <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors transition-all group overflow-hidden relative">
-                                        <div class="absolute inset-y-0 left-0 w-1 bg-{{ $job->is_done ? 'emerald' : 'blue' }}-500 opacity-50"></div>
+                                        <div class="absolute inset-y-0 left-0 w-1 bg-{{ $job['is_done'] ? 'emerald' : 'blue' }}-500 opacity-50"></div>
                                         <div class="flex justify-between items-start mb-2">
-                                            <span class="text-sm font-black text-white tracking-tight">{{ $job->item_code }}</span>
-                                            <span class="text-[9px] font-bold text-gray-500 uppercase font-mono">{{ Carbon\Carbon::parse($job->start_date)->format('M d') }}</span>
+                                            <span class="text-sm font-black text-white tracking-tight">{{ $job['item_code'] }}</span>
+                                            <span class="text-[9px] font-bold text-gray-500 uppercase font-mono">{{ Carbon\Carbon::parse($job['start_date'])->format('M d') }}</span>
                                         </div>
                                         <div class="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
-                                            <span>Target: {{ number_format($job->quantity) }}</span>
-                                            <span class="text-{{ $job->is_done ? 'emerald' : 'blue' }}-400">Achv: {{ number_format($job->actual_quantity) }}</span>
-                                            <span class="bg-white/5 px-2 py-0.5 rounded text-[8px] tracking-widest">{{ $job->is_done ? 'COMPLETED' : 'ACTIVE' }}</span>
+                                            <span>Target: {{ number_format($job['quantity']) }}</span>
+                                            <span class="text-{{ $job['is_done'] ? 'emerald' : 'blue' }}-400">Achv: {{ number_format($job['actual_quantity']) }}</span>
+                                            <span class="bg-white/5 px-2 py-0.5 rounded text-[8px] tracking-widest">{{ $job['is_done'] ? 'COMPLETED' : 'ACTIVE' }}</span>
                                         </div>
                                     </div>
                                 @empty

@@ -153,8 +153,13 @@ class MachineMonitoringService
                 ->first();
 
             if ($dic) {
-                $targetQty = $dic->quantity;
-                $targetAchieve = $dic->actual_quantity ?? 0;
+                // 1. Calculate Target with Pair Multiplier
+                $masterItem = MasterListItem::where('item_code', $job->item_code)->first();
+                $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
+                $targetQty = $dic->quantity * $multiplier;
+                
+                // 2. Calculate Achievement from ProductionScannedData
+                $targetAchieve = \App\Models\ProductionScannedData::where('dic_id', $dic->id)->sum('quantity') ?? 0;
             }
         }
 
@@ -236,7 +241,21 @@ class MachineMonitoringService
             ->orderBy('start_date', 'desc')
             ->orderBy('start_time', 'desc')
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function($dic) {
+                // Apply the same logic as dashboard for consistency
+                $masterItem = MasterListItem::where('item_code', $dic->item_code)->first();
+                $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
+                
+                return [
+                    'id' => $dic->id,
+                    'item_code' => $dic->item_code,
+                    'start_date' => $dic->start_date,
+                    'is_done' => $dic->is_done,
+                    'quantity' => $dic->quantity * $multiplier,
+                    'actual_quantity' => \App\Models\ProductionScannedData::where('dic_id', $dic->id)->sum('quantity') ?? 0
+                ];
+            });
 
         $recentLogs = collect();
 
