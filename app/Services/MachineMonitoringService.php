@@ -8,6 +8,7 @@ use App\Models\DailyItemCode;
 use App\Models\AdjustMachineLog;
 use App\Models\MouldChangeLog;
 use App\Models\RepairMachineLog;
+use App\Models\MasterListItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
