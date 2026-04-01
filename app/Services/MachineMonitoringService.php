@@ -145,36 +145,46 @@ class MachineMonitoringService
         $targetAchieve = '-';
         $nextPart = '-';
 
-        if ($job && !empty($job->item_code)) {
-            $dic = DailyItemCode::where('user_id', $machine->id)
-                ->where('item_code', $job->item_code)
-                ->where('is_done', 0)
-                ->orderBy('start_date', 'desc')
-                ->orderBy('start_time', 'desc')
-                ->first();
+        // Get all pending DICs sorted by schedule
+        $pendingDics = DailyItemCode::where('user_id', $machine->id)
+            ->where('is_done', 0)
+            ->orderBy('start_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->get();
 
-            if ($dic) {
+        $currentDicId = null;
+
+        if ($job && !empty($job->item_code)) {
+            // Find the DIC that matches current job's item and shift if possible
+            $currentDic = $pendingDics->first(function($d) use ($job) {
+                return $d->item_code === $job->item_code && $d->shift == $job->shift;
+            }) ?? $pendingDics->first(function($d) use ($job) {
+                return $d->item_code === $job->item_code;
+            });
+
+            if ($currentDic) {
+                $currentDicId = $currentDic->id;
+                
                 // 1. Calculate Target with Pair Multiplier
                 $masterItem = MasterListItem::where('item_code', $job->item_code)->first();
                 $multiplier = ($masterItem && !empty($masterItem->pair)) ? 2 : 1;
-                $targetQty = $dic->quantity * $multiplier;
+                $targetQty = $currentDic->quantity * $multiplier;
                 
                 // 2. Calculate Achievement from ProductionScannedData
-                $targetAchieve = \App\Models\ProductionScannedData::where('dic_id', $dic->id)->sum('quantity') ?? 0;
+                $targetAchieve = \App\Models\ProductionScannedData::where('dic_id', $currentDic->id)->sum('quantity') ?? 0;
             }
         }
 
-        // Get Next Part
-        $nextDic = DailyItemCode::where('user_id', $machine->id)
-            ->where('is_done', 0)
-            ->where(function($q) use ($partRunning) {
-                if ($partRunning !== '-') {
-                    $q->where('item_code', '!=', $partRunning);
-                }
-            })
-            ->orderBy('start_date', 'asc')
-            ->orderBy('start_time', 'asc')
-            ->first();
+        // Get Next Part (the first item in pending list that is NOT the current DIC)
+        $nextDic = null;
+        if ($currentDicId) {
+            $nextDic = $pendingDics->first(function($d) use ($currentDicId) {
+                return $d->id !== $currentDicId;
+            });
+        } else {
+            // If no current job match, next is the 2nd item or maybe the 1st
+            $nextDic = $pendingDics->count() > 1 ? $pendingDics[1] : null;
+        }
 
         if ($nextDic) {
             $nextPart = $nextDic->item_code;
