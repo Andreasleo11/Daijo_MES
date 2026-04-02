@@ -650,3 +650,5 @@ Route::middleware('auth')->group(function (){
 
 
 require __DIR__.'/auth.php';
+
+Route::get('/public/machine-monitor', \App\Livewire\MachineStatusPublic::class)->name('machine.monitor.public');
