@@ -1,273 +1,159 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Barcodes</title>
-</head>
+    <title>Barcodes - Packaging QR</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 5mm;
+        }
 
-<style>
-    body {
-        font-family: Arial, sans-serif;
-    }
-
-    .barcode-container {
-        width: 75%;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        page-break-inside: avoid;
-        /* Prevent page breaks within a single barcode container */
-    }
-
-    .barcode-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin-bottom: 20px;
-        height: 300px;
-        /* Adjust this value as needed */
-        box-sizing: border-box;
-    }
-
-    .barcode-item h2 {
-        margin: 5px 0;
-        font-size: 16px;
-    }
-
-    .barcode-item img {
-        max-width: 100%;
-        height: auto;
-        margin-bottom: 10px;
-    }
-
-    .separator {
-        width: 100%;
-        border-top: 1px solid #000;
-        margin: 10px 0;
-    }
-
-    .vertical-separator {
-        border-left: 1px solid #000;
-        height: 100%;
-        margin: 0 10px;
-        /* Adjust spacing */
-    }
-
-    .info {
-        display: flex;
-        align-items: center;
-        padding-top: 10px;
-        /* Adjust spacing */
-    }
-
-    .info .text {
-        flex: 1;
-        padding: 0 10px;
-        /* Adjust spacing */
-    }
-
-    .info .text p {
-        margin: 5px 0;
-        font-size: 14px;
-    }
-
-    .big-number {
-        font-size: 24px;
-        font-weight: bold;
-        margin-left: 20px;
-    }
-
-    .form-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin: 20px;
-    }
-
-    #barcodeForm {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        align-items: flex-start;
-        width: 100%;
-        max-width: 1200px;
-    }
-
-    .form-group-container {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        margin: 5px;
-    }
-
-    .form-group label {
-        margin-bottom: 5px;
-    }
-
-    .form-group input {
-        padding: 5px;
-        font-size: 16px;
-    }
-
-    @media print {
         body {
+            font-family: 'Arial', sans-serif;
             margin: 0;
-            font-size: 10pt;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         .barcode-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            /* 2 columns per row */
-            column-gap: 100px;
-            row-gap: 10px;
-            page-break-inside: avoid;
+            grid-template-columns: repeat(3, 1fr); /* 3 Columns per Row */
+            gap: 1.5mm; /* Gap for easy cutting */
+            width: 100%;
         }
 
         .barcode-item {
             border: 1px solid #000;
-            padding: 5px;
-            margin-bottom: 5px;
-            height: 190px;
-            /* Adjusted height for print */
-            width: 260px;
+            height: 30mm; /* Slightly reduced height to fit 9 rows with gaps */
             box-sizing: border-box;
-            page-break-inside: avoid;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr; /* Adjusted column ratios */
+            grid-template-rows: auto 1fr auto; 
+            overflow: hidden;
+            font-size: 7pt;
         }
 
-        .barcode-item h2 {
-            font-size: 12px;
-            /* Adjust font size for print */
+        /* Common Box Style */
+        .box {
+            border: 0.5pt solid #000;
+            display: flex;
+            align-items: center;
+            padding: 1mm;
         }
 
-        .barcode-item img {
-            height: 60px;
-            /* Adjust image size for print */
+        .box-title {
+            grid-column: span 1;
+            font-weight: bold;
+            font-size: 6.5pt;
+            background-color: #f0f0f0;
+            justify-content: center;
+            text-align: center;
         }
 
-        .info .text p {
-            font-size: 10px;
-            /* Adjust text size for print */
+        .box-no {
+            grid-column: span 1;
+            font-weight: bold;
+            font-size: 9pt;
+            justify-content: center;
         }
 
-        .big-number {
-            font-size: 16px;
-            /* Adjust font size for print */
+        .box-qr {
+            grid-column: span 1;
+            grid-row: span 2; /* QR takes height of title and data row */
+            justify-content: center;
+            padding: 0;
         }
 
-        .form-container {
-            display: none;
-            /* Hide the form when printing */
+        .box-qr img {
+            width: 15mm;
+            height: 15mm;
         }
-    }
-</style>
 
+        .box-data {
+            grid-column: span 2; /* Spans across Title and NO columns */
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .part-no {
+            font-weight: bold;
+            font-size: 8.5pt;
+            margin-bottom: 0.5mm;
+        }
+
+        .part-name {
+            font-size: 7pt;
+            line-height: 1.1;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .box-footer {
+            grid-column: span 3; /* Spans full width */
+            font-size: 6pt;
+            justify-content: space-between;
+            background-color: #f9f9f9;
+        }
+
+        @media print {
+            .barcode-container {
+                page-break-inside: avoid;
+            }
+            .barcode-item {
+                page-break-inside: avoid;
+            }
+            button {
+                display: none;
+            }
+        }
+
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+        }
+    </style>
+</head>
 <body>
 
-    <div class="barcode-container">
+    <button class="print-btn" onclick="window.print()">Print A4 Labels</button>
 
+    <div class="barcode-container">
         @foreach ($barcodes as $barcode)
             <div class="barcode-item">
-                <h2>SCAN HERE</h2>
-                <img src="{{ $barcode['barcodeUrl'] }}">
-                <div class="separator"></div>
-                <div class="info">
-                    <div class="text">
-                        <p>Part No: {{ $barcode['partno'] }}</p>
-                        <p>Description: {{ $barcode['partname'] }}</p>
-                    </div>
-                    <div class="vertical-separator"></div>
-                    <div class="big-number">Label <br>{{ $barcode['startnum'] }}</div>
+                <!-- Row 1: Title and NO -->
+                <div class="box box-title">QR CODE <br>PACKAGING</div>
+                <div class="box box-no">NO: {{ $barcode['label'] }}</div>
+                
+                <!-- QR Code (Right Column, spans Row 1 & 2) -->
+                <div class="box box-qr">
+                    <img src="{{ $barcode['barcodeUrl'] }}" alt="QR">
                 </div>
 
+                <!-- Row 2: Part Data -->
+                <div class="box box-data">
+                    <div class="part-no">{{ $barcode['partno'] }}</div>
+                    <div class="part-name">{{ $barcode['partname'] }}</div>
+                </div>
+
+                <!-- Row 3: Footer -->
+                <div class="box box-footer">
+                    <span>Generated: {{ $generated_at }}</span>
+                    <span>Daijo MES</span>
+                </div>
             </div>
         @endforeach
     </div>
 
-
-
-    <!-- <div class="form-container">
-        <form id="barcodeForm">
-            <div class="form-group-container">
-                <div class="form-group">
-                    <label for="spkCode1">SpkCode:</label>
-                    <input type="text" id="spkCode1" name="spkCode1" class="barcode-input">
-                </div>
-                <div class="form-group">
-                    <label for="quantity1">Quantity:</label>
-                    <input type="text" id="quantity1" name="quantity1" class="barcode-input">
-                </div>
-                <div class="form-group">
-                    <label for="warehouseType1">WarehouseType:</label>
-                    <input type="text" id="warehouseType1" name="warehouseType1" class="barcode-input">
-                </div>
-                <div class="form-group">
-                    <label for="indicator1">Indicator:</label>
-                    <input type="text" id="indicator1" name="indicator1" class="barcode-input">
-                </div>
-            </div>
-
-        </form>
-    </div> -->
-
 </body>
-</body>
-
-<script>
-    let formCounter = 1;
-
-    document.getElementById('indicator' + formCounter).addEventListener('focus', addNewRow);
-
-    function addNewRow() {
-        const spkCode = document.getElementById('spkCode' + formCounter).value;
-        const quantity = document.getElementById('quantity' + formCounter).value;
-        const warehouseType = document.getElementById('warehouseType' + formCounter).value;
-        const indicator = document.getElementById('indicator' + formCounter).value;
-
-        if (spkCode && quantity && warehouseType) {
-            formCounter++;
-
-            const newRow = document.createElement('div');
-            newRow.className = 'form-group-container';
-            newRow.id = 'row' + formCounter;
-            newRow.innerHTML = `
-                    <div class="form-group">
-                        <label for="spkCode${formCounter}">SpkCode:</label>
-                        <input type="text" id="spkCode${formCounter}" name="spkCode${formCounter}" class="barcode-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="quantity${formCounter}">Quantity:</label>
-                        <input type="text" id="quantity${formCounter}" name="quantity${formCounter}" class="barcode-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="warehouseType${formCounter}">WarehouseType:</label>
-                        <input type="text" id="warehouseType${formCounter}" name="warehouseType${formCounter}" class="barcode-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="indicator${formCounter}">Indicator:</label>
-                        <input type="text" id="indicator${formCounter}" name="indicator${formCounter}" class="barcode-input">
-                    </div>
-                `;
-
-            document.getElementById('barcodeForm').appendChild(newRow);
-
-            // Add event listener to the new indicator input field
-            document.getElementById('indicator' + formCounter).addEventListener('focus', addNewRow);
-
-            // Set focus to the new spkCode input field after a short delay to ensure it is rendered
-            setTimeout(() => {
-                document.getElementById('spkCode' + formCounter).focus();
-            }, 1000); // 1-second delay
-        }
-    }
-</script>
-
 </html>

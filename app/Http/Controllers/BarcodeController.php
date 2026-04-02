@@ -7,6 +7,7 @@ use App\Models\BarcodePackagingMaster;
 use App\Models\MasterDataRogPartName;
 use App\Models\Customer;
 use App\Models\StoreBoxData;
+use App\Models\StoreBoxDetail;
 use App\Models\AlcPeMasterData;
 
 use Carbon\Carbon;
@@ -28,9 +29,9 @@ class BarcodeController extends Controller
 
     public function indexBarcode()
     {
-        $barcodesFolder = public_path('barcodes');
+        $barcodesFolder = public_path('barcode');
         File::cleanDirectory($barcodesFolder);
-        $datas = MasterDataRogPartName::get();
+        $datas = StoreBoxData::orderBy('part_no')->get();
 
         return view('barcodeinandout.indexbarcode', compact('datas'));
     }
@@ -100,76 +101,74 @@ class BarcodeController extends Controller
     // unused |function untuk generate barcode store in and out di box 
     public function generateBarcode(Request $request)
     {
-        // dd($request->all());
-        // $spkNumbers = ['2201222', '2292422', '1299922'];
-        // $quantities = ['200', '1200', '100'];
-        // $warehouses = ['FG', 'RM', 'RW'];
+        $partno = $request->partNo; // Expected format "PartNo" or "PartNo/PartName"
+        $print_quantity = (int)$request->print_quantity;
 
-        $partno = $request->partNo;
-
+        // Split partno and partname if it comes from the master list string
         $partDetails = preg_split('/\//', $partno, 2);
-        $partNumber = $partDetails[0];
-        $partName = $partDetails[1] ?? '';
-        // dd($partName);
-        $defaultquantity = 1;
-        $defaultwarehouse = 'IND';
+        $partNumber = trim($partDetails[0]);
+        $partName = isset($partDetails[1]) ? trim($partDetails[1]) : '';
 
-        $startnum = $request->startNumber;
-        $quantity = $request->quantity;
-        $looping = $quantity - $startnum;
+        // AUTO-INITIALIZATION: Check and create in StoreBoxData Part Master
+        $masterBox = StoreBoxData::firstOrCreate(
+            ['part_no' => $partNumber],
+            ['part_name' => $partName]
+        );
+
+        // SMART CALCULATION: Find last label number from individual box master
+        $lastLabel = StoreBoxDetail::where('part_no', $partNumber)->max('label') ?? 0;
+        $startnum = $lastLabel + 1;
+
         $barcodes = [];
+        $barcodeFolder = public_path('barcode');
+        File::cleanDirectory($barcodeFolder);
 
-        $barcodesFolder = public_path('barcodes');
-        File::cleanDirectory($barcodesFolder);
+        if (!File::exists($barcodeFolder)) {
+            File::makeDirectory($barcodeFolder, 0755, true);
+        }
 
-        for ($i = 0; $i <= $looping; $i++) {
-
-            // Format the data as required ( DI SAP HARUS MENGGUNAKAN TAB )
-
-            // $barcodeData = $partno . "\t" . $startnum . "\t" . $warehouse . "\t" . $incrementNumber;
-
-            $barcodeData = $partNumber."\t".$defaultquantity."\t".$defaultwarehouse."\t".$startnum;
-            // Generate the barcode using DNS1D (1D Barcode)
-            $barcode = new DNS1D;
-
-            // Use $spkNumber in the filename
-            $filename = preg_replace('/[()#,.\\s&]+(?<!png)/i', '', $partNumber).'-'.$defaultquantity.'-'.$defaultwarehouse.'-'.$startnum.'.png';
-            $filename = preg_replace('/"/', '-', $filename);
-            $filename = preg_replace('/-+/', '-', $filename);
-
-            $lowercaseFilename = strtolower($filename);
-            // dd($lowercaseFilename);
-
-            if (! File::exists($barcodesFolder)) {
-                File::makeDirectory($barcodesFolder, 0755, true); // 0755 is the permission, true for recursive creation
-            }
-
-            // Save the barcode as a PNG image inside the barcodes folder
-            $barcode->getBarcodePNGPath($barcodeData, 'C128', 1, 40, [0, 0, 0], false);
-
-            // Generate the HTML for the barcode
-            $barcodeHtml = $barcode->getBarcodeHTML($barcodeData, 'C128');
-            // URL to the saved barcode image
-            $barcodeUrl = asset('barcodes/'.$lowercaseFilename);
-            // Generate the HTML for the barcode
-            $barcodeHtml = $barcode->getBarcodeHTML($barcodeData, 'C128', 2, 70);
+        for ($i = 0; $i < $print_quantity; $i++) {
+            $currentLabelNo = $startnum + $i;
+            
+            // NEW QR FORMAT: partbox [TAB] nolabel [TAB] TRIAL
+            $qrData = $partNumber . "\t" . $currentLabelNo . "\tTRIAL";
+            
+            // Generate QR Code (2D)
+            $barcode = new DNS2D;
+            
+            // Save QR as PNG - the package saves to public/barcode automatically
+            // and returns the relative path (e.g., "barcode/filename.png")
+            $relativeStoragePath = $barcode->getBarcodePNGPath($qrData, 'QRCODE', 6, 6);
+            
+            // Fix Windows backslashes and ensure it's a root-relative path
+            $normalizedPath = str_replace('\\', '/', $relativeStoragePath);
+            $rootRelativePath = '/' . ltrim($normalizedPath, '/');
+            
+            // Store each generated box in the individual master data
+            StoreBoxDetail::create([
+                'part_no' => $partNumber,
+                'label'   => $currentLabelNo,
+                'status'  => 'active',
+                'remark'  => $request->remark ?? null
+            ]);
 
             $barcodes[] = [
                 'partno' => $partNumber,
-                'partname' => $partName,
-                'quantity' => $quantity,
-                'startnum' => $startnum,
-                'barcodeHtml' => $barcodeHtml,
-                'barcodeUrl' => $barcodeUrl,
+                'partname' => $masterBox->part_name,
+                'label' => $currentLabelNo,
+                'barcodeUrl' => $rootRelativePath,
+                'qrData' => $qrData
             ];
-
-            $startnum += 1;
-
         }
 
-        return view('barcodeinandout.barcode', ['barcodes' => $barcodes, 'partno' => $partno,
-            'quantity' => $quantity,
-            'startnum' => $startnum, ]);
+        return view('barcodeinandout.barcode', [
+            'barcodes' => $barcodes, 
+            'partno' => $partNumber,
+            'quantity' => $print_quantity,
+            'startnum' => $startnum,
+            'endnum' => $startnum + $print_quantity - 1,
+            'generated_at' => date('Y-m-d H:i:s')
+        ]);
     }
 
     //index page untuk scan box datang dan box keluar dengan memilih spesifikasi masuk atau keluar dan customer 
@@ -1173,4 +1172,131 @@ class BarcodeController extends Controller
         return view('alllabelyanfeng', compact('labels'));
     }
 
+    // ============================================
+    // MASTER BOX DATA CRUD (PART MASTER)
+    // ============================================
+
+    public function indexStoreBoxData()
+    {
+        $boxes = StoreBoxData::orderBy('part_no')->get();
+        return view('barcode.store_box_index', compact('boxes'));
+    }
+
+    public function storeStoreBoxData(Request $request)
+    {
+        $request->validate([
+            'part_no' => 'required|string|unique:store_box_data,part_no',
+            'part_name' => 'nullable|string',
+        ]);
+
+        StoreBoxData::create($request->all());
+
+        return redirect()->back()->with('success', 'Master Box berhasil ditambahkan!');
+    }
+
+    public function updateStoreBoxData(Request $request, $id)
+    {
+        $request->validate([
+            'part_no' => 'required|string|unique:store_box_data,part_no,' . $id,
+            'part_name' => 'nullable|string',
+        ]);
+
+        $box = StoreBoxData::findOrFail($id);
+        $box->update($request->all());
+
+        return redirect()->back()->with('success', 'Master Box berhasil diperbarui!');
+    }
+
+    public function destroyStoreBoxData($id)
+    {
+        $box = StoreBoxData::findOrFail($id);
+        $box->delete();
+
+        return redirect()->back()->with('success', 'Master Box berhasil dihapus!');
+    }
+
+    // ============================================
+    // BARCODE HISTORY & REPRINT
+    // ============================================
+
+    public function historyStoreBoxDetails()
+    {
+        return view('barcode.store_box_history');
+    }
+
+    public function indexStoreBoxDetail(Request $request)
+    {
+        $query = StoreBoxDetail::query();
+
+        if ($request->part_no) {
+            $query->where('part_no', 'like', '%' . $request->part_no . '%');
+        }
+
+        $details = $query->orderBy('created_at', 'desc')->paginate(50);
+        
+        return view('barcode.store_box_detail', compact('details'));
+    }
+
+    public function updateStoreBoxDetail(Request $request, $id)
+    {
+        $detail = StoreBoxDetail::findOrFail($id);
+        
+        $request->validate([
+            'status' => 'required|in:active,non-active',
+            'remark' => 'nullable|string|max:255'
+        ]);
+
+        $detail->update([
+            'status' => $request->status,
+            'remark' => $request->remark
+        ]);
+
+        return redirect()->back()->with('success', 'Detail box berhasi diupdate!');
+    }
+
+    public function reprintBarcode(Request $request)
+    {
+        $ids = $request->ids;
+
+        if (!$ids || count($ids) == 0) {
+            return redirect()->back()->with('error', 'Pilih barcode yang ingin di-print ulang!');
+        }
+
+        $records = StoreBoxDetail::whereIn('id', $ids)->orderBy('part_no')->orderBy('label')->get();
+        
+        $barcodes = [];
+        $barcodeFolder = public_path('barcode');
+        
+        // Clean folder before reprint (reuse same logic as generation)
+        File::cleanDirectory($barcodeFolder);
+        if (!File::exists($barcodeFolder)) {
+            File::makeDirectory($barcodeFolder, 0755, true);
+        }
+
+        foreach ($records as $record) {
+            $partNumber = $record->part_no;
+            $currentLabelNo = $record->label;
+            $qrData = $partNumber . "\t" . $currentLabelNo . "\tTRIAL";
+            
+            $barcodeObj = new DNS2D;
+            $relativeStoragePath = $barcodeObj->getBarcodePNGPath($qrData, 'QRCODE', 6, 6);
+            $normalizedPath = str_replace('\\', '/', $relativeStoragePath);
+
+            // Fetch master part name for display
+            $master = StoreBoxData::where('part_no', $partNumber)->first();
+
+            $barcodes[] = [
+                'partno' => $partNumber,
+                'partname' => $master->part_name ?? '-',
+                'label' => $currentLabelNo,
+                'barcodeUrl' => '/' . ltrim($normalizedPath, '/'),
+                'qrData' => $qrData
+            ];
+        }
+
+        return view('barcodeinandout.barcode', [
+            'barcodes' => $barcodes, 
+            'generated_at' => date('Y-m-d H:i:s')
+        ]);
+    }
 }

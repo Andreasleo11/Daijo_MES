@@ -10,28 +10,26 @@
             <form action="{{ route('generatepackagingbarcode') }}" method="POST">
                 @csrf
                 <div class="mb-4">
-                    <label for="partNo" class="block text-sm font-medium text-gray-700 mb-2">Part No</label>
+                    <label for="partNo" class="block text-sm font-medium text-gray-700 mb-2">Part No (Select or Type New)</label>
                     <select class="form-control w-full border border-gray-300 p-2 rounded-md" id="partNo"
                         name="partNo" required>
                         <option value="" disabled selected>Select Part No</option>
                         @foreach ($datas as $data)
-                            <option value="{{ $data->name }}">{{ $data->name }}</option>
+                            <option value="{{ $data->part_no }}">{{ $data->part_no }} - {{ $data->part_name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="mb-4">
-                    <label for="startNumber" class="block text-sm font-medium text-gray-700 mb-2">Start Number
-                        Label</label>
-                    <input type="number" class="w-full border border-gray-300 p-2 rounded-md" id="startNumber"
-                        name="startNumber" required>
+                    <label for="print_quantity" class="block text-sm font-medium text-gray-700 mb-2">Print Quantity</label>
+                    <input type="number" class="w-full border border-gray-300 p-2 rounded-md" id="print_quantity"
+                        name="print_quantity" value="1" min="1" required>
                 </div>
                 <div class="mb-4">
-                    <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">End Number Label</label>
-                    <input type="number" class="w-full border border-gray-300 p-2 rounded-md" id="quantity"
-                        name="quantity" required>
+                    <label for="remark" class="block text-sm font-medium text-gray-700 mb-2">Remark (Optional)</label>
+                    <textarea class="w-full border border-gray-300 p-2 rounded-md" id="remark" name="remark" rows="2"></textarea>
                 </div>
                 <button type="submit"
-                    class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">Submit</button>
+                    class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">Generate Labels</button>
             </form>
         </div>
     </div>
@@ -39,8 +37,9 @@
     <script>
         $(document).ready(function() {
             $('#partNo').select2({
-                placeholder: 'Select Part No',
-                allowClear: true
+                placeholder: 'Select or type a Part No',
+                allowClear: true,
+                tags: true // Enable adding new part numbers on the fly
             });
         });
     </script>

@@ -394,6 +394,18 @@ Route::middleware('auth')->group(function (){
     Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
     Route::get('barcode/summary', [BarcodeController::class, 'summaryDashboard'])->name('summaryDashboard');
 
+    //Route untuk master box data (Part Master)
+    Route::get('barcode/box-master', [BarcodeController::class, 'indexStoreBoxData'])->name('barcode.box_master.index');
+    Route::post('barcode/box-master', [BarcodeController::class, 'storeStoreBoxData'])->name('barcode.box_master.store');
+    Route::put('barcode/box-master/{id}', [BarcodeController::class, 'updateStoreBoxData'])->name('barcode.box_master.update');
+    Route::delete('barcode/box-master/{id}', [BarcodeController::class, 'destroyStoreBoxData'])->name('barcode.box_master.destroy');
+
+    //Route history barcode generated
+    Route::get('barcode/history', [BarcodeController::class, 'historyStoreBoxDetails'])->name('barcode.history.index');
+    Route::get('barcode/box-detail', [BarcodeController::class, 'indexStoreBoxDetail'])->name('barcode.box_detail.index');
+    Route::put('barcode/box-detail/{id}', [BarcodeController::class, 'updateStoreBoxDetail'])->name('barcode.box_detail.update');
+    Route::post('barcode/reprint', [BarcodeController::class, 'reprintBarcode'])->name('barcode.reprint');
+
     //Route untuk tambahin customer di store barcode
     Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
     Route::post('/add-customer', [BarcodeController::class, 'storeCustomer'])->name('customer.store');
