@@ -1337,13 +1337,13 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
-                        // Cek jika backend memberikan warning message
-                        if (response.message === 'Belum ada item yang diassign') {
+                        // Cek jika backend memberikan warning: tidak ada item
+                        if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
                             return; // STOP, jangan update UI atau simpan localStorage
                         }
 
-                        // Lanjut hanya kalau valid
+                        // Apakah sudah berjalan atau baru dimulai, tampilkan UI End
                         alert(response.message);
 
                         // Simpan ke localStorage
@@ -1355,6 +1355,7 @@
                         $('#currentUserName').text(response.operator.name);
 
                         $('#startMouldChange').hide();
+                        $('#startAdjustMachine').hide();
                         $('#endMouldChange').show();
                     },
                     error: function (xhr) {
@@ -1399,12 +1400,13 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
-                        // Cek jika backend mengirim warning
-                        if (response.message === 'Belum ada item yang diassign') {
+                        // Cek jika backend mengirim warning: tidak ada item
+                        if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
                             return; // STOP, jangan ubah UI atau simpan localStorage
                         }
 
+                        // Apakah sudah berjalan atau baru dimulai, tampilkan UI End
                         alert(response.message);
 
                         // Simpan ke localStorage
@@ -1415,6 +1417,7 @@
                         $('#currentAdjustUserProfile').attr('src', response.operator.profile_path);
                         $('#currentAdjustUserName').text(response.operator.name);
 
+                        $('#startMouldChange').hide();
                         $('#startAdjustMachine').hide();
                         $('#endAdjustMachine').show();
                     },

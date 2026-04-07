@@ -1105,6 +1105,24 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Belum ada item yang diassign atau belum ada item yang belum selesai.']);
         }
 
+        // Guard: cek apakah sudah ada mould change aktif (belum selesai)
+        $activeMouldChange = MouldChangeLog::where('user_id', $userId)
+            ->whereNull('end_time')
+            ->first();
+
+        if ($activeMouldChange) {
+            return response()->json([
+                'message' => 'Mould change sudah berjalan',
+                'log_id' => $activeMouldChange->id,
+                'operator' => [
+                    'name' => $operatorUser ? $operatorUser->name : $activeMouldChange->pic,
+                    'profile_path' => $operatorUser && $operatorUser->profile_picture
+                        ? asset('storage/' . $operatorUser->profile_picture)
+                        : asset('images/default_profile.jpg'),
+                ],
+            ]);
+        }
+
         // Buat log mould change baru
         $mouldChange = MouldChangeLog::create([
             'user_id' => $userId,
@@ -1113,14 +1131,12 @@ class DashboardController extends Controller
             'created_at' => Carbon::now(),
         ]);
 
-      
-
-        return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id,'operator' => [
+        return response()->json(['message' => 'Mould change started', 'log_id' => $mouldChange->id, 'operator' => [
             'name' => $operatorUser->name,
-           'profile_path' => $operatorUser->profile_picture 
-            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
-            : asset('images/default_profile.jpg'),  // Default profile image
-        ],]);
+            'profile_path' => $operatorUser->profile_picture
+                ? asset('storage/' . $operatorUser->profile_picture)
+                : asset('images/default_profile.jpg'),
+        ]]);
     }
 
     public function startAdjustMachine(Request $request)
@@ -1180,6 +1196,24 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Belum ada item yang diassign atau belum ada item yang belum selesai.']);
         }
 
+        // Guard: cek apakah sudah ada adjust machine aktif (belum selesai)
+        $activeAdjustMachine = AdjustMachineLog::where('user_id', $userId)
+            ->whereNull('end_time')
+            ->first();
+
+        if ($activeAdjustMachine) {
+            return response()->json([
+                'message' => 'Adjust machine sudah berjalan',
+                'log_id' => $activeAdjustMachine->id,
+                'operator' => [
+                    'name' => $operatorUser ? $operatorUser->name : $activeAdjustMachine->pic,
+                    'profile_path' => $operatorUser && $operatorUser->profile_picture
+                        ? asset('storage/' . $operatorUser->profile_picture)
+                        : asset('images/default_profile.jpg'),
+                ],
+            ]);
+        }
+
         // Simpan log
         $adjustMachine = AdjustMachineLog::create([
             'user_id' => $userId,
@@ -1191,12 +1225,12 @@ class DashboardController extends Controller
         // Set machine job user_id to NULL (machine is inactive)
         MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
 
-        return response()->json(['message' => 'Adjust Machine started', 'log_id' => $adjustMachine->id,'operator' => [
-                'name' => $operatorUser->name,
-            'profile_path' => $operatorUser->profile_picture 
-                ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
-                : asset('images/default_profile.jpg'),  // Default profile image
-        ],]);
+        return response()->json(['message' => 'Adjust Machine started', 'log_id' => $adjustMachine->id, 'operator' => [
+            'name' => $operatorUser->name,
+            'profile_path' => $operatorUser->profile_picture
+                ? asset('storage/' . $operatorUser->profile_picture)
+                : asset('images/default_profile.jpg'),
+        ]]);
     }
 
     public function startRepairMachine(Request $request)
