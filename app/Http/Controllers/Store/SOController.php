@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers\Store;
-
+ 
+use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\ScannedData;
 use App\Models\SoData;
@@ -446,4 +447,59 @@ class SOController extends Controller
         }
     }
 
+    public function dashboard(Request $request)
+    {
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+
+        // 1. Ambil scanning aktif (hari ini dan kemarin)
+        $recentScans = ScannedData::where('created_at', '>=', $yesterday)
+            ->with('soData')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $todayScans = $recentScans->where('created_at', '>=', $today);
+        $yesterdayScans = $recentScans->whereBetween('created_at', [$yesterday, $today->copy()->subSecond()]);
+
+        // 2. Identifikasi unik DocNum yang ada aktivitas scanning
+        $activeDocNums = $recentScans->pluck('doc_num')->unique();
+
+        // 3. Hitung progress untuk setiap DocNum aktif
+        $soProgress = [];
+        foreach ($activeDocNums as $docNum) {
+            $items = SoData::where('doc_num', $docNum)->get();
+            if ($items->isEmpty()) continue;
+
+            $totalItems = $items->count();
+            
+            // Hitung total label yang seharusnya di-scan untuk seluruh SO ini
+            $totalLabelsRequired = $items->sum(function($item) {
+                return $item->packaging_quantity > 0 ? (int)ceil($item->quantity / $item->packaging_quantity) : 0;
+            });
+
+            // Hitung total label yang sudah benar-benar di-scan
+            $totalLabelsScanned = ScannedData::where('doc_num', $docNum)->count();
+
+            // Persentase progress
+            $progressPercent = $totalLabelsRequired > 0 
+                ? round(($totalLabelsScanned / $totalLabelsRequired) * 100, 1) 
+                : 0;
+
+            // Jumlah item yang statusnya sudah 'is_finish'
+            $finishedItemsCount = $items->where('is_finish', 1)->count();
+
+            $soProgress[$docNum] = [
+                'doc_num' => $docNum,
+                'customer' => $items->first()->customer ?? 'No Customer',
+                'total_items' => $totalItems,
+                'finished_items' => $finishedItemsCount,
+                'progress' => ($progressPercent > 100) ? 100 : $progressPercent,
+                'is_done' => $items->every('is_done', 1),
+                'last_scan' => $recentScans->where('doc_num', $docNum)->first()->created_at ?? null,
+            ];
+        }
+
+        return view('store.sodashboard', compact('todayScans', 'yesterdayScans', 'soProgress'));
+    }
 }
+

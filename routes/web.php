@@ -386,6 +386,7 @@ Route::middleware('auth')->group(function (){
     Route::post('process/inandoutbarcode', [BarcodeController::class, 'storeInAndOut'])->name('processbarcodeinandout');
     Route::get('indexbarcode', [BarcodeController::class, 'indexBarcode'])->name('barcodeindex');
     Route::post('packaging-barcode-generate', [BarcodeController::class, 'generateBarcode'])->name('generatepackagingbarcode');
+    Route::post('packaging-barcode-zebra', [BarcodeController::class, 'generateLabelZebra'])->name('generate.zebra.barcode');
     Route::get('barcode/list', [BarcodeController::class, 'barcodelist'])->name('list.barcode');
     Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
     Route::get('barcode/historytable', [BarcodeController::class, 'historybarcodelist'])->name('barcode.historytable');
@@ -442,6 +443,7 @@ Route::middleware('auth')->group(function (){
     //Route untuk bikin tanggal Maintenance (not finish)
 
     //Route untuk Handle SO dari diss 
+    Route::get('/so/dashboard', [SOController::class, 'dashboard'])->name('so.dashboard');
     Route::get('/so/index', [SOController::class, 'index'])->name('so.index');
     Route::get('/so/filter', [SOController::class, 'index'])->name('so.filter');
     Route::get('/so/filterauto', [SoController::class, 'filter'])->name('so.filterauto');

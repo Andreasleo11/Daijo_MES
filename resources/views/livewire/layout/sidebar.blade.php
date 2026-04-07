@@ -264,6 +264,13 @@ new class extends Component {
                 />
 
                 <livewire:sidebar-link
+                    href="{{ route('so.dashboard') }}"
+                    label="SO DASHBOARD"
+                    :active="request()->routeIs('so.dashboard')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
                     href="{{ route('so.index') }}"
                     label="DATA SO"
                     :active="request()->routeIs('so.index')"

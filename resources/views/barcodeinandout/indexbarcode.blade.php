@@ -28,8 +28,16 @@
                     <label for="remark" class="block text-sm font-medium text-gray-700 mb-2">Remark (Optional)</label>
                     <textarea class="w-full border border-gray-300 p-2 rounded-md" id="remark" name="remark" rows="2"></textarea>
                 </div>
-                <button type="submit"
-                    class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">Generate Labels</button>
+                <div class="flex flex-col gap-3">
+                    <button type="submit"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">
+                        Generate A4 Labels
+                    </button>
+                    <button type="submit" formaction="{{ route('generate.zebra.barcode') }}"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-200">
+                        Generate Zebra (50x35)
+                    </button>
+                </div>
             </form>
         </div>
     </div>
