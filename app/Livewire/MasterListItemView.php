@@ -20,15 +20,36 @@ class MasterListItemView extends Component
     public ?int   $editingId    = null;
     public array  $editForm     = [];
 
-    protected $rules = [
-        'editForm.tipe_mesin'             => 'nullable|string|max:255',
-        'editForm.standart_packaging_list'=> 'nullable|integer|min:0',
-        'editForm.setup_time_minute'      => 'nullable|string|max:255',
-        'editForm.pair'                   => 'nullable|string|max:255',
-        'editForm.cavity'                 => 'nullable|integer|min:0',
-        'editForm.customer_code'          => 'nullable|string|max:255',
-        'editForm.cycle_time'             => 'nullable|numeric|min:0',
-    ];
+    // Add state
+    public bool   $isAdding     = false;
+    public array  $addForm      = [];
+
+    protected function rules()
+    {
+        $rules = [
+            'editForm.tipe_mesin'             => 'nullable|string|max:255',
+            'editForm.standart_packaging_list'=> 'nullable|integer|min:0',
+            'editForm.setup_time_minute'      => 'nullable|string|max:255',
+            'editForm.pair'                   => 'nullable|string|max:255',
+            'editForm.cavity'                 => 'nullable|integer|min:0',
+            'editForm.customer_code'          => 'nullable|string|max:255',
+            'editForm.cycle_time'             => 'nullable|numeric|min:0',
+        ];
+
+        if ($this->isAdding) {
+            $rules['addForm.item_code']    = 'required|string|max:255|unique:master_list_items,item_code';
+            $rules['addForm.item_name']    = 'required|string|max:255';
+            $rules['addForm.tipe_mesin']   = 'nullable|string|max:255';
+            $rules['addForm.standart_packaging_list'] = 'nullable|integer|min:0';
+            $rules['addForm.setup_time_minute'] = 'nullable|string|max:255';
+            $rules['addForm.pair']         = 'nullable|string|max:255';
+            $rules['addForm.cavity']       = 'nullable|integer|min:0';
+            $rules['addForm.customer_code']= 'nullable|string|max:255';
+            $rules['addForm.cycle_time']   = 'nullable|numeric|min:0';
+        }
+
+        return $rules;
+    }
 
     public function updatingSearch()    { $this->resetPage(); }
     public function updatingFilterCustomer() { $this->resetPage(); }
@@ -36,6 +57,8 @@ class MasterListItemView extends Component
 
     public function startEdit(int $id): void
     {
+        $this->isAdding = false; // Close add form if open
+
         $item = MasterListItem::findOrFail($id);
         $this->editingId = $id;
         $this->editForm  = [
@@ -64,6 +87,41 @@ class MasterListItemView extends Component
         $this->editingId = null;
         $this->editForm  = [];
         session()->flash('success', 'Item updated successfully.');
+    }
+
+    public function startAdd(): void
+    {
+        $this->editingId = null; // Close edit form if open
+        $this->isAdding  = true;
+        $this->resetErrorBag();
+        $this->addForm   = [
+            'item_code'               => '',
+            'item_name'               => '',
+            'tipe_mesin'              => '',
+            'standart_packaging_list' => 0,
+            'setup_time_minute'       => '',
+            'pair'                    => '',
+            'cavity'                  => 0,
+            'customer_code'           => '',
+            'cycle_time'              => 0,
+        ];
+    }
+
+    public function cancelAdd(): void
+    {
+        $this->isAdding = false;
+        $this->addForm  = [];
+    }
+
+    public function saveAdd(): void
+    {
+        $this->validate();
+
+        MasterListItem::create($this->addForm);
+
+        $this->isAdding = false;
+        $this->addForm  = [];
+        session()->flash('success', 'New item added successfully.');
     }
 
     public function getCustomerListProperty()

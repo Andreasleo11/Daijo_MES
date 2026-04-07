@@ -66,6 +66,14 @@
             <option value="100">100 / page</option>
         </select>
 
+        {{-- Add Item Button --}}
+        <button wire:click="startAdd"
+                style="background:#1A1816; color:#fff; border:none; padding:8px 16px;
+                       border-radius:3px; font-size:11px; font-weight:800; cursor:pointer;
+                       font-family:'IBM Plex Mono',monospace; letter-spacing:0.05em;">
+            ✚ ADD NEW ITEM
+        </button>
+
     </div>
 
     {{-- Table --}}
@@ -107,6 +115,104 @@
                 </tr>
             </thead>
             <tbody>
+                @if($isAdding)
+                {{-- ── Add row ── --}}
+                <tr style="background:#EEF2FF; border-bottom:2px solid #4F46E5;">
+                    {{-- Item Code --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.item_code" type="text" placeholder="REQUIRED"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.item_code') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Item Name --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.item_name" type="text" placeholder="REQUIRED"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.item_name') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Customer --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <select wire:model="addForm.customer_code"
+                                style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                       border-radius:2px; font-size:11px; background:#fff;
+                                       font-family:'IBM Plex Mono',monospace;">
+                            <option value="">— None</option>
+                            @foreach($this->customerList as $customer)
+                            <option value="{{ $customer->customer_code }}">{{ $customer->customer_name }}</option>
+                            @endforeach
+                        </select>
+                        @error('addForm.customer_code') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Tipe Mesin --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.tipe_mesin" type="text"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.tipe_mesin') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Std Pkg --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.standart_packaging_list" type="number"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px; text-align:right;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.standart_packaging_list') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Setup Time --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.setup_time_minute" type="text"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px; text-align:right;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.setup_time_minute') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Pair --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.pair" type="text"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px; text-align:center;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.pair') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Cavity --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.cavity" type="number"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px; text-align:right;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.cavity') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Cycle Time --}}
+                    <td style="padding:6px 8px; border-right:1px solid #C7D2FE;">
+                        <input wire:model="addForm.cycle_time" type="number" step="0.01"
+                               style="width:100%; padding:4px 6px; border:1px solid #4F46E5;
+                                      border-radius:2px; font-size:11px; text-align:right;
+                                      font-family:'IBM Plex Mono',monospace; box-sizing:border-box;">
+                        @error('addForm.cycle_time') <div style="color:#DC2626; font-size:9px; margin-top:2px;">{{ $message }}</div> @enderror
+                    </td>
+                    {{-- Actions --}}
+                    <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
+                        <button wire:click="saveAdd"
+                                style="background:#4F46E5; color:#fff; border:none; padding:4px 10px;
+                                       border-radius:2px; font-size:10px; font-weight:700; cursor:pointer;
+                                       font-family:'IBM Plex Sans',sans-serif; margin-right:4px;">
+                            CREATE
+                        </button>
+                        <button wire:click="cancelAdd"
+                                style="background:#F5F3EF; color:#7A756E; border:1px solid #D8D4CC;
+                                       padding:4px 10px; border-radius:2px; font-size:10px;
+                                       font-weight:700; cursor:pointer; font-family:'IBM Plex Sans',sans-serif;">
+                            ✕
+                        </button>
+                    </td>
+                </tr>
+                @endif
+
                 @forelse($items as $item)
 
                 @if($editingId === $item->id)
