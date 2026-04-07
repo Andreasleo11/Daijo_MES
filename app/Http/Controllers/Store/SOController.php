@@ -55,60 +55,62 @@ class SOController extends Controller
 
     public function process($docNum)
     {
-        $allFinished = SoData::where('doc_num', $docNum)
-            ->where(function ($query) {
-                $query->where('is_finish', false)
-                    ->orWhereNull('is_finish'); // Handle null values as well
-            })
-            ->doesntExist(); // If no such record exists, then all are finished
-        // dd($allFinished);
-        $allDone = SoData::where('doc_num', $docNum)
-            ->where(function ($query) {
-                $query->where('is_done', false)
-                    ->orWhereNull('is_done'); // Handle null values as well
-            })
-            ->doesntExist(); // If no such record exists, then all are done
-            // dd($allDone);
-        $data = SoData::with('scannedData')->where('doc_num', $docNum)
-            ->get()
-            ->groupBy('item_code')
-            ->map(function ($group) use ($docNum) {
-                // Sum the quantities for each item_code
-                $totalQuantity = $group->sum('quantity');
+        // 1. Ambil data mentah dari DB (termasuk is_done)
+        $rawItems = SoData::where('doc_num', $docNum)->get();
+        if ($rawItems->isEmpty()) {
+            return view('store.soresults', [
+                'data' => collect(),
+                'docNum' => $docNum,
+                'allFinished' => false,
+                'allDone' => false
+            ]);
+        }
 
-                // Keep one entry and update the quantity
+        // Cek status is_done dari seluruh dokumen (Satu SO punya status is_done yang sama biasanya)
+        $allDone = $rawItems->every('is_done', 1);
+        $date = $rawItems->first()->posting_date;
+        $customer = $rawItems->first()->customer;
+
+        // 2. Evaluasi status finish tiap item berdasarkan jumlah scan
+        $data = $rawItems->groupBy('item_code')
+            ->map(function ($group) use ($docNum) {
+                $totalQuantity = $group->sum('quantity');
                 $entry = $group->first();
-                
                 $entry->quantity = $totalQuantity;
 
                 $scannedCount = ScannedData::where('doc_num', $docNum)
                     ->where('item_code', $entry->item_code)
                     ->count();
                 
-                    
                 $entry->scannedCount = $scannedCount;
-               
                 $packagingQuantity = $entry->packaging_quantity;
-                 // Assuming `packaging_quantity` is a field in your SoData model
-                // dd((int)ceil(($totalQuantity / $packagingQuantity)));
                
-                // Check if scannedCount equals quantity / packaging_quantity and update is_finish
-                if ($packagingQuantity > 0 && $scannedCount === (int)ceil(($totalQuantity / $packagingQuantity)) || $scannedCount >= (int)ceil(($totalQuantity / $packagingQuantity))) {
-                    $entry->is_finish = 1;
-                } else {
-                    $entry->is_finish = 0; // Optionally set is_finish to 0 if the condition is not met
-                }
+                // Logika penentuan item selesai (is_finish)
+                $requiredBoxes = ($packagingQuantity > 0) ? (int)ceil($totalQuantity / $packagingQuantity) : 0;
+                $entry->is_finish = ($scannedCount >= $requiredBoxes && $requiredBoxes > 0) ? 1 : 0;
 
                 return $entry;
-                
             })
-            ->values(); // Reset the keys after grouping
-            
+            ->values();
+
+        // 3. Update status item ke DB secara spesifik (agar data konsisten dengan Dashboard)
         foreach ($data as $entry) {
-            SoData::where('doc_num', $entry->doc_num)->update([
-                'is_finish' => $entry->is_finish,
-            ]);
+            SoData::where('doc_num', $docNum)
+                ->where('item_code', $entry->item_code)
+                ->update(['is_finish' => $entry->is_finish]);
         }
+
+        // 4. Kalkulasi Akhir untuk tampilan tombol (Berdasarkan data yang BARU dihitung)
+        $allFinished = $data->every('is_finish', 1);
+
+        // Ambil data scan detail untuk tabel bawah
+        $scandatas = ScannedData::where('doc_num', $docNum)
+            ->orderBy('label')
+            ->get()
+            ->groupBy('item_code');
+
+        return view('store.soresults', compact('data', 'docNum', 'date', 'customer', 'scandatas', 'allFinished', 'allDone'));
+    }
         // dd($data);
         $date = $data->isNotEmpty() ? $data->first()->posting_date : null;
         $customer = $data->isNotEmpty() ? $data->first()->customer : null;
