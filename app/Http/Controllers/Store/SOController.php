@@ -111,19 +111,6 @@ class SOController extends Controller
 
         return view('store.soresults', compact('data', 'docNum', 'date', 'customer', 'scandatas', 'allFinished', 'allDone'));
     }
-        // dd($data);
-        $date = $data->isNotEmpty() ? $data->first()->posting_date : null;
-        $customer = $data->isNotEmpty() ? $data->first()->customer : null;
-        // Pass the data to the view
-
-        $scandatas = ScannedData::where('doc_num', $docNum)-> // Order by item_code
-            orderBy('label')  // Then order by label
-                ->get()
-                ->groupBy('item_code');
-
-        // dd($data);
-        return view('store.soresults', compact('data', 'docNum', 'date', 'customer', 'scandatas', 'allFinished', 'allDone'));
-    }
 
     public function scanBarcode(Request $request)
     {
