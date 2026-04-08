@@ -29,10 +29,10 @@
 
                     on: {
                         reveal: (fancybox, slide) => {
-                            // Auto close after 2 seconds
+                            // Auto close after 1 second
                             setTimeout(() => {
                                 fancybox.close();
-                            }, 2000);
+                            }, 1000);
                         },
 
                         destroy: () => {
@@ -140,7 +140,7 @@
 
                                 @foreach ($data as $item)
                                     @php
-                                        $scannedTotalQuantity = $item->scannedData->where('item_code', $item->item_code)->sum('quantity');
+                                        $scannedTotalQuantity = $item->scannedTotalQuantity;
                                         $ctn = ceil($item->quantity / $item->packaging_quantity);
                                         $totalCtn += $ctn;
                                         $rowClass = $item->scannedCount > $ctn ? 'bg-red-100' : '';
@@ -185,7 +185,7 @@
                     <div class="space-y-4 sm:hidden">
                         @foreach ($data as $item)
                             @php
-                                $scannedTotalQuantity = $item->scannedData->where('item_code', $item->item_code)->sum('quantity');
+                                $scannedTotalQuantity = $item->scannedTotalQuantity;
                                 $ctn = ceil($item->quantity / $item->packaging_quantity);
                                 $isWarning = $item->scannedCount > $ctn;
                             @endphp

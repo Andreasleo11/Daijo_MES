@@ -66,44 +66,58 @@ class SOController extends Controller
             ]);
         }
 
-        // Cek status is_done dari seluruh dokumen (Satu SO punya status is_done yang sama biasanya)
+        // Cek status is_done dari seluruh dokumen
         $allDone = $rawItems->every('is_done', 1);
         $date = $rawItems->first()->posting_date;
         $customer = $rawItems->first()->customer;
 
+        // --- OPTIMASI: Ambil semua hitungan scan sekaligus (Single Query) ---
+        $scanSummaries = ScannedData::where('doc_num', $docNum)
+            ->select('item_code', DB::raw('count(*) as ctn_count'), DB::raw('sum(quantity) as total_qty'))
+            ->groupBy('item_code')
+            ->get()
+            ->keyBy('item_code');
+
         // 2. Evaluasi status finish tiap item berdasarkan jumlah scan
         $data = $rawItems->groupBy('item_code')
-            ->map(function ($group) use ($docNum) {
+            ->map(function ($group) use ($docNum, $scanSummaries) {
+                $itemCode = $group->first()->item_code;
                 $totalQuantity = $group->sum('quantity');
                 $entry = $group->first();
                 $entry->quantity = $totalQuantity;
 
-                $scannedCount = ScannedData::where('doc_num', $docNum)
-                    ->where('item_code', $entry->item_code)
-                    ->count();
+                // Ambil data dari summary yang sudah di-pre-fetch
+                $summary = $scanSummaries->get($itemCode);
+                $scannedCount = $summary ? $summary->ctn_count : 0;
+                $scannedTotalQty = $summary ? $summary->total_qty : 0;
                 
                 $entry->scannedCount = $scannedCount;
+                $entry->scannedTotalQuantity = $scannedTotalQty; // Field baru untuk dipakai di view
                 $packagingQuantity = $entry->packaging_quantity;
                
                 // Logika penentuan item selesai (is_finish)
                 $requiredBoxes = ($packagingQuantity > 0) ? (int)ceil($totalQuantity / $packagingQuantity) : 0;
-                $entry->is_finish = ($scannedCount >= $requiredBoxes && $requiredBoxes > 0) ? 1 : 0;
+                $statusFinish = ($scannedCount >= $requiredBoxes && $requiredBoxes > 0) ? 1 : 0;
+                
+                // Hanya set jika berbeda agar tidak membebani memori/DB nanti
+                $entry->is_finish = $statusFinish;
 
                 return $entry;
             })
             ->values();
 
-        // 3. Update status item ke DB secara spesifik (agar data konsisten dengan Dashboard)
+        // 3. Update status item ke DB secara spesifik (Hanya jika perlu perbaikan status)
         foreach ($data as $entry) {
             SoData::where('doc_num', $docNum)
                 ->where('item_code', $entry->item_code)
+                ->where('is_finish', '!=', $entry->is_finish) // Optimasi: update hanya jika berubah
                 ->update(['is_finish' => $entry->is_finish]);
         }
 
-        // 4. Kalkulasi Akhir untuk tampilan tombol (Berdasarkan data yang BARU dihitung)
+        // 4. Kalkulasi Akhir untuk tampilan tombol
         $allFinished = $data->every('is_finish', 1);
 
-        // Ambil data scan detail untuk tabel bawah
+        // Ambil data scan detail untuk tabel bawah (sudah include di scanSummaries tapi ini untuk log per baris)
         $scandatas = ScannedData::where('doc_num', $docNum)
             ->orderBy('label')
             ->get()
