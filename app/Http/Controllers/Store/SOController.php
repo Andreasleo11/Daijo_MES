@@ -451,7 +451,7 @@ class SOController extends Controller
         
         // Hitung SO yang selesai minggu ini (status is_finish=1)
         $weeklyFinishedItems = SoData::where('is_finish', 1)
-            ->whereBetween('updated_at', [$startOfWeek, $endOfWeek])
+            ->whereBetween('update_date', [$startOfWeek, $endOfWeek])
             ->count();
 
         // --- DAILY VIEW ---
