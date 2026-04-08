@@ -72,7 +72,8 @@ class BarcodeHistory extends Component
             ->when($this->remark, fn($q) => $q->where('remark', 'like', '%' . $this->remark . '%'))
             ->when($this->date_from, fn($q) => $q->whereDate('created_at', '>=', $this->date_from))
             ->when($this->date_to, fn($q) => $q->whereDate('created_at', '<=', $this->date_to))
-            ->orderBy('created_at', 'desc')
+            ->orderBy('part_no', 'asc')
+            ->orderBy('label', 'asc')
             ->paginate(50);
     }
 
