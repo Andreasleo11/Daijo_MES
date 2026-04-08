@@ -46,14 +46,19 @@
             <div class="text-sm font-bold text-gray-600 mr-2" x-show="selected.length > 0">
                 <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold" x-text="selected.length + ' labels selected'"></span>
             </div>
-            <form action="{{ route('barcode.reprint') }}" method="POST" target="_blank">
+            <form action="{{ route('barcode.reprint') }}" method="POST" target="_blank" class="flex gap-2">
                 @csrf
                 <template x-for="id in selected" :key="id">
                     <input type="hidden" name="ids[]" :value="id">
                 </template>
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-md shadow-lg transition font-bold flex items-center gap-2" x-show="selected.length > 0">
-                    🖨️ PRINT SELECTED
-                </button>
+                <div class="flex gap-2" x-show="selected.length > 0">
+                    <button type="submit" name="format" value="a4" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-lg transition font-bold flex items-center gap-2">
+                        🖨️ PRINT (A4)
+                    </button>
+                    <button type="submit" name="format" value="zebra" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-md shadow-lg transition font-bold flex items-center gap-2">
+                        🦓 PRINT (ZEBRA)
+                    </button>
+                </div>
             </form>
         </div>
     </div>

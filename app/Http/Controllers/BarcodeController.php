@@ -1294,7 +1294,7 @@ class BarcodeController extends Controller
             $query->where('part_no', 'like', '%' . $request->part_no . '%');
         }
 
-        $details = $query->orderBy('created_at', 'desc')->paginate(50);
+        $details = $query->orderBy('part_no', 'asc')->orderBy('label', 'asc')->paginate(50);
         
         return view('barcode.store_box_detail', compact('details'));
     }
@@ -1356,7 +1356,9 @@ class BarcodeController extends Controller
             ];
         }
 
-        return view('barcodeinandout.barcode', [
+        $view = ($request->format == 'zebra') ? 'barcodeinandout.zebra_label' : 'barcodeinandout.barcode';
+
+        return view($view, [
             'barcodes' => $barcodes, 
             'generated_at' => date('Y-m-d H:i:s')
         ]);
