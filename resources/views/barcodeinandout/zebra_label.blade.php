@@ -4,7 +4,7 @@
     <title>Zebra Label 50x35</title>
     <style>
         @page {
-            size: 50mm 35mm;
+            size: 102mm 35mm;
             margin: 0;
         }
 
@@ -14,6 +14,16 @@
             padding: 0;
             box-sizing: border-box;
             background-color: #f3f4f6;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: flex-start;
+            gap: 2mm; /* Gutter between two labels */
+            width: 102mm;
+            height: 35mm;
+            page-break-after: always;
+            background-color: transparent;
         }
 
         .barcode-item {
@@ -26,7 +36,6 @@
             grid-template-rows: auto 1fr auto; /* Title/No row, Content row, Footer row */
             overflow: hidden;
             background-color: white;
-            page-break-after: always;
         }
 
         /* Common Box Style from A4 design */
@@ -157,26 +166,30 @@
 
     <button class="print-btn no-print" onclick="window.print()">Print Zebra Labels (50x35)</button>
 
-    @foreach ($barcodes as $barcode)
-        <div class="barcode-item">
-            <!-- Row 1: Title and NO -->
-            <div class="box box-title">QR PACKAGING</div>
-            <div class="box box-no">#{{ $barcode['label'] }}</div>
-            
-            <!-- Row 2: Part Data and QR Code -->
-            <div class="box box-data">
-                <div class="part-no">{{ $barcode['partno'] }}</div>
-                <div class="part-name">{{ $barcode['partname'] }}</div>
-            </div>
-            <div class="box box-qr">
-                <img src="{{ $barcode['barcodeUrl'] }}" alt="QR">
-            </div>
+    @foreach (array_chunk($barcodes, 2) as $pair)
+        <div class="label-row">
+            @foreach ($pair as $barcode)
+                <div class="barcode-item">
+                    <!-- Row 1: Title and NO -->
+                    <div class="box box-title">QR PACKAGING</div>
+                    <div class="box box-no">#{{ $barcode['label'] }}</div>
+                    
+                    <!-- Row 2: Part Data and QR Code -->
+                    <div class="box box-data">
+                        <div class="part-no">{{ $barcode['partno'] }}</div>
+                        <div class="part-name">{{ $barcode['partname'] }}</div>
+                    </div>
+                    <div class="box box-qr">
+                        <img src="{{ $barcode['barcodeUrl'] }}" alt="QR">
+                    </div>
 
-            <!-- Row 3: Footer -->
-            <div class="box box-footer">
-                <span>{{ $generated_at }}</span>
-                <span style="font-weight: bold;">DAIJO MES</span>
-            </div>
+                    <!-- Row 3: Footer -->
+                    <div class="box box-footer">
+                        <span>{{ $generated_at }}</span>
+                        <span style="font-weight: bold;">DAIJO MES</span>
+                    </div>
+                </div>
+            @endforeach
         </div>
     @endforeach
 

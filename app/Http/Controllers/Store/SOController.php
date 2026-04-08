@@ -438,22 +438,35 @@ class SOController extends Controller
 
     public function dashboard(Request $request)
     {
-        $today = Carbon::today();
-        $yesterday = Carbon::yesterday();
+        $selectedDate = $request->input('date', Carbon::today()->toDateString());
+        $date = Carbon::parse($selectedDate);
+        
+        // --- WEEKLY HIGHLIGHTS ---
+        $startOfWeek = Carbon::now()->startOfWeek(); 
+        $endOfWeek = Carbon::now()->endOfWeek();
 
-        // 1. Ambil scanning aktif (hari ini dan kemarin)
-        $recentScans = ScannedData::where('created_at', '>=', $yesterday)
+        $weeklyScans = ScannedData::whereBetween('created_at', [$startOfWeek, $endOfWeek])->get();
+        $weeklyTotalScans = $weeklyScans->count();
+        $weeklyActiveDocsCount = $weeklyScans->pluck('doc_num')->unique()->count();
+        
+        // Hitung SO yang selesai minggu ini (status is_finish=1)
+        $weeklyFinishedItems = SoData::where('is_finish', 1)
+            ->whereBetween('updated_at', [$startOfWeek, $endOfWeek])
+            ->count();
+
+        // --- DAILY VIEW ---
+        $dayStart = $date->copy()->startOfDay();
+        $dayEnd = $date->copy()->endOfDay();
+
+        $selectedDateScans = ScannedData::whereBetween('created_at', [$dayStart, $dayEnd])
             ->with('soData')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $todayScans = $recentScans->where('created_at', '>=', $today);
-        $yesterdayScans = $recentScans->whereBetween('created_at', [$yesterday, $today->copy()->subSecond()]);
+        // Identifikasi unik DocNum yang ada aktivitas scanning pada TANGGAL TERPILIH
+        $activeDocNums = $selectedDateScans->pluck('doc_num')->unique();
 
-        // 2. Identifikasi unik DocNum yang ada aktivitas scanning
-        $activeDocNums = $recentScans->pluck('doc_num')->unique();
-
-        // 3. Hitung progress untuk setiap DocNum aktif
+        // Hitung progress untuk setiap DocNum aktif pada tanggal tersebut
         $soProgress = [];
         foreach ($activeDocNums as $docNum) {
             $items = SoData::where('doc_num', $docNum)->get();
@@ -466,7 +479,7 @@ class SOController extends Controller
                 return $item->packaging_quantity > 0 ? (int)ceil($item->quantity / $item->packaging_quantity) : 0;
             });
 
-            // Hitung total label yang sudah benar-benar di-scan
+            // Hitung total label yang sudah benar-benar di-scan (akumulatif s/d sekarang)
             $totalLabelsScanned = ScannedData::where('doc_num', $docNum)->count();
 
             // Persentase progress
@@ -484,11 +497,18 @@ class SOController extends Controller
                 'finished_items' => $finishedItemsCount,
                 'progress' => ($progressPercent > 100) ? 100 : $progressPercent,
                 'is_done' => $items->every('is_done', 1),
-                'last_scan' => $recentScans->where('doc_num', $docNum)->first()->created_at ?? null,
+                'last_scan' => $selectedDateScans->where('doc_num', $docNum)->first()->created_at ?? null,
             ];
         }
 
-        return view('store.sodashboard', compact('todayScans', 'yesterdayScans', 'soProgress'));
+        return view('store.sodashboard', compact(
+            'selectedDateScans', 
+            'soProgress', 
+            'selectedDate',
+            'weeklyTotalScans',
+            'weeklyActiveDocsCount',
+            'weeklyFinishedItems'
+        ));
     }
 }
 
