@@ -152,19 +152,25 @@ class SOController extends Controller
         $item = SoData::where('item_code', $item_code)->where('doc_num', $doc_num)->first();
         
         if (! $item) {
-            return redirect()->back()->withErrors(['error' => 'Item not found']);
+            $msg = 'Item not found';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg]);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         $existingScans = ScannedData::where('item_code', $item_code)
-        ->where('doc_num', $doc_num)
-        ->get();
+            ->where('doc_num', $doc_num)
+            ->get();
 
-      
         $scannedTotalQuantity = $existingScans->sum('quantity') + $quantity;
        
         if ($scannedTotalQuantity > $item->quantity) {
-           
-            return redirect()->back()->withErrors(['error' => 'All required CTN have been scanned / Quantity Tidak benar']);
+            $msg = 'All required CTN have been scanned / Quantity Tidak benar';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg]);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         $photo = MasterItemPhoto::where('item_code', $item_code)->first();
@@ -175,12 +181,15 @@ class SOController extends Controller
             ->first();
 
         if ($existingScan) {
-            return redirect()->back()->withErrors(['error' => 'Data already scanned']);
+            $msg = 'Data already scanned';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg]);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
-
         // Add new scanned data
-        ScannedData::create([
+        $newScan = ScannedData::create([
             'doc_num' => $doc_num,
             'item_code' => $item_code,
             'quantity' => $quantity,
@@ -188,9 +197,48 @@ class SOController extends Controller
             'label' => $label,
         ]);
 
+        // --- Tambahan LOGIKA UNTUK AJAX RESPONSES ---
+        if ($request->ajax() || $request->wantsJson()) {
+            // Kalkulasi data terbaru
+            $scannedCount = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->count();
+            $scannedTotalQty = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->sum('quantity');
+
+            // Cek apakah seluruh SO sudah selesai
+            $rawItems = SoData::where('doc_num', $doc_num)->get();
+            $scanSummaries = ScannedData::where('doc_num', $doc_num)
+                ->select('item_code', DB::raw('count(*) as count'))
+                ->groupBy('item_code')
+                ->pluck('count', 'item_code');
+
+            $allFinished = $rawItems->groupBy('item_code')->every(function($group) use ($scanSummaries) {
+                $item = $group->first();
+                $totalQty = $group->sum('quantity');
+                $reqBoxes = $item->packaging_quantity > 0 ? (int)ceil($totalQty / $item->packaging_quantity) : 0;
+                $currentBoxes = $scanSummaries->get($item->item_code, 0);
+                return ($currentBoxes >= $reqBoxes && $reqBoxes > 0);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Barcode scanned successfully',
+                'photo'   => $photo ? asset('storage/' . $photo->photo_path) : null,
+                'item_code' => $item_code,
+                'scannedCount' => $scannedCount,
+                'scannedTotalQuantity' => $scannedTotalQty,
+                'allFinished' => $allFinished,
+                'newScan' => [
+                    'id' => $newScan->id,
+                    'quantity' => $newScan->quantity,
+                    'warehouse' => $newScan->warehouse,
+                    'label' => $newScan->label,
+                    'created_at' => $newScan->created_at->format('Y-m-d H:i:s')
+                ]
+            ]);
+        }
+
         return redirect()->back()->with([
             'success' => 'Barcode scanned successfully',
-            'photo'   => $photo ? $photo->photo_path : null, // sesuaikan nama kolom foto
+            'photo'   => $photo ? $photo->photo_path : null,
         ]);
     }
 

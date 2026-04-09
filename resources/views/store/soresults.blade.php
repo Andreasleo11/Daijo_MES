@@ -146,7 +146,7 @@
                                         $rowClass = $item->scannedCount > $ctn ? 'bg-red-100' : '';
                                     @endphp
 
-                                    <tr class="hover:bg-green-50 {{ $rowClass }}">
+                                    <tr id="row-desktop-{{ $item->item_code }}" class="hover:bg-green-50 {{ $rowClass }} transition-colors duration-500">
                                         <td class="border border-gray-300 px-4 py-2">{{ $loop->iteration }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_code }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_name }}</td>
@@ -154,10 +154,10 @@
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->packaging_quantity }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ number_format($ctn) }}</td>
                                         <td class="border border-gray-300 px-4 py-2"></td>
-                                        <td class="border border-gray-300 px-4 py-2">
+                                        <td id="scanned-box-desktop-{{ $item->item_code }}" class="border border-gray-300 px-4 py-2">
                                             {{ $item->scannedCount }} / {{ number_format($ctn) }}
                                         </td>
-                                        <td class="border border-gray-300 px-4 py-2">{{ $scannedTotalQuantity }}</td>
+                                        <td id="scanned-qty-desktop-{{ $item->item_code }}" class="border border-gray-300 px-4 py-2">{{ $scannedTotalQuantity }}</td>
                                     </tr>
                                 @endforeach
 
@@ -190,7 +190,7 @@
                                 $isWarning = $item->scannedCount > $ctn;
                             @endphp
 
-                            <div class="p-4 rounded-lg shadow border 
+                            <div id="row-mobile-{{ $item->item_code }}" class="p-4 rounded-lg shadow border transition-colors duration-500
                                 {{ $isWarning ? 'bg-red-100 border-red-300' : 'bg-white border-gray-200' }}">
                                 
                                 {{-- Header --}}
@@ -226,15 +226,14 @@
                                     </div>
 
                                     <div>
-                                        <p class="text-xs text-gray-500">Scanned Box</p>
-                                        <p class="font-semibold">
+                                        <p id="scanned-box-mobile-{{ $item->item_code }}" class="font-semibold">
                                             {{ $item->scannedCount }} / {{ $ctn }}
                                         </p>
                                     </div>
 
                                     <div>
                                         <p class="text-xs text-gray-500">Scanned Qty</p>
-                                        <p class="font-semibold">{{ $scannedTotalQuantity }}</p>
+                                        <p id="scanned-qty-mobile-{{ $item->item_code }}" class="font-semibold">{{ $scannedTotalQuantity }}</p>
                                     </div>
 
                                 </div>
@@ -244,7 +243,7 @@
                 @endif
 
                 {{-- Tombol Update All / Info --}}
-                <div class="mt-6">
+                <div id="update-all-container" class="mt-6">
                     @if ($allFinished && ! $allDone)
                         <a
                             href="{{ route('update.so.data', ['docNum' => $docNum]) }}"
@@ -380,7 +379,7 @@
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="scandata-body-{{ $itemCode }}">
                                 @foreach ($scans as $scan)
                                     <tr class="hover:bg-gray-50">
                                         <td class="border border-gray-300 px-2 sm:px-4 py-2">
@@ -490,16 +489,103 @@
     <script src="https://unpkg.com/@zxing/browser@latest"></script>
 
     <script>
+    // --- KELOMPOK FUNGSI GLOBAL ---
+    
+    // Fungsi untuk update UI secara parsial (Tanpa Reload)
+    function updateUI(data) {
+        if (!data.item_code) return;
 
+        // 1. Update Tabel Desktop
+        const deskBox = document.getElementById(`scanned-box-desktop-${data.item_code}`);
+        const deskQty = document.getElementById(`scanned-qty-desktop-${data.item_code}`);
+        const deskRow = document.getElementById(`row-desktop-${data.item_code}`);
+
+        if (deskBox) {
+            const parts = deskBox.innerText.split('/');
+            const totalCtn = parts[1] ? parts[1].trim() : '?';
+            deskBox.innerText = `${data.scannedCount} / ${totalCtn}`;
+            deskBox.classList.add('bg-yellow-100');
+            setTimeout(() => deskBox.classList.remove('bg-yellow-100'), 1000);
+        }
+        if (deskQty) {
+            deskQty.innerText = data.scannedTotalQuantity;
+        }
+
+        // 2. Update Tampilan Mobile
+        const mobBox = document.getElementById(`scanned-box-mobile-${data.item_code}`);
+        const mobQty = document.getElementById(`scanned-qty-mobile-${data.item_code}`);
+        const mobRow = document.getElementById(`row-mobile-${data.item_code}`);
+
+        if (mobBox) {
+            const parts = mobBox.innerText.split('/');
+            const totalCtn = parts[1] ? parts[1].trim() : '?';
+            mobBox.innerText = `${data.scannedCount} / ${totalCtn}`;
+        }
+        if (mobQty) {
+            mobQty.innerText = data.scannedTotalQuantity;
+        }
+
+        // 3. Update Tabel Riwayat Scan di Bawah
+        const historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        if (historyBody && data.newScan) {
+            const rowCount = historyBody.rows.length + 1;
+            const newRow = historyBody.insertRow(0); // Prepend
+            newRow.classList.add('hover:bg-gray-50', 'bg-yellow-50', 'transition-colors', 'duration-1000');
+
+            const scanDeleteUrl = "{{ route('scan.delete', ':id') }}".replace(':id', data.newScan.id);
+            newRow.innerHTML = `
+                <td class="border border-gray-300 px-2 sm:px-4 py-2">${rowCount}</td>
+                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.quantity}</td>
+                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.warehouse}</td>
+                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.label}</td>
+                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.created_at}</td>
+                <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
+                    <button onclick="openEditModal(${data.newScan.id}, ${data.newScan.quantity})" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                        Edit
+                    </button>
+                    <form action="${scanDeleteUrl}" method="POST" class="inline" onsubmit="return confirm('Yakin mau hapus data ini?')">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            `;
+            setTimeout(() => newRow.classList.remove('bg-yellow-50'), 2000);
+        }
+
+        // 4. Efek Flash pada Row (Feedback visual)
+        [deskRow, mobRow].forEach(row => {
+            if (row) {
+                row.classList.add('bg-blue-100');
+                setTimeout(() => row.classList.remove('bg-blue-100'), 2000);
+            }
+        });
+
+        // 5. Update Tombol "Update All" secara dinamis
+        const container = document.getElementById('update-all-container');
+        if (container && data.allFinished) {
+            const docNum = "{{ $docNum }}";
+            const updateUrl = "{{ route('update.so.data', ['docNum' => ':docNum']) }}".replace(':docNum', docNum);
+            container.innerHTML = `
+                <a href="${updateUrl}" class="inline-flex justify-center w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm sm:text-base font-semibold rounded-md shadow hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Update All
+                </a>
+            `;
+        }
+        
+        // 6. Vibrasi jika device mendukung
+        if (navigator.vibrate) navigator.vibrate(100);
+    }
 
     function openEditModal(id, quantity) {
         const modal = document.getElementById('editModal');
         const form = document.getElementById('editForm');
         const qtyInput = document.getElementById('editQuantity');
-
         form.action = `/scan/${id}`;
         qtyInput.value = quantity;
-
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
@@ -510,304 +596,186 @@
         modal.classList.remove('flex');
     }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const checkBtn = document.getElementById('check-finish-btn');
+    function showAlert(msg, type = "success") {
+        const alertBox = document.getElementById('scanAlert');
+        if (!alertBox) return;
+        alertBox.innerText = msg;
+        alertBox.classList.remove("hidden");
+        alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
+        setTimeout(() => alertBox.classList.add("hidden"), 3000);
+    }
 
-            if (checkBtn) {
-                checkBtn.addEventListener('click', function () {
-                    location.reload(); // reload halaman
-                });
-            }
-        });
+    // --- MAIN EVENT LISTENERS ---
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const spkInput = document.getElementById('spk_code');
+        const labelInput = document.getElementById('label');
+        const barcodeForm = document.getElementById('barcode-form');
+        const checkBtn = document.getElementById('check-finish-btn');
+        const scanBtn = document.getElementById('scanModeBtn');
+        const videoElem = document.getElementById('scannerVideo');
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('barcode-form');
-            const labelInput = document.getElementById('label');
+        // Initial Focus
+        if (spkInput) spkInput.focus();
 
-            let typingTimer;
-            const doneTypingInterval = 300; // ms (scanner cepat, 200–400 aman)
+        // Refresh Manual (Check Finish)
+        if (checkBtn) {
+            checkBtn.addEventListener('click', () => location.reload());
+        }
 
-            if (form && labelInput) {
-                labelInput.addEventListener('input', function () {
-                    clearTimeout(typingTimer);
-
-                    typingTimer = setTimeout(() => {
+        // --- INTERCEPT SCAN FORM (AJAX) ---
+        if (barcodeForm) {
+            // Auto Submit Timer
+            let autoSubmitTimer;
+            if (labelInput) {
+                labelInput.addEventListener('input', () => {
+                    clearTimeout(autoSubmitTimer);
+                    autoSubmitTimer = setTimeout(() => {
                         if (labelInput.value.trim() !== '') {
-                            form.submit();
+                            barcodeForm.dispatchEvent(new Event('submit'));
                         }
-                    }, doneTypingInterval);
+                    }, 1000); // Jeda 1 detik sesuai request
                 });
             }
 
-            const itemCodeInput = document.getElementById('item_code');
-            if (itemCodeInput) {
-                itemCodeInput.focus();
-            }
-        });
+            barcodeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                clearTimeout(autoSubmitTimer); // Batalkan timer jika submit duluan manual
 
-        document.addEventListener('DOMContentLoaded', function () {
+                const formData = new FormData(barcodeForm);
+                const submitBtn = barcodeForm.querySelector('button[type="submit"]');
+                
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerText;
+                submitBtn.innerText = "Processing...";
 
-            const scanBtn = document.getElementById('scanModeBtn');
-            const scanView = document.getElementById('scanView');
-            const videoElem = document.getElementById('scannerVideo');
-            const alertBox = document.getElementById('scanAlert');
-
-            let scanMode = false;
-            let codeReader = null;
-            let lastScan = "";
-            let lastScanTime = 0;
-            const throttle = 1500;
-            let stream = null;
-
-            // Check if getUserMedia is supported
-            function isGetUserMediaSupported() {
-                return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-            }
-
-            // Polyfill for older browsers
-            if (!navigator.mediaDevices && navigator.getUserMedia) {
-                navigator.mediaDevices = {};
-                navigator.mediaDevices.getUserMedia = function(constraints) {
-                    const getUserMedia = navigator.getUserMedia || 
-                                    navigator.webkitGetUserMedia || 
-                                    navigator.mozGetUserMedia;
-                    
-                    if (!getUserMedia) {
-                        return Promise.reject(new Error('getUserMedia is not implemented'));
-                    }
-                    
-                    return new Promise((resolve, reject) => {
-                        getUserMedia.call(navigator, constraints, resolve, reject);
-                    });
-                };
-            }
-
-            function showAlert(msg, type = "success") {
-                alertBox.innerText = msg;
-                alertBox.classList.remove("hidden");
-                alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
-
-                setTimeout(() => alertBox.classList.add("hidden"), 3000);
-            }
-
-            async function startScanMode() {
-                try {
-                    // Debug 1
-                    alert("1. Mulai scan mode");
-                    
-                    // CHECK: Apakah navigator.mediaDevices ada?
-                    if (!navigator.mediaDevices) {
-                        alert("❌ navigator.mediaDevices tidak ada!\n\nKemungkinan:\n1. Browser terlalu lama\n2. Harus pakai HTTPS atau localhost\n3. Browser tidak support");
-                        showAlert("Browser tidak support kamera atau harus pakai HTTPS", "error");
-                        return;
-                    }
-
-                    // CHECK: Apakah getUserMedia ada?
-                    if (!navigator.mediaDevices.getUserMedia) {
-                        alert("❌ getUserMedia tidak ada!\n\nBrowser tidak support akses kamera.");
-                        showAlert("Browser tidak support akses kamera", "error");
-                        return;
-                    }
-
-                    // Debug 2
-                    alert("2. ✅ Browser support!\nProtocol: " + location.protocol + "\nHost: " + location.hostname);
-                    
-                    scanMode = true;
-                    scanBtn.innerText = "Stop Scan Mode";
-                    scanBtn.classList.remove("bg-green-600");
-                    scanBtn.classList.add("bg-red-600");
-                    scanView.classList.remove("hidden");
-
-                    // Request camera permission
-                    const constraints = {
-                        video: { 
-                            facingMode: { ideal: "environment" },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    };
-
-                    // Debug 3
-                    alert("3. Minta akses kamera...");
-                    
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    
-                    // Debug 4
-                    alert("4. ✅ Kamera berhasil diakses!");
-
-                    videoElem.srcObject = stream;
-                    videoElem.setAttribute("playsinline", "true");
-                    videoElem.setAttribute("autoplay", "true");
-                    videoElem.setAttribute("muted", "true");
-                    
-                    // Wait for video to be ready
-                    videoElem.onloadedmetadata = () => {
-                        videoElem.play().then(() => {
-                            alert("5. ✅ Video playing!");
-                            startDecoding();
-                        }).catch(err => {
-                            alert("❌ Play error:\n" + err.name + "\n" + err.message);
-                            showAlert("Gagal memulai video: " + err.message, "error");
-                        });
-                    };
-
-                } catch (err) {
-                    // Debug error dengan detail lengkap
-                    let debugMsg = "❌ ERROR CAMERA:\n\n";
-                    debugMsg += "Error Name: " + (err.name || "unknown") + "\n\n";
-                    debugMsg += "Error Message: " + (err.message || "unknown") + "\n\n";
-                    debugMsg += "Protocol: " + location.protocol + "\n";
-                    debugMsg += "Host: " + location.hostname;
-                    
-                    alert(debugMsg);
-                    
-                    // Alert user-friendly
-                    let errorMsg = "Gagal mengakses kamera: ";
-                    
-                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                        errorMsg += "Permission ditolak. Izinkan akses kamera di browser settings.";
-                    } else if (err.name === 'NotFoundError') {
-                        errorMsg += "Kamera tidak ditemukan.";
-                    } else if (err.name === 'NotReadableError') {
-                        errorMsg += "Kamera sedang digunakan aplikasi lain.";
-                    } else if (err.name === 'NotSupportedError' || err.name === 'SecurityError') {
-                        errorMsg += "Browser tidak support atau harus pakai HTTPS/localhost.";
-                    } else {
-                        errorMsg += err.message;
-                    }
-                    
-                    showAlert(errorMsg, "error");
-                    stopScanMode();
-                }
-            }
-
-            function startDecoding() {
-                try {
-                    // Initialize ZXing reader
-                    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-                    
-                    console.log("Starting barcode detection...");
-                    
-                    // Start decoding
-                    codeReader.decodeFromVideoDevice(
-                        undefined,
-                        videoElem,
-                        (result, err) => {
-                            if (result) {
-                                const now = Date.now();
-                                if (result.text === lastScan && (now - lastScanTime < throttle)) {
-                                    return;
-                                }
-
-                                lastScan = result.text;
-                                lastScanTime = now;
-
-                                console.log("Barcode detected:", result.text);
-                                
-                                // Visual feedback
-                                videoElem.style.border = "5px solid #16a34a";
-                                setTimeout(() => {
-                                    videoElem.style.border = "none";
-                                }, 500);
-
-                                sendScan(result.text);
-                            }
-                            if (err && err.name !== 'NotFoundException') {
-                                console.error("Decode error:", err);
-                            }
-                        }
-                    );
-                } catch (err) {
-                    console.error("ZXing error:", err);
-                    showAlert("Error starting scanner: " + err.message, "error");
-                }
-            }
-
-            function stopScanMode() {
-                scanMode = false;
-                scanBtn.innerText = "Start Scan Mode";
-                scanBtn.classList.remove("bg-red-600");
-                scanBtn.classList.add("bg-green-600");
-                scanView.classList.add("hidden");
-
-                // Stop ZXing
-                if (codeReader) {
-                    try {
-                        codeReader.reset();
-                    } catch (e) {
-                        console.error("Error resetting reader:", e);
-                    }
-                    codeReader = null;
-                }
-
-                // Stop all video tracks
-                if (stream) {
-                    stream.getTracks().forEach(track => {
-                        track.stop();
-                        console.log("Track stopped:", track.kind);
-                    });
-                    stream = null;
-                }
-
-                // Clear video source
-                if (videoElem.srcObject) {
-                    videoElem.srcObject = null;
-                }
-
-                console.log("Camera stopped");
-            }
-
-            function sendScan(code) {
-                let formData = new FormData();
-                formData.append("so_number", "{{ $docNum }}");
-                formData.append("item_code", code);
-                formData.append("quantity", 1);
-                formData.append("warehouse", "AUTO");
-                formData.append("label", 0);
-                formData.append("_token", "{{ csrf_token() }}");
-
-                fetch("{{ route('so.scanBarcode') }}", {
-                    method: "POST",
-                    body: formData
+                fetch(barcodeForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                 .then(r => r.json())
                 .then(data => {
-                    showAlert(data.message, data.success ? "success" : "error");
                     if (data.success) {
-                        // Reload page after delay
-                        setTimeout(() => location.reload(), 1500);
+                        showAlert(data.message, "success");
+                        updateUI(data);
+                        
+                        // Tampilkan Foto jika ada
+                        if (data.photo) {
+                            Fancybox.show([{ src: data.photo, type: "image" }], {
+                                Thumbs: false,
+                                on: {
+                                    reveal: (fb) => setTimeout(() => fb.close(), 1000),
+                                    destroy: () => { if (spkInput) spkInput.focus(); }
+                                }
+                            });
+                        }
+                        
+                        barcodeForm.reset();
+                        if (spkInput) spkInput.focus();
+                    } else {
+                        showAlert(data.message || "Unknown error", "error");
+                        // Reset field jika data sudah pernah di-scan atau error lainnya
+                        barcodeForm.reset();
+                        if (spkInput) spkInput.focus();
                     }
                 })
                 .catch(err => {
-                    console.error("Fetch error:", err);
-                    showAlert("Network error: " + err.message, "error");
+                    console.error(err);
+                    showAlert("Network Error: " + err.message, "error");
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalText;
                 });
-            }
+            });
+        }
 
-            // Button click handler
-            if (scanBtn) {
-                scanBtn.addEventListener("click", () => {
-                    if (!scanMode) {
-                        startScanMode();
-                    } else {
-                        stopScanMode();
+        // --- CAMERA SCAN MODE (AJAX) ---
+        let scanMode = false;
+        let codeReader = null;
+        let stream = null;
+        let lastScan = "";
+        let lastScanTime = 0;
+        const throttle = 2000;
+
+        if (scanBtn) {
+            scanBtn.addEventListener('click', () => {
+                if (!scanMode) startScanMode();
+                else stopScanMode();
+            });
+        }
+
+        async function startScanMode() {
+            try {
+                scanMode = true;
+                scanBtn.innerText = "Stop Scan Mode";
+                scanBtn.classList.replace("bg-green-600", "bg-red-600");
+                document.getElementById('scanView').classList.remove('hidden');
+
+                const constraints = { video: { facingMode: "environment" }, audio: false };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElem.srcObject = stream;
+
+                codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+                codeReader.decodeFromVideoDevice(undefined, videoElem, (result, err) => {
+                    if (result) {
+                        const now = Date.now();
+                        if (result.text === lastScan && (now - lastScanTime < throttle)) return;
+                        lastScan = result.text;
+                        lastScanTime = now;
+                        
+                        // Flash effect on video
+                        videoElem.style.border = "5px solid #16a34a";
+                        setTimeout(() => videoElem.style.border = "none", 500);
+
+                        sendScanAjax(result.text);
                     }
                 });
+            } catch (err) {
+                showAlert("Camera error: " + err.message, "error");
+                stopScanMode();
             }
+        }
 
-            // Show warning if not HTTPS on page load (except localhost)
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                console.warn("⚠️ Camera requires HTTPS to work properly");
-            }
+        function stopScanMode() {
+            scanMode = false;
+            scanBtn.innerText = "Start Scan Mode";
+            scanBtn.classList.replace("bg-red-600", "bg-green-600");
+            document.getElementById('scanView').classList.add('hidden');
+            if (codeReader) codeReader.reset();
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
 
-            labelInput.addEventListener('input', function () {
-                submitForm();
-            });
-        });
+        function sendScanAjax(code) {
+            let fd = new FormData();
+            fd.append("so_number", "{{ $docNum }}");
+            fd.append("spk_code", code); // Gunakan spk_code sesuai controller
+            fd.append("quantity", 1);
+            fd.append("warehouse", "AUTO");
+            fd.append("label", 0);
+            fd.append("_token", "{{ csrf_token() }}");
 
-        document.addEventListener('DOMContentLoaded', (event) => {
-            document.getElementById('spk_code').focus();
-        });
+            fetch("{{ route('so.scanBarcode') }}", {
+                method: "POST",
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                showAlert(data.message, data.success ? "success" : "error");
+                if (data.success) {
+                    updateUI(data);
+                    if (data.photo) {
+                        Fancybox.show([{ src: data.photo, type: "image" }], {
+                            on: { reveal: (fb) => setTimeout(() => fb.close(), 1000) }
+                        });
+                    }
+                }
+            })
+            .catch(err => showAlert("Network error: " + err.message, "error"));
+        }
+    });
+    </script>
     </script>
 </x-app-layout>
