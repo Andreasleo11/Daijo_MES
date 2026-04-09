@@ -362,7 +362,8 @@
                     Scanned Data
                 </h2>
 
-                @forelse ($scandatas as $itemCode => $scans)
+                <div id="history-container" class="mt-8">
+                    @forelse ($scandatas as $itemCode => $scans)
                     <h3 class="text-base sm:text-lg font-semibold text-gray-700 mt-4">
                         Item Code: {{ $itemCode }}
                     </h3>
@@ -424,11 +425,12 @@
                             </tbody>
                         </table>
                     </div>
-                @empty
-                    <p class="text-red-500 text-base sm:text-lg mt-2">
-                        No scanned data yet for this SO Number.
-                    </p>
-                @endforelse
+                    @empty
+                        <p id="no-scandata-msg" class="text-red-500 text-base sm:text-lg mt-2">
+                            No scanned data yet for this SO Number.
+                        </p>
+                    @endforelse
+                </div>
             </div>
 
             <div id="editModal"
@@ -526,7 +528,38 @@
         }
 
         // 3. Update Tabel Riwayat Scan di Bawah
-        const historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        let historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        const historyContainer = document.getElementById('history-container');
+        const noDataMsg = document.getElementById('no-scandata-msg');
+
+        // Jika tabel belum ada (scan pertama untuk item ini), buat tabelnya
+        if (!historyBody && historyContainer && data.newScan) {
+            if (noDataMsg) noDataMsg.remove(); // Hapus pesan "No data" jika ada
+
+            const newTableHtml = `
+                <h3 class="text-base sm:text-lg font-semibold text-gray-700 mt-4">
+                    Item Code: ${data.item_code}
+                </h3>
+                <div class="mt-2 overflow-x-auto -mx-4 sm:mx-0">
+                    <table class="min-w-full bg-white border-collapse border border-gray-200 text-xs sm:text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">No</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Quantity</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Warehouse</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Label</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Created At</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scandata-body-${data.item_code}"></tbody>
+                    </table>
+                </div>
+            `;
+            historyContainer.insertAdjacentHTML('beforeend', newTableHtml);
+            historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        }
+
         if (historyBody && data.newScan) {
             const rowCount = historyBody.rows.length + 1;
             const newRow = historyBody.insertRow(0); // Prepend
