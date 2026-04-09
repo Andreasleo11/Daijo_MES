@@ -693,7 +693,7 @@
                         showAlert(data.message, "success");
                         updateUI(data);
                         
-                        // Tampilkan Foto jika ada
+                        /* Tampilkan Foto di-disable karena lambat
                         if (data.photo) {
                             Fancybox.show([{ src: data.photo, type: "image" }], {
                                 Thumbs: false,
@@ -703,6 +703,7 @@
                                 }
                             });
                         }
+                        */
                         
                         barcodeForm.reset();
                         if (spkInput) spkInput.focus();
@@ -799,11 +800,13 @@
                 showAlert(data.message, data.success ? "success" : "error");
                 if (data.success) {
                     updateUI(data);
+                    /* Tampilkan Foto di-disable karena lambat
                     if (data.photo) {
                         Fancybox.show([{ src: data.photo, type: "image" }], {
                             on: { reveal: (fb) => setTimeout(() => fb.close(), 1000) }
                         });
                     }
+                    */
                 }
             })
             .catch(err => showAlert("Network error: " + err.message, "error"));
