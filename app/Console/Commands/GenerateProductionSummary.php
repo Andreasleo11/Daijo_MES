@@ -18,7 +18,9 @@ class GenerateProductionSummary extends Command
         DB::beginTransaction();
         try {
             // Get unprocessed data
-            $unprocessedData = ProductionScannedData::where('processed', false)->get();
+            $unprocessedData = ProductionScannedData::where('processed', false)
+             ->where('warehouse', 'FFI')
+             ->get();
 
             if ($unprocessedData->isEmpty()) {
                 $this->info('No new data to process.');

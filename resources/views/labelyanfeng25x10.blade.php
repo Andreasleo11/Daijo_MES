@@ -47,7 +47,7 @@
         }
 
         .barcode img {
-            width: 9mm;
+            width: 11mm;
             height: 9mm;
         }
 

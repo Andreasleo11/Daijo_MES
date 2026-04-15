@@ -54,34 +54,29 @@ class DashboardController extends Controller
             return view('dashboards.dashboard-admin');
         } elseif ($user->role->name === 'OPERATOR') {
 
-            $hourlyRemarks = HourlyRemark::with('dailyItemCode.masterItem')->get();
-       
+            $hourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->whereDate('schedule_date', \Carbon\Carbon::today());
+            })->with('dailyItemCode.masterItem')->get();
 
             foreach ($hourlyRemarks as $remark) {
-
                 $temporal = $remark->dailyItemCode->temporal_cycle_time ?? null;
 
                 if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                    // $cavity = $remark->dailyItemCode->masterItem->cavity ?? 0;
-
-                     $cavity = $remark->dailyItemCode->temporal_cavity 
+                    $cavity = $remark->dailyItemCode->temporal_cavity 
                         ?? ($remark->dailyItemCode->masterItem->cavity ?? 0);
-                    // dd($cavity);
-                    // kalau cavity = 0 → ubah jadi 1
                     $cavity = $cavity > 0 ? $cavity : 1;
 
                     $remark->target = floor(3600 / $temporal) * $cavity;
-                    // dd($remark->target);
                 }
 
                 if (!is_null($remark->actual_production)) {
                     $remark->is_achieve = $remark->actual_production >= $remark->target ? 1 : 0;
                 } else {
-                    // Jika actual_production masih null, anggap belum tercapai
                     $remark->is_achieve = 0;
                 }
         
-                $remark->save();
+                $remark->save(); 
             }
 
 
