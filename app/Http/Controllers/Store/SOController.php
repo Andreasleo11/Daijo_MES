@@ -140,13 +140,9 @@ class SOController extends Controller
         $quantity = $request->input('quantity');
         $warehouse = $request->input('warehouse');
         $label = $request->input('label');
-        
-
-
 
         $item_code = SpkItemHistory::where('spk_number', $spk_code)
-        ->value('item_code');
-        
+            ->value('item_code');
 
         // Fetch the item data
         $item = SoData::where('item_code', $item_code)->where('doc_num', $doc_num)->first();
@@ -164,7 +160,7 @@ class SOController extends Controller
             ->get();
 
         $scannedTotalQuantity = $existingScans->sum('quantity') + $quantity;
-       
+    
         if ($scannedTotalQuantity > $item->quantity) {
             $msg = 'All required CTN have been scanned / Quantity Tidak benar';
             if ($request->ajax() || $request->wantsJson()) {
@@ -174,8 +170,11 @@ class SOController extends Controller
         }
 
         $photo = MasterItemPhoto::where('item_code', $item_code)->first();
-        // Check if the scanned data already exists
-        $existingScan = ScannedData::where('item_code', $item_code)
+        
+        // PERUBAHAN: Tambahkan spk_code ke pengecekan duplikat
+        // Sekarang kombinasi spk_code + label + doc_num yang harus unik
+        // Sehingga SPK berbeda dengan label sama tetap bisa masuk
+        $existingScan = ScannedData::where('spk_code', $spk_code)
             ->where('label', $label)
             ->where('doc_num', $doc_num)
             ->first();
@@ -188,22 +187,21 @@ class SOController extends Controller
             return redirect()->back()->withErrors(['error' => $msg]);
         }
 
-        // Add new scanned data
+        // PERUBAHAN: Simpan juga spk_code ke database
         $newScan = ScannedData::create([
             'doc_num' => $doc_num,
             'item_code' => $item_code,
+            'spk_code' => $spk_code,  // tambahkan field ini
             'quantity' => $quantity,
             'warehouse' => $warehouse,
             'label' => $label,
         ]);
 
-        // --- Tambahan LOGIKA UNTUK AJAX RESPONSES ---
+        // --- AJAX RESPONSES ---
         if ($request->ajax() || $request->wantsJson()) {
-            // Kalkulasi data terbaru
             $scannedCount = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->count();
             $scannedTotalQty = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->sum('quantity');
 
-            // Cek apakah seluruh SO sudah selesai
             $rawItems = SoData::where('doc_num', $doc_num)->get();
             $scanSummaries = ScannedData::where('doc_num', $doc_num)
                 ->select('item_code', DB::raw('count(*) as count'))
@@ -241,6 +239,7 @@ class SOController extends Controller
             'photo'   => $photo ? $photo->photo_path : null,
         ]);
     }
+
 
     public function updateSoData($docNum)
     {
