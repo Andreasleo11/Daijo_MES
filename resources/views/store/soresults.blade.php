@@ -279,6 +279,15 @@
                 @endif
 
 
+                {{-- Packaging Mode Toggle --}}
+                <div class="mt-8 flex justify-end">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="packagingToggle" class="sr-only peer" onchange="togglePackagingMode()">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Scan Packaging Barcode</span>
+                    </label>
+                </div>
+
                 {{-- Form Scan Barcode --}}
                 @if (! $allDone)
                     <form
@@ -289,6 +298,7 @@
                     >
                         @csrf
                         <input type="hidden" name="so_number" value="{{ $docNum }}" />
+                        <input type="hidden" name="scan_mode" id="scan_mode_input" value="OFF" />
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -341,6 +351,25 @@
                                     required
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 />
+                            </div>
+
+                            {{-- NEW PACKAGING SECTION (Additive) --}}
+                            <div id="packaging_barcode_section" class="hidden col-span-full border-t pt-4 mt-2">
+                                <h4 class="text-xs font-bold text-blue-600 mb-2 uppercase">Packaging Details</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label for="packaging_name" class="block text-sm font-medium text-gray-700">Packaging Name / Code:</label>
+                                        <input type="text" id="packaging_name" name="packaging_name" class="mt-1 block w-full px-3 py-2 border-2 border-blue-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Scan kemasan...">
+                                    </div>
+                                    <div>
+                                        <label for="packaging_label" class="block text-sm font-medium text-gray-700">Packaging Label:</label>
+                                        <input type="text" id="packaging_label" name="packaging_label" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="packaging_warehouse" class="block text-sm font-medium text-gray-700">Warehouse (Out):</label>
+                                        <input type="text" id="packaging_warehouse" name="packaging_warehouse" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -640,10 +669,75 @@
 
     // --- MAIN EVENT LISTENERS ---
     
+    // --- ADDITIVE PACKAGING FUNCTIONS ---
+    function togglePackagingMode() {
+        const toggle = document.getElementById('packagingToggle');
+        const section = document.getElementById('packaging_barcode_section');
+        const modeInput = document.getElementById('scan_mode_input');
+
+        if (toggle.checked) {
+            section.classList.remove('hidden');
+            if (modeInput) modeInput.value = 'ON';
+            localStorage.setItem('packaging_mode', 'ON');
+        } else {
+            section.classList.add('hidden');
+            if (modeInput) modeInput.value = 'OFF';
+            localStorage.setItem('packaging_mode', 'OFF');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        let autoSubmitTimer;
         const spkInput = document.getElementById('spk_code');
         const labelInput = document.getElementById('label');
+        const pkgNameInput = document.getElementById('packaging_name');
+        const pkgLabelInput = document.getElementById('packaging_label');
+        const pkgWhseInput = document.getElementById('packaging_warehouse');
         const barcodeForm = document.getElementById('barcode-form');
+        const toggle = document.getElementById('packagingToggle');
+        const modeInput = document.getElementById('scan_mode_input');
+
+        // Restore preference
+        if (localStorage.getItem('packaging_mode') === 'ON') {
+            toggle.checked = true;
+            if (modeInput) modeInput.value = 'ON';
+            togglePackagingMode();
+        }
+
+        // --- ADDITIVE FOCUS & PARSING LOGIC ---
+        if (spkInput) {
+            spkInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    // Jika Mode ON, tetap biarkan submit untuk validasi SPK dulu
+                    if (toggle.checked) {
+                        // Jangan preventDefault, biar dia hit server untuk validasi SPK
+                        console.log("Submitting SPK for validation...");
+                    }
+                }
+            });
+        }
+
+        if (pkgNameInput) {
+            pkgNameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const val = this.value.trim();
+                    if (val === '') return;
+
+                    const parts = val.split('\t');
+                    if (parts.length > 1) {
+                        e.preventDefault();
+                        this.value = parts[0]; // Set Packaging Name
+                        pkgLabelInput.value = parts[1]; // Set Packaging Label
+                        labelInput.value = parts[1]; // Sync with main Label field
+                        
+                        // Auto-focus next field after parsing
+                        if (pkgLabelInput) pkgLabelInput.focus();
+                    }
+                }
+            });
+        }
+
+        // --- ORIGINAL LOGIC REMAINS ---
         const checkBtn = document.getElementById('check-finish-btn');
         const scanBtn = document.getElementById('scanModeBtn');
         const videoElem = document.getElementById('scannerVideo');
@@ -656,72 +750,98 @@
             checkBtn.addEventListener('click', () => location.reload());
         }
 
-        // --- INTERCEPT SCAN FORM (AJAX) ---
+        // --- AJAX SUBMIT FUNCTION (Reliable) ---
+        function submitScanForm(form) {
+            clearTimeout(autoSubmitTimer);
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Scanning...';
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Scan Barcode';
+                }
+
+                if (data.success) {
+                    showAlert(data.message || "Berhasil scan!", "success");
+                    updateUI(data);
+
+                    if (data.next_step === 'packaging') {
+                        // TAHAP 1: SPK Sukses, Pindah ke Packaging
+                        if (pkgNameInput) pkgNameInput.focus();
+                    } else {
+                        // TAHAP 2/ORIGINAL: Reset untuk item berikutnya
+                        form.reset();
+                        if (spkInput) spkInput.focus();
+                    }
+                } else {
+                    showAlert(data.message || "Unknown error", "error");
+                    form.reset();
+                    if (spkInput) spkInput.focus();
+                }
+            })
+            .catch(error => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Scan Barcode';
+                }
+                console.error('Error:', error);
+                showAlert("Terjadi kesalahan koneksi ke server.", "error");
+            });
+        }
+
+        // --- INTERCEPT SCAN FORM ---
         if (barcodeForm) {
-            // Auto Submit Timer
-            let autoSubmitTimer;
+            // Timer untuk AJAX #1 (Label SPK)
             if (labelInput) {
                 labelInput.addEventListener('input', () => {
-                    clearTimeout(autoSubmitTimer);
-                    autoSubmitTimer = setTimeout(() => {
-                        if (labelInput.value.trim() !== '') {
-                            barcodeForm.dispatchEvent(new Event('submit'));
-                        }
-                    }, 1000); // Jeda 1 detik sesuai request
+                    // Hanya AJAX #1 jika Mode ON dan packaging masih kosong
+                    // Atau selalu AJAX jika Mode OFF
+                    const mode = document.getElementById('scan_mode_input').value;
+                    const pkgIsVisible = !document.getElementById('packaging_barcode_section').classList.contains('hidden');
+                    
+                    if (mode === 'OFF' || (mode === 'ON' && pkgNameInput.value.trim() === '')) {
+                        clearTimeout(autoSubmitTimer);
+                        autoSubmitTimer = setTimeout(() => {
+                            if (labelInput.value.trim() !== '') {
+                                submitScanForm(barcodeForm);
+                            }
+                        }, 1000);
+                    }
+                });
+            }
+
+            // Timer untuk AJAX #2 (Warehouse Packaging)
+            if (pkgWhseInput) {
+                pkgWhseInput.addEventListener('input', () => {
+                    if (pkgNameInput.value.trim() !== '') {
+                        clearTimeout(autoSubmitTimer);
+                        autoSubmitTimer = setTimeout(() => {
+                            if (pkgWhseInput.value.trim() !== '') {
+                                submitScanForm(barcodeForm);
+                            }
+                        }, 1000);
+                    }
                 });
             }
 
             barcodeForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                clearTimeout(autoSubmitTimer); // Batalkan timer jika submit duluan manual
-
-                const formData = new FormData(barcodeForm);
-                const submitBtn = barcodeForm.querySelector('button[type="submit"]');
-                
-                submitBtn.disabled = true;
-                const originalText = submitBtn.innerText;
-                submitBtn.innerText = "Processing...";
-
-                fetch(barcodeForm.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, "success");
-                        updateUI(data);
-                        
-                        /* Tampilkan Foto di-disable karena lambat
-                        if (data.photo) {
-                            Fancybox.show([{ src: data.photo, type: "image" }], {
-                                Thumbs: false,
-                                on: {
-                                    reveal: (fb) => setTimeout(() => fb.close(), 1000),
-                                    destroy: () => { if (spkInput) spkInput.focus(); }
-                                }
-                            });
-                        }
-                        */
-                        
-                        barcodeForm.reset();
-                        if (spkInput) spkInput.focus();
-                    } else {
-                        showAlert(data.message || "Unknown error", "error");
-                        // Reset field jika data sudah pernah di-scan atau error lainnya
-                        barcodeForm.reset();
-                        if (spkInput) spkInput.focus();
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    showAlert("Network Error: " + err.message, "error");
-                })
-                .finally(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = originalText;
-                });
+                submitScanForm(this);
             });
         }
 

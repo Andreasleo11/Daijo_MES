@@ -6,6 +6,8 @@ use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\ScannedData;
 use App\Models\SoData;
+use App\Models\BarcodePackagingMaster;
+use App\Models\BarcodePackagingDetail;
 use App\Models\UpdateLog;
 use App\Models\SpkItemHistory;
 use App\Models\MasterItemPhoto;
@@ -55,6 +57,21 @@ class SOController extends Controller
 
     public function process($docNum)
     {
+        // Ambil customer dari data SO
+        $soCustomer = SoData::where('doc_num', $docNum)->value('customer');
+
+        // Additive: Ensure Store Out Header exists for this SO
+        BarcodePackagingMaster::firstOrCreate(
+            ['so_number' => $docNum],
+            [
+                'noDokumen'  => 'OUT/SO/' . $docNum,
+                'customer'   => $soCustomer ?? 'UNKNOWN',
+                'dateScan'   => now(),
+                'tipeBarcode' => 'out',
+                'location'   => 'Jakarta',
+            ]
+        );
+
         // 1. Ambil data mentah dari DB (termasuk is_done)
         $rawItems = SoData::where('doc_num', $docNum)->get();
         if ($rawItems->isEmpty()) {
@@ -132,7 +149,10 @@ class SOController extends Controller
             'spk_code' => 'required|string',
             'quantity' => 'required|integer',
             'warehouse' => 'required|string',
-            'label' => 'required|integer',
+            'label' => 'required|string',
+            'packaging_name' => 'nullable|string',
+            'packaging_label' => 'nullable|string',
+            'packaging_warehouse' => 'nullable|string',
         ]);
 
         $doc_num = $request->input('so_number');
@@ -171,37 +191,74 @@ class SOController extends Controller
 
         $photo = MasterItemPhoto::where('item_code', $item_code)->first();
         
-        // PERUBAHAN: Tambahkan spk_code ke pengecekan duplikat
-        // Sekarang kombinasi spk_code + label + doc_num yang harus unik
-        // Sehingga SPK berbeda dengan label sama tetap bisa masuk
-        $existingScan = ScannedData::where('spk_code', $spk_code)
-            ->where('label', $label)
-            ->where('doc_num', $doc_num)
-            ->first();
+        // Tentukan dulu ini Step 1 atau Step 2 sebelum cek duplikat
+        $packagingName = $request->input('packaging_name');
+        $packagingLabel = $request->input('packaging_label');
+        $packagingWhse = $request->input('packaging_warehouse');
+        $newScan = null;
 
-        if ($existingScan) {
-            $msg = 'Data already scanned';
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $msg]);
+        // Cek duplikat HANYA untuk Step 1 (scan produk)
+        // Step 2 (scan packaging) boleh pakai label yang sama karena berbeda tujuan
+        if (empty($packagingName)) {
+            $existingScan = ScannedData::where('spk_code', $spk_code)
+                ->where('label', $label)
+                ->where('doc_num', $doc_num)
+                ->first();
+
+            if ($existingScan) {
+                $msg = 'Data already scanned';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg]);
+                }
+                return redirect()->back()->withErrors(['error' => $msg]);
             }
-            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
-        // PERUBAHAN: Simpan juga spk_code ke database
-        $newScan = ScannedData::create([
-            'doc_num' => $doc_num,
-            'item_code' => $item_code,
-            'spk_code' => $spk_code,  // tambahkan field ini
-            'quantity' => $quantity,
-            'warehouse' => $warehouse,
-            'label' => $label,
-        ]);
+        // Additive Logic: Decide whether to create ScannedData (Step 1) or PackagingDetail (Step 2)
+
+        if (empty($packagingName)) {
+            // STEP 1: Create Product Scan Record
+            $newScan = ScannedData::create([
+                'doc_num' => $doc_num,
+                'item_code' => $item_code,
+                'spk_code' => $spk_code,  // tambahka
+                'quantity' => $quantity,
+                'warehouse' => $warehouse,
+                'label' => $label,
+            ]);
+        } else {
+            // STEP 2: Create Packaging Record only
+            $header = BarcodePackagingMaster::where('so_number', $doc_num)->first();
+            if ($header) {
+                // Buat record dulu untuk mendapatkan ID auto-increment
+                $detail = BarcodePackagingDetail::create([
+                    'masterId'  => $header->id,
+                    'noDokumen' => $header->noDokumen, // sementara, akan diupdate di bawah
+                    'partNo'    => $packagingName,
+                    'quantity'  => null,
+                    'label'     => $packagingLabel ?? $label,
+                    'position'  => $packagingWhse,
+                    'scantime'  => now(),
+                ]);
+
+                // Update noDokumen dengan ID unik di belakang -> contoh: OUT/SO/26006802/42
+                $detail->update(['noDokumen' => $header->noDokumen . '/' . $detail->id]);
+            }
+        }
 
         // --- AJAX RESPONSES ---
         if ($request->ajax() || $request->wantsJson()) {
-            $scannedCount = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->count();
-            $scannedTotalQty = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->sum('quantity');
+            $count = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->count();
+            $totalQty = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->sum('quantity');
 
+            // Determine next step for focus management
+            $scanMode = $request->input('scan_mode', 'OFF');
+            $nextStep = 'reset';
+            if ($scanMode === 'ON' && empty($packagingName)) {
+                $nextStep = 'packaging';
+            }
+
+            // Cek apakah seluruh SO sudah selesai
             $rawItems = SoData::where('doc_num', $doc_num)->get();
             $scanSummaries = ScannedData::where('doc_num', $doc_num)
                 ->select('item_code', DB::raw('count(*) as count'))
@@ -210,27 +267,29 @@ class SOController extends Controller
 
             $allFinished = $rawItems->groupBy('item_code')->every(function($group) use ($scanSummaries) {
                 $item = $group->first();
-                $totalQty = $group->sum('quantity');
-                $reqBoxes = $item->packaging_quantity > 0 ? (int)ceil($totalQty / $item->packaging_quantity) : 0;
+                $totalQtyPerItem = $group->sum('quantity');
+                $reqBoxes = $item->packaging_quantity > 0 ? (int)ceil($totalQtyPerItem / $item->packaging_quantity) : 0;
                 $currentBoxes = $scanSummaries->get($item->item_code, 0);
                 return ($currentBoxes >= $reqBoxes && $reqBoxes > 0);
             });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Barcode scanned successfully',
-                'photo'   => $photo ? asset('storage/' . $photo->photo_path) : null,
+                'message' => !empty($packagingName) 
+                    ? 'Packaging Berhasil Disimpan.' 
+                    : ($scanMode === 'ON' ? 'SPK Terverifikasi. Silakan scan packaging.' : 'SPK/Label berhasil discan.'),
                 'item_code' => $item_code,
-                'scannedCount' => $scannedCount,
-                'scannedTotalQuantity' => $scannedTotalQty,
-                'allFinished' => $allFinished,
-                'newScan' => [
+                'scannedCount' => $count,
+                'scannedTotalQuantity' => $totalQty,
+                'newScan' => $newScan ? [
                     'id' => $newScan->id,
                     'quantity' => $newScan->quantity,
                     'warehouse' => $newScan->warehouse,
                     'label' => $newScan->label,
                     'created_at' => $newScan->created_at->format('Y-m-d H:i:s')
-                ]
+                ] : null,
+                'next_step' => $nextStep,
+                'allFinished' => $allFinished
             ]);
         }
 

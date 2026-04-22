@@ -297,6 +297,27 @@ new class extends Component {
                     :active="request()->routeIs('receipt-production-logs')"
                     wire:navigate
                 />
+
+                <livewire:sidebar-link
+                    href="{{ route('wms.pallet-form.create') }}"
+                    label="Program Warehouse"
+                    :active="request()->routeIs('wms.pallet-form.create')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('wms.logs') }}"
+                    label="Audit Trail Logs"
+                    :active="request()->routeIs('wms.logs')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('wms.mapping') }}"
+                    label="Warehouse Mapping"
+                    :active="request()->routeIs('wms.mapping')"
+                    wire:navigate
+                />
             @endif
 
             <hr>

@@ -110,6 +110,7 @@ use App\Livewire\ManualSync;
         Route::get('/{id}', AsakaiDetail::class)->name('detail');
     });
 
+
     // ============================================
     // REPORT ROUTES (NO AUTH)
     // ============================================
@@ -323,6 +324,18 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
+
+    Route::prefix('wms')->name('wms.')->group(function () {
+        Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
+        Route::get('/mapping', \App\Livewire\Wms\RackMapping::class)->name('mapping');
+        Route::get('/pallet-logs', \App\Livewire\Wms\PalletLogIndex::class)->name('logs');
+        Route::get('/pallet-form/history', \App\Livewire\Wms\PalletFormIndex::class)->name('pallet-form.index');
+        Route::get('/pallet-form/create', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create');
+        Route::get('/pallet-form/print/{id}', function ($id) {
+            $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
+            return view('wms.pallet_form_print', compact('palletForm'));
+        })->name('pallet-form.print');
+    });
 
 
     Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');
