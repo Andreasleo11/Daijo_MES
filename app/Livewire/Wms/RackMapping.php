@@ -120,7 +120,7 @@ class RackMapping extends Component
         }])->get();
 
         $selectedPosData = $this->selectedPositionId 
-            ? WmsPosition::with('palletForms')->find($this->selectedPositionId) 
+            ? WmsPosition::with('palletForms')->withCount('palletForms')->find($this->selectedPositionId) 
             : null;
 
         return view('livewire.wms.rack-mapping', [

@@ -2,144 +2,269 @@
 
 namespace App\Livewire\Wms;
 
-use App\Models\MasterListItem;
-use App\Models\WmsPosition;
 use App\Models\WmsPalletForm;
 use App\Models\WmsPalletFormDetail;
+use App\Models\SpkItemHistory;
+use App\Models\MasterListItem;
 use App\Services\WmsService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 
 class PalletFormCreator extends Component
 {
-    // Form Fields
-    public $part_no;
-    public $model_name;
+    // ─── Header Form Fields ────────────────────────────────────────────────────
     public $prod_date;
     public $lot_no;
     public $delivery_name;
     public $delivery_shift;
     public $remarks;
-    public $total_box = 0;
+    public $total_box        = 0;
     public $total_pallet_qty = 0;
 
-    // Scanning (4 Fields)
-    public $scan_spk;
-    public $scan_qty;
-    public $scan_whse;
-    public $scan_label;
+    // ─── Scan Fields ───────────────────────────────────────────────────────────
+    public string $scan_spk   = '';
+    public string $scan_qty   = '';
+    public string $scan_whse  = '';
+    public string $scan_label = '';
+    public int $scan_box_count = 1; // Default to 1 box
 
-    // List for search results
-    public $searchResults = [];
-    public $showDropdown = false;
-    public $scanned_items = [];
+    // Auto-filled from SPK lookup (read-only display)
+    public string $scan_part_no       = '';
+    public string $scan_model_name    = '';
+    public string $scan_customer_code = '';
 
+    // No-Label mode state
+    public string $label_mode      = 'SCAN'; // 'SCAN' | 'NO_LABEL'
+    public string $no_label_reason = '';
+
+    // Accumulated scan list
+    public array $scanned_items = [];
+
+    // Real-time recommendation
+    public $recommendedSlot = null;
+
+    // ─── Validation ────────────────────────────────────────────────────────────
     protected $rules = [
-        'part_no' => 'required',
-        'prod_date' => 'required|date',
+        'prod_date'     => 'required|date',
         'delivery_name' => 'required',
-        'delivery_shift' => 'required',
+        'delivery_shift'=> 'required',
     ];
 
-    public function mount()
+    public function mount(): void
     {
         $this->prod_date = now()->format('Y-m-d');
     }
 
+    // ─── SPK Lookup ────────────────────────────────────────────────────────────
+
     /**
-     * Triggered when Part No is typed
+     * Triggered on every SPK input change.
+     * Looks up spk_item_histories → master_list_items to auto-fill item details.
      */
-    public function updatedPartNo($value)
+    public function updatedScanSpk(string $value): void
     {
-        if (strlen($value) < 2) {
-            $this->searchResults = [];
-            $this->showDropdown = false;
+        // Clear previous auto-fill
+        $this->scan_part_no       = '';
+        $this->scan_model_name    = '';
+        $this->scan_customer_code = '';
+
+        if (strlen(trim($value)) < 3) {
             return;
         }
 
-        $this->searchResults = MasterListItem::where('item_code', 'like', '%' . $value . '%')
-            ->orWhere('item_name', 'like', '%' . $value . '%')
-            ->limit(10)
-            ->get(['item_code', 'item_name'])
-            ->toArray();
+        $spkHistory = SpkItemHistory::where('spk_number', trim($value))->first();
 
-        $this->showDropdown = count($this->searchResults) > 0;
+        if (! $spkHistory) {
+            // Tidak blok di sini — validasi hard dilakukan saat addItem()
+            // agar tidak annoying saat user masih ngetik
+            return;
+        }
+
+        $item = MasterListItem::where('item_code', $spkHistory->item_code)->first();
+
+        $this->scan_part_no       = $spkHistory->item_code;
+        $this->scan_model_name    = $item?->item_name ?? '-';
+        $this->scan_customer_code = $item?->customer_code ?? '';
+
+        // Fokus ke field berikutnya
+        $this->dispatch('focus-qty');
     }
+
+    // ─── No-Label Toggle ───────────────────────────────────────────────────────
 
     /**
-     * Select an item from dropdown
+     * Toggle antara mode SCAN biasa dan mode NO_LABEL.
      */
-    public function selectPartNo($itemCode, $itemName)
+    public function toggleNoLabel(): void
     {
-        $this->part_no = $itemCode;
-        $this->model_name = $itemName;
-        $this->searchResults = [];
-        $this->showDropdown = false;
+        if ($this->label_mode === 'SCAN') {
+            // Aktifkan no-label mode
+            $this->label_mode        = 'NO_LABEL';
+            $this->scan_spk          = '';
+            $this->scan_label        = '';
+            $this->scan_part_no      = '';
+            $this->scan_model_name   = '';
+            $this->scan_customer_code = '';
+            $this->dispatch('focus-qty');
+        } else {
+            // Kembali ke mode scan normal
+            $this->label_mode      = 'SCAN';
+            $this->no_label_reason = '';
+            $this->dispatch('focus-spk');
+        }
     }
 
-    private function resetScanner()
+    // ─── Core Scanner Logic ────────────────────────────────────────────────────
+
+    private function resetScanner(): void
     {
-        $this->scan_spk = '';
-        $this->scan_qty = '';
-        $this->scan_whse = '';
-        $this->scan_label = '';
+        $this->scan_spk          = '';
+        $this->scan_qty          = '';
+        $this->scan_whse         = '';
+        $this->scan_label        = '';
+        $this->scan_box_count    = 1;
+        $this->scan_part_no      = '';
+        $this->scan_model_name   = '';
+        $this->scan_customer_code = '';
+        $this->no_label_reason   = '';
         $this->dispatch('focus-spk');
     }
 
     /**
-     * Add a box with its 4 fields to the list
+     * Add a box to the scanned list.
+     * Handles both normal (with SPK+label) and no-label boxes.
      */
-    public function addItem()
+    public function addItem(): void
     {
-        if (empty($this->scan_spk) || empty($this->scan_label)) {
-             session()->flash('scan_error', 'SPK dan Label harus di-scan.');
-             return;
+        // ─── Case 2: No-Label Mode ─────────────────────────────────────────────
+        if ($this->label_mode === 'NO_LABEL') {
+            if (empty(trim($this->scan_qty))) {
+                session()->flash('scan_error', 'Qty per box harus diisi.');
+                return;
+            }
+
+            $count = max(1, (int) $this->scan_box_count);
+
+            for ($i = 0; $i < $count; $i++) {
+                $this->scanned_items[] = [
+                    'part_no'         => null,
+                    'model_name'      => null,
+                    'customer_code'   => null,
+                    'spk_no'          => null,
+                    'qty'             => (float) $this->scan_qty,
+                    'warehouse'       => $this->scan_whse ?: null,
+                    'label'           => null,
+                    'is_no_label'     => true,
+                    'no_label_reason' => $this->no_label_reason ?: null,
+                ];
+            }
+
+            $this->label_mode = 'SCAN';
+            $this->resetScanner();
+            $this->calculateTotals();
+            return;
         }
 
-        // 1. Validation: Unique Label on this pallet (Current Session)
+        // ─── Case 1: Normal / Multi-Item Mode ──────────────────────────────────
+
+        // Wajib ada SPK
+        if (empty(trim($this->scan_spk))) {
+            session()->flash('scan_error', 'SPK harus di-scan terlebih dahulu.');
+            return;
+        }
+
+        // Pastikan SPK valid (ada di database)
+        if (empty($this->scan_part_no)) {
+            $spkHistory = SpkItemHistory::where('spk_number', trim($this->scan_spk))->first();
+            if (! $spkHistory) {
+                session()->flash('scan_error', 'SPK "' . $this->scan_spk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
+                return;
+            }
+            // Auto-fill jika belum terisi (misalnya debounce belum trigger)
+            $item = MasterListItem::where('item_code', $spkHistory->item_code)->first();
+            $this->scan_part_no       = $spkHistory->item_code;
+            $this->scan_model_name    = $item?->item_name ?? '-';
+            $this->scan_customer_code = $item?->customer_code ?? '';
+        }
+
+        // Wajib ada label
+        if (empty(trim($this->scan_label))) {
+            session()->flash('scan_error', 'Label harus di-scan, atau tekan "Tanpa Label" jika box tidak memiliki label.');
+            return;
+        }
+
+        // Cek duplikat di session yang sedang berjalan
         foreach ($this->scanned_items as $item) {
-            if ($item['label'] === $this->scan_label && $item['spk_no'] === $this->scan_spk) {
-                session()->flash('scan_error', 'Label ' . $this->scan_label . ' sudah ada di daftar scan saat ini.');
+            if (
+                ! empty($item['label']) &&
+                $item['label'] === trim($this->scan_label) &&
+                $item['spk_no'] === trim($this->scan_spk)
+            ) {
+                session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah ada di daftar scan saat ini.');
                 $this->resetScanner();
                 return;
             }
         }
 
-        // 2. Validation: Unique Label in Database
-        $exists = WmsPalletFormDetail::where('spk_no', $this->scan_spk)
-            ->where('label', $this->scan_label)
+        // Cek duplikat di database (global)
+        $exists = WmsPalletFormDetail::where('spk_no', trim($this->scan_spk))
+            ->where('label', trim($this->scan_label))
             ->exists();
 
         if ($exists) {
-            session()->flash('scan_error', 'Label ' . $this->scan_label . ' dengan SPK ' . $this->scan_spk . ' sudah pernah di-scan sebelumnya (Terdaftar di database).');
+            session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah pernah tersimpan di database sebelumnya.');
             $this->resetScanner();
             return;
         }
 
-        // Add to list
+        // Tambahkan ke list
         $this->scanned_items[] = [
-            'spk_no' => $this->scan_spk,
-            'qty' => $this->scan_qty ?: 0,
-            'warehouse' => $this->scan_whse,
-            'label' => $this->scan_label,
+            'part_no'         => $this->scan_part_no,
+            'model_name'      => $this->scan_model_name,
+            'customer_code'   => $this->scan_customer_code,
+            'spk_no'          => trim($this->scan_spk),
+            'qty'             => (float) ($this->scan_qty ?: 0),
+            'warehouse'       => $this->scan_whse ?: null,
+            'label'           => trim($this->scan_label),
+            'is_no_label'     => false,
+            'no_label_reason' => null,
         ];
 
         $this->resetScanner();
         $this->calculateTotals();
     }
 
-    public function removeItem($index)
+    public function removeItem(int $index): void
     {
         unset($this->scanned_items[$index]);
         $this->scanned_items = array_values($this->scanned_items);
         $this->calculateTotals();
     }
 
-    private function calculateTotals()
+    private function calculateTotals(): void
     {
-        $this->total_box = count($this->scanned_items);
+        $this->total_box        = count($this->scanned_items);
         $this->total_pallet_qty = array_sum(array_column($this->scanned_items, 'qty'));
+        
+        $this->updateRecommendation();
     }
+
+    private function updateRecommendation(): void
+    {
+        if (count($this->scanned_items) === 0) {
+            $this->recommendedSlot = null;
+            return;
+        }
+
+        $wmsService = app(WmsService::class);
+        $customerCodes = array_column($this->scanned_items, 'customer_code');
+        $firstPartNo = array_filter(array_column($this->scanned_items, 'part_no'))[0] ?? '';
+        
+        $pos = $wmsService->recommendPosition($customerCodes, $firstPartNo);
+        $this->recommendedSlot = $pos ? $pos->position_code : 'RAK PENUH';
+    }
+
+    // ─── Generate Pallet Form ──────────────────────────────────────────────────
 
     public function generateForm(WmsService $wmsService)
     {
@@ -153,50 +278,63 @@ class PalletFormCreator extends Component
         try {
             DB::beginTransaction();
 
-            // 1. Get Recommendation Position
-            $item = MasterListItem::where('item_code', $this->part_no)->first();
-            $customerCode = $item ? $item->customer_code : 'HM';
-            
-            $pos = $wmsService->recommendPosition($customerCode, $this->part_no);
-            
-            if (!$pos) {
-                throw new \Exception('Maaf, tidak ada posisi rak yang tersedia untuk customer ' . $customerCode);
+            // --- Hitung summary untuk header ---
+            $allPartNos = array_unique(
+                array_filter(array_column($this->scanned_items, 'part_no'))
+            );
+            $isMixed = count($allPartNos) > 1;
+
+            $headerPartNo    = $isMixed ? 'MIXED' : ($allPartNos[0] ?? null);
+            $headerModelName = $isMixed ? 'MULTI-ITEM' : ($this->scanned_items[0]['model_name'] ?? null);
+
+            // --- Rack recommendation ---
+            $customerCodes = array_column($this->scanned_items, 'customer_code');
+            $primaryPartNo = $allPartNos[0] ?? '';
+
+            $pos = $wmsService->recommendPosition($customerCodes, $primaryPartNo);
+
+            if (! $pos) {
+                throw new \Exception('Tidak ada posisi rak yang tersedia. Warehouse mungkin penuh.');
             }
 
-            // 2. Generate Pallet ID
+            // --- Generate ONE Pallet ID ---
             $palletId = $wmsService->generatePalletId();
 
-            // 3. Create Header
-            $form = WmsPalletForm::create([
-                'pallet_id' => $palletId,
-                'position_id' => $pos->id,
-                'part_no' => $this->part_no,
-                'model_name' => $this->model_name,
-                'prod_date' => $this->prod_date,
-                'lot_no' => $this->lot_no,
-                'delivery_name' => $this->delivery_name,
-                'delivery_shift' => $this->delivery_shift,
-                'box_qty' => $this->total_box,
+            // --- Create Header ---
+            WmsPalletForm::create([
+                'pallet_id'        => $palletId,
+                'position_id'      => $pos->id,
+                'part_no'          => $headerPartNo,
+                'model_name'       => $headerModelName,
+                'prod_date'        => $this->prod_date,
+                'lot_no'           => $this->lot_no,
+                'delivery_name'    => $this->delivery_name,
+                'delivery_shift'   => $this->delivery_shift,
+                'box_qty'          => $this->total_box,
                 'total_pallet_qty' => $this->total_pallet_qty,
-                'remarks' => $this->remarks,
+                'remarks'          => $this->remarks,
             ]);
 
-            // 4. Create Details
-            foreach ($this->scanned_items as $item) {
+            // --- Create Details ---
+            foreach ($this->scanned_items as $boxItem) {
                 WmsPalletFormDetail::create([
-                    'pallet_form_id' => $palletId,
-                    'spk_no' => $item['spk_no'],
-                    'qty' => $item['qty'],
-                    'warehouse' => $item['warehouse'],
-                    'label' => $item['label'],
+                    'pallet_form_id'  => $palletId,
+                    'part_no'         => $boxItem['part_no'],
+                    'model_name'      => $boxItem['model_name'],
+                    'spk_no'          => $boxItem['spk_no'],
+                    'qty'             => $boxItem['qty'],
+                    'warehouse'       => $boxItem['warehouse'],
+                    'label'           => $boxItem['label'],
+                    'is_no_label'     => $boxItem['is_no_label'],
+                    'no_label_reason' => $boxItem['no_label_reason'],
                 ]);
             }
 
-            // 5. Update Position Status & Item tracking
-            $pos->update(['last_item_code' => $this->part_no]);
+            // --- Update position tracking ---
+            $pos->update(['last_item_code' => $headerPartNo]);
             $wmsService->updatePositionStatus($pos->id);
 
-            // 6. Record Log Transaction
+            // --- Log Transaction ---
             $wmsService->logTransaction($palletId, 'IN', $pos->id);
 
             DB::commit();

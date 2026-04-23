@@ -105,12 +105,34 @@
                                     </span>
                                 </div>
 
-                                @if($selectedPosData->last_item_code)
-                                    <div class="bg-gray-50 border border-gray-100 p-6 rounded-2xl text-center">
-                                        <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">Current Part No</div>
-                                        <div class="text-2xl font-black text-gray-800 tracking-wider">{{ $selectedPosData->last_item_code }}</div>
-                                        <div class="mt-4 text-3xl font-black text-blue-600">
-                                            {{ $selectedPosData->pallet_forms_count }} <span class="text-[10px] text-gray-400 uppercase font-black italic">Pallet(s)</span>
+                                @if($selectedPosData->pallet_forms_count > 0)
+                                    <div class="bg-gray-50 border border-gray-100 p-6 rounded-2xl">
+                                        <div class="text-[10px] text-gray-400 font-bold uppercase mb-1 text-center">Summary</div>
+                                        <div class="text-2xl font-black text-gray-800 tracking-wider text-center">
+                                            {{ $selectedPosData->last_item_code ?: 'MIXED / NO LABEL' }}
+                                        </div>
+                                        <div class="mt-2 text-center">
+                                            <span class="text-3xl font-black text-blue-600">{{ $selectedPosData->pallet_forms_count }}</span>
+                                            <span class="text-[10px] text-gray-400 uppercase font-black italic">Pallet(s)</span>
+                                        </div>
+
+                                        <!-- Pallet List -->
+                                        <div class="mt-6 space-y-2">
+                                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 italic border-b border-gray-100 pb-1">Stored Pallets</div>
+                                            @foreach($selectedPosData->palletForms->where('status', 'STORED') as $pf)
+                                                <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm text-[10px]">
+                                                    <div class="truncate pr-2">
+                                                        <div class="font-black text-gray-700 leading-tight">{{ $pf->pallet_id }}</div>
+                                                        <div class="text-gray-400 font-bold">{{ $pf->part_no ?: 'NO LABEL' }}</div>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="font-black text-blue-600 whitespace-nowrap">{{ number_format($pf->total_pallet_qty, 0) }}</span>
+                                                        <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="p-1.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-all">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     </div>
                                 @else

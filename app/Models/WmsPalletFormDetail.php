@@ -10,11 +10,20 @@ class WmsPalletFormDetail extends Model
     use HasFactory;
 
     protected $fillable = [
-        'pallet_form_id', 
-        'spk_no', 
-        'qty', 
-        'warehouse', 
-        'label'
+        'pallet_form_id',
+        'part_no',         // item per box (multi-item support)
+        'model_name',      // nama item per box
+        'spk_no',
+        'qty',
+        'warehouse',
+        'label',
+        'is_no_label',     // true jika box tidak punya label/SPK
+        'no_label_reason', // alasan tidak ada label (opsional)
+    ];
+
+    protected $casts = [
+        'is_no_label' => 'boolean',
+        'qty'         => 'float',
     ];
 
     public function header()

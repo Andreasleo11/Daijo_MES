@@ -32,35 +32,46 @@ class WmsService
     }
 
     /**
-     * Recommend a position for the given item and customer
+     * Recommend a position for the given customer codes and primary part no.
+     * Supports multi-item pallets (mixed customer codes).
+     *
+     * @param  array  $customerCodes  All customer codes from scanned items
+     * @param  string $primaryPartNo  First/primary item code (for consolidation)
      */
-    public function recommendPosition($customerCode, $partNo)
+    public function recommendPosition(array $customerCodes, string $primaryPartNo): ?WmsPosition
     {
-        // 1. Try to find a PARTIAL slot with the same item code for consolidation
-        // MUST have remaining capacity
-        $partialSlot = WmsPosition::withCount('palletForms')
-            ->where('last_item_code', $partNo)
-            ->where('status', 'PARTIAL')
-            ->get()
-            ->filter(function($pos) {
-                return $pos->pallet_forms_count < $pos->max_capacity;
-            })
-            ->first();
+        $uniqueCustomers = array_unique(array_filter($customerCodes));
+        $isMixed         = count($uniqueCustomers) > 1;
 
-        if ($partialSlot) {
-            return $partialSlot;
+        if (!$isMixed && count($uniqueCustomers) === 1) {
+            $customerCode = $uniqueCustomers[0];
+
+            // 1. Try PARTIAL slot with same item for consolidation
+            $partialSlot = WmsPosition::withCount('palletForms')
+                ->where('customer_code', $customerCode)
+                ->where('last_item_code', $primaryPartNo)
+                ->where('status', 'PARTIAL')
+                ->get()
+                ->filter(fn($pos) => $pos->pallet_forms_count < $pos->max_capacity)
+                ->first();
+
+            if ($partialSlot) {
+                return $partialSlot;
+            }
+
+            // 2. Try EMPTY slot for the same customer
+            $emptyCustomer = WmsPosition::where('customer_code', $customerCode)
+                ->where('status', 'EMPTY')
+                ->orderBy('id')
+                ->first();
+
+            if ($emptyCustomer) {
+                return $emptyCustomer;
+            }
         }
 
-        // 2. Try to find the first EMPTY slot (No restriction)
-        $emptySlot = WmsPosition::where('status', 'EMPTY')
-            ->orderBy('id')
-            ->first();
-
-        if ($emptySlot) {
-            return $emptySlot;
-        }
-
-        return null; // Warehouse full
+        // 3. Fallback: any EMPTY slot (for mixed customers or when customer slots are full)
+        return WmsPosition::where('status', 'EMPTY')->orderBy('id')->first();
     }
 
     /**
@@ -68,15 +79,18 @@ class WmsService
      */
     public function updatePositionStatus($positionId)
     {
-        $pos = WmsPosition::withCount(['palletForms' => function($q) {
+        $pos = WmsPosition::with(['palletForms' => function($q) {
             $q->where('status', 'STORED');
         }])->find($positionId);
         
         if (!$pos) return;
 
-        if ($pos->pallet_forms_count <= 0) {
+        $totalQtySum = $pos->palletForms->sum('total_pallet_qty');
+        $palletCount = $pos->palletForms->count();
+        
+        if ($palletCount <= 0) {
             $pos->update(['status' => 'EMPTY', 'last_item_code' => null]);
-        } elseif ($pos->pallet_forms_count >= $pos->max_capacity) {
+        } elseif ($totalQtySum >= $pos->max_capacity) {
             $pos->update(['status' => 'FULL']);
         } else {
             $pos->update(['status' => 'PARTIAL']);

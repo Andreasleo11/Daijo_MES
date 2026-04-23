@@ -444,7 +444,25 @@ class SOController extends Controller
         DB::beginTransaction();
 
         try {
-            foreach ($request->all() as $row) {
+            $payload = $request->all();
+
+            // 1. Collect item_codes per doc_num from the SAP payload to handle deletions
+            $itemsInPayload = [];
+            foreach ($payload as $row) {
+                if (isset($row['doc_num']) && isset($row['item_code'])) {
+                    $itemsInPayload[$row['doc_num']][] = $row['item_code'];
+                }
+            }
+
+            // 2. Delete local records that are no longer in SAP for these doc_nums
+            foreach ($itemsInPayload as $docNum => $itemCodes) {
+                SoData::where('doc_num', $docNum)
+                    ->whereNotIn('item_code', $itemCodes)
+                    ->delete();
+            }
+
+            // 3. Process each row (Update or Insert)
+            foreach ($payload as $row) {
 
                 $validator = Validator::make($row, [
                     'doc_num' => 'required|string',

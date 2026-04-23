@@ -32,7 +32,7 @@
             background: #fff;
             padding: 0.4mm;
             padding-left: 0.5mm;
-            padding-top: 1.3mm;
+            padding-top: 0.7mm; /* Dikurangi agar barcode 8.5mm pas di tengah 10mm */
         }
 
         /* 🔹 Label kanan (urutan genap) — geser isi lebih ke kanan */
@@ -43,12 +43,17 @@
 
         .barcode {
             flex-shrink: 0;
-            margin-right: 1mm;
+            margin-right: 1.5mm; /* Beri jarak sedikit lebih lebar sebagai quiet zone */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .barcode img {
-            width: 11mm;
-            height: 9mm;
+            width: 9mm;  /* Data Matrix HARUS kotak sempurna (Square) */
+            height: 9mm; /* Jangan buat lonjong agar scanner mudah baca */
+            image-rendering: pixelated; /* Jaga agar kotak-kotaknya tetap tajam/crisp */
+            image-rendering: crisp-edges;
         }
 
         .info {
