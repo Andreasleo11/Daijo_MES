@@ -324,6 +324,7 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
+    Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->name('upload.spk.history');
 
     Route::prefix('wms')->name('wms.')->group(function () {
         Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');

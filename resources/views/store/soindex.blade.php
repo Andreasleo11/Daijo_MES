@@ -66,12 +66,12 @@
                     </div>
                 @endif
 
-                <div class="flex justify-center mt-4">
+                <div class="flex justify-center items-center mt-4 gap-6">
                     <form
                         action="{{ route('import.so.data') }}"
                         method="POST"
                         enctype="multipart/form-data"
-                        class="ml-4"
+                        class="flex items-center"
                     >
                         @csrf
                         <input
@@ -84,11 +84,19 @@
                         />
                         <button
                             type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer whitespace-nowrap"
                         >
                             Import Excel
                         </button>
                     </form>
+
+                    <div class="border-l-2 border-gray-300 h-10"></div>
+
+                    <a href="{{ route('upload.spk.history') }}" 
+                       class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer whitespace-nowrap flex items-center shadow-sm transition-all">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Upload SPK History
+                    </a>
                 </div>
 
                 <div class="flex justify-center mt-4">
