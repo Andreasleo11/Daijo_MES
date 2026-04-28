@@ -54,16 +54,16 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 13pt;
+            font-size: 15pt;
             font-weight: 900;
         }
         .pos-code {
-            font-size: 8pt;
+            font-size: 10pt;
             font-weight: bold;
             background: #000;
             color: #fff;
             display: inline-block;
-            padding: 1px 6px;
+            padding: 2px 8px;
             border-radius: 2px;
         }
         .summary-grid {
@@ -80,16 +80,16 @@
             padding: 0.2mm 0;
         }
         .label {
-            width: 13mm;
-            font-size: 5.5pt;
-            color: #666;
+            width: 14mm;
+            font-size: 6.5pt;
+            color: #444;
             text-transform: uppercase;
             font-weight: bold;
         }
         .value {
             flex-grow: 1;
-            font-size: 7pt;
-            font-weight: bold;
+            font-size: 8.5pt;
+            font-weight: 900;
             line-height: 1.1;
             word-break: break-all;
         }
@@ -110,7 +110,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 5.5pt;
+            font-size: 6.5pt;
         }
         th, td {
             border: 1px solid #ddd;
@@ -132,10 +132,10 @@
             flex-shrink: 0;
         }
         .barcode-id {
-            font-size: 8pt;
-            font-weight: bold;
+            font-size: 10pt;
+            font-weight: 900;
             margin-top: 0mm;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
         }
         .footer {
             font-size: 5pt;
@@ -165,8 +165,8 @@
 
     @php
         // Parameters for 1/4 A4 size
-        $rowsPerColumn = 30; // Increased rows because font is smaller
-        $colsPerPage = 2;    // Reduced columns because width is halved
+        $rowsPerColumn = 20; // Reduced because font is larger
+        $colsPerPage = 2;    
         $itemsPerPage = $rowsPerColumn * $colsPerPage;
 
         $groups = $palletForm->details->groupBy(function($item) {
@@ -260,12 +260,12 @@
                                         <tbody>
                                             @foreach($columnItems as $item)
                                                 <tr>
-                                                    <td style="color: #999;">{{ $form->groupItems->search($item) + 1 }}</td>
-                                                    <td style="text-align: right; font-weight: bold;">{{ number_format($item->qty, 0) }}</td>
-                                                    <td style="font-family: monospace; font-size: 4.5pt; overflow: hidden;">
+                                                    <td style="color: #000; font-weight: 900; text-align: center;">{{ $form->groupItems->search($item) + 1 }}</td>
+                                                    <td style="text-align: right; font-weight: 900;">{{ number_format($item->qty, 0) }}</td>
+                                                    <td style="font-family: monospace; font-size: 5.5pt; overflow: hidden; font-weight: bold;">
                                                         {{ $item->label ?: '-' }}
                                                     </td>
-                                                    <td style="font-family: monospace; font-size: 4.5pt; overflow: hidden;">
+                                                    <td style="font-family: monospace; font-size: 5.5pt; overflow: hidden; font-weight: bold;">
                                                         {{ $item->spk_no ?: '-' }}
                                                     </td>
                                                 </tr>
