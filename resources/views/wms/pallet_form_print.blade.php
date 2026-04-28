@@ -278,7 +278,7 @@
 
                         <div class="barcode-section">
                             <div style="display: inline-block;">
-                                {!! DNS1D::getBarcodeHTML($palletForm->pallet_id, 'C128', 1.2, 25) !!}
+                                {!! DNS1D::getBarcodeHTML($palletForm->pallet_id, 'C128', 1.4, 33) !!}
                             </div>
                             <div class="barcode-id">{{ $palletForm->pallet_id }}</div>
                             <div class="footer">
