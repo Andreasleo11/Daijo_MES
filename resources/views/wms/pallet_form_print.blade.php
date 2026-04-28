@@ -66,32 +66,30 @@
             padding: 2px 8px;
             border-radius: 2px;
         }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: 1fr 0.8fr 1.2fr;
-            gap: 1mm;
-            border-bottom: 1px solid #000;
-            padding-bottom: 1mm;
-            margin-bottom: 1.5mm;
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2mm;
             flex-shrink: 0;
+            border: 1px solid #000;
         }
-        .section {
-            display: flex;
-            padding: 0.2mm 0;
+        .summary-table td {
+            border: 1px solid #000;
+            padding: 1.5px 3px;
+            vertical-align: top;
         }
-        .label {
-            width: 14mm;
-            font-size: 6.5pt;
+        .summary-label {
+            font-size: 6pt;
             color: #444;
-            text-transform: uppercase;
             font-weight: bold;
+            text-transform: uppercase;
+            width: 12mm;
+            background-color: #fafafa;
         }
-        .value {
-            flex-grow: 1;
-            font-size: 8.5pt;
+        .summary-value {
+            font-size: 8pt;
             font-weight: 900;
             line-height: 1.1;
-            word-break: break-all;
         }
         .multi-table-container {
             display: flex;
@@ -224,23 +222,36 @@
                             <div class="pos-code">{{ $palletForm->position->position_code ?? 'UNMAPPED' }}</div>
                         </div>
 
-                        <div class="summary-grid">
-                            <div class="summary-col">
-                                <div class="section"><div class="label">ID</div><div class="value">{{ $palletForm->pallet_id }}</div></div>
-                                <div class="section"><div class="label">Part No</div><div class="value" style="font-size: 7pt;">{{ $form->partNo === 'NO_LABEL' ? 'TANPA LABEL' : $form->partNo }} @if($form->isMixed)<span class="mixed-tag">MIXED</span>@endif</div></div>
-                                <div class="section"><div class="label">Model</div><div class="value">{{ $form->headerInfo['model'] }}</div></div>
-                            </div>
-                            <div class="summary-col">
-                                <div class="section"><div class="label">Date</div><div class="value">{{ \Carbon\Carbon::parse($palletForm->prod_date)->format('d/m/y') }}</div></div>
-                                <div class="section"><div class="label">Boxes</div><div class="value">{{ $form->headerInfo['boxes'] }}</div></div>
-                                <div class="section"><div class="label">Qty</div><div class="value">{{ number_format($form->headerInfo['qty'], 0) }}</div></div>
-                            </div>
-                            <div class="summary-col">
-                                <div class="section"><div class="label">Shift</div><div class="value">{{ $palletForm->delivery_shift }}</div></div>
-                                <div class="section"><div class="label">Delivery</div><div class="value">{{ $palletForm->delivery_name }}</div></div>
-                                <div class="section"><div class="label">Lot/MO</div><div class="value">{{ $palletForm->lot_no ?: '-' }}</div></div>
-                            </div>
-                        </div>
+                        <table class="summary-table">
+                            <tr>
+                                <td class="summary-label">ID</td>
+                                <td class="summary-value" colspan="3">{{ $palletForm->pallet_id }}</td>
+                                <td class="summary-label">DATE</td>
+                                <td class="summary-value">{{ \Carbon\Carbon::parse($palletForm->prod_date)->format('d/m/y') }}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">PART NO</td>
+                                <td class="summary-value" colspan="3">{{ $form->partNo === 'NO_LABEL' ? 'TANPA LABEL' : $form->partNo }} @if($form->isMixed)<span class="mixed-tag">MIXED</span>@endif</td>
+                                <td class="summary-label">SHIFT</td>
+                                <td class="summary-value">{{ $palletForm->delivery_shift }}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">MODEL</td>
+                                <td class="summary-value" colspan="3">{{ $form->headerInfo['model'] }}</td>
+                                <td class="summary-label">BOXES</td>
+                                <td class="summary-value">{{ $form->headerInfo['boxes'] }}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">LOT/MO</td>
+                                <td class="summary-value" colspan="3">{{ $palletForm->lot_no ?: '-' }}</td>
+                                <td class="summary-label">QTY</td>
+                                <td class="summary-value">{{ number_format($form->headerInfo['qty'], 0) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">DELIVERY</td>
+                                <td class="summary-value" colspan="5">{{ $palletForm->delivery_name }}</td>
+                            </tr>
+                        </table>
 
                         <div class="multi-table-container">
                             @php
