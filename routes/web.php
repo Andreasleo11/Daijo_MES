@@ -322,8 +322,10 @@ use App\Livewire\ManualSync;
 
 Route::middleware('auth')->group(function (){
 
-
+    // untuk update spk secara manual 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
+
+    //untuk upload spk history di program store 
     Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->name('upload.spk.history');
 
     Route::prefix('wms')->name('wms.')->group(function () {

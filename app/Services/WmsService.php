@@ -87,6 +87,8 @@ class WmsService
                 
             if ($isPriority) {
                 $partialSlotQuery->where('level_no', 1);
+            } else {
+                $partialSlotQuery->where('level_no', '!=', 1);
             }
 
             $partialSlot = $partialSlotQuery->orderBy('level_no')->orderBy('id')->get()
@@ -103,6 +105,8 @@ class WmsService
 
             if ($isPriority) {
                 $emptyCustomerQuery->where('level_no', 1);
+            } else {
+                $emptyCustomerQuery->where('level_no', '!=', 1);
             }
 
             $emptyCustomer = $emptyCustomerQuery->orderBy('level_no')->orderBy('id')->first();
@@ -116,6 +120,8 @@ class WmsService
         $fallbackQuery = WmsPosition::where('status', 'EMPTY');
         if ($isPriority) {
             $fallbackQuery->where('level_no', 1);
+        } else {
+            $fallbackQuery->where('level_no', '!=', 1);
         }
         
         return $fallbackQuery->orderBy('level_no')->orderBy('id')->first();
