@@ -325,7 +325,7 @@
                                     <div style="font-size:8px;">
                                         {{ $pushResult['message'] }}
                                     </div>
-                                    @if($pushResult['raw_message'] && $pushResult['status'] === 'error')
+                                    @if(isset($pushResult['raw_message']) && $pushResult['status'] === 'error')
                                     <div style="margin-top:3px; padding-top:3px; border-top:1px solid {{ $borderColor }}; 
                                                font-size:8px; font-family:'IBM Plex Mono',monospace;">
                                         📋 Detail: {{ substr($pushResult['raw_message'], 0, 80) }}{{ strlen($pushResult['raw_message']) > 80 ? '...' : '' }}
