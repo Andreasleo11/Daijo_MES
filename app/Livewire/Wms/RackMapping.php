@@ -111,6 +111,35 @@ class RackMapping extends Component
         }
     }
 
+    public function deleteRack($rackId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $rack = WmsRack::find($rackId);
+            if ($rack) {
+                // Delete all positions under this rack
+                WmsPosition::where('rack_id', $rack->id)->delete();
+                
+                $rackCode = $rack->rack_code;
+                $rack->delete();
+
+                DB::commit();
+                session()->flash('success', 'Rak ' . $rackCode . ' beserta seluruh slotnya berhasil dihapus.');
+                
+                // Reset selected slot if it belongs to the deleted rack
+                $this->selectedPositionId = null;
+                $this->showDetail = false;
+            } else {
+                DB::rollBack();
+                session()->flash('error', 'Rak tidak ditemukan.');
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Gagal menghapus rak: ' . $e->getMessage());
+        }
+    }
+
     public function render()
     {
         $racks = WmsRack::with(['positions' => function($query) {

@@ -231,7 +231,8 @@
                                             <tr>
                                                 <th style="width: 15px">#</th>
                                                 <th style="width: 25px">Qty</th>
-                                                <th>Label/SPK</th>
+                                                <th style="width: 50px">No Label</th>
+                                                <th>SPK/Reference</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -240,7 +241,10 @@
                                                     <td style="color: #999;">{{ $form->groupItems->search($item) + 1 }}</td>
                                                     <td style="text-align: right; font-weight: bold;">{{ number_format($item->qty, 0) }}</td>
                                                     <td style="font-family: monospace; font-size: 4.5pt; overflow: hidden;">
-                                                        {{ $item->spk_no ?: ($item->is_no_label ? 'NO LABEL' : $item->label) }}
+                                                        {{ $item->label ?: '-' }}
+                                                    </td>
+                                                    <td style="font-family: monospace; font-size: 4.5pt; overflow: hidden;">
+                                                        {{ $item->spk_no ?: '-' }}
                                                     </td>
                                                 </tr>
                                             @endforeach
