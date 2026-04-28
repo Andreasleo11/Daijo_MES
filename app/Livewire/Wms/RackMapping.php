@@ -118,8 +118,21 @@ class RackMapping extends Component
 
             $rack = WmsRack::find($rackId);
             if ($rack) {
+                $positionIds = WmsPosition::where('rack_id', $rack->id)->pluck('id');
+
+                // Detach from Pallet Forms and reset status so they are not lost
+                \App\Models\WmsPalletForm::whereIn('position_id', $positionIds)->update([
+                    'position_id' => null,
+                    'status' => 'GENERATED'
+                ]);
+
+                // Detach from Logs to preserve history without breaking foreign key
+                \App\Models\WmsPalletLog::whereIn('position_id', $positionIds)->update([
+                    'position_id' => null
+                ]);
+
                 // Delete all positions under this rack
-                WmsPosition::where('rack_id', $rack->id)->delete();
+                WmsPosition::whereIn('id', $positionIds)->delete();
                 
                 $rackCode = $rack->rack_code;
                 $rack->delete();
