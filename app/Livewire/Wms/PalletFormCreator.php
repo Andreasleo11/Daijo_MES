@@ -116,7 +116,7 @@ class PalletFormCreator extends Component
 
     // ─── Core Scanner Logic ────────────────────────────────────────────────────
 
-    private function resetScanner(): void
+    public function resetScanner(): void
     {
         $this->scan_spk          = '';
         $this->scan_qty          = '';

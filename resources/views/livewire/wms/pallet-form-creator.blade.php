@@ -125,7 +125,16 @@
             <div class="lg:col-span-2 space-y-6">
 
                 {{-- Scan Panel --}}
-                <div class="{{ $label_mode === 'NO_LABEL' ? 'bg-orange-500' : 'bg-blue-600' }} p-6 rounded-2xl shadow-lg transition-colors duration-300">
+                <div class="{{ $label_mode === 'NO_LABEL' ? 'bg-orange-500' : 'bg-blue-600' }} p-6 rounded-2xl shadow-lg transition-colors duration-300 relative overflow-hidden">
+                    {{-- Processing Overlay --}}
+                    <div wire:loading wire:target="addItem, toggleNoLabel, updatedScanSpk" 
+                         class="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-50 flex items-center justify-center">
+                        <div class="bg-white px-4 py-2 rounded-full shadow-2xl flex items-center space-x-3">
+                            <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-xs font-bold text-gray-800 uppercase tracking-widest">Processing...</span>
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-white text-lg font-semibold flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
@@ -159,7 +168,8 @@
                             <div>
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">SPK Code</label>
                                 <input type="text" wire:model.live.debounce.500ms="scan_spk" id="scan_spk"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
+                                    wire:loading.attr="disabled"
+                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     placeholder="Scan SPK...">
                             </div>
                             {{-- Auto-filled item info --}}
@@ -178,14 +188,16 @@
                             <div>
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">Quantity</label>
                                 <input type="number" wire:model="scan_qty" id="scan_qty"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
+                                    wire:loading.attr="disabled"
+                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     placeholder="Qty">
                             </div>
                             {{-- Whse --}}
                             <div>
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">Warehouse</label>
                                 <input type="text" wire:model="scan_whse" id="scan_whse"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
+                                    wire:loading.attr="disabled"
+                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     placeholder="Whse">
                             </div>
                         </div>
@@ -195,13 +207,20 @@
                             <div class="flex-1">
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">Label Barcode</label>
                                 <input type="text" wire:model="scan_label" id="scan_label"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
+                                    wire:loading.attr="disabled"
+                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     placeholder="Scan label box...">
                             </div>
-                            <button wire:click="addItem" type="button"
-                                class="px-6 py-3 bg-white text-blue-700 font-black rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-lg whitespace-nowrap">
-                                + ADD BOX
-                            </button>
+                            <div class="flex space-x-2">
+                                <button wire:click="resetScanner" type="button"
+                                    class="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/40 text-white font-bold rounded-xl transition-all active:scale-95 whitespace-nowrap">
+                                    RESET
+                                </button>
+                                <button wire:click="addItem" type="button"
+                                    class="px-6 py-3 bg-white text-blue-700 font-black rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-lg whitespace-nowrap">
+                                    + ADD BOX
+                                </button>
+                            </div>
                         </div>
 
                     @else
@@ -243,7 +262,11 @@
                             <span>Sistem akan menambahkan entry box sebanyak jumlah yang diinput dengan Qty masing-masing.</span>
                         </div>
 
-                        <div class="mt-4 flex justify-end">
+                        <div class="mt-4 flex justify-end space-x-2">
+                            <button wire:click="resetScanner" type="button"
+                                class="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/40 text-white font-bold rounded-xl transition-all active:scale-95">
+                                RESET
+                            </button>
                             <button wire:click="addItem" type="button"
                                 class="px-6 py-3 bg-white text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all active:scale-95 shadow-lg">
                                 + ADD BOX TANPA LABEL
@@ -400,6 +423,14 @@
         document.addEventListener('input', (e) => {
             const label = document.getElementById('scan_label');
             if (!label || document.activeElement !== label) return;
+            
+            // Check if input is disabled (means Livewire is currently processing)
+            if (label.disabled) {
+                e.preventDefault();
+                label.value = label.value.slice(0, -1); // Block character
+                return;
+            }
+
             clearTimeout(autoTimer);
             if (label.value.trim() !== '') {
                 autoTimer = setTimeout(() => { @this.addItem(); }, 1000);
