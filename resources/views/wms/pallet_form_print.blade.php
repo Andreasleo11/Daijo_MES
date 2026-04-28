@@ -15,6 +15,8 @@
             padding: 0;
             background-color: #fff;
             color: #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .a4-page {
             width: 210mm;
@@ -66,7 +68,7 @@
         }
         .summary-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 0.8fr 1.2fr;
             gap: 1mm;
             border-bottom: 1px solid #000;
             padding-bottom: 1mm;
@@ -86,11 +88,10 @@
         }
         .value {
             flex-grow: 1;
-            font-size: 7.5pt;
+            font-size: 7pt;
             font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.1;
+            word-break: break-all;
         }
         .multi-table-container {
             display: flex;
@@ -148,6 +149,16 @@
             padding: 0 1px;
             margin-left: 2px;
         }
+        .copy-badge {
+            background: #000;
+            color: #fff;
+            font-size: 10pt;
+            font-weight: 900;
+            padding: 2px 10px;
+            margin-bottom: 2mm;
+            text-align: center;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
@@ -189,14 +200,25 @@
             $groupIndex++;
         }
 
-        $a4Pages = array_chunk($allForms, 4);
+        // Duplicate each form to create a 'COPY' version next to it
+        $formsWithCopies = [];
+        foreach($allForms as $form) {
+            $formsWithCopies[] = (object)['data' => $form, 'isCopy' => false];
+            $formsWithCopies[] = (object)['data' => $form, 'isCopy' => true];
+        }
+
+        $a4Pages = array_chunk($formsWithCopies, 4);
     @endphp
 
     @foreach($a4Pages as $formsInPage)
         <div class="a4-page">
-            @foreach($formsInPage as $form)
+            @foreach($formsInPage as $item)
+                @php $form = $item->data; @endphp
                 <div class="form-slot">
                     <div class="form-container">
+                        @if($item->isCopy)
+                            <div class="copy-badge">COPY</div>
+                        @endif
                         <div class="header">
                             <h1>PALLET FORM</h1>
                             <div class="pos-code">{{ $palletForm->position->position_code ?? 'UNMAPPED' }}</div>

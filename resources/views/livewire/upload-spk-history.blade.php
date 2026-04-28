@@ -1,10 +1,28 @@
 <div class="p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-    <div class="mb-6">
-        <h2 class="text-xl font-bold text-gray-800">Upload Data SPK History (SAP)</h2>
-        <p class="text-gray-500 text-sm mt-1">
-            Proses upload ini akan memproses file Excel di belakang layar (background) karena ukurannya yang besar. 
-            Pastikan urutan kolom sesuai dengan format SAP: Kolom A (#), Kolom B (Document), Kolom C (Product No).
-        </p>
+    <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-6 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Upload Data SPK History (SAP)</h2>
+            <p class="text-gray-500 text-sm mt-1 max-w-2xl">
+                Proses upload ini akan memproses file Excel di belakang layar (background) karena ukurannya yang besar. 
+                Pastikan urutan kolom sesuai dengan format SAP: Kolom A (#), Kolom B (Document), Kolom C (Product No).
+            </p>
+        </div>
+
+        @php
+            $lastUpdate = \App\Models\SpkItemHistory::latest('created_at')->first();
+        @endphp
+        
+        @if($lastUpdate)
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 md:text-right shrink-0 min-w-[150px]">
+            <span class="block text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1">Terakhir Diperbarui</span>
+            <span class="block text-sm font-black text-gray-700">
+                {{ \Carbon\Carbon::parse($lastUpdate->created_at)->timezone('Asia/Jakarta')->format('d M Y') }}
+            </span>
+            <span class="block text-xs font-bold text-gray-500 mt-0.5">
+                {{ \Carbon\Carbon::parse($lastUpdate->created_at)->timezone('Asia/Jakarta')->format('H:i:s') }} WIB
+            </span>
+        </div>
+        @endif
     </div>
 
     @if (session()->has('success'))
