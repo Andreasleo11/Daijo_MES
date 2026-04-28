@@ -243,7 +243,9 @@
                             </tr>
                             <tr>
                                 <td class="summary-label">LOT/MO</td>
-                                <td class="summary-value" colspan="3">{{ $palletForm->lot_no ?: '-' }}</td>
+                                <td class="summary-value">{{ $palletForm->lot_no ?: '-' }}</td>
+                                <td class="summary-label">REMARK</td>
+                                <td class="summary-value">{{ $palletForm->remark ?: '-' }}</td>
                                 <td class="summary-label">QTY</td>
                                 <td class="summary-value">{{ number_format($form->headerInfo['qty'], 0) }}</td>
                             </tr>
@@ -262,10 +264,10 @@
                                     <table>
                                         <thead>
                                             <tr>
-                                                <th style="width: 15px">#</th>
-                                                <th style="width: 25px">Qty</th>
-                                                <th style="width: 50px">No Label</th>
-                                                <th>SPK/Reference</th>
+                                                <th style="width: 5mm; text-align: center;">#</th>
+                                                <th style="width: 10mm; text-align: right;">Qty</th>
+                                                <th style="width: 25mm">No Label</th>
+                                                <th>Reference</th>
                                             </tr>
                                         </thead>
                                         <tbody>
