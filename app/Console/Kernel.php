@@ -76,7 +76,9 @@ class Kernel extends ConsoleKernel
         //     ->timezone('Asia/Jakarta'); // or your preferred timezone
 
         $schedule->command('spk:sync')->dailyAt('07:40')->timezone('Asia/Jakarta');
+        $schedule->command('spk:sync')->dailyAt('10:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('12:00')->timezone('Asia/Jakarta');
+        $schedule->command('spk:sync')->dailyAt('15:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('17:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('23:00')->timezone('Asia/Jakarta');
     }

@@ -7,6 +7,7 @@ use App\Models\WmsPosition;
 use App\Services\WmsService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class RackMapping extends Component
 {
@@ -69,7 +70,7 @@ class RackMapping extends Component
     public function createNewRack(WmsService $wmsService)
     {
         $this->validate([
-            'newRackCode' => 'required|unique:wms_racks,rack_code',
+            'newRackCode' => ['required', Rule::unique('wms_racks', 'rack_code')->whereNull('deleted_at')],
             'newLevels' => 'required|integer|min:1',
             'newSlotsPerLevel' => 'required|integer|min:1',
             'newRackCustomer' => 'nullable|string',
