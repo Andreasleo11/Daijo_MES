@@ -165,24 +165,12 @@
                         {{-- Normal Scan Mode --}}
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {{-- SPK --}}
-                            <div>
+                            <div class="col-span-2">
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">SPK Code</label>
-                                <input type="text" wire:model.live.debounce.500ms="scan_spk" id="scan_spk"
+                                <input type="text" wire:model="scan_spk" id="scan_spk"
                                     wire:loading.attr="disabled"
                                     class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     placeholder="Scan SPK...">
-                            </div>
-                            {{-- Auto-filled item info --}}
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Item (Auto)</label>
-                                <div class="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white/90 text-sm min-h-[50px]">
-                                    @if($scan_part_no)
-                                        <div class="font-bold leading-tight">{{ $scan_part_no }}</div>
-                                        <div class="text-xs text-white/60 truncate">{{ $scan_model_name }}</div>
-                                    @else
-                                        <span class="text-white/40 italic text-xs">Scan SPK dulu...</span>
-                                    @endif
-                                </div>
                             </div>
                             {{-- Qty --}}
                             <div>
@@ -416,9 +404,10 @@
             if (active === spk)   { e.preventDefault(); qty?.focus(); }
             else if (active === qty)  { e.preventDefault(); whse?.focus(); }
             else if (active === whse) { e.preventDefault(); label ? label.focus() : null; }
+            else if (active === label) { e.preventDefault(); @this.addItem(); }
         });
 
-        // Auto-submit 1s after label stops changing
+        // Auto-submit after label stops changing
         let autoTimer;
         document.addEventListener('input', (e) => {
             const label = document.getElementById('scan_label');
@@ -433,7 +422,7 @@
 
             clearTimeout(autoTimer);
             if (label.value.trim() !== '') {
-                autoTimer = setTimeout(() => { @this.addItem(); }, 1000);
+                autoTimer = setTimeout(() => { @this.addItem(); }, 400);
             }
         });
     </script>

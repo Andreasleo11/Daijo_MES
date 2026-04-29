@@ -55,40 +55,7 @@ class PalletFormCreator extends Component
         $this->prod_date = now()->format('Y-m-d');
     }
 
-    // ─── SPK Lookup ────────────────────────────────────────────────────────────
 
-    /**
-     * Triggered on every SPK input change.
-     * Looks up spk_item_histories → master_list_items to auto-fill item details.
-     */
-    public function updatedScanSpk(string $value): void
-    {
-        // Clear previous auto-fill
-        $this->scan_part_no       = '';
-        $this->scan_model_name    = '';
-        $this->scan_customer_code = '';
-
-        if (strlen(trim($value)) < 3) {
-            return;
-        }
-
-        $spkHistory = SpkItemHistory::where('spk_number', trim($value))->first();
-
-        if (! $spkHistory) {
-            // Tidak blok di sini — validasi hard dilakukan saat addItem()
-            // agar tidak annoying saat user masih ngetik
-            return;
-        }
-
-        $item = MasterListItem::where('item_code', $spkHistory->item_code)->first();
-
-        $this->scan_part_no       = $spkHistory->item_code;
-        $this->scan_model_name    = $item?->item_name ?? '-';
-        $this->scan_customer_code = $item?->customer_code ?? '';
-
-        // Fokus ke field berikutnya
-        $this->dispatch('focus-qty');
-    }
 
     // ─── No-Label Toggle ───────────────────────────────────────────────────────
 
