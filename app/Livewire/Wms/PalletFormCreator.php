@@ -21,6 +21,10 @@ class PalletFormCreator extends Component
     public $total_box        = 0;
     public $total_pallet_qty = 0;
 
+    // ─── Success Modal State ───────────────────────────────────────────────────
+    public $showSuccessModal = false;
+    public $lastGeneratedPalletId = null;
+
     // ─── Scan Fields ───────────────────────────────────────────────────────────
     public string $scan_spk   = '';
     public string $scan_qty   = '';
@@ -97,6 +101,20 @@ class PalletFormCreator extends Component
         $this->dispatch('focus-spk');
     }
 
+    public function resetWholeForm(): void
+    {
+        $this->lot_no            = '';
+        $this->remarks           = '';
+        $this->delivery_name     = '';
+        $this->delivery_shift    = '';
+        $this->total_box         = 0;
+        $this->total_pallet_qty  = 0;
+        $this->scanned_items     = [];
+        $this->showSuccessModal  = false;
+        $this->lastGeneratedPalletId = null;
+        $this->resetScanner();
+    }
+
     /**
      * Add a box to the scanned list.
      * Handles both normal (with SPK+label) and no-label boxes.
@@ -129,6 +147,7 @@ class PalletFormCreator extends Component
             $this->label_mode = 'SCAN';
             $this->resetScanner();
             $this->calculateTotals();
+            $this->dispatch('scan-success');
             return;
         }
 
@@ -137,6 +156,7 @@ class PalletFormCreator extends Component
         // Wajib ada SPK
         if (empty(trim($this->scan_spk))) {
             session()->flash('scan_error', 'SPK harus di-scan terlebih dahulu.');
+            $this->dispatch('scan-error');
             return;
         }
 
@@ -145,6 +165,7 @@ class PalletFormCreator extends Component
             $spkHistory = SpkItemHistory::where('spk_number', trim($this->scan_spk))->first();
             if (! $spkHistory) {
                 session()->flash('scan_error', 'SPK "' . $this->scan_spk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
+                $this->dispatch('scan-error');
                 return;
             }
             // Auto-fill jika belum terisi (misalnya debounce belum trigger)
@@ -157,6 +178,7 @@ class PalletFormCreator extends Component
         // Wajib ada label
         if (empty(trim($this->scan_label))) {
             session()->flash('scan_error', 'Label harus di-scan, atau tekan "Tanpa Label" jika box tidak memiliki label.');
+            $this->dispatch('scan-error');
             return;
         }
 
@@ -169,11 +191,14 @@ class PalletFormCreator extends Component
             ) {
                 session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah ada di daftar scan saat ini.');
                 $this->resetScanner();
+                $this->dispatch('scan-error');
                 return;
             }
         }
 
-        // Cek duplikat di database (global)
+        // Cek duplikat di database (global) - DISABLED per user request
+        // User ingin label yang sama bisa di-scan lagi di palet yang berbeda
+        /*
         $exists = WmsPalletFormDetail::where('spk_no', trim($this->scan_spk))
             ->where('label', trim($this->scan_label))
             ->exists();
@@ -181,8 +206,10 @@ class PalletFormCreator extends Component
         if ($exists) {
             session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah pernah tersimpan di database sebelumnya.');
             $this->resetScanner();
+            $this->dispatch('scan-error');
             return;
         }
+        */
 
         // Tambahkan ke list
         $this->scanned_items[] = [
@@ -199,6 +226,7 @@ class PalletFormCreator extends Component
 
         $this->resetScanner();
         $this->calculateTotals();
+        $this->dispatch('scan-success');
     }
 
     public function removeItem(int $index): void
@@ -306,7 +334,8 @@ class PalletFormCreator extends Component
 
             DB::commit();
 
-            return redirect()->route('wms.pallet-form.print', ['id' => $palletId]);
+            $this->lastGeneratedPalletId = $palletId;
+            $this->showSuccessModal = true;
 
         } catch (\Exception $e) {
             DB::rollBack();
