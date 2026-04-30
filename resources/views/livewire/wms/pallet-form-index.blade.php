@@ -47,7 +47,7 @@
                                     <div class="font-bold text-gray-800">{{ $form->pallet_id }}</div>
                                     <div class="text-xs text-gray-400">#{{ $form->lot_no ?: 'No Lot' }}</div>
                                 </td>
-                                 <td class="px-6 py-4 text-sm text-gray-600">
+                                <td class="px-6 py-4 text-sm text-gray-600">
                                     {{ $form->created_at->timezone('Asia/Jakarta')->format('d M Y') }}
                                     <div class="text-xs text-gray-400">{{ $form->created_at->timezone('Asia/Jakarta')->format('H:i') }} WIB</div>
                                 </td>
@@ -64,12 +64,18 @@
                                         {{ $form->position->position_code ?? 'UNASSIGNED' }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-right">
+                                <td class="px-6 py-4 text-right flex justify-end space-x-2">
                                     <a href="{{ route('wms.pallet-form.print', ['id' => $form->pallet_id]) }}" target="_blank"
                                         class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-bold transition-all">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z"></path></svg>
                                         REPRINT
                                     </a>
+                                    <button wire:click="deletePallet('{{ $form->pallet_id }}')" 
+                                        wire:confirm="Apakah Anda yakin ingin menghapus pallet {{ $form->pallet_id }}? Data ini tidak bisa dikembalikan."
+                                        class="inline-flex items-center px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-sm font-bold transition-all">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        DELETE
+                                    </button>
                                 </td>
                             </tr>
                         @empty

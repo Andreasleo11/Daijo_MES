@@ -24,6 +24,7 @@ class PalletFormCreator extends Component
     // ─── Success Modal State ───────────────────────────────────────────────────
     public $showSuccessModal = false;
     public $lastGeneratedPalletId = null;
+    public $isProcessing = false;
 
     // ─── Scan Fields ───────────────────────────────────────────────────────────
     public string $scan_spk   = '';
@@ -270,6 +271,9 @@ class PalletFormCreator extends Component
             return;
         }
 
+        if ($this->isProcessing) return;
+        $this->isProcessing = true;
+
         try {
             DB::beginTransaction();
 
@@ -340,6 +344,8 @@ class PalletFormCreator extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', $e->getMessage());
+        } finally {
+            $this->isProcessing = false;
         }
     }
 

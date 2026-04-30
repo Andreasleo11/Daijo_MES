@@ -79,6 +79,12 @@
                             @error('delivery_name') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                         </div>
 
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</label>
+                            <textarea wire:model="remarks" placeholder="Catatan tambahan (opsional)..." rows="2"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"></textarea>
+                        </div>
+
                         {{-- Auto-calculated totals --}}
                         <div class="grid grid-cols-2 gap-3">
                             <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-center">
@@ -112,11 +118,6 @@
                                 <div class="text-xs text-amber-600">{{ $uniqueParts->implode(', ') }}</div>
                             </div>
                         @endif
-
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</label>
-                            <textarea wire:model="remarks" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"></textarea>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -351,9 +352,13 @@
                             @endif
                         </div>
                         <button wire:click="generateForm" type="button"
-                            class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center">
-                            <span>GENERATE PALLET FORM</span>
-                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            wire:loading.attr="disabled"
+                            wire:target="generateForm"
+                            @if($isProcessing) disabled @endif
+                            class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center disabled:bg-gray-400 disabled:shadow-none">
+                            <span wire:loading.remove wire:target="generateForm">GENERATE PALLET FORM</span>
+                            <span wire:loading wire:target="generateForm">PROCESSING...</span>
+                            <svg wire:loading.remove wire:target="generateForm" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         </button>
                     </div>
                 </div>
@@ -388,6 +393,37 @@
                     const el = document.getElementById('scan_label');
                     if (el) el.focus();
                 }, 60);
+            });
+
+            // Audio Feedback Logic
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration/1000);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration/1000);
+            }
+
+            Livewire.on('scan-success', () => {
+                playTone(1200, 200, 'sawtooth', 0.4); // More piercing success
+                setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); // Double ding
+            });
+
+            Livewire.on('scan-error', () => {
+                playTone(100, 400, 'square', 0.6); // Louder low buzz
+                setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
             });
         });
 
@@ -432,4 +468,34 @@
             box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
         }
     </style>
+
+    {{-- Success Modal --}}
+    @if($showSuccessModal)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300">
+                <div class="p-8 text-center">
+                    <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-black text-gray-800 mb-2">BERHASIL!</h3>
+                    <p class="text-gray-500 mb-8">Pallet Form <strong>{{ $lastGeneratedPalletId }}</strong> telah berhasil dibuat.</p>
+                    
+                    <div class="space-y-3">
+                        <a href="{{ route('wms.pallet-form.print', $lastGeneratedPalletId) }}" target="_blank" 
+                            @click="$wire.resetWholeForm()"
+                            class="block w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95">
+                            LIHAT & PRINT HASIL
+                        </a>
+                        <button wire:click="resetWholeForm" type="button"
+                            class="block w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all active:scale-95">
+                            LANJUT SCAN BARU
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-8 py-4 text-center">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">WMS SYSTEM v1.0</span>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

@@ -3,6 +3,7 @@
 namespace App\Livewire\Wms;
 
 use App\Models\WmsPalletForm;
+use App\Services\WmsService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,6 +18,27 @@ class PalletFormIndex extends Component
     public function updatingSearch()
     {
         $this->resetPage();
+    }
+
+    public function deletePallet($palletId, WmsService $wmsService)
+    {
+        try {
+            $pallet = WmsPalletForm::findOrFail($palletId);
+            $positionId = $pallet->position_id;
+
+            // Delete the pallet (will also delete details if cascading is active, 
+            // but since we use SoftDeletes, we should be careful)
+            $pallet->delete();
+
+            // Update rack status if it was in a rack
+            if ($positionId) {
+                $wmsService->updatePositionStatus($positionId);
+            }
+
+            session()->flash('success', "Pallet $palletId berhasil dihapus.");
+        } catch (\Exception $e) {
+            session()->flash('error', "Gagal menghapus pallet: " . $e->getMessage());
+        }
     }
 
     public function render()
