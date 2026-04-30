@@ -47,9 +47,9 @@
                                     <div class="font-bold text-gray-800">{{ $form->pallet_id }}</div>
                                     <div class="text-xs text-gray-400">#{{ $form->lot_no ?: 'No Lot' }}</div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    {{ $form->created_at->format('d M Y') }}
-                                    <div class="text-xs text-gray-400">{{ $form->created_at->format('H:i') }}</div>
+                                 <td class="px-6 py-4 text-sm text-gray-600">
+                                    {{ $form->created_at->timezone('Asia/Jakarta')->format('d M Y') }}
+                                    <div class="text-xs text-gray-400">{{ $form->created_at->timezone('Asia/Jakarta')->format('H:i') }} WIB</div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-gray-800">{{ $form->part_no }}</div>

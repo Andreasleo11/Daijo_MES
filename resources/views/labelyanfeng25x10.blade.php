@@ -50,7 +50,7 @@
         }
 
         .barcode img {
-            width: 9mm;  /* Data Matrix HARUS kotak sempurna (Square) */
+            width: 11mm;  /* Data Matrix HARUS kotak sempurna (Square) */
             height: 9mm; /* Jangan buat lonjong agar scanner mudah baca */
             image-rendering: pixelated; /* Jaga agar kotak-kotaknya tetap tajam/crisp */
             image-rendering: crisp-edges;

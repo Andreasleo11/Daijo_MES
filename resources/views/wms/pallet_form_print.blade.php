@@ -9,6 +9,9 @@
             size: A4 portrait;
             margin: 0;
         }
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -25,7 +28,6 @@
             grid-template-columns: 105mm 105mm;
             grid-template-rows: 148.5mm 148.5mm;
             page-break-after: always;
-            box-sizing: border-box;
             overflow: hidden;
         }
         .a4-page:last-child {
@@ -34,14 +36,12 @@
         .form-slot {
             width: 105mm;
             height: 148.5mm;
-            padding: 2mm;
-            box-sizing: border-box;
+            padding: 2.5mm; /* Increased padding */
         }
         .form-container {
             border: 1.5px solid #000;
-            padding: 2mm;
+            padding: 1.5mm 2.5mm 1.5mm 1.5mm; /* More padding on right */
             height: 100%;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
         }
@@ -54,74 +54,74 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 15pt;
+            font-size: 13pt;
             font-weight: 900;
         }
         .pos-code {
-            font-size: 10pt;
+            font-size: 9pt;
             font-weight: bold;
             background: #000;
             color: #fff;
             display: inline-block;
-            padding: 2px 8px;
+            padding: 1px 6px;
             border-radius: 2px;
         }
         .summary-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 2mm;
+            margin-bottom: 1mm;
             flex-shrink: 0;
-            border: 1px solid #000;
+            border: 1.5px solid #000;
         }
         .summary-table td {
             border: 1px solid #000;
-            padding: 1.5px 3px;
-            vertical-align: top;
+            padding: 1px 2px;
+            vertical-align: middle;
         }
         .summary-label {
-            font-size: 6pt;
-            color: #444;
-            font-weight: bold;
+            font-size: 5pt;
+            color: #000;
+            font-weight: 900;
             text-transform: uppercase;
-            width: 12mm;
-            background-color: #fafafa;
+            width: 10mm;
+            background-color: #eee;
         }
         .summary-value {
-            font-size: 8pt;
+            font-size: 7.5pt;
             font-weight: 900;
-            line-height: 1.1;
+            line-height: 1.0;
         }
         .multi-table-container {
             display: flex;
-            gap: 1.5mm;
+            gap: 2mm;
             flex-grow: 1;
             overflow: hidden;
-            margin-bottom: 1.5mm;
+            margin-bottom: 1mm;
         }
         .table-column {
             flex: 1;
-            border-right: 1px solid #eee;
-        }
-        .table-column:last-child {
-            border-right: none;
+            min-width: 0;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 6.5pt;
+            font-size: 7.2pt;
+            table-layout: fixed; /* Force fixed width */
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 0.5px 1.5px;
+            border: 1px solid #000;
+            padding: 1px 2px;
             text-align: left;
-            white-space: nowrap;
+            font-weight: 900;
+            color: #000;
+            white-space: nowrap; /* Prevent wrapping */
         }
         th {
-            background-color: #f5f5f5;
-            font-weight: bold;
+            background-color: #eee;
+            font-weight: 900;
             text-transform: uppercase;
-            border-bottom: 1px solid #000;
-            font-size: 5pt;
+            border: 1px solid #000;
+            font-size: 6pt;
         }
         .barcode-section {
             border-top: 1.5px solid #000;
@@ -163,7 +163,7 @@
 
     @php
         // Parameters for 1/4 A4 size
-        $rowsPerColumn = 20; // Reduced because font is larger
+        $rowsPerColumn = 15; // Adjusted to prevent cutoff
         $colsPerPage = 2;    
         $itemsPerPage = $rowsPerColumn * $colsPerPage;
 
@@ -264,21 +264,21 @@
                                     <table>
                                         <thead>
                                             <tr>
-                                                <th style="width: 5mm; text-align: center;">#</th>
-                                                <th style="width: 10mm; text-align: right;">Qty</th>
-                                                <th style="width: 25mm">No Label</th>
-                                                <th>Reference</th>
+                                                <th style="width: 6mm; text-align: center;">#</th>
+                                                <th style="width: 6mm; text-align: right;">Qty</th>
+                                                <th style="width: 15mm">Box Label</th>
+                                                <th style="width: 19mm">SPK NO</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @foreach($columnItems as $item)
                                                 <tr>
-                                                    <td style="color: #000; font-weight: 900; text-align: center;">{{ $form->groupItems->search($item) + 1 }}</td>
-                                                    <td style="text-align: right; font-weight: 900;">{{ number_format($item->qty, 0) }}</td>
-                                                    <td style="font-family: monospace; font-size: 5.5pt; overflow: hidden; font-weight: bold;">
+                                                    <td style="text-align: center;">{{ $form->groupItems->search($item) + 1 }}</td>
+                                                    <td style="text-align: right;">{{ number_format($item->qty, 0) }}</td>
+                                                    <td style="font-family: monospace; font-size: 6.2pt;">
                                                         {{ $item->label ?: '-' }}
                                                     </td>
-                                                    <td style="font-family: monospace; font-size: 5.5pt; overflow: hidden; font-weight: bold;">
+                                                    <td style="font-family: monospace; font-size: 6.2pt;">
                                                         {{ $item->spk_no ?: '-' }}
                                                     </td>
                                                 </tr>
@@ -297,7 +297,7 @@
                             <div class="footer">
                                 Part: {{ $form->groupIteration }}/{{ $groups->count() }} | 
                                 Page: {{ $form->pageIndex + 1 }}/{{ $form->totalPages }} | 
-                                {{ now()->format('d/m/y H:i') }}
+                                {{ now()->timezone('Asia/Jakarta')->format('d/m/y H:i') }} WIB
                             </div>
                         </div>
                     </div>
