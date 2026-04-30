@@ -11,6 +11,7 @@ use App\Models\BarcodePackagingDetail;
 use App\Models\UpdateLog;
 use App\Models\SpkItemHistory;
 use App\Models\MasterItemPhoto;
+use App\Models\ApiLog;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\SoImport;
@@ -512,18 +513,44 @@ class SOController extends Controller
 
             DB::commit();
 
-            return response()->json([
+            $responseData = [
                 'message' => 'DO data processed successfully',
                 'total' => count($request->all())
-            ], 200);
+            ];
+
+            ApiLog::create([
+                'api_name' => 'DO Sync',
+                'method' => $request->method(),
+                'endpoint' => $request->fullUrl(),
+                'request_payload' => $request->all(),
+                'response_payload' => $responseData,
+                'status_code' => 200,
+                'status' => 'success',
+                'message' => 'DO data processed successfully'
+            ]);
+
+            return response()->json($responseData, 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json([
+            $errorResponse = [
                 'message' => 'Failed to process data',
                 'error' => $e->getMessage()
-            ], 500);
+            ];
+
+            ApiLog::create([
+                'api_name' => 'DO Sync',
+                'method' => $request->method(),
+                'endpoint' => $request->fullUrl(),
+                'request_payload' => $request->all(),
+                'response_payload' => $errorResponse,
+                'status_code' => 500,
+                'status' => 'failed',
+                'message' => $e->getMessage()
+            ]);
+
+            return response()->json($errorResponse, 500);
         }
     }
 
@@ -550,27 +577,57 @@ class SOController extends Controller
                     throw new \Exception($validator->errors()->first());
                 }
 
-                SpkItemHistory::create([
-                    'spk_number'      => $row['spk_number'],
-                    'item_code'       => $row['item_code'],
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+                SpkItemHistory::updateOrCreate(
+                    [
+                        'spk_number' => $row['spk_number'],
+                        'item_code'  => $row['item_code'],
+                    ],
+                    [
+                        'updated_at' => now(),
+                    ]
+                );
             }
 
             DB::commit();
 
-            return response()->json([
+            $responseData = [
                 'message' => 'SPK data inserted successfully',
                 'total'   => count($request->all())
-            ], 200);
+            ];
+
+            ApiLog::create([
+                'api_name' => 'SPK Insert SAP',
+                'method' => $request->method(),
+                'endpoint' => $request->fullUrl(),
+                'request_payload' => $request->all(),
+                'response_payload' => $responseData,
+                'status_code' => 200,
+                'status' => 'success',
+                'message' => 'SPK data inserted successfully'
+            ]);
+
+            return response()->json($responseData, 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json([
-                'message' => 'Failed to insert SPK data'
-            ], 500);
+            $errorResponse = [
+                'message' => 'Failed to insert SPK data',
+                'error' => $e->getMessage()
+            ];
+
+            ApiLog::create([
+                'api_name' => 'SPK Sync',
+                'method' => $request->method(),
+                'endpoint' => $request->fullUrl(),
+                'request_payload' => $request->all(),
+                'response_payload' => $errorResponse,
+                'status_code' => 500,
+                'status' => 'failed',
+                'message' => $e->getMessage()
+            ]);
+
+            return response()->json($errorResponse, 500);
         }
     }
 
