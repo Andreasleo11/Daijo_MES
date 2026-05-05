@@ -6,6 +6,7 @@ use App\Services\MachineMonitoringService;
 use App\Models\MasterZone;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\Layout;
 
 class MachineStatusMonitor extends Component
 {
@@ -13,6 +14,7 @@ class MachineStatusMonitor extends Component
 
     public $selectedZone = '';
     public $search = '';
+    public $interactive = true; 
     
     // Drill-down properties
     public $selectedMachineId = null;
@@ -33,6 +35,8 @@ class MachineStatusMonitor extends Component
 
     public function selectMachine($id)
     {
+        if (!$this->interactive) return;
+
         $this->selectedMachineId = $id;
         $this->machineDetails = $this->machineService->getMachineDetailedHistory($id);
     }
@@ -46,6 +50,7 @@ class MachineStatusMonitor extends Component
     /**
      * Get data for rendering
      */
+    #[Layout('layouts.dashboard')]
     public function render()
     {
         $machines = $this->machineService->getMachineStatuses(

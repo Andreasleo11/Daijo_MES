@@ -16,6 +16,7 @@ use App\Imports\OperatorUsersImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
 
 
 class OperatorUserController extends Controller
@@ -83,43 +84,47 @@ class OperatorUserController extends Controller
             'CompanyArea' => '10000'
         ]);
 
-        $data = $response->json(); // hasilnya array asosiatif
-        // dd($data);
+        $data = $response->json();
         $users = OperatorUser::all();
+
+        // 🔥 STEP 1: group employee by name + ambil NIK terbaru
+        $employeeMap = collect($data['data'] ?? [])
+            ->filter(function ($emp) {
+                return isset($emp['Name'], $emp['NIK'], $emp['StartDate']);
+            })
+            ->groupBy(function ($emp) {
+                return strtolower(trim($emp['Name']));
+            })
+            ->map(function ($group) {
+                return $group->sortByDesc(function ($emp) {
+                    try {
+                        return Carbon::createFromFormat('d/m/Y', $emp['StartDate']);
+                    } catch (\Exception $e) {
+                        return Carbon::create(1900, 1, 1);
+                    }
+                })->first()['NIK'] ?? null;
+            });
+
         $qrCodes = [];
 
+        // 🔥 STEP 2: generate QR + ambil NIK dari map (O(1))
         foreach ($users as $user) {
-              // Cari NIK berdasarkan nama
-            $nik = 'NIK Not Found'; // default
-            if (isset($data['data']) && is_array($data['data'])) {
-                foreach ($data['data'] as $employee) {
-                    if (
-                        isset($employee['Name']) &&
-                        strtolower(trim($employee['Name'])) === strtolower(trim($user->name))
-                    ) {
-                        $nik = $employee['NIK'];
-                        break;
-                    }
-                }
-            }
+            $nameKey = strtolower(trim($user->name));
+            $nik = $employeeMap[$nameKey] ?? 'NIK Not Found';
+
             $barcodeData = $user->name . "\t" . $user->password;
 
-            // Create a new QR code with specified parameters
             $qrCode = new QrCode(
                 data: $barcodeData,
                 errorCorrectionLevel: ErrorCorrectionLevel::High,
-                size: 100,  // Adjust the size as needed
-                margin: 5    // Adjust the margin as needed
+                size: 100,
+                margin: 5
             );
 
-            // Generate the QR code using the PngWriter
             $writer = new PngWriter();
             $qrCodeResult = $writer->write($qrCode);
 
-            // Get the PNG image as a string
             $qrCodeImage = $qrCodeResult->getString();
-
-            // Base64 encode the image to embed in HTML
             $qrcoded = base64_encode($qrCodeImage);
 
             $qrCodes[] = [
@@ -128,7 +133,7 @@ class OperatorUserController extends Controller
                 'photo' => $user->profile_picture,
                 'role' => $user->position,
                 'department' => $user->department,
-                'nik' => $nik ?? 'NIK Not Found',
+                'nik' => $nik,
             ];
         }
 

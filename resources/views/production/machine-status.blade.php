@@ -1,7 +1,7 @@
-<x-app-layout>
+<x-dashboard-layout>
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <livewire:machine-status-monitor />
+            <livewire:machine-status-monitor :interactive="false" />
         </div>
     </div>
-</x-app-layout>
+</x-dashboard-layout>

@@ -98,6 +98,11 @@ use App\Livewire\ManualSync;
 */
 
 
+    Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
+        ->name('machine.monitor');
+
+
+
 
     Route::get('/production-dashboard', ProductionDashboard::class)
         ->name('production-dashboard');
@@ -342,10 +347,6 @@ Route::middleware('auth')->group(function (){
 
 
     Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');
-
-    Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
-        ->name('machine.monitor');
-
 
     Route::get('/receipt-production-logs', ReceiptProductionLogs::class)->name('receipt-production-logs');
 

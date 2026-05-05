@@ -70,8 +70,8 @@
                     default => 'rose'
                 };
             @endphp
-            <div wire:click="selectMachine({{ $machine['id'] }})" 
-                 class="relative group cursor-pointer transition-all duration-500 hover:-translate-y-2">
+            <div @if($interactive) wire:click="selectMachine({{ $machine['id'] }})" @endif 
+                 class="relative group @if($interactive) cursor-pointer @endif transition-all duration-500 hover:-translate-y-2">
                 
                 {{-- Glowing Border / Shadow --}}
                 <div class="absolute -inset-0.5 bg-{{ $statusColor }}-500/0 group-hover:bg-{{ $statusColor }}-500/20 rounded-3xl blur-xl transition duration-500 opacity-0 group-hover:opacity-100"></div>
