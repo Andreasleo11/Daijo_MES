@@ -132,7 +132,7 @@ class BaseSapService
                     'Content-Type'  => 'application/json',  // ← tambah ini
                     'Host'          => 'localhost',
                 ])
-                ->timeout(30)
+                ->timeout(600)
                 ->post($this->baseUrl . $endpoint, $payload);
                 
             if ($response->successful()) {
@@ -151,7 +151,7 @@ class BaseSapService
                         'Content-Type'  => 'application/json',  // ← tambah ini
                         'Host'          => 'localhost',
                     ])
-                    ->timeout(30)
+                    ->timeout(600)
                     ->post($this->baseUrl . $endpoint, $payload);
                     
                 return $response;
