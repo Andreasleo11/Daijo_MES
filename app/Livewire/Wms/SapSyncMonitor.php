@@ -53,17 +53,20 @@ class SapSyncMonitor extends Component
     /**
      * Retry syncing a pallet
      */
+    /**
+     * Retry syncing a pallet
+     */
     public function retrySync($palletId)
     {
         // Reset status to pending (0) to trigger UI polling
         WmsPalletForm::where('pallet_id', $palletId)->update([
             'sap_sync_status' => 0,
-            // Header doesn't have error_msg anymore, but let's be safe
+            'updated_at'      => now()
         ]);
 
-        // Cuma riset detail yang BELUM sukses (status != 1)
+        // Cuma riset detail yang BELUM sukses (status != 1) dan BELUM diabaikan (status != 4)
         WmsPalletFormDetail::where('pallet_form_id', $palletId)
-            ->where('sap_sync_status', '!=', 1)
+            ->whereNotIn('sap_sync_status', [1, 4])
             ->update([
                 'sap_sync_status' => 0,
                 'sap_error_msg'   => null
@@ -72,6 +75,44 @@ class SapSyncMonitor extends Component
         SyncPalletToSapJob::dispatch($palletId);
         
         session()->flash('message', "Pallet {$palletId} re-queued for synchronization.");
+    }
+
+    /**
+     * Mark a pallet as ignored
+     */
+    public function ignorePallet($palletId)
+    {
+        WmsPalletForm::where('pallet_id', $palletId)->update([
+            'sap_sync_status' => 4, // 4 = IGNORED
+            'sap_error_msg'   => 'Manually ignored by user'
+        ]);
+
+        WmsPalletFormDetail::where('pallet_form_id', $palletId)
+            ->where('sap_sync_status', '!=', 1)
+            ->update([
+                'sap_sync_status' => 4,
+                'sap_error_msg'   => 'Manually ignored by user'
+            ]);
+
+        session()->flash('message', "Pallet {$palletId} marked as ignored.");
+    }
+
+    /**
+     * Mark a specific detail as ignored
+     */
+    public function ignoreDetail($detailId)
+    {
+        WmsPalletFormDetail::where('id', $detailId)->update([
+            'sap_sync_status' => 4,
+            'sap_error_msg'   => 'Manually ignored by user'
+        ]);
+
+        // Refresh details
+        if ($this->selectedPalletId) {
+            $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $this->selectedPalletId)->get();
+        }
+
+        session()->flash('message', "Item marked as ignored.");
     }
 
     /**
@@ -86,7 +127,7 @@ class SapSyncMonitor extends Component
         // Bulk Reset Status to 0 cuma buat yang BELUM sukses
         WmsPalletForm::whereIn('pallet_id', $failedPalletIds)->update(['sap_sync_status' => 0]);
         WmsPalletFormDetail::whereIn('pallet_form_id', $failedPalletIds)
-            ->where('sap_sync_status', '!=', 1)
+            ->whereNotIn('sap_sync_status', [1, 4])
             ->update([
                 'sap_sync_status' => 0,
                 'sap_error_msg'   => null
