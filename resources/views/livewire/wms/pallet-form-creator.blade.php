@@ -1,4 +1,5 @@
-<div class="p-6 bg-gray-50 min-h-screen">
+<div class="p-6 bg-gray-50 min-h-screen" 
+     @if($showSuccessModal && $sapSyncStatus === 'pending') wire:poll.2s="checkSapSyncStatus" @endif>
     <div class="max-w-7xl mx-auto space-y-6">
 
         {{-- Header --}}
@@ -15,9 +16,6 @@
                 <a href="{{ route('wms.mapping') }}" class="px-4 py-2 bg-slate-800 hover:bg-black text-white rounded-xl text-sm font-semibold flex items-center transition-all">
                     <svg class="w-4 h-4 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
                     WAREHOUSE MAPPING
-                </a>
-                <a href="{{ route('wms.pallet-form.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold flex items-center transition-all">
-                    VIEW HISTORY
                 </a>
                 <span class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">Gudang J06</span>
             </div>
@@ -472,28 +470,74 @@
     {{-- Success Modal --}}
     @if($showSuccessModal)
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300">
-                <div class="p-8 text-center">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                <div class="p-8 text-center flex-1 overflow-y-auto custom-scrollbar">
                     <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                     </div>
-                    <h3 class="text-2xl font-black text-gray-800 mb-2">BERHASIL!</h3>
-                    <p class="text-gray-500 mb-8">Pallet Form <strong>{{ $lastGeneratedPalletId }}</strong> telah berhasil dibuat.</p>
+                    <h3 class="text-2xl font-black text-gray-800 mb-2 tracking-tighter italic">PALLET CREATED!</h3>
+                    <p class="text-gray-500 mb-6 text-sm">Pallet ID: <span class="font-black text-blue-600 tracking-tight">{{ $lastGeneratedPalletId }}</span></p>
                     
-                    <div class="space-y-3">
+                    {{-- SAP Sync Status Section --}}
+                    <div class="mb-8 p-4 rounded-2xl border-2 {{ $sapSyncStatus === 'pending' ? 'bg-blue-50 border-blue-100' : (empty($failedSapItems) ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100') }} transition-colors">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest {{ $sapSyncStatus === 'pending' ? 'text-blue-500' : (empty($failedSapItems) ? 'text-green-600' : 'text-red-600') }}">
+                                SAP Integration Status
+                            </span>
+                            @if($sapSyncStatus === 'pending')
+                                <div class="flex items-center space-x-1">
+                                    <div class="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
+                                    <div class="w-1 h-1 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                    <div class="w-1 h-1 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.5s]"></div>
+                                </div>
+                            @endif
+                        </div>
+
+                        @if($sapSyncStatus === 'pending')
+                            <p class="text-xs font-bold text-blue-700 italic">Sinkronisasi ke SAP sedang berjalan di background...</p>
+                        @elseif(empty($failedSapItems))
+                            <p class="text-xs font-bold text-green-700">✅ Berhasil! Semua data terkirim ke SAP tanpa kendala.</p>
+                        @else
+                            <div class="space-y-3">
+                                <p class="text-xs font-black text-red-700 uppercase tracking-tighter">⚠️ Ada {{ count($failedSapItems) }} SPK yang gagal terkirim ke SAP:</p>
+                                <div class="overflow-hidden border border-red-200 rounded-xl">
+                                    <table class="w-full text-left text-[10px]">
+                                        <thead class="bg-red-100 text-red-700 font-black uppercase tracking-widest">
+                                            <tr>
+                                                <th class="px-3 py-2">SPK No</th>
+                                                <th class="px-3 py-2">Error Message</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-red-100 bg-white">
+                                            @foreach($failedSapItems as $failed)
+                                                <tr>
+                                                    <td class="px-3 py-2 font-black text-gray-800">{{ $failed['spk_no'] }}</td>
+                                                    <td class="px-3 py-2 font-bold text-red-600 italic break-words">{{ $failed['sap_error_msg'] }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button wire:click="retrySapSync" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-200">
+                                    RETRY SAP SYNC
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <a href="{{ route('wms.pallet-form.print', $lastGeneratedPalletId) }}" target="_blank" 
-                            @click="$wire.resetWholeForm()"
-                            class="block w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95">
-                            LIHAT & PRINT HASIL
+                            class="block py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 text-sm uppercase">
+                            Print Label
                         </a>
                         <button wire:click="resetWholeForm" type="button"
-                            class="block w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all active:scale-95">
-                            LANJUT SCAN BARU
+                            class="block py-4 bg-slate-800 hover:bg-black text-white font-bold rounded-2xl transition-all active:scale-95 text-sm uppercase">
+                            Next Scan
                         </button>
                     </div>
                 </div>
                 <div class="bg-gray-50 px-8 py-4 text-center">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">WMS SYSTEM v1.0</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">SAP Batch Processing v2.0</span>
                 </div>
             </div>
         </div>

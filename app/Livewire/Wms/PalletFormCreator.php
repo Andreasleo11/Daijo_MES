@@ -26,6 +26,10 @@ class PalletFormCreator extends Component
     public $lastGeneratedPalletId = null;
     public $isProcessing = false;
 
+    // SAP Sync Feedback
+    public $sapSyncStatus = 'pending'; // 'pending', 'completed'
+    public $failedSapItems = [];
+
     // ─── Scan Fields ───────────────────────────────────────────────────────────
     public string $scan_spk   = '';
     public string $scan_qty   = '';
@@ -106,8 +110,7 @@ class PalletFormCreator extends Component
     {
         $this->lot_no            = '';
         $this->remarks           = '';
-        $this->delivery_name     = '';
-        $this->delivery_shift    = '';
+        // Note: delivery_name, delivery_shift, and prod_date are kept for bulk scanning UX
         $this->total_box         = 0;
         $this->total_pallet_qty  = 0;
         $this->scanned_items     = [];
@@ -341,6 +344,9 @@ class PalletFormCreator extends Component
             $this->lastGeneratedPalletId = $palletId;
             $this->showSuccessModal = true;
 
+            // Trigger SAP Sync in Background
+            \App\Jobs\SyncPalletToSapJob::dispatch($palletId);
+
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', $e->getMessage());
@@ -352,5 +358,47 @@ class PalletFormCreator extends Component
     public function render()
     {
         return view('livewire.wms.pallet-form-creator');
+    }
+
+    public function checkSapSyncStatus()
+    {
+        $pallet = WmsPalletForm::find($this->lastGeneratedPalletId);
+        
+        if ($pallet) {
+            $freshPallet = $pallet->fresh();
+            $status = (int)$freshPallet->sap_sync_status;
+
+            // Jika status sudah bukan 0 (Pending), berarti sudah ada respon (1: Success, 2: Failed)
+            if ($status !== 0) {
+                $this->sapSyncStatus = 'completed';
+                
+                // Ambil detail yang gagal
+                $this->failedSapItems = WmsPalletFormDetail::where('pallet_form_id', $this->lastGeneratedPalletId)
+                    ->where('sap_sync_status', 2)
+                    ->get()
+                    ->toArray();
+            }
+        }
+    }
+
+    /**
+     * Fungsi buat retry khusus dari modal sukses
+     */
+    public function retrySapSync()
+    {
+        if (!$this->lastGeneratedPalletId) return;
+        
+        $this->sapSyncStatus = 'pending';
+        
+        // Reset status in DB cuma buat yang BELUM sukses
+        WmsPalletForm::where('pallet_id', $this->lastGeneratedPalletId)->update(['sap_sync_status' => 0]);
+        WmsPalletFormDetail::where('pallet_form_id', $this->lastGeneratedPalletId)
+            ->where('sap_sync_status', '!=', 1)
+            ->update([
+                'sap_sync_status' => 0,
+                'sap_error_msg'   => null
+            ]);
+
+        \App\Jobs\SyncPalletToSapJob::dispatch($this->lastGeneratedPalletId);
     }
 }

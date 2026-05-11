@@ -166,6 +166,9 @@ use App\Livewire\ManualSync;
     // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
+    Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
+        ->name('machine.monitor');
+
     Route::get("/test-bomwip", function (LineProductionService $LineProductionService) {
         return $LineProductionService->SyncData();
     });
@@ -337,8 +340,10 @@ Route::middleware('auth')->group(function (){
         Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
         Route::get('/mapping', \App\Livewire\Wms\RackMapping::class)->name('mapping');
         Route::get('/pallet-logs', \App\Livewire\Wms\PalletLogIndex::class)->name('logs');
+        Route::get('/pallet-form/lookup', \App\Livewire\Wms\PalletFormLookup::class)->name('pallet-form.lookup');
         Route::get('/pallet-form/history', \App\Livewire\Wms\PalletFormIndex::class)->name('pallet-form.index');
         Route::get('/pallet-form/create', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create');
+        Route::get('/sap-sync-monitor', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor');
         Route::get('/pallet-form/print/{id}', function ($id) {
             $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
             return view('wms.pallet_form_print', compact('palletForm'));

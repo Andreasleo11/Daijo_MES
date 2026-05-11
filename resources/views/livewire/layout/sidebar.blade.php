@@ -306,6 +306,20 @@ new class extends Component {
                 />
 
                 <livewire:sidebar-link
+                    href="{{ route('wms.pallet-form.lookup') }}"
+                    label="Pallet Detail Check"
+                    :active="request()->routeIs('wms.pallet-form.lookup')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('wms.pallet-form.index') }}"
+                    label="Pallet Form History"
+                    :active="request()->routeIs('wms.pallet-form.index')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
                     href="{{ route('wms.logs') }}"
                     label="Audit Trail Logs"
                     :active="request()->routeIs('wms.logs')"
@@ -316,6 +330,13 @@ new class extends Component {
                     href="{{ route('wms.mapping') }}"
                     label="Warehouse Mapping"
                     :active="request()->routeIs('wms.mapping')"
+                    wire:navigate
+                />
+
+                <livewire:sidebar-link
+                    href="{{ route('wms.sap-sync-monitor') }}"
+                    label="SAP Sync Monitor"
+                    :active="request()->routeIs('wms.sap-sync-monitor')"
                     wire:navigate
                 />
             @endif

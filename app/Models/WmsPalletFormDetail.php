@@ -20,11 +20,15 @@ class WmsPalletFormDetail extends Model
         'label',
         'is_no_label',     // true jika box tidak punya label/SPK
         'no_label_reason', // alasan tidak ada label (opsional)
+        'sap_sync_status',
+        'sap_error_msg',
+        'sap_sync_at',
     ];
 
     protected $casts = [
         'is_no_label' => 'boolean',
         'qty'         => 'float',
+        'sap_sync_at' => 'datetime',
     ];
 
     public function header()

@@ -83,13 +83,15 @@
             color: #000;
             font-weight: 900;
             text-transform: uppercase;
-            width: 10mm;
+            width: 11mm;
             background-color: #eee;
         }
         .summary-value {
             font-size: 7.5pt;
             font-weight: 900;
-            line-height: 1.0;
+            line-height: 1.1;
+            white-space: normal !important; /* Izinkan teks turun ke bawah */
+            word-break: break-word; /* Potong kata kalau kepanjangan */
         }
         .multi-table-container {
             display: flex;
@@ -110,7 +112,7 @@
         }
         th, td {
             border: 1px solid #000;
-            padding: 1px 2px;
+            padding: 1px 0.5px;
             text-align: left;
             font-weight: 900;
             color: #000;
@@ -264,17 +266,17 @@
                                     <table>
                                         <thead>
                                             <tr>
-                                                <th style="width: 6mm; text-align: center;">#</th>
-                                                <th style="width: 6mm; text-align: right;">Qty</th>
+                                                <th style="width: 7mm; text-align: center;">#</th>
+                                                <th style="width: 6mm; text-align: center;">Qty</th>
                                                 <th style="width: 15mm">Box Label</th>
-                                                <th style="width: 19mm">SPK NO</th>
+                                                <th style="width: 21mm">SPK NO</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @foreach($columnItems as $item)
                                                 <tr>
                                                     <td style="text-align: center;">{{ $form->groupItems->search($item) + 1 }}</td>
-                                                    <td style="text-align: right;">{{ number_format($item->qty, 0) }}</td>
+                                                    <td style="text-align: center;">{{ number_format($item->qty, 0) }}</td>
                                                     <td style="font-family: monospace; font-size: 6.2pt;">
                                                         {{ $item->label ?: '-' }}
                                                     </td>

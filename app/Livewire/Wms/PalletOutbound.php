@@ -10,9 +10,13 @@ use Illuminate\Support\Facades\DB;
 class PalletOutbound extends Component
 {
     public $pallet_id_input;
+    public $isProcessing = false;
 
     public function processOutbound(WmsService $wmsService)
     {
+        if ($this->isProcessing) return;
+        $this->isProcessing = true;
+
         $this->validate([
             'pallet_id_input' => 'required'
         ]);
@@ -22,12 +26,16 @@ class PalletOutbound extends Component
         if (!$pallet) {
             session()->flash('error', 'Pallet ID ' . $this->pallet_id_input . ' tidak ditemukan.');
             $this->pallet_id_input = '';
+            $this->isProcessing = false;
+            $this->dispatch('scan-error');
             return;
         }
 
         if ($pallet->status === 'OUT') {
             session()->flash('error', 'Pallet ID ' . $this->pallet_id_input . ' sudah tercatat keluar sebelumnya.');
             $this->pallet_id_input = '';
+            $this->isProcessing = false;
+            $this->dispatch('scan-error');
             return;
         }
 
@@ -54,10 +62,14 @@ class PalletOutbound extends Component
 
             session()->flash('success', 'Pallet ' . $pallet->pallet_id . ' berhasil di-scan KELUAR. Rak kini kosong.');
             $this->pallet_id_input = '';
+            $this->dispatch('scan-success');
 
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', $e->getMessage());
+            $this->dispatch('scan-error');
+        } finally {
+            $this->isProcessing = false;
         }
     }
 

@@ -29,7 +29,7 @@
         @endif
 
         <!-- Scanning Bar -->
-        <div class="bg-gray-800 p-8 rounded-3xl shadow-xl shadow-gray-200">
+        <div class="bg-gray-800 p-8 rounded-3xl shadow-xl shadow-gray-200 relative overflow-hidden">
             <h2 class="text-white text-lg font-bold mb-6 flex items-center uppercase tracking-widest text-center justify-center">
                 <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 00-1 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                 Scan Pallet ID to OUT
@@ -47,6 +47,13 @@
                 </div>
                 <p class="text-center text-gray-400 text-xs mt-6 italic">Arahkan scanner ke Barkode yang tertempel pada Pallet Form.</p>
             </form>
+
+            <div wire:loading wire:target="processOutbound" class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <div class="flex flex-col items-center">
+                    <div class="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <span class="text-white font-bold uppercase tracking-widest text-xs">Processing OUT...</span>
+                </div>
+            </div>
         </div>
 
         <!-- Navigation Buttons -->
@@ -62,13 +69,42 @@
     </div>
 
     <script>
-        document.addEventListener('livewire:load', function () {
-            document.getElementById('pallet_search').focus();
-        });
-        
-        // Ensure focus is kept after livewire updates
-        document.addEventListener('livewire:update', function () {
-            document.getElementById('pallet_search').focus();
+        document.addEventListener('livewire:init', () => {
+            const input = document.getElementById('pallet_search');
+            if (input) input.focus();
+
+            // Audio Feedback Logic
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration/1000);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration/1000);
+            }
+
+            Livewire.on('scan-success', () => {
+                playTone(1200, 200, 'sawtooth', 0.4);
+                setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50);
+                setTimeout(() => { if (input) input.focus(); }, 100);
+            });
+
+            Livewire.on('scan-error', () => {
+                playTone(100, 400, 'square', 0.6);
+                setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
+                setTimeout(() => { if (input) { input.focus(); input.select(); } }, 100);
+            });
         });
     </script>
 </div>
