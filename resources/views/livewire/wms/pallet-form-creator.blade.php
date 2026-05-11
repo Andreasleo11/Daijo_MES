@@ -297,77 +297,135 @@
 
                     <div class="max-h-[420px] overflow-y-auto">
                         <table class="w-full text-left text-sm">
-                            <thead class="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider sticky top-0">
+                            <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider sticky top-0">
                                 <tr>
-                                    <th class="px-4 py-3">No</th>
-                                    <th class="px-4 py-3">Part No</th>
-                                    <th class="px-4 py-3">SPK</th>
-                                    <th class="px-4 py-3 text-right">Qty</th>
-                                    <th class="px-4 py-3">Whse</th>
-                                    <th class="px-4 py-3">Label</th>
-                                    <th class="px-4 py-3 text-right">Hapus</th>
+                                    <th class="px-4 py-3 w-10 text-center">No</th>
+                                    <th class="px-4 py-3 text-left">Production Details (SPK & Part)</th>
+                                    <th class="px-4 py-3 text-center">Total Box</th>
+                                    <th class="px-4 py-3 text-right">Total Quantity</th>
+                                    <th class="px-4 py-3 text-center">Whse</th>
+                                    <th class="px-4 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody class="divide-y divide-gray-200" x-data="{ expandedSpk: null }">
                                 {{-- Alpine Pending Scans (Instant UI) --}}
                                 <template x-for="(item, index) in pendingScans" :key="'pending-'+index">
-                                    <tr class="bg-blue-50/50 animate-pulse">
-                                        <td class="px-4 py-3 text-blue-400 font-mono">NEW</td>
+                                    <tr class="bg-blue-50/30 animate-pulse border-l-4 border-blue-400">
+                                        <td class="px-4 py-3 text-center text-blue-400 font-bold">NEW</td>
                                         <td class="px-4 py-3">
-                                            <div class="font-bold text-blue-400 text-xs" x-text="item.part_no"></div>
-                                            <div class="text-blue-300 text-xs italic" x-text="item.model_name"></div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-bold" x-text="item.spk_no"></span>
+                                                <span class="font-bold text-blue-500 text-xs" x-text="item.part_no"></span>
+                                            </div>
+                                            <div class="text-blue-300 text-[10px] italic" x-text="item.model_name"></div>
                                         </td>
-                                        <td class="px-4 py-3 font-mono text-xs text-blue-400" x-text="item.spk_no"></td>
-                                        <td class="px-4 py-3 text-right font-bold text-blue-400" x-text="item.qty"></td>
-                                        <td class="px-4 py-3 text-blue-300 text-xs" x-text="item.warehouse"></td>
-                                        <td class="px-4 py-3 font-mono text-xs text-blue-300" x-text="item.label"></td>
+                                        <td class="px-4 py-3 text-center font-bold text-blue-400">1</td>
+                                        <td class="px-4 py-3 text-right font-black text-blue-500" x-text="item.qty"></td>
+                                        <td class="px-4 py-3 text-center text-blue-300 text-xs" x-text="item.warehouse"></td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ml-auto"></div>
                                         </td>
                                     </tr>
                                 </template>
 
-                                @forelse ($scanned_items as $index => $item)
-                                    <tr class="{{ $item['is_no_label'] ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50' }} transition-colors">
-                                        <td class="px-4 py-3 text-gray-400 font-mono">#{{ $loop->iteration }}</td>
-                                        <td class="px-4 py-3">
-                                            @if($item['is_no_label'])
-                                                <span class="text-orange-500 italic text-xs">—</span>
-                                            @else
-                                                <div class="font-bold text-gray-800 text-xs">{{ $item['part_no'] }}</div>
-                                                <div class="text-gray-400 text-xs truncate max-w-[120px]">{{ $item['model_name'] }}</div>
-                                            @endif
+                                @php
+                                    $groupedItems = collect($scanned_items)->map(function($item, $key) {
+                                        $item['original_index'] = $key;
+                                        return $item;
+                                    })->groupBy('spk_no');
+                                @endphp
+
+                                @forelse ($groupedItems as $spk_no => $items)
+                                    @php 
+                                        $first = $items->first();
+                                        $totalQty = $items->sum('qty');
+                                        $boxCount = $items->count();
+                                    @endphp
+                                    {{-- Group Header Row --}}
+                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-blue-600/20" 
+                                        @click="expandedSpk === '{{ $spk_no }}' ? expandedSpk = null : expandedSpk = '{{ $spk_no }}'">
+                                        <td class="px-4 py-4 text-center text-gray-400 font-mono text-xs">#{{ $loop->iteration }}</td>
+                                        <td class="px-4 py-4">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="flex flex-col">
+                                                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold w-fit mb-1">{{ $spk_no }}</span>
+                                                    <span class="font-black text-gray-800 text-sm tracking-tight leading-none">{{ $first['part_no'] ?? '—' }}</span>
+                                                    <span class="text-gray-400 text-[10px] truncate max-w-[200px] mt-1">{{ $first['model_name'] ?? '—' }}</span>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td class="px-4 py-3 font-mono text-xs text-gray-700">
-                                            {{ $item['spk_no'] ?? '—' }}
+                                        <td class="px-4 py-4 text-center">
+                                            <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-bold text-xs border border-blue-100">
+                                                {{ $boxCount }} BOXES
+                                            </span>
                                         </td>
-                                        <td class="px-4 py-3 text-right font-bold text-blue-600">
-                                            {{ number_format($item['qty'], 0) }}
+                                        <td class="px-4 py-4 text-right">
+                                            <div class="font-black text-blue-600 text-base leading-none">{{ number_format($totalQty, 0) }}</div>
+                                            <div class="text-gray-300 text-[10px] font-bold uppercase mt-1">TOTAL PCS</div>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-500 text-xs">{{ $item['warehouse'] ?? '—' }}</td>
-                                        <td class="px-4 py-3">
-                                            @if($item['is_no_label'])
-                                                <span class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg">
-                                                    🚫 TANPA LABEL
-                                                    @if($item['no_label_reason'])
-                                                        <span class="ml-1 text-orange-500 font-normal">({{ $item['no_label_reason'] }})</span>
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="font-mono text-xs text-gray-600">{{ $item['label'] }}</span>
-                                            @endif
+                                        <td class="px-4 py-4 text-center">
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded font-bold text-[10px]">{{ $first['warehouse'] ?? '—' }}</span>
                                         </td>
-                                        <td class="px-4 py-3 text-right">
-                                            <button wire:click="removeItem({{ $index }})" type="button"
-                                                class="text-red-400 hover:text-red-600 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                            </button>
+                                        <td class="px-4 py-4 text-right">
+                                            <div class="flex items-center justify-end space-x-2">
+                                                <button type="button" class="p-2 bg-gray-50 text-gray-400 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
+                                                    <svg class="w-5 h-5 transform transition-transform duration-200" :class="expandedSpk === '{{ $spk_no }}' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    {{-- Group Detail Row (Accordion) --}}
+                                    <tr x-show="expandedSpk === '{{ $spk_no }}'" x-collapse x-cloak class="bg-gray-50/50">
+                                        <td colspan="6" class="p-0">
+                                            <div class="px-12 py-4 bg-white/50 border-y border-gray-100">
+                                                <table class="w-full text-xs">
+                                                    <thead>
+                                                        <tr class="text-gray-400 font-bold border-b border-gray-100">
+                                                            <th class="py-2 text-left">#</th>
+                                                            <th class="py-2 text-left">Label Barcode</th>
+                                                            <th class="py-2 text-right">Qty</th>
+                                                            <th class="py-2 text-center">Type</th>
+                                                            <th class="py-2 text-right">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-gray-50">
+                                                        @foreach($items as $subIndex => $subItem)
+                                                            <tr class="hover:bg-blue-50/30 transition-colors group">
+                                                                <td class="py-2 text-gray-300 font-mono">{{ $loop->iteration }}</td>
+                                                                <td class="py-2">
+                                                                    @if($subItem['is_no_label'])
+                                                                        <span class="text-orange-500 font-bold italic">🚫 No Label ({{ $subItem['no_label_reason'] ?? 'Manual' }})</span>
+                                                                    @else
+                                                                        <span class="font-mono text-gray-600 group-hover:text-blue-600 transition-colors">{{ $subItem['label'] }}</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="py-2 text-right font-bold text-gray-700">{{ number_format($subItem['qty'], 0) }}</td>
+                                                                <td class="py-2 text-center">
+                                                                    <span class="px-2 py-0.5 {{ $subItem['is_no_label'] ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600' }} rounded-full text-[9px] font-bold uppercase">
+                                                                        {{ $subItem['is_no_label'] ? 'Manual' : 'Scanned' }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="py-2 text-right">
+                                                                    <button wire:click="removeItem({{ $subItem['original_index'] }})" type="button"
+                                                                        class="text-red-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-12 text-center text-gray-400 italic">
-                                            Belum ada box yang di-scan. Gunakan panel scan di atas.
+                                        <td colspan="6" class="px-6 py-12 text-center text-gray-400 italic bg-white">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <svg class="w-12 h-12 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 00-2 2H6a2 2 0 00-2 2V13m16 0h-1v-4a1 1 0 00-1-1h-2a1 1 0 00-1 1v4h-1m-6 0h-1v-4a1 1 0 00-1-1H6a1 1 0 00-1 1v4h-1"></path></svg>
+                                                <span>Belum ada box yang di-scan. Gunakan panel scan di atas.</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforelse

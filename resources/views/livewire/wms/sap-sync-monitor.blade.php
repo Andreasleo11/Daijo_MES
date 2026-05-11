@@ -158,24 +158,79 @@
                                 <th class="py-3 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Error Message</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @foreach($palletDetails as $detail)
-                                <tr class="text-xs">
-                                    <td class="py-3 px-4 font-black text-gray-900">{{ $detail->spk_no }}</td>
-                                    <td class="py-3 px-4 font-bold text-blue-600">{{ $detail->part_no }}</td>
-                                    <td class="py-3 px-4 text-center font-black text-gray-900">{{ number_format($detail->qty) }}</td>
-                                    <td class="py-3 px-4 font-bold text-gray-500 uppercase">{{ $detail->warehouse ?: 'FFI' }}</td>
-                                    <td class="py-3 px-4 font-mono text-gray-400">{{ $detail->label }}</td>
-                                    <td class="py-3 px-4 text-center">
-                                        @if($detail->sap_sync_status == 1)
-                                            <span class="text-green-500 font-black tracking-tighter">SUCCESS</span>
-                                        @elseif($detail->sap_sync_status == 2)
-                                            <span class="text-red-500 font-black tracking-tighter">FAILED</span>
+                        <tbody class="divide-y divide-gray-100" x-data="{ expandedSpk: null }">
+                            @php
+                                $groupedDetails = collect($palletDetails)->groupBy('spk_no');
+                            @endphp
+
+                            @foreach($groupedDetails as $spk_no => $details)
+                                @php
+                                    $first = $details->first();
+                                    $successCount = $details->where('sap_sync_status', 1)->count();
+                                    $failedCount = $details->where('sap_sync_status', 2)->count();
+                                    $pendingCount = $details->where('sap_sync_status', 0)->count();
+                                    $totalQty = $details->sum('qty');
+                                @endphp
+                                {{-- SPK Header Row --}}
+                                <tr class="hover:bg-gray-50 cursor-pointer transition-colors" @click="expandedSpk === '{{ $spk_no }}' ? expandedSpk = null : expandedSpk = '{{ $spk_no }}'">
+                                    <td class="py-4 px-4 font-black text-gray-900 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-gray-400 transition-transform" :class="expandedSpk === '{{ $spk_no }}' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            {{ $spk_no }}
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 font-bold text-blue-600 text-sm">{{ $first->part_no }}</td>
+                                    <td class="py-4 px-4 text-center font-black text-gray-900 text-sm">{{ number_format($totalQty) }}</td>
+                                    <td class="py-4 px-4 font-bold text-gray-500 uppercase text-[10px] text-center">{{ $first->warehouse ?: 'FFI' }}</td>
+                                    <td class="py-4 px-4 text-center">
+                                        <span class="text-[10px] font-black text-gray-400">{{ $details->count() }} BOXES</span>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            @if($successCount > 0) <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black">{{ $successCount }} OK</span> @endif
+                                            @if($failedCount > 0) <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-black">{{ $failedCount }} FAIL</span> @endif
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-right">
+                                        @if($failedCount > 0)
+                                            <span class="text-[9px] text-red-500 font-bold italic animate-pulse">Needs Attention</span>
                                         @else
-                                            <span class="text-orange-500 font-black tracking-tighter">PENDING</span>
+                                            <span class="text-[9px] text-green-500 font-bold">All Good</span>
                                         @endif
                                     </td>
-                                    <td class="py-3 px-4 text-[10px] text-red-600 font-bold italic">{{ $detail->sap_error_msg ?: '-' }}</td>
+                                </tr>
+
+                                {{-- Box Details Dropdown --}}
+                                <tr x-show="expandedSpk === '{{ $spk_no }}'" x-cloak class="bg-gray-50/50">
+                                    <td colspan="7" class="p-0">
+                                        <div class="px-10 py-4 border-y border-gray-100">
+                                            <div class="grid grid-cols-1 gap-2">
+                                                @foreach($details as $box)
+                                                    <div class="bg-white p-3 rounded-xl border {{ $box->sap_sync_status == 2 ? 'border-red-100 bg-red-50/30' : 'border-gray-100' }} flex items-center justify-between">
+                                                        <div class="flex items-center gap-4">
+                                                            <div class="px-2 py-1 bg-gray-100 rounded text-[9px] font-mono text-gray-500">{{ $loop->iteration }}</div>
+                                                            <div class="flex flex-col">
+                                                                <span class="text-[11px] font-mono font-bold text-gray-700 tracking-tight">{{ $box->label }}</span>
+                                                                @if($box->sap_error_msg)
+                                                                    <span class="text-[9px] text-red-600 font-bold italic mt-0.5">⚠️ {{ $box->sap_error_msg }}</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-[10px] font-black text-gray-900">{{ number_format($box->qty) }} PCS</span>
+                                                            @if($box->sap_sync_status == 1)
+                                                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                                            @elseif($box->sap_sync_status == 2)
+                                                                <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                                                            @else
+                                                                <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
