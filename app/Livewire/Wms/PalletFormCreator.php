@@ -123,8 +123,12 @@ class PalletFormCreator extends Component
      * Add a box to the scanned list.
      * Handles both normal (with SPK+label) and no-label boxes.
      */
-    public function addItem(): void
+    public function addItem($directLabel = null, $directSpk = null, $directQty = null, $directWhse = null): void
     {
+        if ($directLabel) $this->scan_label = trim($directLabel);
+        if ($directSpk)   $this->scan_spk   = trim($directSpk);
+        if ($directQty)   $this->scan_qty   = $directQty;
+        if ($directWhse)  $this->scan_whse  = trim($directWhse);
         // ─── Case 2: No-Label Mode ─────────────────────────────────────────────
         if ($this->label_mode === 'NO_LABEL') {
             if (empty(trim($this->scan_qty))) {
@@ -159,6 +163,7 @@ class PalletFormCreator extends Component
 
         // Wajib ada SPK
         if (empty(trim($this->scan_spk))) {
+            $this->resetScanner();
             session()->flash('scan_error', 'SPK harus di-scan terlebih dahulu.');
             $this->dispatch('scan-error');
             return;
@@ -168,7 +173,9 @@ class PalletFormCreator extends Component
         if (empty($this->scan_part_no)) {
             $spkHistory = SpkItemHistory::where('spk_number', trim($this->scan_spk))->first();
             if (! $spkHistory) {
-                session()->flash('scan_error', 'SPK "' . $this->scan_spk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
+                $failedSpk = $this->scan_spk;
+                $this->resetScanner();
+                session()->flash('scan_error', 'SPK "' . $failedSpk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
                 $this->dispatch('scan-error');
                 return;
             }
@@ -193,8 +200,9 @@ class PalletFormCreator extends Component
                 $item['label'] === trim($this->scan_label) &&
                 $item['spk_no'] === trim($this->scan_spk)
             ) {
-                session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah ada di daftar scan saat ini.');
+                $failedLabel = $this->scan_label;
                 $this->resetScanner();
+                session()->flash('scan_error', 'Label "' . $failedLabel . '" dengan SPK ini sudah ada di daftar scan saat ini.');
                 $this->dispatch('scan-error');
                 return;
             }

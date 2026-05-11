@@ -1,4 +1,21 @@
 <div class="p-6 bg-gray-50 min-h-screen" 
+     x-data="{ 
+        pendingScans: [],
+        addPending(data) {
+            this.pendingScans.unshift({
+                label: data.label,
+                spk_no: data.spk,
+                qty: data.qty,
+                warehouse: data.whse,
+                is_no_label: false,
+                part_no: '---',
+                model_name: 'Syncing...'
+            });
+        }
+     }"
+     x-on:add-pending.window="addPending($event.detail)"
+     x-on:scan-success.window="pendingScans = []"
+     x-on:scan-error.window="pendingScans = []"
      @if($showSuccessModal && $sapSyncStatus === 'pending') wire:poll.2s="checkSapSyncStatus" @endif>
     <div class="max-w-7xl mx-auto space-y-6">
 
@@ -125,12 +142,12 @@
 
                 {{-- Scan Panel --}}
                 <div class="{{ $label_mode === 'NO_LABEL' ? 'bg-orange-500' : 'bg-blue-600' }} p-6 rounded-2xl shadow-lg transition-colors duration-300 relative overflow-hidden">
-                    {{-- Processing Overlay --}}
-                    <div wire:loading wire:target="addItem, toggleNoLabel, updatedScanSpk" 
-                         class="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-50 flex items-center justify-center">
-                        <div class="bg-white px-4 py-2 rounded-full shadow-2xl flex items-center space-x-3">
-                            <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <span class="text-xs font-bold text-gray-800 uppercase tracking-widest">Processing...</span>
+                    {{-- Processing Overlay (Hanya untuk Generate Form, bukan scan) --}}
+                    <div wire:loading wire:target="generateForm" 
+                         class="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
+                        <div class="bg-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border-2 border-blue-600">
+                            <div class="w-5 h-5 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-sm font-black text-gray-800 uppercase tracking-widest italic">PROCESSING...</span>
                         </div>
                     </div>
 
@@ -193,10 +210,10 @@
                         <div class="mt-4 flex items-end gap-4">
                             <div class="flex-1">
                                 <label class="block text-xs font-bold text-white/70 uppercase mb-1">Label Barcode</label>
-                                <input type="text" wire:model="scan_label" id="scan_label"
-                                    wire:loading.attr="disabled"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    placeholder="Scan label box...">
+                                <input type="text" id="scan_label"
+                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
+                                    placeholder="Scan label box..."
+                                    autocomplete="off">
                             </div>
                             <div class="flex space-x-2">
                                 <button wire:click="resetScanner" type="button"
@@ -292,6 +309,24 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
+                                {{-- Alpine Pending Scans (Instant UI) --}}
+                                <template x-for="(item, index) in pendingScans" :key="'pending-'+index">
+                                    <tr class="bg-blue-50/50 animate-pulse">
+                                        <td class="px-4 py-3 text-blue-400 font-mono">NEW</td>
+                                        <td class="px-4 py-3">
+                                            <div class="font-bold text-blue-400 text-xs" x-text="item.part_no"></div>
+                                            <div class="text-blue-300 text-xs italic" x-text="item.model_name"></div>
+                                        </td>
+                                        <td class="px-4 py-3 font-mono text-xs text-blue-400" x-text="item.spk_no"></td>
+                                        <td class="px-4 py-3 text-right font-bold text-blue-400" x-text="item.qty"></td>
+                                        <td class="px-4 py-3 text-blue-300 text-xs" x-text="item.warehouse"></td>
+                                        <td class="px-4 py-3 font-mono text-xs text-blue-300" x-text="item.label"></td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                                        </td>
+                                    </tr>
+                                </template>
+
                                 @forelse ($scanned_items as $index => $item)
                                     <tr class="{{ $item['is_no_label'] ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50' }} transition-colors">
                                         <td class="px-4 py-3 text-gray-400 font-mono">#{{ $loop->iteration }}</td>
@@ -415,17 +450,24 @@
             }
 
             Livewire.on('scan-success', () => {
-                playTone(1200, 200, 'sawtooth', 0.4); // More piercing success
-                setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); // Double ding
+                window.isScanningInternal = false;
+                playTone(1200, 200, 'sawtooth', 0.4); 
+                setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); 
             });
 
             Livewire.on('scan-error', () => {
+                window.isScanningInternal = false;
                 playTone(100, 400, 'square', 0.6); // Louder low buzz
                 setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
-            });
-        });
 
-        // Enter key navigation: SPK → Qty → Whse → Label → addItem
+                // Balikin fokus ke SPK Code
+                setTimeout(() => {
+                    const el = document.getElementById('scan_spk');
+                    if (el) { el.focus(); el.select(); }
+                }, 100);
+            });
+
+        // Enter key navigation: SPK → Qty → Whse → Label
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;
 
@@ -438,27 +480,81 @@
             if (active === spk)   { e.preventDefault(); qty?.focus(); }
             else if (active === qty)  { e.preventDefault(); whse?.focus(); }
             else if (active === whse) { e.preventDefault(); label ? label.focus() : null; }
-            else if (active === label) { e.preventDefault(); @this.addItem(); }
         });
 
-        // Auto-submit after label stops changing
+        // Turbo Scan Handler for Label
+        const labelInput = document.getElementById('scan_label');
         let autoTimer;
-        document.addEventListener('input', (e) => {
-            const label = document.getElementById('scan_label');
-            if (!label || document.activeElement !== label) return;
-            
-            // Check if input is disabled (means Livewire is currently processing)
-            if (label.disabled) {
-                e.preventDefault();
-                label.value = label.value.slice(0, -1); // Block character
-                return;
-            }
+        let lastScannedVal = '';
+        let lastScanTime = 0;
 
-            clearTimeout(autoTimer);
-            if (label.value.trim() !== '') {
-                autoTimer = setTimeout(() => { @this.addItem(); }, 400);
-            }
+        if (labelInput) {
+            const processScan = (val) => {
+                const now = Date.now();
+                // Anti-Double: Jangan kirim kalau nilainya sama dan jaraknya kurang dari 1 detik
+                if (val === lastScannedVal && (now - lastScanTime) < 1000) return;
+                
+                lastScannedVal = val;
+                lastScanTime = now;
+
+                // Instant UI Update
+                const currentSpk = document.getElementById('scan_spk')?.value;
+                const currentQty = document.getElementById('scan_qty')?.value;
+                const currentWhse = document.getElementById('scan_whse')?.value;
+                
+                window.dispatchEvent(new CustomEvent('add-pending', { 
+                    detail: { label: val, spk: currentSpk, qty: currentQty, whse: currentWhse } 
+                }));
+
+                @this.addItem(val, currentSpk, currentQty, currentWhse);
+            };
+
+            // Jalur Cepat (Tombol Enter)
+            labelInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(autoTimer);
+                    const val = this.value.trim();
+                    if (val) {
+                        this.value = ''; 
+                        processScan(val);
+                    }
+                }
+            });
+
+            // Jalur Cadangan (Timer)
+            labelInput.addEventListener('input', function(e) {
+                clearTimeout(autoTimer);
+                if (this.value.trim() !== '') {
+                    autoTimer = setTimeout(() => {
+                        const val = this.value.trim();
+                        if (val) {
+                            this.value = ''; 
+                            processScan(val);
+                        }
+                    }, 450); 
+                }
+            });
+        }
+
+        Livewire.on('scan-success', () => {
+            window.isScanningInternal = false;
+            playTone(1200, 200, 'sawtooth', 0.4); 
+            setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); 
         });
+
+        Livewire.on('scan-error', () => {
+            window.isScanningInternal = false;
+            playTone(100, 400, 'square', 0.6); 
+            setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
+
+            // Balikin fokus ke SPK Code
+            setTimeout(() => {
+                const el = document.getElementById('scan_spk');
+                if (el) { el.focus(); el.select(); }
+            }, 100);
+        });
+    });
     </script>
 
     <style>

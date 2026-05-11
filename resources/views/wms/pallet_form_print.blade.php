@@ -118,6 +118,19 @@
             color: #000;
             white-space: nowrap; /* Prevent wrapping */
         }
+        .row-failed {
+            background-color: #cccccc !important; /* Abu-abu pekat biar keliatan di BW */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .error-tag {
+            font-size: 5pt;
+            color: #000; /* Hitam biar kebaca di BW */
+            font-weight: 900;
+            font-style: italic;
+            display: block;
+            margin-top: -1px;
+        }
         th {
             background-color: #eee;
             font-weight: 900;
@@ -274,7 +287,7 @@
                                         </thead>
                                         <tbody>
                                             @foreach($columnItems as $item)
-                                                <tr>
+                                                <tr class="{{ $item->sap_sync_status == 2 ? 'row-failed' : '' }}">
                                                     <td style="text-align: center;">{{ $form->groupItems->search($item) + 1 }}</td>
                                                     <td style="text-align: center;">{{ number_format($item->qty, 0) }}</td>
                                                     <td style="font-family: monospace; font-size: 6.2pt;">
@@ -282,6 +295,9 @@
                                                     </td>
                                                     <td style="font-family: monospace; font-size: 6.2pt;">
                                                         {{ $item->spk_no ?: '-' }}
+                                                        @if($item->sap_sync_status == 2)
+                                                            <span class="error-tag">!!! FAILED !!!</span>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach
