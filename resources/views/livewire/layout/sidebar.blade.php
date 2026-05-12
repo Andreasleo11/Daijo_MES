@@ -209,6 +209,13 @@ new class extends Component {
                     :active="request()->routeIs('production-summary-monitor')"
                     wire:navigate
                 />
+
+                   <livewire:sidebar-link
+                    href="{{ route('wms.sap-sync-monitor') }}"
+                    label="SAP Sync Monitor"
+                    :active="request()->routeIs('wms.sap-sync-monitor')"
+                    wire:navigate
+                />
             @endif
 
 
