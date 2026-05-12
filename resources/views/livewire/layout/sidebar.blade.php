@@ -159,6 +159,7 @@ new class extends Component {
                     ['name' => 'delschedfinal.dashboard', 'label' => 'Dashboard Delivery Schedule'],
                     ['name' => 'workshop.summary.dashboard', 'label' => 'Dashboard Proses Moulding'],
                     ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project Moulding'],
+                    ['name' => 'report.machine-active-hours', 'label' => 'Machine Active Hours'],
                 ]" />
 
                 <livewire:parent-dropdown label="Inventory" :childRoutes="[
