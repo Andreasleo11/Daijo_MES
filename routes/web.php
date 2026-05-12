@@ -128,6 +128,9 @@ use App\Livewire\ManualSync;
         
         Route::get('/monthly', MonthlyReport::class)->name('monthly');
         Route::get('/monthly/export', [ReportController::class, 'exportMonthly'])->name('monthly.export');
+        
+        // New Route for Machine Active Hours
+        Route::get('/machine-active-hours', \App\Livewire\Report\MachineActiveHours::class)->name('machine-active-hours');
     });
 
 
