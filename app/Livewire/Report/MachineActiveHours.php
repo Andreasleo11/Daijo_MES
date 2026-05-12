@@ -40,14 +40,30 @@ class MachineActiveHours extends Component
             ->get();
 
         $grouped = $rawRecords->groupBy('machine_name')->map(function ($items) {
-            // Group by Date and Time Range to avoid double counting if multiple items in one hour
-            return $items->groupBy(function ($item) {
+            // Group by Date and Time Range
+            $byDateAndHour = $items->groupBy(function ($item) {
                 $timeRange = Carbon::parse($item->start_time)->format('H:i') . '-' . Carbon::parse($item->end_time)->format('H:i');
                 return $item->schedule_date . '|' . $timeRange;
-            })->count();
+            });
+
+            $totalHours = $byDateAndHour->count();
+
+            // Hitung per tanggal
+            $dailyBreakdown = [];
+            foreach ($byDateAndHour as $key => $records) {
+                $date = explode('|', $key)[0];
+                $dailyBreakdown[$date] = ($dailyBreakdown[$date] ?? 0) + 1;
+            }
+
+            // Urutkan tanggal dari yang terbaru
+            krsort($dailyBreakdown);
+
+            return [
+                'total' => $totalHours,
+                'days'  => $dailyBreakdown
+            ];
         });
 
-        // Urutkan berdasarkan nama mesin
         $this->reportData = $grouped->sortKeys()->toArray();
     }
 
@@ -56,10 +72,10 @@ class MachineActiveHours extends Component
         $this->calculate();
         
         $exportData = [];
-        foreach ($this->reportData as $name => $hours) {
+        foreach ($this->reportData as $name => $data) {
             $exportData[] = [
                 'machine_name' => $name,
-                'hours'        => $hours
+                'hours'        => $data['total']
             ];
         }
 

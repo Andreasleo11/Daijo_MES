@@ -43,39 +43,64 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             @if(count($reportData) > 0)
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left">
+                    <table class="w-full text-left border-collapse table-fixed">
                         <thead class="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                             <tr>
-                                <th class="px-6 py-4">No</th>
-                                <th class="px-6 py-4">Machine Name</th>
-                                <th class="px-6 py-4 text-center">Total Active Hours</th>
-                                <th class="px-6 py-4 text-center">Avg Hours/Month</th>
+                                <th class="px-6 py-4 w-20 border-b border-gray-100">No</th>
+                                <th class="px-6 py-4 border-b border-gray-100">Machine Name</th>
+                                <th class="px-6 py-4 text-center w-48 border-b border-gray-100">Total Active Hours</th>
+                                <th class="px-6 py-4 text-right w-40 border-b border-gray-100">Breakdown</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @php 
-                                $no = 1;
-                                $start = \Carbon\Carbon::parse($startMonth);
-                                $end = \Carbon\Carbon::parse($endMonth);
-                                $monthsCount = max($start->diffInMonths($end) + 1, 1);
-                            @endphp
-                            @foreach($reportData as $machineName => $hours)
+                        @php $no = 1; @endphp
+                        @foreach($reportData as $machineName => $data)
+                            <tbody x-data="{ open: false }" class="divide-y divide-gray-50 border-b border-gray-100">
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 text-sm text-gray-400 font-mono">{{ $no++ }}</td>
-                                    <td class="px-6 py-4">
-                                        <div class="font-bold text-gray-800">{{ $machineName }}</div>
-                                    </td>
+                                    <td class="px-6 py-4 font-bold text-gray-800">{{ $machineName }}</td>
                                     <td class="px-6 py-4 text-center">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-50 text-blue-700">
-                                            {{ $hours }} Jam
+                                            {{ $data['total'] }} Jam
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 text-center text-sm text-gray-500 italic">
-                                        {{ number_format($hours / $monthsCount, 1) }} jam/bulan
+                                    <td class="px-6 py-4 text-right">
+                                        <button @click="open = !open" 
+                                            class="inline-flex items-center text-blue-600 hover:text-blue-800 font-bold text-sm transition-all focus:outline-none">
+                                            <span x-text="open ? 'Hide' : 'Detail'"></span>
+                                            <svg class="w-4 h-4 ml-1 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </button>
                                     </td>
                                 </tr>
-                            @endforeach
-                        </tbody>
+                                <!-- Breakdown Row -->
+                                <tr x-show="open" x-cloak x-transition.opacity class="bg-gray-50">
+                                    <td colspan="4" class="px-6 py-4">
+                                        <div class="bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden max-h-80 overflow-y-auto">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-gray-100 text-gray-600 font-bold">
+                                                    <tr>
+                                                        <th class="px-4 py-2 text-left">Date</th>
+                                                        <th class="px-4 py-2 text-right">Active Hours</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-100">
+                                                    @foreach($data['days'] as $date => $dayHours)
+                                                        <tr class="hover:bg-blue-50 transition-colors">
+                                                            <td class="px-4 py-2 text-gray-700">
+                                                                {{ \Carbon\Carbon::parse($date)->format('d M Y') }}
+                                                                <span class="text-xs text-gray-400 ml-2">({{ \Carbon\Carbon::parse($date)->format('l') }})</span>
+                                                            </td>
+                                                            <td class="px-4 py-2 text-right font-bold text-blue-600">
+                                                                {{ $dayHours }} Jam
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        @endforeach
                     </table>
                 </div>
             @else
