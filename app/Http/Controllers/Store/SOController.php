@@ -617,7 +617,7 @@ class SOController extends Controller
             ];
 
             ApiLog::create([
-                'api_name' => 'SPK Sync',
+                'api_name' => 'SPK Insert SAP',
                 'method' => $request->method(),
                 'endpoint' => $request->fullUrl(),
                 'request_payload' => $request->all(),

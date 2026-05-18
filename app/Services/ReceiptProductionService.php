@@ -15,7 +15,7 @@ class ReceiptProductionService extends BaseSapService
         // Ambil dari production_summary yang belum dikirim ke SAP
         $records = DB::table('production_summary')
             ->where('sap_sent', 0)
-            ->where('warehouse', strtoupper('FFI'))
+            ->whereIn('warehouse', ['FFI', 'KRFFI'])
             ->get();
 
         \Log::info('Scheduler jalan, records count: ' . $records->count());
@@ -82,13 +82,24 @@ class ReceiptProductionService extends BaseSapService
                 $status = $response->successful() && isset($json['status']) && $json['status'] === true;
                 
                 if ($status) {
-                    // Update production_summary set sap_sent = 1 dan sap_sent_at = now()
-                    DB::table('production_summary')
+                    // Atomic update: Hanya update kalau status emang masih 0.
+                    // Ini kunci buat ngecegah double push kalau ada job yang nabrak.
+                    $updated = DB::table('production_summary')
                         ->where('id', $summary->id)
+                        ->where('sap_sent', 0) // <--- Pengaman: Hanya update jika belum sent
                         ->update([
                             'sap_sent' => 1,
                             'sap_sent_at' => now(),
                         ]);
+
+                    if ($updated === 0) {
+                        // Kalau 0, berarti job lain udah duluan sukses nembak SAP & update status.
+                        Log::warning("SAP Push SKIPPED - Sudah diproses job lain", [
+                            'summary_id' => $summary->id,
+                            'spk_code' => $summary->spk_code
+                        ]);
+                        continue;
+                    }
 
                     Log::info("SAP Push SUCCESS", [
                         'summary_id' => $summary->id,

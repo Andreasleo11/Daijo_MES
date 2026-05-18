@@ -493,6 +493,10 @@ class ProductionDashboardController extends Controller
             '0650D',
             '0650E',
             '0850D',
+            '0150E',
+            '0360A',
+            '0360D',
+            '0450B',
             'K2800A',
             'K2100A',
             'K1400A',
@@ -508,7 +512,7 @@ class ProductionDashboardController extends Controller
         ];
         
         $machines = User::distinct()
-            ->whereIn('id', MachineJob::pluck('user_id'))
+            // ->whereIn('id', MachineJob::pluck('user_id'))
             ->whereIn('name', $machineNames)
             ->pluck('name', 'id');
             
