@@ -753,6 +753,8 @@
     document.addEventListener('DOMContentLoaded', function () {
         let autoSubmitTimer;
         const spkInput = document.getElementById('spk_code');
+        const quantityInput = document.getElementById('quantity');
+        const warehouseInput = document.getElementById('warehouse');
         const labelInput = document.getElementById('label');
         const labelsBulkInput = document.getElementById('labels_bulk');
         const pkgNameInput = document.getElementById('packaging_name');
@@ -773,10 +775,37 @@
         if (spkInput) {
             spkInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
-                    // Jika Mode ON, tetap biarkan submit untuk validasi SPK dulu
-                    if (toggle.checked) {
-                        // Jangan preventDefault, biar dia hit server untuk validasi SPK
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (quantityInput) quantityInput.focus();
+                    } else if (toggle.checked) {
+                        // Jika Mode ON, tetap biarkan submit untuk validasi SPK dulu
                         console.log("Submitting SPK for validation...");
+                    }
+                }
+            });
+        }
+
+        if (quantityInput) {
+            quantityInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (warehouseInput) warehouseInput.focus();
+                    }
+                }
+            });
+        }
+
+        if (warehouseInput) {
+            warehouseInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (labelsBulkInput) labelsBulkInput.focus();
                     }
                 }
             });
@@ -849,7 +878,7 @@
                         // TAHAP 1: SPK Sukses, Pindah ke Packaging
                         if (pkgNameInput) pkgNameInput.focus();
                     } else {
-                        // TAHAP 2/ORIGINAL: Reset untuk item berikutnya
+                        // TAHAP 2/ORIGINAL: Reset label & packaging untuk item berikutnya
                         const bulkToggle = document.getElementById('bulkScanToggle');
                         if (bulkToggle && bulkToggle.checked) {
                             if (labelsBulkInput) {
@@ -857,18 +886,30 @@
                                 labelsBulkInput.focus();
                             }
                         } else {
-                            form.reset();
-                            if (spkInput) spkInput.focus();
+                            // Single scan: Hanya reset field label dan packaging (tetap pertahankan SPK, Quantity, Warehouse)
+                            if (labelInput) {
+                                labelInput.value = '';
+                                labelInput.focus();
+                            }
+                            if (pkgNameInput) pkgNameInput.value = '';
+                            if (pkgLabelInput) pkgLabelInput.value = '';
+                            if (pkgWhseInput) pkgWhseInput.value = '';
                         }
                     }
                 } else {
                     showAlert(data.message || "Unknown error", "error");
                     const bulkToggle = document.getElementById('bulkScanToggle');
                     if (bulkToggle && bulkToggle.checked) {
-                        if (labelsBulkInput) labelsBulkInput.focus();
+                        if (labelsBulkInput) {
+                            labelsBulkInput.focus();
+                            labelsBulkInput.select();
+                        }
                     } else {
-                        form.reset();
-                        if (spkInput) spkInput.focus();
+                        // Single scan: Jangan reset form, cukup focus & select input label biar gampang ditimpa / scan ulang
+                        if (labelInput) {
+                            labelInput.focus();
+                            labelInput.select();
+                        }
                     }
                 }
             })

@@ -72,8 +72,8 @@
                         <tbody x-data="{ open: false }" class="border-b border-gray-50 last:border-0">
                             <tr class="hover:bg-gray-50/50 transition-colors">
                                 <td class="px-6 py-4 align-top">
-                                    <div class="text-sm font-bold text-gray-700">{{ $log->created_at->format('d M Y') }}</div>
-                                    <div class="text-[10px] font-mono text-gray-400">{{ $log->created_at->format('H:i:s') }}</div>
+                                    <div class="text-sm font-bold text-gray-700">{{ $log->created_at->timezone('Asia/Jakarta')->format('d M Y') }}</div>
+                                    <div class="text-[10px] font-mono text-gray-400">{{ $log->created_at->timezone('Asia/Jakarta')->format('H:i:s') }} WIB</div>
                                 </td>
                                 <td class="px-6 py-4 align-top">
                                     <div class="flex flex-col">

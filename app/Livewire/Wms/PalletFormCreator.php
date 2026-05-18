@@ -241,6 +241,11 @@ class PalletFormCreator extends Component
         $this->dispatch('scan-success');
     }
 
+    public function updatedScannedItems(): void
+    {
+        $this->calculateTotals();
+    }
+
     public function removeItem(int $index): void
     {
         unset($this->scanned_items[$index]);
@@ -251,7 +256,9 @@ class PalletFormCreator extends Component
     private function calculateTotals(): void
     {
         $this->total_box        = count($this->scanned_items);
-        $this->total_pallet_qty = array_sum(array_column($this->scanned_items, 'qty'));
+        $this->total_pallet_qty = array_sum(array_map(function($item) {
+            return (float) ($item['qty'] ?? 0);
+        }, $this->scanned_items));
         
         $this->updateRecommendation();
     }

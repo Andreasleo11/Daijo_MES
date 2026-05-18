@@ -400,7 +400,11 @@
                                                                         <span class="font-mono text-gray-600 group-hover:text-blue-600 transition-colors">{{ $subItem['label'] }}</span>
                                                                     @endif
                                                                 </td>
-                                                                <td class="py-2 text-right font-bold text-gray-700">{{ number_format($subItem['qty'], 0) }}</td>
+                                                                <td class="py-2 text-right">
+                                                                    <input type="number" 
+                                                                           wire:model.live.debounce.500ms="scanned_items.{{ $subItem['original_index'] }}.qty"
+                                                                           class="w-20 px-2 py-1 text-right border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-xs font-bold text-gray-700 bg-gray-50/50 hover:bg-white focus:bg-white transition-all">
+                                                                </td>
                                                                 <td class="py-2 text-center">
                                                                     <span class="px-2 py-0.5 {{ $subItem['is_no_label'] ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600' }} rounded-full text-[9px] font-bold uppercase">
                                                                         {{ $subItem['is_no_label'] ? 'Manual' : 'Scanned' }}
