@@ -150,7 +150,8 @@ class SOController extends Controller
             'spk_code' => 'required|string',
             'quantity' => 'required|integer',
             'warehouse' => 'required|string',
-            'label' => 'required|string',
+            'label' => 'required_without:labels_bulk|nullable|string',
+            'labels_bulk' => 'nullable|string',
             'packaging_name' => 'nullable|string',
             'packaging_label' => 'nullable|string',
             'packaging_warehouse' => 'nullable|string',
@@ -160,7 +161,29 @@ class SOController extends Controller
         $spk_code = $request->input('spk_code');
         $quantity = $request->input('quantity');
         $warehouse = $request->input('warehouse');
-        $label = $request->input('label');
+
+        // Parse labels (either single or bulk)
+        $labels = [];
+        if ($request->filled('labels_bulk')) {
+            $rawLabels = preg_split('/[\n\r,]+/', $request->input('labels_bulk'));
+            foreach ($rawLabels as $rl) {
+                $trimmed = trim($rl);
+                if ($trimmed !== '') {
+                    $labels[] = $trimmed;
+                }
+            }
+            $labels = array_unique($labels);
+        } else {
+            $labels[] = $request->input('label');
+        }
+
+        if (empty($labels)) {
+            $msg = 'Please enter or scan at least one label.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg]);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
+        }
 
         $item_code = SpkItemHistory::where('spk_number', $spk_code)
             ->value('item_code');
@@ -169,7 +192,7 @@ class SOController extends Controller
         $item = SoData::where('item_code', $item_code)->where('doc_num', $doc_num)->first();
         
         if (! $item) {
-            $msg = 'Item not found';
+            $msg = 'Item not found for SPK ' . $spk_code;
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msg]);
             }
@@ -180,10 +203,11 @@ class SOController extends Controller
             ->where('doc_num', $doc_num)
             ->get();
 
-        $scannedTotalQuantity = $existingScans->sum('quantity') + $quantity;
+        $totalNewQty = count($labels) * $quantity;
+        $scannedTotalQuantity = $existingScans->sum('quantity') + $totalNewQty;
     
         if ($scannedTotalQuantity > $item->quantity) {
-            $msg = 'All required CTN have been scanned / Quantity Tidak benar';
+            $msg = 'All required CTN have been scanned / Quantity exceeds SO required quantity (' . $item->quantity . ')';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msg]);
             }
@@ -196,55 +220,65 @@ class SOController extends Controller
         $packagingName = $request->input('packaging_name');
         $packagingLabel = $request->input('packaging_label');
         $packagingWhse = $request->input('packaging_warehouse');
-        $newScan = null;
+        $newScans = [];
 
         // Cek duplikat HANYA untuk Step 1 (scan produk)
-        // Step 2 (scan packaging) boleh pakai label yang sama karena berbeda tujuan
         if (empty($packagingName)) {
-            $existingScan = ScannedData::where('spk_code', $spk_code)
-                ->where('label', $label)
-                ->where('doc_num', $doc_num)
-                ->first();
+            foreach ($labels as $label) {
+                $existingScan = ScannedData::where('spk_code', $spk_code)
+                    ->where('label', $label)
+                    ->where('doc_num', $doc_num)
+                    ->first();
 
-            if ($existingScan) {
-                $msg = 'Data already scanned';
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['success' => false, 'message' => $msg]);
+                if ($existingScan) {
+                    $msg = 'Label "' . $label . '" already scanned for this SPK/SO';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg]);
+                    }
+                    return redirect()->back()->withErrors(['error' => $msg]);
                 }
-                return redirect()->back()->withErrors(['error' => $msg]);
             }
         }
 
-        // Additive Logic: Decide whether to create ScannedData (Step 1) or PackagingDetail (Step 2)
-
-        if (empty($packagingName)) {
-            // STEP 1: Create Product Scan Record
-            $newScan = ScannedData::create([
-                'doc_num' => $doc_num,
-                'item_code' => $item_code,
-                'spk_code' => $spk_code,  // tambahka
-                'quantity' => $quantity,
-                'warehouse' => $warehouse,
-                'label' => $label,
-            ]);
-        } else {
-            // STEP 2: Create Packaging Record only
-            $header = BarcodePackagingMaster::where('so_number', $doc_num)->first();
-            if ($header) {
-                // Buat record dulu untuk mendapatkan ID auto-increment
-                $detail = BarcodePackagingDetail::create([
-                    'masterId'  => $header->id,
-                    'noDokumen' => $header->noDokumen, // sementara, akan diupdate di bawah
-                    'partNo'    => $packagingName,
-                    'quantity'  => null,
-                    'label'     => $packagingLabel ?? $label,
-                    'position'  => $packagingWhse,
-                    'scantime'  => now(),
-                ]);
-
-                // Update noDokumen dengan ID unik di belakang -> contoh: OUT/SO/26006802/42
-                $detail->update(['noDokumen' => $header->noDokumen . '/' . $detail->id]);
+        DB::beginTransaction();
+        try {
+            foreach ($labels as $label) {
+                if (empty($packagingName)) {
+                    // STEP 1: Create Product Scan Record
+                    $newScan = ScannedData::create([
+                        'doc_num' => $doc_num,
+                        'item_code' => $item_code,
+                        'spk_code' => $spk_code,
+                        'quantity' => $quantity,
+                        'warehouse' => $warehouse,
+                        'label' => $label,
+                    ]);
+                    $newScans[] = $newScan;
+                } else {
+                    // STEP 2: Create Packaging Record only
+                    $header = BarcodePackagingMaster::where('so_number', $doc_num)->first();
+                    if ($header) {
+                        $detail = BarcodePackagingDetail::create([
+                            'masterId'  => $header->id,
+                            'noDokumen' => $header->noDokumen,
+                            'partNo'    => $packagingName,
+                            'quantity'  => null,
+                            'label'     => $packagingLabel ?? $label,
+                            'position'  => $packagingWhse,
+                            'scantime'  => now(),
+                        ]);
+                        $detail->update(['noDokumen' => $header->noDokumen . '/' . $detail->id]);
+                    }
+                }
             }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $msg = 'Database insertion failed: ' . $e->getMessage();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg]);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         // --- AJAX RESPONSES ---
@@ -274,21 +308,29 @@ class SOController extends Controller
                 return ($currentBoxes >= $reqBoxes && $reqBoxes > 0);
             });
 
+            $formattedNewScans = [];
+            foreach ($newScans as $ns) {
+                $formattedNewScans[] = [
+                    'id' => $ns->id,
+                    'quantity' => $ns->quantity,
+                    'warehouse' => $ns->warehouse,
+                    'label' => $ns->label,
+                    'created_at' => $ns->created_at->format('Y-m-d H:i:s')
+                ];
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => !empty($packagingName) 
-                    ? 'Packaging Berhasil Disimpan.' 
-                    : ($scanMode === 'ON' ? 'SPK Terverifikasi. Silakan scan packaging.' : 'SPK/Label berhasil discan.'),
+                'message' => count($labels) > 1 
+                    ? 'Bulk barcodes scanned successfully.'
+                    : (!empty($packagingName) 
+                        ? 'Packaging Berhasil Disimpan.' 
+                        : ($scanMode === 'ON' ? 'SPK Terverifikasi. Silakan scan packaging.' : 'SPK/Label berhasil discan.')),
                 'item_code' => $item_code,
                 'scannedCount' => $count,
                 'scannedTotalQuantity' => $totalQty,
-                'newScan' => $newScan ? [
-                    'id' => $newScan->id,
-                    'quantity' => $newScan->quantity,
-                    'warehouse' => $newScan->warehouse,
-                    'label' => $newScan->label,
-                    'created_at' => $newScan->created_at->format('Y-m-d H:i:s')
-                ] : null,
+                'newScan' => !empty($formattedNewScans) ? $formattedNewScans[0] : null,
+                'newScans' => $formattedNewScans,
                 'next_step' => $nextStep,
                 'allFinished' => $allFinished
             ]);

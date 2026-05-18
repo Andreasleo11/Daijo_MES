@@ -279,8 +279,14 @@
                 @endif
 
 
-                {{-- Packaging Mode Toggle --}}
-                <div class="mt-8 flex justify-end">
+                {{-- Mode Toggles --}}
+                <div class="mt-8 flex justify-end space-x-6">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="bulkScanToggle" class="sr-only peer" onchange="toggleBulkScanMode()">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Bulk Scan Mode</span>
+                    </label>
+
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="packagingToggle" class="sr-only peer" onchange="togglePackagingMode()">
                         <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -340,17 +346,30 @@
                                 />
                             </div>
 
-                            <div>
+                            <div id="label_single_container">
                                 <label for="label" class="block text-sm font-medium text-gray-700">
                                     Label:
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     id="label"
                                     name="label"
                                     required
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 />
+                            </div>
+
+                            <div id="label_bulk_container" class="hidden sm:col-span-2">
+                                <label for="labels_bulk" class="block text-sm font-medium text-gray-700">
+                                    Labels (Bulk - One per line):
+                                </label>
+                                <textarea
+                                    id="labels_bulk"
+                                    name="labels_bulk"
+                                    rows="4"
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    placeholder="Scan or paste multiple labels here (one per line)..."
+                                ></textarea>
                             </div>
 
                             {{-- NEW PACKAGING SECTION (Additive) --}}
@@ -562,7 +581,7 @@
         const noDataMsg = document.getElementById('no-scandata-msg');
 
         // Jika tabel belum ada (scan pertama untuk item ini), buat tabelnya
-        if (!historyBody && historyContainer && data.newScan) {
+        if (!historyBody && historyContainer && (data.newScan || data.newScans)) {
             if (noDataMsg) noDataMsg.remove(); // Hapus pesan "No data" jika ada
 
             const newTableHtml = `
@@ -589,33 +608,38 @@
             historyBody = document.getElementById(`scandata-body-${data.item_code}`);
         }
 
-        if (historyBody && data.newScan) {
-            const rowCount = historyBody.rows.length + 1;
-            const newRow = historyBody.insertRow(0); // Prepend
-            newRow.classList.add('hover:bg-gray-50', 'bg-yellow-50', 'transition-colors', 'duration-1000');
+        if (historyBody && (data.newScan || data.newScans)) {
+            const scansToInsert = data.newScans ? data.newScans : [data.newScan];
+            // Reverse so that we insert from last to first to maintain correct prepended order
+            [...scansToInsert].reverse().forEach(scanItem => {
+                if (!scanItem) return;
+                const rowCount = historyBody.rows.length + 1;
+                const newRow = historyBody.insertRow(0); // Prepend
+                newRow.classList.add('hover:bg-gray-50', 'bg-yellow-50', 'transition-colors', 'duration-1000');
 
-            const scanDeleteUrl = "{{ route('scan.delete', ':id') }}".replace(':id', data.newScan.id);
-            newRow.innerHTML = `
-                <td class="border border-gray-300 px-2 sm:px-4 py-2">${rowCount}</td>
-                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.quantity}</td>
-                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.warehouse}</td>
-                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.label}</td>
-                <td class="border border-gray-300 px-2 sm:px-4 py-2">${data.newScan.created_at}</td>
-                <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
-                    <button onclick="openEditModal(${data.newScan.id}, ${data.newScan.quantity})" 
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
-                        Edit
-                    </button>
-                    <form action="${scanDeleteUrl}" method="POST" class="inline" onsubmit="return confirm('Yakin mau hapus data ini?')">
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
-                            Delete
+                const scanDeleteUrl = "{{ route('scan.delete', ':id') }}".replace(':id', scanItem.id);
+                newRow.innerHTML = `
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${rowCount}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.quantity}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.warehouse}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.label}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.created_at}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
+                        <button onclick="openEditModal(${scanItem.id}, ${scanItem.quantity})" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                            Edit
                         </button>
-                    </form>
-                </td>
-            `;
-            setTimeout(() => newRow.classList.remove('bg-yellow-50'), 2000);
+                        <form action="${scanDeleteUrl}" method="POST" class="inline" onsubmit="return confirm('Yakin mau hapus data ini?')">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                `;
+                setTimeout(() => newRow.classList.remove('bg-yellow-50'), 2000);
+            });
         }
 
         // 4. Efek Flash pada Row (Feedback visual)
@@ -679,6 +703,13 @@
             section.classList.remove('hidden');
             if (modeInput) modeInput.value = 'ON';
             localStorage.setItem('packaging_mode', 'ON');
+            
+            // Turn off bulk scan if active
+            const bulkToggle = document.getElementById('bulkScanToggle');
+            if (bulkToggle && bulkToggle.checked) {
+                bulkToggle.checked = false;
+                toggleBulkScanMode();
+            }
         } else {
             section.classList.add('hidden');
             if (modeInput) modeInput.value = 'OFF';
@@ -686,10 +717,44 @@
         }
     }
 
+    function toggleBulkScanMode() {
+        const toggle = document.getElementById('bulkScanToggle');
+        const bulkContainer = document.getElementById('label_bulk_container');
+        const singleContainer = document.getElementById('label_single_container');
+        const labelInput = document.getElementById('label');
+        const labelsBulkInput = document.getElementById('labels_bulk');
+        const packagingToggle = document.getElementById('packagingToggle');
+
+        if (toggle.checked) {
+            bulkContainer.classList.remove('hidden');
+            singleContainer.classList.add('hidden');
+            
+            labelInput.removeAttribute('required');
+            labelsBulkInput.setAttribute('required', 'required');
+            
+            if (packagingToggle && packagingToggle.checked) {
+                packagingToggle.checked = false;
+                togglePackagingMode();
+            }
+            
+            // Auto focus textarea
+            setTimeout(() => labelsBulkInput.focus(), 100);
+        } else {
+            bulkContainer.classList.add('hidden');
+            singleContainer.classList.remove('hidden');
+            
+            labelInput.setAttribute('required', 'required');
+            labelsBulkInput.removeAttribute('required');
+            
+            setTimeout(() => labelInput.focus(), 100);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         let autoSubmitTimer;
         const spkInput = document.getElementById('spk_code');
         const labelInput = document.getElementById('label');
+        const labelsBulkInput = document.getElementById('labels_bulk');
         const pkgNameInput = document.getElementById('packaging_name');
         const pkgLabelInput = document.getElementById('packaging_label');
         const pkgWhseInput = document.getElementById('packaging_warehouse');
@@ -785,13 +850,26 @@
                         if (pkgNameInput) pkgNameInput.focus();
                     } else {
                         // TAHAP 2/ORIGINAL: Reset untuk item berikutnya
-                        form.reset();
-                        if (spkInput) spkInput.focus();
+                        const bulkToggle = document.getElementById('bulkScanToggle');
+                        if (bulkToggle && bulkToggle.checked) {
+                            if (labelsBulkInput) {
+                                labelsBulkInput.value = '';
+                                labelsBulkInput.focus();
+                            }
+                        } else {
+                            form.reset();
+                            if (spkInput) spkInput.focus();
+                        }
                     }
                 } else {
                     showAlert(data.message || "Unknown error", "error");
-                    form.reset();
-                    if (spkInput) spkInput.focus();
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        if (labelsBulkInput) labelsBulkInput.focus();
+                    } else {
+                        form.reset();
+                        if (spkInput) spkInput.focus();
+                    }
                 }
             })
             .catch(error => {
