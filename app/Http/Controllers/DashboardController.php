@@ -67,7 +67,7 @@ class DashboardController extends Controller
                         ?? ($remark->dailyItemCode->masterItem->cavity ?? 0);
                     $cavity = $cavity > 0 ? $cavity : 1;
 
-                    $remark->target = floor(3600 / $temporal) * $cavity;
+                    $remark->target = floor((3600 / $temporal) * $cavity);
                 }
 
                 if (!is_null($remark->actual_production)) {
