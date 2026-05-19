@@ -67,6 +67,17 @@
         </div>
         <div>
             <label style="font-size:10px; font-weight:700; color:#9A9590; display:block;
+                          text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">Gudang</label>
+            <select wire:model.live="filterWarehouse"
+                    style="border:1px solid #D8D4CC; border-radius:2px; padding:6px 10px;
+                           font-size:12px; font-family:'IBM Plex Sans',sans-serif; color:#1A1816;">
+                <option value="">Semua (FFI & KRFFI)</option>
+                <option value="FFI">FFI</option>
+                <option value="KRFFI">KRFFI</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:10px; font-weight:700; color:#9A9590; display:block;
                           text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">Status SAP</label>
             <select wire:model.live="filterStatus"
                     style="border:1px solid #D8D4CC; border-radius:2px; padding:6px 10px;

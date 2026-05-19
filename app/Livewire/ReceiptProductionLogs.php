@@ -19,6 +19,7 @@ class ReceiptProductionLogs extends Component
     public int    $perPage      = 50;
 
     public string $filterItemCode = '';
+    public string $filterWarehouse = '';
 
     public array $expandedRows = [];
     public array $rowDetails   = [];
@@ -40,7 +41,11 @@ class ReceiptProductionLogs extends Component
     public function updatingFilterSpk() 
     { 
         $this->resetPage(); 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+    }
+
+    public function updatingFilterWarehouse() 
+    { 
+        $this->resetPage(); 
     }
 
     public function updatingFilterDate() 
@@ -166,7 +171,10 @@ class ReceiptProductionLogs extends Component
             
             // Ambil semua pending records sesuai filter
             $summaries = DB::table('production_summary')
-                ->where('warehouse', 'FFI')
+                ->whereIn('warehouse', ['FFI', 'KRFFI'])
+                ->when($this->filterWarehouse, fn($q) =>
+                    $q->where('warehouse', $this->filterWarehouse)
+                )
                 ->where('sap_sent', 0)
                 ->when($this->filterDate, fn($q) =>
                     $q->whereDate('created_date', $this->filterDate)
@@ -274,7 +282,10 @@ class ReceiptProductionLogs extends Component
     private function baseQuery()
     {
         return DB::table('production_summary')
-            ->where('warehouse', 'FFI');
+            ->whereIn('warehouse', ['FFI', 'KRFFI'])
+            ->when($this->filterWarehouse, fn($q) =>
+                $q->where('warehouse', $this->filterWarehouse)
+            );
     }
 
     public function getLogsProperty()
@@ -348,14 +359,17 @@ class ReceiptProductionLogs extends Component
 
     public function getStatsProperty()
     {
-        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}";
+        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
     
         return cache()->remember(
             $cacheKey,
             now()->addSeconds(30),
             function () {
                 $base = DB::table('production_summary')
-                    ->where('warehouse', 'FFI')
+                    ->whereIn('warehouse', ['FFI', 'KRFFI'])
+                    ->when($this->filterWarehouse, fn($q) =>
+                        $q->where('warehouse', $this->filterWarehouse)
+                    )
                     ->when($this->filterDate, fn($q) =>
                         $q->whereDate('created_date', $this->filterDate)
                     );
