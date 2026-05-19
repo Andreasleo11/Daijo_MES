@@ -33,9 +33,33 @@ class BaseSapService
             return $this->token;
         }
         
-        // Kalau cache kosong, authenticate
-        $this->token = $this->authenticate();
-        Cache::put('sap_token', $this->token, now()->addMinutes(50));
+        // Gunakan lock atomic untuk mencegah "cache stampede" / request auth tabrakan
+        $lock = Cache::lock('sap_token_lock', 40); // Lock bertahan maks 40 detik
+        
+        try {
+            // Blokir request lain selama max 30 detik untuk menunggu request pertama selesai
+            if ($lock->block(30)) {
+                // Check cache lagi setelah dapat lock (mungkin sudah dibuat oleh request lain)
+                $cachedToken = Cache::get('sap_token');
+                if ($cachedToken) {
+                    $this->token = $cachedToken;
+                    return $this->token;
+                }
+                
+                // Kalau memang belum ada, baru authenticate
+                $this->token = $this->authenticate();
+                Cache::put('sap_token', $this->token, now()->addMinutes(50));
+                return $this->token;
+            }
+        } catch (\Exception $e) {
+            Log::error('SAP Token Lock / Auth Error: ' . $e->getMessage());
+            // Fallback: coba authenticate langsung jika lock bermasalah
+            $this->token = $this->authenticate();
+            Cache::put('sap_token', $this->token, now()->addMinutes(50));
+            return $this->token;
+        } finally {
+            optional($lock)->release();
+        }
         
         return $this->token;
     }
@@ -50,7 +74,7 @@ class BaseSapService
                     'Host' => 'localhost',
                     'Content-Type' => 'application/json',
                 ])
-                ->timeout(10)
+                ->timeout(30)
                 ->post($this->authUrl, [
                     'CompanyDB' => env('SAP_COMPANY_DB'),
                     'Username' => env('SAP_USERNAME'),
