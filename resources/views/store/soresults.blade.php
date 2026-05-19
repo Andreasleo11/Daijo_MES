@@ -878,22 +878,33 @@
                         // TAHAP 1: SPK Sukses, Pindah ke Packaging
                         if (pkgNameInput) pkgNameInput.focus();
                     } else {
-                        // TAHAP 2/ORIGINAL: Reset label & packaging untuk item berikutnya
+                        // TAHAP 2/ORIGINAL: Reset seluruh field agar kosong semua untuk scan berikutnya
                         const bulkToggle = document.getElementById('bulkScanToggle');
                         if (bulkToggle && bulkToggle.checked) {
+                            if (spkInput) spkInput.value = '';
+                            if (quantityInput) quantityInput.value = '';
+                            if (warehouseInput) warehouseInput.value = '';
                             if (labelsBulkInput) {
                                 labelsBulkInput.value = '';
-                                labelsBulkInput.focus();
+                            }
+                            if (spkInput) {
+                                spkInput.focus();
                             }
                         } else {
-                            // Single scan: Hanya reset field label dan packaging (tetap pertahankan SPK, Quantity, Warehouse)
+                            // Single scan: Reset seluruh field form scan (SPK, Quantity, Warehouse, Label, dan Packaging)
+                            if (spkInput) spkInput.value = '';
+                            if (quantityInput) quantityInput.value = '';
+                            if (warehouseInput) warehouseInput.value = '';
                             if (labelInput) {
                                 labelInput.value = '';
-                                labelInput.focus();
                             }
                             if (pkgNameInput) pkgNameInput.value = '';
                             if (pkgLabelInput) pkgLabelInput.value = '';
                             if (pkgWhseInput) pkgWhseInput.value = '';
+                            
+                            if (spkInput) {
+                                spkInput.focus();
+                            }
                         }
                     }
                 } else {
