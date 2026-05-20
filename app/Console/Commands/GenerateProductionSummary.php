@@ -34,6 +34,7 @@ class GenerateProductionSummary extends Command
             });
 
             $processedIds = [];
+            $allPayloads = [];
 
             foreach ($summaries as $groupKey => $group) {
                 $total_quantity = $group->sum('quantity');
@@ -68,21 +69,17 @@ class GenerateProductionSummary extends Command
                     'records'     => count($groupIds),
                     'qty'         => $total_quantity,
                 ]);
-            }
-          
 
-            // Kumpulkan semua payload yang dibuat (untuk api_logs)
-            $allPayloads = [];
-            foreach ($summaries as $groupKey => $group) {
-                $first = $group->first();
+                // Tambahkan ke payload api_logs agar mudah dicari
                 $allPayloads[] = [
+                    'summary_id'     => $summary->id,
                     'spk_code'       => $first->spk_code,
-                    'total_quantity' => $group->sum('quantity'),
+                    'total_quantity' => $total_quantity,
                     'warehouse'      => $first->warehouse,
                     'label'          => 'all',
                     'used_label'     => $group->pluck('label')->unique()->values()->toArray(),
                     'created_date'   => $first->created_at->toDateString(),
-                    'records_count'  => $group->count(),
+                    'records_count'  => count($groupIds),
                 ];
             }
 

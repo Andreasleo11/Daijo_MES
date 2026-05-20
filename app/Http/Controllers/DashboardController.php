@@ -1443,6 +1443,10 @@ class DashboardController extends Controller
             return back()->with('error', 'Data scan tidak ditemukan');
         }
 
+        if ($scan->processed) {
+            return back()->with('error', 'Data scan tidak bisa dihapus karena sudah diproses ke Summary / SAP.');
+        }
+
         DB::beginTransaction();
 
         try {
@@ -1683,6 +1687,16 @@ class DashboardController extends Controller
         $start = Carbon::parse($remark->start_time);
         $end   = Carbon::parse($remark->end_time);
 
+        // Cek apakah sudah ada yang diproses
+        $hasProcessed = ProductionScannedData::where('dic_id', $remark->dic_id)
+             ->whereRaw('CONVERT_TZ(created_at, "+00:00", "+07:00") BETWEEN ? AND ?', [$start, $end])
+             ->where('processed', true)
+             ->exists();
+
+        if ($hasProcessed) {
+            return redirect()->back()->with('error', 'Hourly Remark tidak bisa dihapus karena sebagian/seluruh data scan di jam ini sudah diproses ke Summary / SAP.');
+        }
+
         // Hapus scanned data dalam rentang waktu itu
         $test = ProductionScannedData::where('dic_id', $remark->dic_id)
              ->whereRaw('CONVERT_TZ(created_at, "+00:00", "+07:00") BETWEEN ? AND ?', [$start, $end])
@@ -1700,6 +1714,11 @@ class DashboardController extends Controller
     public function deletedic($id)
     {
         $item = DailyItemCode::findOrFail($id);
+
+        $hasProcessed = $item->scannedData()->where('processed', true)->exists();
+        if ($hasProcessed) {
+            return redirect()->back()->with('error', 'Daily Item Code tidak bisa dihapus karena sudah ada data scan yang diproses ke Summary / SAP.');
+        }
 
         // Hapus juga relasi kalau ada
         $item->hourlyRemarks()->delete();
