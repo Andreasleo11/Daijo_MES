@@ -682,7 +682,39 @@
         modal.classList.remove('flex');
     }
 
+    function playLoudBeep(type) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            // Set volume maksimal
+            gainNode.gain.value = 1.0;
+            
+            if (type === "success") {
+                // Suara "Tiiit" tinggi dan pendek untuk sukses
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(900, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } else {
+                // Suara "Teeet" rendah dan panjang untuk error
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.6);
+            }
+        } catch (e) {
+            console.error("Audio API not supported", e);
+        }
+    }
+
     function showAlert(msg, type = "success") {
+        playLoudBeep(type);
+        
         const alertBox = document.getElementById('scanAlert');
         if (!alertBox) return;
         alertBox.innerText = msg;
