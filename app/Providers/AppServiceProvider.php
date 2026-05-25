@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('sap-api', function (Request $request) {
 
-            return Limit::perMinute(30) // 30 request / menit
+            return Limit::perMinute(3000) // 30 request / menit
                 ->by(
                     optional($request->user())->id
                     ?: $request->header('X-Device-ID')
