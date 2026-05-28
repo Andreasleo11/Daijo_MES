@@ -8,7 +8,7 @@
     </div>
 
     {{-- Stats --}}
-    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;">
+    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px;">
         <div style="background:#fff; border:1px solid #E8E4DC; border-radius:4px; padding:16px;">
             <div style="font-size:10px; font-weight:700; color:#9A9590; letter-spacing:.1em;
                         text-transform:uppercase; margin-bottom:6px;">Total SPK</div>
@@ -26,6 +26,14 @@
                         text-transform:uppercase; margin-bottom:6px;">Belum Terkirim</div>
             <div style="font-size:24px; font-weight:800; color:#C2410C;">{{ number_format($this->stats['pending']) }}</div>
         </div>
+        @if(($this->stats['processing'] ?? 0) > 0)
+        <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:4px; padding:16px;
+                    border-left:3px solid #F59E0B;">
+            <div style="font-size:10px; font-weight:700; color:#92400E; letter-spacing:.1em;
+                        text-transform:uppercase; margin-bottom:6px;">⚠ Processing/Stuck</div>
+            <div style="font-size:24px; font-weight:800; color:#B45309;">{{ number_format($this->stats['processing']) }}</div>
+        </div>
+        @endif
         <div style="background:#fff; border:1px solid #E8E4DC; border-radius:4px; padding:16px;
                     border-left:3px solid #7C3AED;">
             <div style="font-size:10px; font-weight:700; color:#9A9590; letter-spacing:.1em;
@@ -138,9 +146,10 @@
                 @forelse($this->logs as $i => $row)
                 @php
                     $sent        = $row->sap_sent == 1;
+                    $processing  = $row->sap_sent == 2;
                     $ignored     = $row->sap_sent == 99;
                     $bg          = $i % 2 === 0 ? '#fff' : '#FAFAF8';
-                    $bl          = $sent ? '3px solid #22C55E' : ($ignored ? '3px solid #7C3AED' : '3px solid #F97316');
+                    $bl          = $sent ? '3px solid #22C55E' : ($ignored ? '3px solid #7C3AED' : ($processing ? '3px solid #F59E0B' : '3px solid #F97316'));
                     $createdAt   = Carbon\Carbon::parse($row->created_at)->timezone('Asia/Jakarta');
                     $createdDate = Carbon\Carbon::parse($row->created_date);
                     $isPushing   = isset($pushingRows[$row->id]);
@@ -212,6 +221,11 @@
                                     font-weight:700; padding:3px 10px; border-radius:20px;">
                             ✓ Terkirim
                         </span>
+                        @elseif($processing)
+                        <span style="background:#FEF3C7; color:#B45309; font-size:10px;
+                                    font-weight:700; padding:3px 10px; border-radius:20px;">
+                            ⏳ Processing
+                        </span>
                         @else
                         <span style="background:#FEE2E2; color:#B91C1C; font-size:10px;
                                     font-weight:700; padding:3px 10px; border-radius:20px;">
@@ -230,6 +244,15 @@
                                 ⊘ Diabaikan
                             </span>
                             <span style="font-size:10px; color:#C8C4BC;">Tidak dikirim ke SAP</span>
+                        </div>
+                        @elseif($processing)
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            <span style="background:#FEF3C7; color:#B45309; font-size:10px;
+                                        font-weight:700; padding:2px 8px; border-radius:2px;
+                                        display:inline-block; width:fit-content;">
+                                ⏳ Sedang diproses...
+                            </span>
+                            <span style="font-size:10px; color:#C8C4BC;">Worker sedang mengirim ke SAP</span>
                         </div>
                         @elseif($row->sap_sent_at)
                         @php $sentAt = Carbon\Carbon::parse($row->sap_sent_at)->timezone('Asia/Jakarta'); @endphp
@@ -364,6 +387,22 @@
                                             white-space:nowrap; width:100%; transition:all 0.2s;
                                             hover:background:#F3E8FF;">
                                     ⊘ Abaikan
+                                </button>
+                            @elseif($processing)
+                                {{-- Processing/Stuck: Show Reset Button --}}
+                                <div style="padding:4px 6px; background:#FFFBEB; border:1px solid #FDE68A;
+                                            border-radius:2px; font-size:9px; color:#92400E; margin-bottom:4px;
+                                            line-height:1.3;">
+                                    ⚠ Sedang diproses worker.<br>Jika lebih dari 15 menit, klik reset.
+                                </div>
+                                <button wire:click="markAsPending({{ $row->id }})"
+                                        wire:confirm="Reset SPK {{ $row->spk_code }} ke pending? Lakukan ini jika worker stuck lebih dari 15 menit."
+                                        style="background:#FEF3C7; border:1px solid #FDE68A; color:#B45309;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#FCD34D;">
+                                    ↩ Reset ke Pending
                                 </button>
                             @elseif($row->sap_sent == 99)
                                 {{-- Ignored: Show Reset Button --}}

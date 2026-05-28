@@ -170,12 +170,13 @@ class ReceiptProductionLogs extends Component
             $service = app(ReceiptProductionService::class);
             
             // Ambil semua pending records sesuai filter
+            // Exclude status 2 (sedang diproses worker lain) dari batch push
             $summaries = DB::table('production_summary')
                 ->whereIn('warehouse', ['FFI', 'KRFFI'])
                 ->when($this->filterWarehouse, fn($q) =>
                     $q->where('warehouse', $this->filterWarehouse)
                 )
-                ->where('sap_sent', 0)
+                ->where('sap_sent', 0) // Hanya yang benar-benar pending, bukan yang lagi processing
                 ->when($this->filterDate, fn($q) =>
                     $q->whereDate('created_date', $this->filterDate)
                 )
@@ -322,7 +323,8 @@ class ReceiptProductionLogs extends Component
                 $q->where('production_summary.sap_sent', 1)
             )
             ->when($this->filterStatus === 'pending', fn($q) =>
-                $q->where('production_summary.sap_sent', 0)
+                // Pending = belum terkirim (0) atau stuck/processing (2)
+                $q->whereIn('production_summary.sap_sent', [0, 2])
             )
             ->when($this->filterStatus === 'ignored', fn($q) =>
                 $q->where('production_summary.sap_sent', 99)
@@ -352,7 +354,7 @@ class ReceiptProductionLogs extends Component
                 $q->where('psd.item_code', 'like', "%{$this->filterItemCode}%")
             )
             ->when($this->filterStatus === 'sent',    fn($q) => $q->where('production_summary.sap_sent', 1))
-            ->when($this->filterStatus === 'pending', fn($q) => $q->where('production_summary.sap_sent', 0))
+            ->when($this->filterStatus === 'pending', fn($q) => $q->whereIn('production_summary.sap_sent', [0, 2]))
             ->when($this->filterStatus === 'ignored', fn($q) => $q->where('production_summary.sap_sent', 99))
             ->sum('production_summary.total_quantity');
     }
@@ -378,18 +380,20 @@ class ReceiptProductionLogs extends Component
                     ->selectRaw('
                         COUNT(*) as total,
                         SUM(CASE WHEN sap_sent = 1  THEN 1 ELSE 0 END) as sent,
-                        SUM(CASE WHEN sap_sent = 0  THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN sap_sent IN (0, 2) THEN 1 ELSE 0 END) as pending,
                         SUM(CASE WHEN sap_sent = 99 THEN 1 ELSE 0 END) as ignored,
+                        SUM(CASE WHEN sap_sent = 2  THEN 1 ELSE 0 END) as processing,
                         SUM(total_quantity) as total_qty
                     ')
                     ->first();
 
                 return [
-                    'total'     => $result->total     ?? 0,
-                    'sent'      => $result->sent       ?? 0,
-                    'pending'   => $result->pending    ?? 0,
-                    'ignored'   => $result->ignored    ?? 0,
-                    'total_qty' => $result->total_qty  ?? 0,
+                    'total'      => $result->total      ?? 0,
+                    'sent'       => $result->sent        ?? 0,
+                    'pending'    => $result->pending     ?? 0,
+                    'ignored'    => $result->ignored     ?? 0,
+                    'processing' => $result->processing  ?? 0,
+                    'total_qty'  => $result->total_qty   ?? 0,
                 ];
             }
         );

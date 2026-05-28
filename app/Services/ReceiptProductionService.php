@@ -13,6 +13,7 @@ class ReceiptProductionService extends BaseSapService
     public function pushAllUnprocessed()
     {
         // Ambil dari production_summary yang belum dikirim ke SAP
+        // Exclude sap_sent=2 (sedang diproses worker lain) dan sap_sent=1 (sudah sukses)
         $records = DB::table('production_summary')
             ->where('sap_sent', 0)
             ->whereIn('warehouse', ['FFI', 'KRFFI'])
@@ -42,6 +43,19 @@ class ReceiptProductionService extends BaseSapService
         Log::info("SAP Push START", ['summary_count' => $records->count()]);
 
         foreach ($records as $summary) {
+            // === ATOMIC LOCK: Tandai sebagai PROCESSING (2) sebelum tembak SAP ===
+            // Hanya update jika status masih 0 (Pending). Jika return 0 rows,
+            // berarti worker/scheduler lain sudah mengambilnya — skip.
+            $locked = DB::table('production_summary')
+                ->where('id', $summary->id)
+                ->where('sap_sent', 0)
+                ->update(['sap_sent' => 2, 'updated_at' => now()]);
+
+            if (!$locked) {
+                Log::warning("[SAP Push] SPK {$summary->spk_code} SKIPPED - sudah diambil worker lain atau sudah diproses.");
+                continue;
+            }
+
             // Cari item_code dari production_scanned_data menggunakan spk_code
             $scannedData = DB::table('production_scanned_data')
                 ->where('spk_code', $summary->spk_code)
@@ -49,7 +63,13 @@ class ReceiptProductionService extends BaseSapService
 
             if (!$scannedData) {
                 Log::warning("Scanned data not found for SPK", ['spk_code' => $summary->spk_code]);
-                
+
+                // Revert lock ke 0 supaya bisa dicoba ulang
+                DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->where('sap_sent', 2)
+                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
+
                 $this->saveApiLog(
                     'receipt_production',
                     'POST',
@@ -82,24 +102,15 @@ class ReceiptProductionService extends BaseSapService
                 $status = $response->successful() && isset($json['status']) && $json['status'] === true;
                 
                 if ($status) {
-                    // Atomic update: Hanya update kalau status emang masih 0.
-                    // Ini kunci buat ngecegah double push kalau ada job yang nabrak.
-                    $updated = DB::table('production_summary')
+                    // Update dari status PROCESSING (2) ke SUCCESS (1)
+                    DB::table('production_summary')
                         ->where('id', $summary->id)
-                        ->where('sap_sent', 0) // <--- Pengaman: Hanya update jika belum sent
+                        ->where('sap_sent', 2) // Hanya update dari status processing
                         ->update([
-                            'sap_sent' => 1,
+                            'sap_sent'    => 1,
                             'sap_sent_at' => now(),
+                            'updated_at'  => now(),
                         ]);
-
-                    if ($updated === 0) {
-                        // Kalau 0, berarti job lain udah duluan sukses nembak SAP & update status.
-                        Log::warning("SAP Push SKIPPED - Sudah diproses job lain", [
-                            'summary_id' => $summary->id,
-                            'spk_code' => $summary->spk_code
-                        ]);
-                        continue;
-                    }
 
                     Log::info("SAP Push SUCCESS", [
                         'summary_id' => $summary->id,
@@ -127,6 +138,12 @@ class ReceiptProductionService extends BaseSapService
                         'json'     => $json,
                     ]);
 
+                    // Revert lock ke 0 supaya bisa dicoba ulang di run berikutnya
+                    DB::table('production_summary')
+                        ->where('id', $summary->id)
+                        ->where('sap_sent', 2)
+                        ->update(['sap_sent' => 0, 'updated_at' => now()]);
+
                     $this->saveApiLog(
                         'receipt_production',
                         'POST',
@@ -145,6 +162,12 @@ class ReceiptProductionService extends BaseSapService
                     'error'    => $e->getMessage(),
                 ]);
 
+                // Revert lock ke 0 supaya bisa dicoba ulang
+                DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->where('sap_sent', 2)
+                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
+
                 $this->saveApiLog(
                     'receipt_production',
                     'POST',
@@ -159,8 +182,26 @@ class ReceiptProductionService extends BaseSapService
         }
     }
 
-     public function pushSingleRecord($summary, $scannedData)
+    public function pushSingleRecord($summary, $scannedData)
     {
+        // === ATOMIC LOCK untuk manual push ===
+        // Hanya boleh push jika status masih 0 (Pending)
+        $locked = DB::table('production_summary')
+            ->where('id', $summary->id)
+            ->where('sap_sent', 0)
+            ->update(['sap_sent' => 2, 'updated_at' => now()]);
+
+        if (!$locked) {
+            $current = DB::table('production_summary')->where('id', $summary->id)->value('sap_sent');
+            $statusMap = [1 => 'sudah terkirim ke SAP', 2 => 'sedang diproses', 99 => 'diabaikan'];
+            $reason = $statusMap[$current] ?? 'status tidak diketahui';
+            Log::warning("[SAP Push Manual] SPK {$summary->spk_code} SKIPPED - {$reason}.");
+            return [
+                'success' => false,
+                'message' => "Tidak bisa dikirim: {$reason}.",
+            ];
+        }
+
         try {
             $payload = [
                 [
@@ -178,12 +219,14 @@ class ReceiptProductionService extends BaseSapService
             $status = $response->successful() && isset($json['status']) && $json['status'] === true;
  
             if ($status) {
-                // Update production_summary set sap_sent = 1 dan sap_sent_at = now()
+                // Update dari PROCESSING (2) ke SUCCESS (1)
                 DB::table('production_summary')
                     ->where('id', $summary->id)
+                    ->where('sap_sent', 2)
                     ->update([
-                        'sap_sent' => 1,
+                        'sap_sent'    => 1,
                         'sap_sent_at' => now(),
+                        'updated_at'  => now(),
                     ]);
  
                 Log::info("SAP Push SUCCESS (Manual)", [
@@ -217,6 +260,12 @@ class ReceiptProductionService extends BaseSapService
                     'body'     => $response->body(),
                     'json'     => $json,
                 ]);
+
+                // Revert lock ke 0 supaya bisa dicoba ulang
+                DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->where('sap_sent', 2)
+                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
  
                 $this->saveApiLog(
                     'receipt_production',
@@ -242,6 +291,12 @@ class ReceiptProductionService extends BaseSapService
                 'spk_code' => $summary->spk_code ?? null,
                 'error'    => $e->getMessage(),
             ]);
+
+            // Revert lock ke 0 supaya bisa dicoba ulang
+            DB::table('production_summary')
+                ->where('id', $summary->id)
+                ->where('sap_sent', 2)
+                ->update(['sap_sent' => 0, 'updated_at' => now()]);
  
             $this->saveApiLog(
                 'receipt_production',
