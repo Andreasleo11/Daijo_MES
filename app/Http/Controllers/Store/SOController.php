@@ -254,6 +254,45 @@ class SOController extends Controller
                         'label' => $label,
                     ]);
                     $newScans[] = $newScan;
+
+                    // Deduct from WMS Pallet if the box label exists in a pallet
+                    $wmsDetail = \App\Models\WmsPalletFormDetail::where('label', $label)->first();
+                    if ($wmsDetail) {
+                        $pallet = \App\Models\WmsPalletForm::lockForUpdate()->find($wmsDetail->pallet_form_id);
+                        if ($pallet) {
+                            $oldPositionId = $pallet->position_id;
+                            $boxQty = $wmsDetail->qty;
+
+                            // Delete the detail record (Soft delete)
+                            $wmsDetail->delete();
+
+                            // Deduct qty and box count from the pallet header
+                            $pallet->box_qty = max(0, $pallet->box_qty - 1);
+                            $pallet->total_pallet_qty = max(0, $pallet->total_pallet_qty - $boxQty);
+
+                            // Check if the pallet is now empty
+                            if ($pallet->total_pallet_qty <= 0 || $pallet->box_qty <= 0) {
+                                $pallet->status = 'OUT';
+                                $pallet->position_id = null;
+                                $pallet->box_qty = 0;
+                                $pallet->total_pallet_qty = 0;
+                                $notes = "Full Outbound via SO Scan (DocNum: {$doc_num}, Item: {$item_code}, Label: {$label}, Qty: {$boxQty} pcs)";
+                            } else {
+                                $notes = "Partial Outbound via SO Scan (DocNum: {$doc_num}, Item: {$item_code}, Label: {$label}, Qty: {$boxQty} pcs)";
+                            }
+
+                            $pallet->save();
+
+                            // Log transaction OUT
+                            $wmsService = app(\App\Services\WmsService::class);
+                            $wmsService->logTransaction($pallet->pallet_id, 'OUT', $oldPositionId, $notes);
+
+                            // Update position status
+                            if ($oldPositionId) {
+                                $wmsService->updatePositionStatus($oldPositionId);
+                            }
+                        }
+                    }
                 } else {
                     // STEP 2: Create Packaging Record only
                     $header = BarcodePackagingMaster::where('so_number', $doc_num)->first();

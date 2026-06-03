@@ -34,7 +34,14 @@ class FileController extends Controller
         }
 
         // Flash a success message to the session
-        session()->flash('success', 'Action completed successfully!');
+        session()->flash('success', 'Files uploaded successfully!');
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Files uploaded successfully!'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Files uploaded successfully!');
     }

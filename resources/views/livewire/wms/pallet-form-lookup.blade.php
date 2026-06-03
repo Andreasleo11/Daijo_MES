@@ -61,7 +61,14 @@
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-lg font-bold text-gray-800">Pallet Information</h3>
-                            <span class="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase">{{ $palletForm->pallet_id }}</span>
+                            <div class="flex items-center space-x-2">
+                                @if($palletForm->status === 'OUT')
+                                    <span class="px-3 py-1 bg-red-600 text-white text-[10px] font-black rounded-full uppercase">OUT</span>
+                                @else
+                                    <span class="px-3 py-1 bg-green-600 text-white text-[10px] font-black rounded-full uppercase">STORED</span>
+                                @endif
+                                <span class="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase">{{ $palletForm->pallet_id }}</span>
+                            </div>
                         </div>
 
                         <div class="space-y-4">
@@ -126,7 +133,9 @@
                     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-50 flex items-center justify-between">
                             <h3 class="text-lg font-bold text-gray-800">Box Item Details</h3>
-                            <span class="px-3 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-full">{{ count($palletForm->details) }} ITEMS TOTAL</span>
+                            <span class="px-3 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-full">
+                                {{ $palletForm->details->whereNull('deleted_at')->count() }} ACTIVE / {{ $palletForm->details->whereNotNull('deleted_at')->count() }} OUT
+                            </span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
@@ -140,21 +149,29 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
                                     @foreach($palletForm->details as $item)
-                                        <tr class="hover:bg-blue-50/30 transition-colors">
+                                        @php
+                                            $isOut = $item->deleted_at !== null;
+                                        @endphp
+                                        <tr class="hover:bg-blue-50/30 transition-colors {{ $isOut ? 'opacity-40 bg-gray-50/50 line-through text-gray-400' : '' }}">
                                             <td class="px-6 py-4">
-                                                <div class="font-black text-gray-900 text-sm">{{ $item->part_no }}</div>
-                                                <div class="text-xs text-gray-600 font-bold">{{ $item->model_name }}</div>
+                                                <div class="flex items-center">
+                                                    <div class="font-black text-sm {{ $isOut ? 'text-gray-400' : 'text-gray-900' }}">{{ $item->part_no }}</div>
+                                                    @if($isOut)
+                                                        <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-[10px] font-bold rounded uppercase">OUT</span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-xs font-bold {{ $isOut ? 'text-gray-400' : 'text-gray-600' }}">{{ $item->model_name }}</div>
                                             </td>
                                             <td class="px-6 py-4">
                                                 @if($item->is_no_label)
                                                     <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-black rounded uppercase border border-orange-200">No Label</span>
                                                 @else
-                                                    <div class="text-sm font-black text-gray-900">{{ $item->spk_no }}</div>
-                                                    <div class="text-xs font-mono text-gray-500 font-bold">{{ $item->label }}</div>
+                                                    <div class="text-sm font-black {{ $isOut ? 'text-gray-400' : 'text-gray-900' }}">{{ $item->spk_no }}</div>
+                                                    <div class="text-xs font-mono font-bold {{ $isOut ? 'text-gray-400' : 'text-gray-500' }}">{{ $item->label }}</div>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 text-right">
-                                                <span class="text-lg font-black text-blue-700">{{ number_format($item->qty) }}</span>
+                                                <span class="text-lg font-black {{ $isOut ? 'text-gray-400' : 'text-blue-700' }}">{{ number_format($item->qty) }}</span>
                                             </td>
                                             <td class="px-6 py-4">
                                                 <span class="px-3 py-1 bg-slate-100 text-slate-800 text-sm font-black rounded-xl border border-slate-200">{{ $item->warehouse }}</span>

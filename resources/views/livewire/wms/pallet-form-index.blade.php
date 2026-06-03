@@ -48,7 +48,14 @@
                         @forelse ($palletForms as $form)
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4">
-                                    <div class="font-bold text-gray-800">{{ $form->pallet_id }}</div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="font-bold text-gray-800">{{ $form->pallet_id }}</div>
+                                        @if($form->status === 'OUT')
+                                            <span class="px-2 py-0.5 bg-red-100 text-red-800 text-[10px] font-bold rounded">OUT</span>
+                                        @else
+                                            <span class="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold rounded">STORED</span>
+                                        @endif
+                                    </div>
                                     <div class="text-xs text-gray-400">#{{ $form->lot_no ?: 'No Lot' }}</div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">

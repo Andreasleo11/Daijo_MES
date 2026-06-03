@@ -22,7 +22,9 @@ class PalletFormLookup extends Component
             return;
         }
 
-        $this->palletForm = WmsPalletForm::with(['details', 'position'])
+        $this->palletForm = WmsPalletForm::with(['details' => function($q) {
+            $q->withTrashed();
+        }, 'position'])
             ->where('pallet_id', $this->pallet_id)
             ->first();
 
