@@ -668,6 +668,87 @@
                             @endif
                             </tbody>
                         </table>
+                        <div x-data="{ openLog: false }" class="bg-white border border-gray-200 rounded-xl shadow-lg mt-6 p-6 transition-all duration-300">
+                            <div @click="openLog = !openLog" :class="openLog ? 'mb-6 pb-4 border-b border-gray-100' : ''" class="flex justify-between items-center cursor-pointer select-none transition-all duration-300">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                        📦 Output Log Produksi
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1">
+                                        Dicatat per produk keluar berdasarkan cycle time / cavity mesin
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-indigo-50 text-indigo-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-indigo-100">
+                                        Quantity per shot: <strong>{{ $activeDIC ? (!empty($activeDIC->temporal_cavity) && $activeDIC->temporal_cavity > 0 ? $activeDIC->temporal_cavity : ($activeDIC->masterItem->cavity ?? 1)) : 1 }}</strong>
+                                    </span>
+                                    <span class="bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-emerald-100">
+                                        Total Logs Today: <strong id="total-logs-count">{{ $outputLogs->count() }}</strong>
+                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform duration-200" :class="openLog ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div x-show="openLog" x-transition>
+                                <!-- Form Submit Log -->
+                                <form id="output-log-form" action="{{ route('production.output-log.store') }}" method="POST" class="mb-6 flex gap-4 items-center">
+                                    @csrf
+                                    <input type="hidden" name="operator_name" :value="localStorage.getItem('operator_name') || ''" />
+                                    
+                                    <button type="submit" 
+                                        class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition duration-200 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Tambah Log Output
+                                    </button>
+                                </form>
+
+                                <!-- Table Log -->
+                                <div class="rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                    {{-- Sticky thead --}}
+                                    <table class="min-w-full bg-white text-center text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Waktu (WIB)</th>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Operator</th>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Quantity</th>
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                    {{-- Scrollable tbody — max ~5 rows (each row ≈ 48px, 5 rows = 240px) --}}
+                                    <div class="overflow-y-auto" style="max-height: 240px;">
+                                        <table class="min-w-full bg-white text-center text-sm">
+                                            <tbody id="output-logs-tbody" class="divide-y divide-gray-100">
+                                                @forelse ($outputLogs as $log)
+                                                    <tr class="hover:bg-gray-50/50 transition-colors">
+                                                        <td class="py-3 px-4 font-semibold text-gray-700 w-1/3">
+                                                            {{ $log->logged_at ? $log->logged_at->format('H:i:s') : '-' }}
+                                                        </td>
+                                                        <td class="py-3 px-4 text-gray-700 w-1/3">
+                                                            <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                                                {{ $log->operator_name }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="py-3 px-4 text-gray-900 font-bold w-1/3">
+                                                            {{ $log->quantity }}
+                                                        </td>
+                                                    </tr>
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="3" class="text-center text-gray-400 py-6 italic bg-gray-50/20">
+                                                            Belum ada log output untuk DIC ini hari ini.
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
 
                             <dialog id="detailDataModal" class="p-6 rounded-lg w-11/12 max-w-4xl">
@@ -1995,8 +2076,108 @@
             document.getElementById('temporalCavityModal').classList.add('hidden');
         }
 
+        // AJAX handler untuk penambahan Output Log tanpa reload halaman
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('output-log-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const button = form.querySelector('button[type="submit"]');
+                    const operatorName = localStorage.getItem('operator_name') || '';
+                    
+                    // Disable button
+                    button.disabled = true;
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({
+                            operator_name: operatorName
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const tbody = document.getElementById('output-logs-tbody');
+                            
+                            // Hapus baris kosong/placeholder jika ada
+                            const emptyRow = tbody.querySelector('tr td[colspan="3"]');
+                            if (emptyRow) {
+                                tbody.innerHTML = '';
+                            }
+                            
+                            // Render baris baru
+                            const newRowHtml = `
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-3 px-4 font-semibold text-gray-700 w-1/3">
+                                        ${data.log.time}
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-700 w-1/3">
+                                        <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                            ${data.log.operator_name}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-900 font-bold w-1/3">
+                                        ${data.log.quantity}
+                                    </td>
+                                </tr>
+                            `;
+                            
+                            // Sisipkan ke baris paling atas
+                            tbody.insertAdjacentHTML('afterbegin', newRowHtml);
 
+                            // Update badge count
+                            const countEl = document.getElementById('total-logs-count');
+                            if (countEl) {
+                                countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+                            }
+                            
+                            // Trigger Print menggunakan hidden iframe
+                            const printUrl = `/production-output-log/print/${data.log_id}`;
+                            const iframe = document.createElement('iframe');
+                            iframe.src = printUrl;
+                            iframe.style.position = 'absolute';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = '0';
+                            iframe.style.visibility = 'hidden';
+                            
+                            document.body.appendChild(iframe);
+                            
+                            // Bersihkan iframe setelah print dipicu
+                            setTimeout(() => {
+                                iframe.remove();
+                            }, 10000);
+                        } else {
+                            alert(data.message || 'Gagal menambahkan log output.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Terjadi kesalahan saat menambahkan log.');
+                    })
+                    .finally(() => {
+                        // Re-enable button
+                        button.disabled = false;
+                        button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    });
+                });
+            }
+        });
     
     </script>
+
+    {{-- Hidden iframe untuk auto-print label barcode --}}
+    @if (session('print_log_id'))
+        <iframe src="{{ route('production.output-log.print', session('print_log_id')) }}" 
+                style="width:0; height:0; border:0; border:none; position:absolute; visibility:hidden;">
+        </iframe>
+    @endif
 
 </x-app-layout>

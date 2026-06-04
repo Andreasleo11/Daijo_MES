@@ -73,4 +73,9 @@ class DailyItemCode extends Model
             'item_code'
         );
     }
+
+    public function outputLogs()
+    {
+        return $this->hasMany(ProductionOutputLog::class, 'dic_id', 'id');
+    }
 }

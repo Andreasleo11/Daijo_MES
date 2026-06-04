@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\ParentDataUpdated;
 use App\Models\DailyItemCode;
+use App\Models\ProductionOutputLog;
 use Illuminate\Support\Facades\DB;
 use App\Models\File;
 use App\Models\MachineJob;
@@ -342,7 +343,13 @@ class DashboardController extends Controller
             
             $ngData = ProductionNgType::get();
             
-            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData', 'todayitems','ngData'));
+            $outputLogs = $activeDIC
+                ? ProductionOutputLog::where('dic_id', $activeID)
+                    ->orderByDesc('logged_at')
+                    ->get()
+                : collect();
+            
+            return view('dashboards.dashboard-operator', compact('files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift', 'dataWithSpkNo', 'machinejobid', 'itemCollections',  'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs','zone','pengawasName','pengawasProfile', 'activeDIC', 'totalScannedQuantity', 'scannedCount', 'hourlyRemarksActiveDIC', 'hourlyRemarks','spkData', 'todayitems','ngData', 'outputLogs'));
         } elseif ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         } else {
@@ -1745,6 +1752,102 @@ class DashboardController extends Controller
         $dailyItemCode->save();
 
         return redirect()->back()->with('success', 'Temporal cavity berhasil diperbarui.');
+    }
+
+    public function storeOutputLog(Request $request)
+    {
+        $user = auth()->user();
+        
+        $itemCode = $user->jobs->item_code ?? null;
+        
+        $todayDIC = DailyItemCode::where('user_id', $user->id)
+            ->whereDate('schedule_date', Carbon::today())
+            ->where('item_code', $itemCode)
+            ->with('masterItem')
+            ->whereNull('is_done')
+            ->orderBy('shift')
+            ->first();
+
+        $previousDIC = DailyItemCode::where('user_id', $user->id)
+            ->where('schedule_date', '<', Carbon::today())
+            ->where('item_code', $itemCode)
+            ->with('masterItem')
+            ->whereNull('is_done')
+            ->orderByDesc('schedule_date')
+            ->first();
+
+        $activeDIC = $previousDIC ?? $todayDIC;
+
+        if (!$activeDIC) {
+            $activeDIC = DailyItemCode::where('user_id', $user->id)
+                ->where('item_code', $itemCode)
+                ->with('masterItem')
+                ->whereNull('is_done')
+                ->first();
+        }
+
+        if (!$activeDIC) {
+            return redirect()->back()->with('error', 'Tidak ada Daily Item Code aktif untuk mesin/user ini.');
+        }
+
+        $quantity = 1;
+        if (!empty($activeDIC->temporal_cavity) && $activeDIC->temporal_cavity > 0) {
+            $quantity = $activeDIC->temporal_cavity;
+        } elseif ($activeDIC->masterItem && !empty($activeDIC->masterItem->cavity) && $activeDIC->masterItem->cavity > 0) {
+            $quantity = $activeDIC->masterItem->cavity;
+        }
+
+        $operatorName = $request->input('operator_name') ?: (session('verifiedNIK') ?: 'Unknown Operator');
+
+        $log = ProductionOutputLog::create([
+            'dic_id' => $activeDIC->id,
+            'operator_name' => strtoupper($operatorName),
+            'quantity' => $quantity,
+            'logged_at' => Carbon::now('Asia/Jakarta'),
+        ]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Log output berhasil ditambahkan.',
+                'log_id' => $log->id,
+                'log' => [
+                    'id' => $log->id,
+                    'time' => $log->logged_at->format('H:i:s'),
+                    'operator_name' => $log->operator_name,
+                    'quantity' => $log->quantity
+                ]
+            ]);
+        }
+
+        return redirect()->back()
+            ->with('success', 'Log output berhasil ditambahkan.')
+            ->with('print_log_id', $log->id);
+    }
+
+    public function printOutputLog($id)
+    {
+        $log = ProductionOutputLog::with('dailyItemCode.masterItem')->findOrFail($id);
+        
+        // QR Code content: [Item Code] \t [Operator Name] \t [Logged At]
+        $qrData = implode("\t", [
+            $log->dailyItemCode->item_code,
+            $log->operator_name,
+            $log->logged_at->format('Y-m-d H:i:s')
+        ]);
+
+        $qrCode = new QrCode(
+            data: $qrData,
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+            size: 60,
+            margin: 0
+        );
+        
+        $writer = new PngWriter();
+        $qrCodeResult = $writer->write($qrCode);
+        $qrCodeBase64 = base64_encode($qrCodeResult->getString());
+
+        return view('dashboards.print_output_log', compact('log', 'qrCodeBase64'));
     }
 
 }

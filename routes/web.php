@@ -374,6 +374,8 @@ Route::middleware('auth')->group(function (){
     Route::put('/daily-item-codes/{id}/temporal-cycle-time', [DashboardController::class, 'updateCycleTime'])
     ->name('daily-item-codes.updateCycleTime');
     Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
+    Route::post('/production-output-log', [DashboardController::class, 'storeOutputLog'])->name('production.output-log.store');
+    Route::get('/production-output-log/print/{id}', [DashboardController::class, 'printOutputLog'])->name('production.output-log.print');
 
      Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
     ->name('daily-item-codes.updatecavity');
