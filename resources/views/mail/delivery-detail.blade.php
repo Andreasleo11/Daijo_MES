@@ -94,6 +94,57 @@
     @endforeach
 @endif
 
+@if(isset($data->payables) && $data->payables->count())
+    <h2 style="margin-top:40px;">
+        PRODUCTION PAYABLES
+    </h2>
+
+    <table border="1"
+           cellpadding="5"
+           cellspacing="0"
+           width="100%"
+           style="border-collapse: collapse;">
+
+        <thead>
+            <tr style="background:#f2f2f2;">
+                <th>Document Number</th>
+                <th>Posting Date</th>
+                <th>Value Date</th>
+                <th>Item No</th>
+                <th>Item Description</th>
+                <th>Quantity</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        @foreach($data->payables as $payable)
+            <tr>
+                <td>{{ $payable->document_number }}</td>
+
+                <td>
+                    {{ \Carbon\Carbon::parse($payable->posting_date)->format('d M Y') }}
+                </td>
+
+                <td>
+                    {{ \Carbon\Carbon::parse($payable->value_date)->format('d M Y') }}
+                </td>
+
+                <td>{{ $payable->item_no }}</td>
+
+                <td>{{ $payable->item_description }}</td>
+
+                <td>{{ number_format($payable->quantity) }}</td>
+
+                <td>{{ $payable->remarks }}</td>
+            </tr>
+        @endforeach
+
+        </tbody>
+
+    </table>
+@endif
 
 </body>
 </html>

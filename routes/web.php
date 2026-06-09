@@ -31,6 +31,7 @@ use App\Http\Controllers\ProductionReportController;
 use App\Http\Controllers\ProductionNgController;
 use App\Http\Controllers\MasterItemPhotoController;
 use App\Http\Controllers\DeliveryVerificationController;
+use App\Http\Controllers\ProductionPayableController;
 
 
 
@@ -351,6 +352,28 @@ Route::middleware('auth')->group(function (){
             $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
             return view('wms.pallet_form_print', compact('palletForm'));
         })->name('pallet-form.print');
+    });
+
+
+    Route::prefix('production-payables')->group(function () {
+
+        Route::get('/', [ProductionPayableController::class, 'index'])
+            ->name('production-payables.index');
+
+        Route::get('/upload', [ProductionPayableController::class, 'uploadForm'])
+            ->name('production-payables.upload');
+
+        Route::post('/import', [ProductionPayableController::class, 'import'])
+            ->name('production-payables.import');
+
+        Route::get('/{id}', [ProductionPayableController::class, 'show'])
+            ->name('production-payables.show');
+
+        Route::put('/{id}/status', [ProductionPayableController::class, 'updateStatus'])
+            ->name('production-payables.status');
+
+        Route::delete('/{id}', [ProductionPayableController::class, 'destroy'])
+            ->name('production-payables.destroy');
     });
 
 

@@ -2138,22 +2138,25 @@
                                 countEl.textContent = parseInt(countEl.textContent || '0') + 1;
                             }
                             
-                            // Trigger Print menggunakan hidden iframe
-                            const printUrl = `/production-output-log/print/${data.log_id}`;
+                            
+                        //     Trigger Print menggunakan hidden iframe
+                           const printUrl = `/production-output-log/print/${data.log_id}`;
                             const iframe = document.createElement('iframe');
-                            iframe.src = printUrl;
-                            iframe.style.position = 'absolute';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = '0';
-                            iframe.style.visibility = 'hidden';
+                           iframe.src = printUrl;
+                           iframe.style.position = 'absolute';
+                           iframe.style.width = '0';
+                           iframe.style.height = '0';
+                           iframe.style.border = '0';
+                           iframe.style.visibility = 'hidden';
                             
-                            document.body.appendChild(iframe);
+                           document.body.appendChild(iframe);
                             
-                            // Bersihkan iframe setelah print dipicu
+                        //     Bersihkan iframe setelah print dipicu
                             setTimeout(() => {
-                                iframe.remove();
+                               iframe.remove();
                             }, 10000);
+
+                            
                         } else {
                             alert(data.message || 'Gagal menambahkan log output.');
                         }
