@@ -357,6 +357,250 @@ class DashboardController extends Controller
         }
     }
 
+    // public function index()
+    // {
+    //     $user = auth()->user();
+    
+    //     // ── Early returns untuk role non-OPERATOR ────────────────────────────────
+    //     if ($user->role->name === 'ADMIN') {
+    //         return view('dashboards.dashboard-admin');
+    //     }
+    
+    //     if ($user->role->name === 'WORKSHOP') {
+    //         return view('dashboards.dashboard-workshop', compact('user'));
+    //     }
+    
+    //     if ($user->role->name !== 'OPERATOR') {
+    //         return view('dashboard', compact('user'));
+    //     }
+    
+    //     // ════════════════════════════════════════════════════════════════════════
+    //     //  OPERATOR
+    //     // ════════════════════════════════════════════════════════════════════════
+    
+    //     $userId   = $user->id;
+    //     $now      = Carbon::now('Asia/Jakarta');
+    //     $today    = Carbon::today('Asia/Jakarta');
+    //     $itemCode = $user->jobs->item_code ?? null;
+    
+    //     // ── 1. MACHINE JOB (query sekali, pakai ulang) ───────────────────────────
+    //     $machineJob      = MachineJob::where('user_id', $userId)->first();
+    //     $machinejobid    = $machineJob;
+    //     $machineJobShift = $machineJob->shift ?? 1;
+    
+    //     // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────────
+    //     // Jam 00:00 - 07:29 dianggap masih shift kemarin (shift 3 belum selesai)
+    //     $isEarlyMorning = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+    //     $shiftToday     = ($isEarlyMorning ? Carbon::yesterday('Asia/Jakarta') : $today)->toDateString();
+    //     $shiftTomorrow  = ($isEarlyMorning ? $today : Carbon::tomorrow('Asia/Jakarta'))->toDateString();
+    
+    //     // ── 3. DAILY ITEM CODES ───────────────────────────────────────────────────
+    //     // PENTING: kalau jam 00:00-07:29, DIC shift 3 ada di schedule_date KEMARIN
+    //     // Jadi query harus include $shiftToday (bisa kemarin) dan $shiftTomorrow (bisa hari ini)
+    //     // agar shift 3 yang masih berjalan tetap muncul
+    //     $datas = DailyItemCode::where('user_id', $userId)
+    //         ->where(function ($q) use ($shiftToday, $shiftTomorrow) {
+    //             $q->whereDate('schedule_date', $shiftToday)
+    //             ->orWhereDate('schedule_date', $shiftTomorrow);
+    //         })
+    //         ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //         ->get()
+    //         ->sortBy([['shift', 'asc'], ['item_code', 'asc']]);
+    
+    //     // ── 4. AUTO-EXPIRE JADWAL LAMA (dari koleksi, tanpa query baru) ──────────
+    //     // Hanya expire DIC yang end_time-nya sudah lewat + 1 jam DAN tidak ada hourlyRemarks
+    //     $expiredIds = $datas
+    //         ->whereNull('is_done')
+    //         ->filter(fn($dic) =>
+    //             $dic->hourlyRemarks->isEmpty() &&
+    //             Carbon::parse($dic->end_date . ' ' . $dic->end_time)->addHour()->lt($now)
+    //         )
+    //         ->pluck('id');
+    
+    //     if ($expiredIds->isNotEmpty()) {
+    //         DailyItemCode::whereIn('id', $expiredIds)->update(['is_done' => 99]);
+    //         // Update in-memory supaya tidak stale di langkah berikutnya
+    //         $datas->each(function ($d) use ($expiredIds) {
+    //             if ($expiredIds->contains($d->id)) {
+    //                 $d->is_done = 99;
+    //             }
+    //         });
+    //     }
+    
+    //     // ── 5. UPDATE TARGET & IS_ACHIEVE (bulk, isDirty check) ──────────────────
+    //     $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn($q) =>
+    //             $q->where('user_id', $userId)
+    //             ->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
+    //                 $q2->whereDate('schedule_date', $shiftToday)
+    //                     ->orWhereDate('schedule_date', $shiftTomorrow);
+    //             })
+    //         )
+    //         ->with('dailyItemCode.masterItem')
+    //         ->get();
+    
+    //     foreach ($todayRemarks as $remark) {
+    //         $dic      = $remark->dailyItemCode;
+    //         $temporal = $dic->temporal_cycle_time ?? null;
+    
+    //         if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
+    //             $cavity         = max((int)($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+    //             $remark->target = floor(3600 / $temporal) * $cavity;
+    //         }
+    
+    //         $remark->is_achieve = (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target)
+    //             ? 1 : 0;
+    
+    //         if ($remark->isDirty()) {
+    //             $remark->save();
+    //         }
+    //     }
+    
+    //     // ── 6. ACTIVE DIC ────────────────────────────────────────────────────────
+    //     // Prioritas sama persis dengan kode asli:
+    //     // 1) previousDIC: DIC sebelum shiftToday yang belum selesai (termasuk kemarin kalau jam malam)
+    //     // 2) todayDIC: DIC di shiftToday/shiftTomorrow yang belum selesai
+    //     // 3) Fallback: tanpa filter tanggal
+    
+    //     $previousDIC = DailyItemCode::where('user_id', $userId)
+    //         ->where('item_code', $itemCode)
+    //         ->where('schedule_date', '<', $shiftToday)   // pakai $shiftToday bukan $today
+    //         ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //         ->whereNull('is_done')
+    //         ->orderByDesc('schedule_date')
+    //         ->first();
+    
+    //     // Cari dari $datas (sudah include shiftToday + shiftTomorrow)
+    //     $todayDIC = $datas
+    //         ->where('item_code', $itemCode)
+    //         ->whereNull('is_done')
+    //         ->sortBy('shift')
+    //         ->first();
+    
+    //     // Sama dengan kode asli: previousDIC didahulukan
+    //     $activeDIC = $previousDIC ?? $todayDIC;
+    
+    //     if (!$activeDIC) {
+    //         // Fallback terakhir: tanpa filter tanggal sama sekali
+    //         $activeDIC = DailyItemCode::where('user_id', $userId)
+    //             ->where('item_code', $itemCode)
+    //             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //             ->whereNull('is_done')
+    //             ->first();
+    //     }
+    
+    //     $activeID = $activeDIC?->id;
+    
+    //     // ── 7. SCANNED DATA & HOURLY REMARKS ACTIVE DIC ──────────────────────────
+    //     $hourlyRemarksActiveDIC = null;
+    //     $totalScannedQuantity   = 0;
+    //     $scannedCount           = 0;
+    
+    //     if ($activeDIC) {
+    //         $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
+    //         $scannedCount         = $activeDIC->scannedData->count();
+    
+    //         $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails.ngType')
+    //             ->where('dic_id', $activeID)
+    //             ->orderBy('start_time')
+    //             ->get();
+    
+    //         // Update is_achieve untuk remark active DIC
+    //         foreach ($hourlyRemarksActiveDIC as $remark) {
+    //             if (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target) {
+    //                 $remark->is_achieve = 1;
+    //                 if ($remark->isDirty()) {
+    //                     $remark->save();
+    //                 }
+    //             }
+    //         }
+    //     }
+    
+    //     // ── 8. HOURLY REMARKS WINDOW SHIFT ───────────────────────────────────────
+    //     $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+    //         ->whereHas('dailyItemCode', fn($q) =>
+    //             $q->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
+    //                 $q2->whereDate('schedule_date', $shiftToday)
+    //                 ->orWhereDate('schedule_date', $shiftTomorrow);
+    //             })
+    //             ->where('user_id', $userId)
+    //         )
+    //         ->where(fn($q) =>
+    //             $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
+    //             ->orWhereBetween('start_time', ['00:00:00', '07:30:00'])
+    //         )
+    //         ->orderBy('start_time')
+    //         ->get();
+    
+    //     // ── 9. LOGS (closure reusable) ────────────────────────────────────────────
+    //     $calcDuration = function ($log, string $endField = 'end_time') {
+    //         $log->total_pengerjaan = ($log->created_at && $log->{$endField})
+    //             ? Carbon::parse($log->{$endField})->diffInMinutes(Carbon::parse($log->created_at))
+    //             : null;
+    //     };
+    
+    //     // Log tetap pakai $today (tanggal kalender), bukan shift-aware
+    //     $mouldChangeLogs   = MouldChangeLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    //     $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    //     $repairMachineLogs = RepairMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    
+    //     $mouldChangeLogs->each(fn($log)   => $calcDuration($log, 'end_time'));
+    //     $adjustMachineLogs->each(fn($log) => $calcDuration($log, 'end_time'));
+    //     $repairMachineLogs->each(fn($log) => $calcDuration($log, 'finish_repair'));
+    
+    //     // ── 10. FILES & TOTAL QUANTITIES (satu whereIn, bukan per-item query) ────
+    //     $files           = [];
+    //     $totalQuantities = [];
+    //     $itemCollections = [];
+    //     $uniquedata      = collect();   // selalu kosong, dipertahankan agar view tidak error
+    //     $dataWithSpkNo   = null;
+    
+    //     $allItemCodes = $datas->pluck('item_code')->unique()->filter()->values();
+    //     $allFiles     = File::whereIn('item_code', $allItemCodes)->get()->groupBy('item_code');
+    
+    //     foreach ($datas as $data) {
+    //         $ic       = $data->item_code;
+    //         $mainCode = $ic ?? ($data->masterItem->pair ?? $ic);
+    
+    //         $totalQuantities[$mainCode] = ($totalQuantities[$mainCode] ?? 0) + $data->quantity;
+    //         $files[$mainCode]           = $allFiles->get($ic, collect());
+    //     }
+    
+    //     // ── 11. ZONE / PENGAWAS ───────────────────────────────────────────────────
+    //     $zone         = $user->zone;
+    //     $zonePengawas = $zone?->zoneData()
+    //         ->where('shift', $machineJobShift)
+    //         ->whereDate('start_date', '<=', $now)
+    //         ->whereDate('end_date', '>=', $now)
+    //         ->latest('updated_at')
+    //         ->first();
+    
+    //     $pengawasName    = $zonePengawas?->pengawas;
+    //     $pengawasUser    = $pengawasName
+    //         ? \App\Models\OperatorUser::where('name', $pengawasName)->first()
+    //         : null;
+    //     $pengawasProfile = $pengawasUser?->profile_picture;
+    
+    //     // ── 12. MISC ──────────────────────────────────────────────────────────────
+    //     $spkData = ProductionScannedData::where('dic_id', $activeID)->with('summary')->get();
+    
+    //     // todayitems: DIC yang masih aktif dalam window shift sekarang
+    //     // (dari $datas yang sudah shift-aware, tanpa query baru)
+    //     $todayitems = $datas->whereNull('is_done')->sortBy('shift')->values();
+    
+    //     $ngData = ProductionNgType::all();
+    
+    //     return view('dashboards.dashboard-operator', compact(
+    //         'files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift',
+    //         'dataWithSpkNo', 'machinejobid', 'itemCollections',
+    //         'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs',
+    //         'zone', 'pengawasName', 'pengawasProfile',
+    //         'activeDIC', 'totalScannedQuantity', 'scannedCount',
+    //         'hourlyRemarksActiveDIC', 'hourlyRemarks', 'spkData',
+    //         'todayitems', 'ngData'
+    //     ));
+    // }
+
+
     // function untuk add NG (operator)
     public function addNg(Request $request, $id)
     {
@@ -1825,29 +2069,204 @@ class DashboardController extends Controller
             ->with('print_log_id', $log->id);
     }
 
+    // public function printOutputLog($id)
+    // {
+    //     $log = ProductionOutputLog::with('dailyItemCode.masterItem')->findOrFail($id);
+        
+    //     // QR Code content: [Item Code] \t [Operator Name] \t [Logged At]
+    //     $qrData = implode("\t", [
+    //         $log->dailyItemCode->item_code,
+    //         $log->operator_name,
+    //         $log->logged_at->format('Y-m-d H:i:s')
+    //     ]);
+
+    //     $qrCode = new QrCode(
+    //         data: $qrData,
+    //         errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+    //         size: 60,
+    //         margin: 0
+    //     );
+        
+    //     $writer = new PngWriter();
+    //     $qrCodeResult = $writer->write($qrCode);
+    //     $qrCodeBase64 = base64_encode($qrCodeResult->getString());
+
+    //     return view('dashboards.print_output_log', compact('log', 'qrCodeBase64'));
+    // }
+
+    // public function printOutputLog($id)
+    // {
+    //     $log = ProductionOutputLog::with(
+    //         'dailyItemCode.masterItem'
+    //     )->findOrFail($id);
+
+    //     $masterItem = $log->dailyItemCode->masterItem;
+    //     $temporalCavity = $log->dailyItemCode?->temporal_cavity;
+
+    //     $itemCodes = [
+    //         $log->dailyItemCode->item_code
+    //     ];
+
+    //     $pair = trim((string)($masterItem->pair ?? '0'));
+
+    //     $hasPair = (
+    //         $pair !== '' &&
+    //         $pair !== '0'
+    //     );
+
+    //     // Jika ada pair -> cetak item utama + pair
+    //     if ($hasPair) {
+
+    //         $itemCodes[] = $pair;
+
+    //     }
+    //     // Jika tidak ada pair dan temporal cavity = 2
+    //     elseif ((int)$temporalCavity === 2) {
+
+    //         $itemCodes[] = $log->dailyItemCode->item_code;
+    //     }
+
+    //     $barcodes = [];
+
+    //     foreach ($itemCodes as $itemCode) {
+
+    //         $qrData = implode("\t", [
+    //             $itemCode,
+    //             $log->operator_name,
+    //             $log->logged_at->format('Y-m-d H:i:s')
+    //         ]);
+
+    //         $qrCode = new QrCode(
+    //             data: $qrData,
+    //             errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+    //             size: 60,
+    //             margin: 0
+    //         );
+
+    //         $writer = new PngWriter();
+
+    //         $result = $writer->write($qrCode);
+
+    //         $barcodes[] = [
+    //             'item_code' => $itemCode,
+    //             'qrCodeBase64' => base64_encode(
+    //                 $result->getString()
+    //             )
+    //         ];
+    //     }
+
+    //     return view(
+    //         'dashboards.print_output_log',
+    //         compact(
+    //             'log',
+    //             'barcodes'
+    //         )
+    //     );
+    // }
+
     public function printOutputLog($id)
     {
-        $log = ProductionOutputLog::with('dailyItemCode.masterItem')->findOrFail($id);
-        
-        // QR Code content: [Item Code] \t [Operator Name] \t [Logged At]
-        $qrData = implode("\t", [
-            $log->dailyItemCode->item_code,
-            $log->operator_name,
-            $log->logged_at->format('Y-m-d H:i:s')
-        ]);
+        $totalStart = microtime(true);
 
-        $qrCode = new QrCode(
-            data: $qrData,
-            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
-            size: 60,
-            margin: 0
+        // =========================
+        // QUERY
+        // =========================
+        $queryStart = microtime(true);
+
+        $log = ProductionOutputLog::with(
+            'dailyItemCode.masterItem'
+        )->findOrFail($id);
+
+        $masterItem = $log->dailyItemCode->masterItem;
+        $temporalCavity = $log->dailyItemCode->temporal_cavity ?? 1;
+
+        // =========================
+        // BUILD ITEM CODE
+        // =========================
+        $buildStart = microtime(true);
+
+        $itemCodes = [];
+
+        $pair = trim((string)($masterItem->pair ?? ''));
+
+        $hasPair = (
+            $pair !== '' &&
+            $pair !== '0'
         );
-        
-        $writer = new PngWriter();
-        $qrCodeResult = $writer->write($qrCode);
-        $qrCodeBase64 = base64_encode($qrCodeResult->getString());
 
-        return view('dashboards.print_output_log', compact('log', 'qrCodeBase64'));
+        if ($hasPair) {
+
+            $itemCodes[] = $log->dailyItemCode->item_code;
+            $itemCodes[] = $pair;
+
+        } else {
+
+            $cavity = (int)$temporalCavity;
+
+            if ($cavity < 1) {
+                $cavity = 1;
+            }
+
+            if ($cavity > 2) {
+                $cavity = 2;
+            }
+
+            for ($i = 0; $i < $cavity; $i++) {
+                $itemCodes[] = $log->dailyItemCode->item_code;
+            }
+        }
+
+        // =========================
+        // QR GENERATION
+        // =========================
+        $qrStart = microtime(true);
+
+        $barcodes = [];
+
+        foreach ($itemCodes as $itemCode) {
+
+            $singleQrStart = microtime(true);
+
+            $qrData = implode("\t", [
+                $itemCode,
+                $log->operator_name,
+                $log->logged_at->format('Y-m-d H:i:s')
+            ]);
+
+            $qrCode = new QrCode(
+                data: $qrData,
+                errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+                size: 60,
+                margin: 0
+            );
+
+            $writer = new PngWriter();
+
+            $result = $writer->write($qrCode);
+
+            $barcodes[] = [
+                'item_code' => $itemCode,
+                'qrCodeBase64' => base64_encode(
+                    $result->getString()
+                )
+            ];
+
+  
+        }
+
+
+
+        // =========================
+        // TOTAL
+        // =========================
+
+        return view(
+            'dashboards.print_output_log',
+            compact(
+                'log',
+                'barcodes'
+            )
+        );
     }
 
 }

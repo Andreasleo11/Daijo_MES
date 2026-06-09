@@ -679,9 +679,9 @@
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    <span class="bg-indigo-50 text-indigo-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-indigo-100">
+                                    <!-- <span class="bg-indigo-50 text-indigo-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-indigo-100">
                                         Quantity per shot: <strong>{{ $activeDIC ? (!empty($activeDIC->temporal_cavity) && $activeDIC->temporal_cavity > 0 ? $activeDIC->temporal_cavity : ($activeDIC->masterItem->cavity ?? 1)) : 1 }}</strong>
-                                    </span>
+                                    </span> -->
                                     <span class="bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-emerald-100">
                                         Total Logs Today: <strong id="total-logs-count">{{ $outputLogs->count() }}</strong>
                                     </span>
