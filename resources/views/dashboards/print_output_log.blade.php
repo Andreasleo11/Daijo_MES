@@ -6,30 +6,38 @@
 
     <style>
         @page {
-            size: 40mm 15mm;
+            size: 30mm 20mm;
             margin: 0;
         }
 
         html,
         body {
+            width: 30mm;
+            height: 20mm;
             margin: 0;
             padding: 0;
             background: #fff;
-        }
-
-        body {
             font-family: Arial, sans-serif;
         }
 
+        body {
+            overflow: hidden;
+        }
+
         .label {
-            width: 40mm;
-            height: 15mm;
-            padding: 0.5mm 1mm;
+            width: 30mm;
+            height: 20mm;
             box-sizing: border-box;
 
+            padding-top: 7mm;
+            padding-right: 0.5mm;
+            padding-bottom: 0.5mm;
+            padding-left: 0.5mm;
+
             display: flex;
-            align-items: center;
+            flex-direction: row;
             justify-content: space-between;
+            align-items: flex-start;
 
             overflow: hidden;
         }
@@ -39,43 +47,67 @@
         }
 
         .info {
+            width: 16mm;
+            height: 17mm;
+
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            width: 68%;
-            height: 100%;
-            gap: 0.2mm;
+            justify-content: flex-start;
+
+            overflow: hidden;
         }
 
-        .info-row {
-            font-size: 4.5pt;
+        .item-code {
+            font-size: 5pt;
+            font-weight: bold;
             line-height: 1.1;
+            margin-bottom: 0.4mm;
+
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-weight: bold;
-            color: #000;
         }
 
-        .info-label {
-            color: #444;
+        .item-name {
+            font-size: 4pt;
+            line-height: 1.1;
+
+            height: 5mm;
+            margin-bottom: 0.4mm;
+
+            overflow: hidden;
+            word-break: break-word;
         }
 
-        .info-val {
-            color: #000;
+        .operator {
+            font-size: 4pt;
+            line-height: 1.1;
+
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .datetime {
+            font-size: 3.8pt;
+            line-height: 1.1;
+            margin-top: 0.3mm;
         }
 
         .qr-container {
-            width: 28%;
-            height: 100%;
+            width: 15mm;
+            height: 15mm;
+
             display: flex;
             justify-content: center;
             align-items: center;
+
+            flex-shrink: 0;
         }
 
         .qr-container img {
-            width: 10.5mm;
-            height: 10.5mm;
+            width: 12mm;
+            height: 12mm;
             display: block;
         }
     </style>
@@ -89,34 +121,28 @@
 
     <div class="info">
 
-        <div class="info-row">
-            <span class="info-label">ITEM:</span>
-            <span class="info-val">{{ $barcode['item_code'] }}</span>
+        <div class="item-code">
+            {{ $barcode['item_code'] }}
         </div>
 
-        <div
-            class="info-row"
-            style="font-size:5pt;font-weight:normal;color:#666;"
-        >
+        <div class="item-name">
             {{ $log->dailyItemCode->masterItem->item_name ?? '-' }}
         </div>
 
-        <div class="info-row">
-            <span class="info-label">OPR:</span>
-            <span class="info-val">{{ $log->operator_name }}</span>
+        <div class="operator">
+            {{ $log->operator_name }}
         </div>
 
-        <div
-            class="info-row"
-            style="font-size:5pt;font-weight:normal;color:#555;"
-        >
-            {{ $log->logged_at->format('d/m/y H:i:s') }}
+        <div class="datetime">
+            {{ $log->logged_at->format('d/m/y H:i') }}
         </div>
 
     </div>
 
     <div class="qr-container">
-        <img src="data:image/png;base64,{{ $barcode['qrCodeBase64'] }}">
+        <img
+            src="data:image/png;base64,{{ $barcode['qrCodeBase64'] }}"
+            alt="QR Code">
     </div>
 
 </div>
@@ -125,7 +151,9 @@
 
 <script>
 window.onload = function () {
-    window.print();
+    setTimeout(function () {
+        window.print();
+    }, 500);
 };
 </script>
 

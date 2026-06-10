@@ -2005,7 +2005,7 @@
             }
 
             // Handle form submit dengan AJAX (opsional, tapi lebih baik)
-            document.getElementById('editNgForm').addEventListener('submit', function(e) {
+            document.getElementById('editNgForm')?.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
                 const formData = new FormData(this);
@@ -2138,7 +2138,7 @@
                                 countEl.textContent = parseInt(countEl.textContent || '0') + 1;
                             }
                             
-                            
+                            console.log('TESTING')
                         //     Trigger Print menggunakan hidden iframe
                            const printUrl = `/production-output-log/print/${data.log_id}`;
                             const iframe = document.createElement('iframe');
@@ -2176,11 +2176,11 @@
     
     </script>
 
-    {{-- Hidden iframe untuk auto-print label barcode --}}
+    <!-- {{-- Hidden iframe untuk auto-print label barcode --}}
     @if (session('print_log_id'))
         <iframe src="{{ route('production.output-log.print', session('print_log_id')) }}" 
                 style="width:0; height:0; border:0; border:none; position:absolute; visibility:hidden;">
         </iframe>
-    @endif
+    @endif -->
 
 </x-app-layout>
