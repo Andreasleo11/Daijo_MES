@@ -591,6 +591,80 @@ class ProductionDashboardService
     }
 
     /**
+     * Get total working hours per machine
+     * 
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @param string|null $itemCode
+     * @param string|null $machineUserId
+     * @return array
+     */
+    public function getMachineWorkingHours(\Carbon\Carbon $startDate, \Carbon\Carbon $endDate, ?string $itemCode = null, ?string $machineUserId = null): array
+    {
+        $query = DailyItemCode::query()
+            ->with(['hourlyRemarks', 'user:id,name'])
+            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+
+        if ($itemCode) {
+            $query->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $query->where('user_id', $machineUserId);
+        }
+
+        $dailyData = $query->get();
+        $machineHours = [];
+
+        foreach ($dailyData as $daily) {
+            $machineId = $daily->user_id;
+            $machineName = $daily->user->name ?? 'Unknown';
+
+            if (!$machineId) continue;
+
+            if (!isset($machineHours[$machineId])) {
+                $machineHours[$machineId] = [
+                    'id' => $machineId,
+                    'name' => $machineName,
+                    'hours' => 0,
+                    'unique_slots' => [],
+                ];
+            }
+
+            foreach ($daily->hourlyRemarks as $hourly) {
+                $rawTime = $hourly->start_time ?? '0';
+                
+                if (is_numeric($rawTime)) {
+                    $hourSlot = (int)$rawTime;
+                } else {
+                    try {
+                        $hourSlot = (int) \Carbon\Carbon::parse($rawTime)->format('H');
+                    } catch (\Exception $e) {
+                        $hourSlot = (int)$rawTime;
+                    }
+                }
+                
+                $slotKey = $daily->start_date . '_' . $hourSlot;
+                
+                if (!in_array($slotKey, $machineHours[$machineId]['unique_slots'])) {
+                    $machineHours[$machineId]['unique_slots'][] = $slotKey;
+                    $machineHours[$machineId]['hours'] += 1;
+                }
+            }
+        }
+
+        // Sort by hours descending
+        uasort($machineHours, function($a, $b) {
+            return $b['hours'] <=> $a['hours'];
+        });
+
+        return array_map(function($item) {
+            unset($item['unique_slots']);
+            return $item;
+        }, array_values($machineHours));
+    }
+
+    /**
      * Get unique item codes for filter
      * Optionally filtered by year and month
      * 

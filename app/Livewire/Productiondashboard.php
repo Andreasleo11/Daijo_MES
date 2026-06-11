@@ -26,6 +26,7 @@ class ProductionDashboard extends Component
     public array $ngBreakdown = [];
     public array $downtimeAnalysis = []; // ✅ NEW
     public array $topRemarks = []; // ✅ NEW
+    public array $machineWorkingHours = []; // ✅ NEW
 
     public array $years = [];
     public array $months = [];
@@ -195,6 +196,14 @@ class ProductionDashboard extends Component
 
         // ✅ NEW: Get top problematic remarks
         $this->topRemarks = $this->productionService->getTopProblematicRemarks(
+            $startDate,
+            $endDate,
+            $this->itemCode,
+            $this->machineUserId
+        );
+
+        // ✅ NEW: Get machine working hours
+        $this->machineWorkingHours = $this->productionService->getMachineWorkingHours(
             $startDate,
             $endDate,
             $this->itemCode,

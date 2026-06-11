@@ -217,8 +217,8 @@
             </div>
         </div>
 
-        {{-- ✅ NEW: Downtime Cards (2-column grid) --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {{-- ✅ NEW: Downtime & Machine Hours Cards (3-column grid) --}}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             {{-- Downtime Summary Card --}}
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center justify-between mb-4">
@@ -266,7 +266,7 @@
                 <div class="space-y-2 max-h-80 overflow-y-auto">
                     @forelse($downtimeAnalysis['downtime_by_hour'] ?? [] as $hourData)
                         @php
-                            $maxDowntime = max(array_column($downtimeAnalysis['downtime_by_hour'], 'total_downtime'));
+                            $maxDowntime = max(array_column($downtimeAnalysis['downtime_by_hour'], 'total_downtime') ?: [1]);
                             $width = $maxDowntime > 0 ? ($hourData['total_downtime'] / $maxDowntime) * 100 : 0;
                         @endphp
                         <div class="flex items-center">
@@ -284,6 +284,36 @@
                     @empty
                         <div class="text-center py-8 text-gray-500">
                             <p class="text-sm">No downtime recorded</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- ✅ NEW: Machine Working Hours Card --}}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Working Hours per Machine</h2>
+                <div class="space-y-2 max-h-80 overflow-y-auto">
+                    @forelse($machineWorkingHours as $mHours)
+                        @php
+                            $maxHours = max(array_column($machineWorkingHours, 'hours') ?: [1]);
+                            $width = $maxHours > 0 ? ($mHours['hours'] / $maxHours) * 100 : 0;
+                        @endphp
+                        <div class="flex items-center">
+                            <span class="text-xs font-semibold text-gray-700 w-20 truncate" title="{{ $mHours['name'] }}">
+                                {{ $mHours['name'] }}
+                            </span>
+                            <div class="flex-1 mx-3">
+                                <div class="w-full bg-gray-100 rounded-full h-3">
+                                    <div class="bg-blue-600 h-3 rounded-full transition-all" style="width: {{ $width }}%"></div>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-blue-600 w-16 text-right">
+                                {{ number_format($mHours['hours']) }} hrs
+                            </span>
+                        </div>
+                    @empty
+                        <div class="text-center py-8 text-gray-500">
+                            <p class="text-sm">No working hours recorded</p>
                         </div>
                     @endforelse
                 </div>
