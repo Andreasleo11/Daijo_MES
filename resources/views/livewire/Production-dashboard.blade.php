@@ -440,9 +440,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
         let productionChart = null;
+        let rawChartData = [];
 
         function initChart(data) {
             console.log('🔵 initChart called with data:', data);
+            rawChartData = data;
             const ctx = document.getElementById('productionChart');
             
             if (!ctx) {
@@ -530,6 +532,16 @@
                                         label += context.parsed.y.toLocaleString();
                                     }
                                     return label;
+                                },
+                                footer: function(tooltipItems) {
+                                    if (tooltipItems.length > 0) {
+                                        const dataIndex = tooltipItems[0].dataIndex;
+                                        const dayInfo = rawChartData[dataIndex];
+                                        if (dayInfo && typeof dayInfo.working_hours !== 'undefined') {
+                                            return 'Active Hours: ' + dayInfo.working_hours + ' hrs';
+                                        }
+                                    }
+                                    return '';
                                 }
                             }
                         }

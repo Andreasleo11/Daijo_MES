@@ -65,12 +65,31 @@ class ProductionDashboardService
             $dateStr = $date->format('Y-m-d');
             $dayData = $dailyData->where('start_date', $dateStr);
 
+            $dayUniqueSlots = [];
             $target = 0;
             $actual = 0;
             $ng = 0;
-            
-
             foreach ($dayData as $daily) {
+                $machineId = $daily->user_id;
+                if (!$machineId) continue;
+
+                foreach ($daily->hourlyRemarks as $hourly) {
+                    $rawTime = $hourly->start_time ?? '0';
+                    if (is_numeric($rawTime)) {
+                        $hourSlot = (int)$rawTime;
+                    } else {
+                        try {
+                            $hourSlot = (int) Carbon::parse($rawTime)->format('H');
+                        } catch (\Exception $e) {
+                            $hourSlot = (int)$rawTime;
+                        }
+                    }
+                    $slotKey = $machineId . '_' . $hourSlot;
+                    if (!in_array($slotKey, $dayUniqueSlots)) {
+                        $dayUniqueSlots[] = $slotKey;
+                    }
+                }
+
                 foreach ($daily->hourlyRemarks as $hourly) {
                     // Aggregate target and actual from hourly remarks
                     $target += $hourly->target ?? 0;
@@ -93,6 +112,7 @@ class ProductionDashboardService
                 'ng' => $ng,
                 'ng_rate' => ($actual + $ng) > 0 ? round(($ng / ($actual + $ng)) * 100, 2) : 0,
                 'achievement' => $target > 0 ? round(($actual / $target) * 100, 2) : 0,
+                'working_hours' => count($dayUniqueSlots),
             ];
 
             $summary['total_target'] += $target;
