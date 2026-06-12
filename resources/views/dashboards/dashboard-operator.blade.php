@@ -1126,25 +1126,25 @@
                                 <label for="spk_code">SPK Code</label>
                                 <input type="text" id="spk_code" name="spk_code_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="SPK Code" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="quantity">Quantity</label>
                                 <input type="number" id="quantity" name="quantity_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Quantity" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Quantity" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="warehouse">Warehouse</label>
                                 <input type="text" id="warehouse" name="warehouse_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Warehouse" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Warehouse" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="label">Label</label>
                                 <input type="number" id="label" name="label_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Label" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Label" x-on:input="debouncedSubmit()" />
                             </div>
                         </div>
 
@@ -2098,17 +2098,25 @@
             function autoSubmitForm() {
             return {
                 nikInput: localStorage.getItem('nik') || '',
+                _submitTimer: null,
+
+                debouncedSubmit() {
+                    // Cancel any pending submit timer
+                    if (this._submitTimer) {
+                        clearTimeout(this._submitTimer);
+                    }
+                    // Only submit after user stops typing for 400ms
+                    this._submitTimer = setTimeout(() => {
+                        this.checkAndSubmitForm();
+                    }, 400);
+                },
 
                 checkAndSubmitForm() {
-                    console.log("LocalStorage NIK:", localStorage.getItem('nik'));
-                    console.log("Current NIK Input:", this.nikInput);
-
                     if (!this.nikInput) {
                         this.nikInput = localStorage.getItem('nik') || '';
-                        console.warn("NIK was empty, updated from localStorage:", this.nikInput);
                     }
 
-                    // Securely set NIK in scan form hidden input without conflicting with other elements
+                    // Securely set NIK in scan form hidden input
                     const form = document.getElementById('scanForm');
                     if (form) {
                         const nikHiddenInput = form.querySelector('input[name="nik"]');
