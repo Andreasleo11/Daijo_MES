@@ -1133,6 +1133,118 @@ class DeliveryAnalysis extends Component
     }
 
 
+
+    public function getEmailShortfallData(): array
+    {
+        $startDate = now()->startOfMonth()->format('Y-m-d');
+        $endDate   = now()->addDays(4)->format('Y-m-d');
+
+        $dateRange = [];
+        $current = Carbon::parse($startDate);
+
+        while ($current->lte(Carbon::parse($endDate))) {
+            $dateRange[] = $current->format('Y-m-d');
+            $current->addDay();
+        }
+
+        $itemCodes = DB::table('sap_delsched')
+            ->whereBetween('delivery_date', [$startDate, $endDate])
+            ->distinct()
+            ->pluck('item_code')
+            ->merge(
+                DB::table('sap_delactual')
+                    ->whereBetween('delivery_date', [$startDate, $endDate])
+                    ->distinct()
+                    ->pluck('item_no')
+            )
+            ->unique()
+            ->values();
+
+        $schedules = DB::table('sap_delsched')
+            ->whereBetween('delivery_date', [$startDate, $endDate])
+            ->whereIn('item_code', $itemCodes)
+            ->get()
+            ->groupBy('item_code');
+
+        $actuals = DB::table('sap_delactual')
+            ->whereBetween('delivery_date', [$startDate, $endDate])
+            ->whereIn('item_no', $itemCodes)
+            ->get()
+            ->groupBy('item_no');
+
+        $inventory = DB::table('sap_inventory_fg')
+            ->whereIn('item_code', $itemCodes)
+            ->get()
+            ->keyBy('item_code');
+
+        $masterItems = MasterListItem::with('customer')
+            ->whereIn('item_code', $itemCodes)
+            ->get()
+            ->keyBy('item_code');
+
+        $result = [];
+
+        $h1 = now()->addDay()->format('Y-m-d');
+        $h2 = now()->addDays(2)->format('Y-m-d');
+        $h3 = now()->addDays(3)->format('Y-m-d');
+        $h4 = now()->addDays(4)->format('Y-m-d');
+
+        foreach ($itemCodes as $itemCode) {
+
+            $inv = $inventory->get($itemCode);
+
+            $baseStock = $inv?->stock ?? 0;
+            $inStock   = $this->getAdjustedStock($itemCode, $baseStock);
+
+            $itemName = $inv?->item_name ?? $itemCode;
+
+            $seidPerDate = $schedules->get($itemCode, collect())
+                ->groupBy('delivery_date')
+                ->map(fn ($rows) => $rows->sum('delivery_qty'))
+                ->toArray();
+
+            $actualPerDate = $actuals->get($itemCode, collect())
+                ->groupBy('delivery_date')
+                ->map(fn ($rows) => $rows->sum('quantity'))
+                ->toArray();
+
+            $balanceStock = [];
+            $runningStock = $inStock;
+
+            foreach ($dateRange as $date) {
+
+                $seid   = $seidPerDate[$date] ?? 0;
+                $actual = $actualPerDate[$date] ?? 0;
+
+                $runningStock += $actual - $seid;
+
+                $balanceStock[$date] = $runningStock;
+            }
+
+            $hasNegative =
+                ($balanceStock[$h1] ?? 0) < 0 ||
+                ($balanceStock[$h2] ?? 0) < 0 ||
+                ($balanceStock[$h3] ?? 0) < 0 ||
+                ($balanceStock[$h4] ?? 0) < 0;
+
+            if (!$hasNegative) {
+                continue;
+            }
+
+            $result[] = [
+                'item_code'     => $itemCode,
+                'item_name'     => $itemName,
+                'customer_name' => $masterItems->get($itemCode)?->customer?->customer_name,
+                'qty'           => $balanceStock[$h4] ?? 0,
+            ];
+        }
+
+        usort($result, fn ($a, $b) => $a['qty'] <=> $b['qty']);
+
+        return $result;
+    }
+
+
     public function render()
     {
         $analysisData = $this->getAnalysisData();
@@ -1140,6 +1252,9 @@ class DeliveryAnalysis extends Component
         $totalItems   = $this->getTotalItems();
         $totalPages   = (int) ceil($totalItems / $this->perPage);
         $currentPage  = $this->getPage();
+
+      
+        
 
         return view('livewire.delivery-analysis', [
             'analysisData' => $analysisData,

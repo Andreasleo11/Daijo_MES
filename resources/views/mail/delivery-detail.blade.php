@@ -2,17 +2,17 @@
 <html>
 <body style="font-family: Arial; font-size:13px;">
 
-<h2>Production Delivery Detail (H+1 – H+3)</h2>
+<h2>Production Delivery Detail (H+1 – H+4)</h2>
 
 <h1>
     Link untuk melihat Delivery Schedule di Daijo MES: 
-    <a href="http://116.254.114.93:8000/deliveryschedule/index" target="_blank">
+    <a href="http://116.254.114.93:8000/delivery-analysis" target="_blank">
         Klik di sini
     </a>
 </h1>
 
 
-{{-- ================= FINAL ================= --}}
+<!-- {{-- ================= FINAL ================= --}}
 @if($data->final && $data->final->count())
     <h2 style="margin-top:30px;">FINAL</h2>
 
@@ -50,11 +50,11 @@
         </table>
 
     @endforeach
-@endif
+@endif -->
 
 
 
-{{-- ================= WIP ================= --}}
+<!-- {{-- ================= WIP ================= --}}
 @if($data->wip && $data->wip->count())
     <h2 style="margin-top:40px;">WIP</h2>
 
@@ -92,7 +92,7 @@
         </table>
 
     @endforeach
-@endif
+@endif -->
 
 @if(isset($data->payables) && $data->payables->count())
     <h2 style="margin-top:40px;">
@@ -144,6 +144,59 @@
         </tbody>
 
     </table>
+@endif
+
+{{-- ================= SHORTFALL H+4 ================= --}}
+@if(isset($data->shortfalls) && count($data->shortfalls))
+
+    @php
+        $h4Date = now()->addDays(4)->format('d M Y');
+    @endphp
+
+    <h2 style="margin-top:40px; color:red;">
+        DELIVERY KURANG STOCK H+4
+    </h2>
+
+    <h3>
+        Forecast Date (H+4): {{ $h4Date }}
+    </h3>
+
+    <h3>
+        Total Items: {{ count($data->shortfalls) }}
+    </h3>
+
+    <table border="1"
+           cellpadding="5"
+           cellspacing="0"
+           width="100%"
+           style="border-collapse: collapse;">
+
+        <thead>
+            <tr style="background:#f2f2f2;">
+                <th>No</th>
+                <th>Customer</th>
+                <th>Item Code</th>
+                <th>Item Name</th>
+                <th>Required Qty ({{ $h4Date }})</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        @foreach($data->shortfalls as $index => $item)
+            <tr>
+                <td>{{ $index + 1 }}</td>
+                <td>{{ $item['customer_name'] ?? '-' }}</td>
+                <td>{{ $item['item_code'] }}</td>
+                <td>{{ $item['item_name'] }}</td>
+                <td style="color:red; font-weight:bold;">
+                    {{ number_format($item['qty']) }}
+                </td>
+            </tr>
+        @endforeach
+        </tbody>
+
+    </table>
+
 @endif
 
 </body>
