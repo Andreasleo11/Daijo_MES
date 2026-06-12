@@ -391,7 +391,7 @@
 
 
                 <!-- Daily Production Plan Section -->
-                <div class="mx-auto sm:px-4 lg:px-6 pt-6">
+                <div id="productionPlanContainer" class="mx-auto sm:px-4 lg:px-6 pt-6">
                     <div class="bg-white shadow-sm sm:rounded-lg">
                         <div class="p-4">
                             <h3 class="text-xl font-bold mb-2">Daily Production Plan <span
@@ -598,7 +598,7 @@
                             $pairCode = $activeDIC->masterItem->pair ?? null;
                             $hasPair = $pairCode !== null && $pairCode !== '0';
                         @endphp
-                    <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
+                    <div id="pekerjaanTableContainer" class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
                       <span class="text-xl font-bold">
                             Detail Pekerjaan - {{ optional($activeDIC)->item_code ?? '-' }} 
                             (Shift: {{ optional($activeDIC)->shift ?? '-' }})
@@ -769,7 +769,7 @@
                                             <th class="border border-gray-300 px-3 py-2">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="detailDataModalTbody">
                                         @forelse ($spkData as $scan)
                                             <tr>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->id }}</td>
@@ -834,7 +834,7 @@
                                 </div>
 
                                 <dialog id="addHourlyRemarksModal" class="rounded-md p-6 w-full max-w-md bg-white shadow">
-                                    <form method="POST" action="{{ route('hourly-remarks.store') }}" x-data="autoSubmitForm()" >
+                                    <form id="addHourlyRemarksForm" method="POST" action="{{ route('hourly-remarks.store') }}" x-data="autoSubmitForm()" >
                                         @csrf
                                         <h3 class="text-lg font-bold mb-4">Tambah Hourly Remarks</h3>
 
@@ -884,7 +884,7 @@
                                             <th class="py-2 px-4 border">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="detailRemarkModalTbody">
                                         @if (!empty($hourlyRemarksActiveDIC))
                                         @foreach ($hourlyRemarksActiveDIC as $slot)
                                                 <tr class="text-center">
@@ -931,6 +931,15 @@
                                                     </td>
                                                     </td>
                                                 </tr>
+
+                                            @endforeach
+                                        @else
+                                            <tr>
+                                                <td colspan="3" class="text-center py-2 text-gray-500">No hourly data available</td>
+                                            </tr>
+                                        @endif
+                                    </tbody>
+                                </table>
 
                                                     <div id="productionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                                         <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -1047,14 +1056,6 @@
                                                             </form>
                                                         </div>
                                                     </div>
-                                            @endforeach
-                                        @else
-                                            <tr>
-                                                <td colspan="3" class="text-center py-2 text-gray-500">No hourly data available</td>
-                                            </tr>
-                                        @endif
-                                    </tbody>
-                                </table>
                             </dialog>
 
                             <dialog id="remarkModal" class="rounded-md shadow-lg p-4 w-full max-w-md">
@@ -1107,7 +1108,8 @@
 
 
                 <div class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
-                    <h3 class="text-xl font-bold">Scan Barcode</h3>
+                    <h3 class="text-xl font-bold mb-2">Scan Barcode</h3>
+                    <div id="ajaxAlert" class="hidden p-3 rounded mb-4 font-bold text-center"></div>
                     <form id="scanForm" action="{{ route('process.productionbarcode') }}" method="POST"
                         class="space-y-3" x-data="autoSubmitForm()" >
                         @csrf
@@ -1210,8 +1212,7 @@
                             </button>
                         </form>
                     </div> -->
-                </div>
-
+                        <div id="summaryTableContainer">
                   <table class="w-full border border-gray-200 text-sm mt-6">
                             <thead class="bg-gray-100">
                                 <tr>
@@ -1247,11 +1248,12 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center py-3 text-gray-500">Belum ada data summary</td>
+                                         <td colspan="7" class="text-center py-3 text-gray-500">Belum ada data summary</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
+                  </div>
             </div>
     </div>
     
@@ -1588,6 +1590,310 @@
                 });
             });
 
+            // AJAX barcode scan handler
+            $('#scanForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Clear previous alerts
+                const $alert = $('#ajaxAlert');
+                $alert.addClass('hidden').removeClass('bg-green-100 text-green-700 bg-red-100 text-red-700');
+
+                // Get form details
+                const actionUrl = $(this).attr('action');
+                const formData = $(this).serialize();
+
+                $.ajax({
+                    url: actionUrl,
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        // Display success message in alert
+                        $alert.text(response.message)
+                            .removeClass('hidden')
+                            .addClass('bg-green-100 text-green-700');
+
+                        // Fetch updated page content via background GET to replace elements
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            
+                            // 1. Update pekerjaanTableContainer
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+
+                            // 2. Update detailDataModal tbody
+                            $('#detailDataModalTbody').html($html.find('#detailDataModalTbody').html());
+
+                            // 3. Update detailRemarkModal tbody
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+
+                            // 4. Update summaryTableContainer
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                        });
+
+                        // Clear inputs
+                        $('#spk_code').val('');
+                        $('#quantity').val('');
+                        $('#warehouse').val('');
+                        $('#label').val('');
+
+                        // Refocus SPK Code input field
+                        setTimeout(function () {
+                            $('#spk_code').focus();
+                        }, 100);
+
+                        // Clear alert after 5 seconds
+                        setTimeout(function () {
+                            $alert.addClass('hidden');
+                        }, 5000);
+                    },
+                    error: function (xhr) {
+                        let errMsg = 'Terjadi kesalahan saat menscan barcode.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            // Extract validation errors
+                            const errors = xhr.responseJSON.errors;
+                            errMsg = Object.values(errors).map(errArr => errArr.join(', ')).join('; ');
+                        }
+                        
+                        // Display error in alert
+                        $alert.text(errMsg)
+                            .removeClass('hidden')
+                            .addClass('bg-red-100 text-red-700');
+
+                        // Clear inputs but refocus SPK code
+                        $('#spk_code').val('');
+                        $('#quantity').val('');
+                        $('#warehouse').val('');
+                        $('#label').val('');
+                        
+                        setTimeout(function () {
+                            $('#spk_code').focus();
+                        }, 100);
+                    }
+                });
+            });
+
+            // AJAX submit for Temporal Cycle Time (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#cycleTimeForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Cycle Time updated successfully!');
+                        closeCycleTimeModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate cycle time.');
+                    }
+                });
+            });
+
+            // AJAX submit for Temporal Cavity (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#temporalCavityForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Temporal Cavity updated successfully!');
+                        closeTemporalCavityModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate temporal cavity.');
+                    }
+                });
+            });
+
+            // AJAX submit for Add Hourly Remark (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#addHourlyRemarksForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Hourly Remark added successfully!');
+                        // Modal remains open
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        const errMsg = xhr.responseJSON?.message || 'Gagal menambahkan hourly remark.';
+                        alert(errMsg);
+                    }
+                });
+            });
+
+            // AJAX submit for Add Actual Production
+            $(document).on('submit', '#productionForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Actual Production updated successfully!');
+                        // Modal remains open
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate actual production.');
+                    }
+                });
+            });
+
+            // AJAX submit for Add NG
+            $(document).on('submit', '#ngForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'NG added successfully!');
+                        form.reset(); // Clear form fields
+                        
+                        // Update containers and refresh NG list inside modal
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                            refreshNgList();
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal menambahkan NG.');
+                    }
+                });
+            });
+
+            // AJAX submit for Edit Remark (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#remarkForm', function(e) {
+                e.preventDefault();
+                const id = $('#remarkId').val();
+                const remark = $('#remarkInput').val();
+                const token = $('input[name="_token"]').val();
+
+                $.ajax({
+                    url: `/hourly-remarks/${id}/update-remark`,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'X-CSRF-TOKEN': token },
+                    data: JSON.stringify({ remark }),
+                    success: function (data) {
+                        if (data.success) {
+                            alert('Remark saved successfully!');
+                            // Modal remains open
+                            
+                            // Update containers
+                            $.get(window.location.href, function (html) {
+                                const $html = $(html);
+                                $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                                $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                                $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                            });
+                        } else {
+                            alert("Gagal menyimpan remark");
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Gagal menyimpan remark.');
+                    }
+                });
+            });
+
+            // AJAX submit for Edit NG (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#editNgForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                const id = $('#edit_ng_id').val();
+
+                $.ajax({
+                    url: `/ng-detail/${id}`,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (res) {
+                        if (res.success) {
+                            alert('NG updated successfully');
+                            closeEditNgModal(); // Close the edit overlay modal
+                            // Main ngModal remains open
+                            
+                            // Update containers and refresh NG list inside modal
+                            $.get(window.location.href, function (html) {
+                                const $html = $(html);
+                                $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                                $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                                $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                                refreshNgList();
+                            });
+                        } else {
+                            alert('Failed to update NG');
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Failed to update NG.');
+                    }
+                });
+            });
 
         });
 
@@ -1802,7 +2108,14 @@
                         console.warn("NIK was empty, updated from localStorage:", this.nikInput);
                     }
 
-                    document.getElementById('nik').value = this.nikInput;
+                    // Securely set NIK in scan form hidden input without conflicting with other elements
+                    const form = document.getElementById('scanForm');
+                    if (form) {
+                        const nikHiddenInput = form.querySelector('input[name="nik"]');
+                        if (nikHiddenInput) {
+                            nikHiddenInput.value = this.nikInput;
+                        }
+                    }
 
                     const requiredFieldNames = ['spk_code_auto', 'quantity_auto', 'warehouse_auto', 'label_auto'];
                     const allFilled = requiredFieldNames.every(name => {
@@ -1812,7 +2125,7 @@
 
                     if (allFilled && this.nikInput) {
                         console.log("✅ Form is valid. Submitting...");
-                        
+                        $('#scanForm').submit();
                     } else {
                         console.warn("❌ Form not submitted. Missing required fields or NIK.");
                     }
@@ -1843,34 +2156,12 @@
 
 
             function editRemark(id, remark) {
+                currentHourlyRemarkId = id;
                 document.getElementById('remarkId').value = id;
                 document.getElementById('remarkInput').value = remark || '';
                 document.getElementById('remarkModal').showModal();
             }
 
-            document.getElementById('remarkForm').addEventListener('submit', function (e) {
-                e.preventDefault();
-                const id = document.getElementById('remarkId').value;
-                const remark = document.getElementById('remarkInput').value;
-                const token = document.querySelector('input[name="_token"]').value;
-
-                fetch(`/hourly-remarks/${id}/update-remark`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': token
-                    },
-                    body: JSON.stringify({ remark })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert("Gagal menyimpan remark");
-                    }
-                });
-            });
 
             function openConfirmModal() {
                 document.getElementById('confirmModal').showModal();
@@ -1890,6 +2181,7 @@
             }
 
             function openProductionModal(slotId, currentValue = 0) {
+            currentHourlyRemarkId = slotId;
             const modal = document.getElementById('productionModal');
             const form = document.getElementById('productionForm');
             const input = document.getElementById('actualProductionInput');
@@ -1908,8 +2200,36 @@
 
         let currentHourlyRemarkId = null;
 
+        function refreshNgList() {
+            if (!currentHourlyRemarkId) return;
+            const btn = document.querySelector(`button[data-id="${currentHourlyRemarkId}"]`);
+            if (btn) {
+                const ngDetails = JSON.parse(btn.getAttribute("data-ng") || '[]');
+                let listHtml = "";
+                if (ngDetails.length === 0) {
+                    listHtml = `<p class="text-gray-500 text-sm">No NG recorded for this hour.</p>`;
+                } else {
+                    ngDetails.forEach(ng => {
+                        listHtml += `
+                            <div class="border-b py-1">
+                                <div class="text-sm font-semibold">${ng.ng_type?.ng_type ?? 'Unknown'}</div>
+                                <div class="text-xs">Qty: ${ng.ng_quantity}</div>
+                                <div class="text-xs text-gray-600">${ng.ng_remarks ?? ''}</div>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button class="text-blue-600 text-xs hover:underline" onclick="editNg(${ng.id})">Edit</button>
+                                <button class="text-red-600 text-xs hover:underline" onclick="deleteNg(${ng.id})">Delete</button>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('ngList').innerHTML = listHtml;
+            }
+        }
+
             function openNgModal(el) {
                 let hourlyRemarkId = el.getAttribute("data-id");
+                currentHourlyRemarkId = hourlyRemarkId;
                 let ngDetails = JSON.parse(el.getAttribute("data-ng"));
 
                 // Update form action
@@ -1991,7 +2311,28 @@
                 .then(res => {
                     if (res.success) {
                         alert('NG deleted successfully');
-                        location.reload();
+                        
+                        // Pure Vanilla JS fetch and DOM swap:
+                        fetch(window.location.href)
+                            .then(res => res.text())
+                            .then(html => {
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(html, 'text/html');
+                                
+                                const oldTbody = document.getElementById('detailRemarkModalTbody');
+                                const newTbody = doc.getElementById('detailRemarkModalTbody');
+                                if (oldTbody && newTbody) {
+                                    oldTbody.innerHTML = newTbody.innerHTML;
+                                }
+
+                                const oldSummary = document.getElementById('summaryTableContainer');
+                                const newSummary = doc.getElementById('summaryTableContainer');
+                                if (oldSummary && newSummary) {
+                                    oldSummary.innerHTML = newSummary.innerHTML;
+                                }
+
+                                refreshNgList();
+                            });
                     }
                 })
                 .catch(error => {
@@ -2003,35 +2344,6 @@
             function closeEditNgModal() {
                 document.getElementById('editNgModal').classList.add('hidden');
             }
-
-            // Handle form submit dengan AJAX (opsional, tapi lebih baik)
-            document.getElementById('editNgForm')?.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                const id = document.getElementById('edit_ng_id').value;
-                
-                fetch(`/ng-detail/${id}`, {
-                    method: 'POST', // 
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.success) {
-                        alert('NG updated successfully');
-                        closeEditNgModal();
-                        location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to update NG');
-                });
-            });
 
         function openRemarkModal(id, existingRemark = '') {
             document.getElementById('remark_dic_id').value = id;
@@ -2051,7 +2363,8 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({ remark })
             })
@@ -2059,7 +2372,26 @@
             .then(data => {
                 alert('Remark saved!');
                 closeRemarkModal();
-                location.reload();
+                
+                // Pure Vanilla JS fetch and DOM swap:
+                fetch(window.location.href)
+                    .then(res => res.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        const newPlan = doc.getElementById('productionPlanContainer');
+                        const oldPlan = document.getElementById('productionPlanContainer');
+                        if (newPlan && oldPlan) {
+                            oldPlan.innerHTML = newPlan.innerHTML;
+                        }
+
+                        const newPekerjaan = doc.getElementById('pekerjaanTableContainer');
+                        const oldPekerjaan = document.getElementById('pekerjaanTableContainer');
+                        if (newPekerjaan && oldPekerjaan) {
+                            oldPekerjaan.innerHTML = newPekerjaan.innerHTML;
+                        }
+                    });
             });
         }
 

@@ -631,6 +631,13 @@ class DashboardController extends Controller
         HourlyRemark::where('id', $id)
                     ->update(['NG' => $totalNg]);
 
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'NG added successfully!'
+            ]);
+        }
+
         return back()->with('success', 'NG added successfully!');
     }
 
@@ -1072,9 +1079,21 @@ class DashboardController extends Controller
         $existingSpk = SpkMaster::where('spk_number', $spk_code)->first();
 
         if (!$existingSpk) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'SPK code tidak ditemukan.'
+                ], 422);
+            }
             return redirect()->back()->withErrors(['error' => 'SPK code tidak ditemukan.']);
         }
         if ($existingScan) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Label ini sudah pernah discan sebelumnya.'
+                ], 422);
+            }
             return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
         }
 
@@ -1136,6 +1155,13 @@ class DashboardController extends Controller
                 'pic' => $user,
                 'created_at' => now(),
                 'updated_at' => now(),
+            ]);
+        }
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Barcode scanned successfully!'
             ]);
         }
 
@@ -1764,6 +1790,13 @@ class DashboardController extends Controller
         $record->temporal_cycle_time = $request->temporal_cycle_time;
         $record->save();
 
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Temporal cycle time updated successfully.'
+            ]);
+        }
+
         return back()->with('success', 'Temporal cycle time updated successfully.');
     }
 
@@ -1777,6 +1810,13 @@ class DashboardController extends Controller
         $slot = HourlyRemark::findOrFail($id);
         $slot->actual_production = $request->actual_production;
         $slot->save();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Actual Production updated successfully.'
+            ]);
+        }
 
         return back()->with('success', 'Actual Production updated successfully.');
     }
@@ -1845,6 +1885,12 @@ class DashboardController extends Controller
         ->exists();
 
         if ($exists) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data dengan jam tersebut sudah ada untuk DIC yang sama.'
+                ], 422);
+            }
             return back()->with('error', 'Data dengan jam tersebut sudah ada untuk DIC yang sama.');
         }
     
@@ -1859,6 +1905,13 @@ class DashboardController extends Controller
             'updated_at' => now(),
         ]);
     
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Hourly Remark berhasil ditambahkan!'
+            ]);
+        }
+
         return back()->with('success', 'Hourly Remark berhasil ditambahkan!');
     }
 
@@ -2000,6 +2053,13 @@ class DashboardController extends Controller
         // Update field temporal_cavity
         $dailyItemCode->temporal_cavity = $validated['temporal_cavity'];
         $dailyItemCode->save();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Temporal cavity berhasil diperbarui.'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Temporal cavity berhasil diperbarui.');
     }
