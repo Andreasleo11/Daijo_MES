@@ -357,156 +357,431 @@ class DashboardController extends Controller
     //     }
     // }
 
+    // public function index()
+    // {
+    //     $user = auth()->user();
+    
+    //     // ── Early returns untuk role non-OPERATOR ────────────────────────────────
+    //     if ($user->role->name === 'ADMIN') {
+    //         return view('dashboards.dashboard-admin');
+    //     }
+    
+    //     if ($user->role->name === 'WORKSHOP') {
+    //         return view('dashboards.dashboard-workshop', compact('user'));
+    //     }
+    
+    //     if ($user->role->name !== 'OPERATOR') {
+    //         return view('dashboard', compact('user'));
+    //     }
+    
+    //     // ════════════════════════════════════════════════════════════════════════
+    //     //  OPERATOR
+    //     // ════════════════════════════════════════════════════════════════════════
+    
+    //     $userId   = $user->id;
+    //     $now      = Carbon::now('Asia/Jakarta');
+    //     $today    = Carbon::today('Asia/Jakarta');
+    //     $itemCode = $user->jobs->item_code ?? null;
+    
+    //     // ── 1. MACHINE JOB (query sekali, pakai ulang) ───────────────────────────
+    //     $machineJob      = MachineJob::where('user_id', $userId)->first();
+    //     $machinejobid    = $machineJob;
+    //     $machineJobShift = $machineJob->shift ?? 1;
+    
+    //     // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────────
+    //     // Jam 00:00 - 07:29 dianggap masih shift kemarin (shift 3 belum selesai)
+    //     $isEarlyMorning = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+    //     $shiftToday     = ($isEarlyMorning ? Carbon::yesterday('Asia/Jakarta') : $today)->toDateString();
+    //     $shiftTomorrow  = ($isEarlyMorning ? $today : Carbon::tomorrow('Asia/Jakarta'))->toDateString();
+    
+    //     // ── 3. DAILY ITEM CODES ───────────────────────────────────────────────────
+    //     // PENTING: kalau jam 00:00-07:29, DIC shift 3 ada di schedule_date KEMARIN
+    //     // Jadi query harus include $shiftToday (bisa kemarin) dan $shiftTomorrow (bisa hari ini)
+    //     // agar shift 3 yang masih berjalan tetap muncul
+    //     $datas = DailyItemCode::where('user_id', $userId)
+    //         ->where(function ($q) use ($shiftToday, $shiftTomorrow) {
+    //             $q->whereDate('schedule_date', $shiftToday)
+    //             ->orWhereDate('schedule_date', $shiftTomorrow);
+    //         })
+    //         ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //         ->get()
+    //         ->sortBy([['shift', 'asc'], ['item_code', 'asc']]);
+    
+    //     // ── 4. AUTO-EXPIRE JADWAL LAMA (dari koleksi, tanpa query baru) ──────────
+    //     // Hanya expire DIC yang end_time-nya sudah lewat + 1 jam DAN tidak ada hourlyRemarks
+    //     $expiredIds = $datas
+    //         ->whereNull('is_done')
+    //         ->filter(fn($dic) =>
+    //             $dic->hourlyRemarks->isEmpty() &&
+    //             Carbon::parse($dic->end_date . ' ' . $dic->end_time)->addHour()->lt($now)
+    //         )
+    //         ->pluck('id');
+    
+    //     if ($expiredIds->isNotEmpty()) {
+    //         DailyItemCode::whereIn('id', $expiredIds)->update(['is_done' => 99]);
+    //         // Update in-memory supaya tidak stale di langkah berikutnya
+    //         $datas->each(function ($d) use ($expiredIds) {
+    //             if ($expiredIds->contains($d->id)) {
+    //                 $d->is_done = 99;
+    //             }
+    //         });
+    //     }
+    
+    //     // ── 5. UPDATE TARGET & IS_ACHIEVE (bulk, isDirty check) ──────────────────
+    //     $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn($q) =>
+    //             $q->where('user_id', $userId)
+    //             ->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
+    //                 $q2->whereDate('schedule_date', $shiftToday)
+    //                     ->orWhereDate('schedule_date', $shiftTomorrow);
+    //             })
+    //         )
+    //         ->with('dailyItemCode.masterItem')
+    //         ->get();
+    
+    //     foreach ($todayRemarks as $remark) {
+    //         $dic      = $remark->dailyItemCode;
+    //         $temporal = $dic->temporal_cycle_time ?? null;
+    
+    //         if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
+    //             $cavity         = max((int)($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+    //             $remark->target = floor(3600 / $temporal) * $cavity;
+    //         }
+    
+    //         $remark->is_achieve = (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target)
+    //             ? 1 : 0;
+    
+    //         if ($remark->isDirty()) {
+    //             $remark->save();
+    //         }
+    //     }
+    
+    //     // ── 6. ACTIVE DIC ────────────────────────────────────────────────────────
+    //     // Prioritas sama persis dengan kode asli:
+    //     // 1) previousDIC: DIC sebelum shiftToday yang belum selesai (termasuk kemarin kalau jam malam)
+    //     // 2) todayDIC: DIC di shiftToday/shiftTomorrow yang belum selesai
+    //     // 3) Fallback: tanpa filter tanggal
+    
+    //     $previousDIC = DailyItemCode::where('user_id', $userId)
+    //         ->where('item_code', $itemCode)
+    //         ->where('schedule_date', '<', $shiftToday)   // pakai $shiftToday bukan $today
+    //         ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //         ->whereNull('is_done')
+    //         ->orderByDesc('schedule_date')
+    //         ->first();
+    
+    //     // Cari dari $datas (sudah include shiftToday + shiftTomorrow)
+    //     $todayDIC = $datas
+    //         ->where('item_code', $itemCode)
+    //         ->whereNull('is_done')
+    //         ->sortBy('shift')
+    //         ->first();
+    
+    //     // Sama dengan kode asli: previousDIC didahulukan
+    //     $activeDIC = $previousDIC ?? $todayDIC;
+    
+    //     if (!$activeDIC) {
+    //         // Fallback terakhir: tanpa filter tanggal sama sekali
+    //         $activeDIC = DailyItemCode::where('user_id', $userId)
+    //             ->where('item_code', $itemCode)
+    //             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+    //             ->whereNull('is_done')
+    //             ->first();
+    //     }
+    
+    //     $activeID = $activeDIC?->id;
+    
+    //     // ── 7. SCANNED DATA & HOURLY REMARKS ACTIVE DIC ──────────────────────────
+    //     $hourlyRemarksActiveDIC = null;
+    //     $totalScannedQuantity   = 0;
+    //     $scannedCount           = 0;
+    
+    //     if ($activeDIC) {
+    //         $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
+    //         $scannedCount         = $activeDIC->scannedData->count();
+    
+    //         $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails.ngType')
+    //             ->where('dic_id', $activeID)
+    //             ->orderBy('start_time')
+    //             ->get();
+    
+    //         // Update is_achieve untuk remark active DIC
+    //         foreach ($hourlyRemarksActiveDIC as $remark) {
+    //             if (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target) {
+    //                 $remark->is_achieve = 1;
+    //                 if ($remark->isDirty()) {
+    //                     $remark->save();
+    //                 }
+    //             }
+    //         }
+    //     }
+    
+    //     // ── 8. HOURLY REMARKS WINDOW SHIFT ───────────────────────────────────────
+    //     $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+    //         ->whereHas('dailyItemCode', fn($q) =>
+    //             $q->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
+    //                 $q2->whereDate('schedule_date', $shiftToday)
+    //                 ->orWhereDate('schedule_date', $shiftTomorrow);
+    //             })
+    //             ->where('user_id', $userId)
+    //         )
+    //         ->where(fn($q) =>
+    //             $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
+    //             ->orWhereBetween('start_time', ['00:00:00', '07:30:00'])
+    //         )
+    //         ->orderBy('start_time')
+    //         ->get();
+    
+    //     // ── 9. LOGS (closure reusable) ────────────────────────────────────────────
+    //     $calcDuration = function ($log, string $endField = 'end_time') {
+    //         $log->total_pengerjaan = ($log->created_at && $log->{$endField})
+    //             ? Carbon::parse($log->{$endField})->diffInMinutes(Carbon::parse($log->created_at))
+    //             : null;
+    //     };
+    
+    //     // Log tetap pakai $today (tanggal kalender), bukan shift-aware
+    //     $mouldChangeLogs   = MouldChangeLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    //     $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    //     $repairMachineLogs = RepairMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
+    
+    //     $mouldChangeLogs->each(fn($log)   => $calcDuration($log, 'end_time'));
+    //     $adjustMachineLogs->each(fn($log) => $calcDuration($log, 'end_time'));
+    //     $repairMachineLogs->each(fn($log) => $calcDuration($log, 'finish_repair'));
+    
+    //     // ── 10. FILES & TOTAL QUANTITIES (satu whereIn, bukan per-item query) ────
+    //     $files           = [];
+    //     $totalQuantities = [];
+    //     $itemCollections = [];
+    //     $uniquedata      = collect();   // selalu kosong, dipertahankan agar view tidak error
+    //     $dataWithSpkNo   = null;
+    
+    //     $allItemCodes = $datas->pluck('item_code')->unique()->filter()->values();
+    //     $allFiles     = File::whereIn('item_code', $allItemCodes)->get()->groupBy('item_code');
+    
+    //     foreach ($datas as $data) {
+    //         $ic       = $data->item_code;
+    //         $mainCode = $ic ?? ($data->masterItem->pair ?? $ic);
+    
+    //         $totalQuantities[$mainCode] = ($totalQuantities[$mainCode] ?? 0) + $data->quantity;
+    //         $files[$mainCode]           = $allFiles->get($ic, collect());
+    //     }
+    
+    //     // ── 11. ZONE / PENGAWAS ───────────────────────────────────────────────────
+    //     $zone         = $user->zone;
+    //     $zonePengawas = $zone?->zoneData()
+    //         ->where('shift', $machineJobShift)
+    //         ->whereDate('start_date', '<=', $now)
+    //         ->whereDate('end_date', '>=', $now)
+    //         ->latest('updated_at')
+    //         ->first();
+    
+    //     $pengawasName    = $zonePengawas?->pengawas;
+    //     $pengawasUser    = $pengawasName
+    //         ? \App\Models\OperatorUser::where('name', $pengawasName)->first()
+    //         : null;
+    //     $pengawasProfile = $pengawasUser?->profile_picture;
+    
+    //     // ── 12. MISC ──────────────────────────────────────────────────────────────
+    //     $spkData = ProductionScannedData::where('dic_id', $activeID)->with('summary')->get();
+    
+    //     // todayitems: DIC yang masih aktif dalam window shift sekarang
+    //     // (dari $datas yang sudah shift-aware, tanpa query baru)
+    //     $todayitems = $datas->whereNull('is_done')->sortBy('shift')->values();
+    
+    //     $ngData = ProductionNgType::all();
+
+    //      $outputLogs = $activeDIC
+    //          ? ProductionOutputLog::where('dic_id', $activeID)
+    //              ->orderByDesc('logged_at')
+    //              ->get()
+    //             : collect();
+    
+    //     return view('dashboards.dashboard-operator', compact(
+    //         'files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift',
+    //         'dataWithSpkNo', 'machinejobid', 'itemCollections',
+    //         'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs',
+    //         'zone', 'pengawasName', 'pengawasProfile',
+    //         'activeDIC', 'totalScannedQuantity', 'scannedCount',
+    //         'hourlyRemarksActiveDIC', 'hourlyRemarks', 'spkData',
+    //         'todayitems', 'ngData', 'outputLogs'
+    //     ));
+    // }
+
     public function index()
     {
         $user = auth()->user();
-    
-        // ── Early returns untuk role non-OPERATOR ────────────────────────────────
+
+        // ── Early returns untuk role non-OPERATOR ────────────────────────────
         if ($user->role->name === 'ADMIN') {
             return view('dashboards.dashboard-admin');
         }
-    
         if ($user->role->name === 'WORKSHOP') {
             return view('dashboards.dashboard-workshop', compact('user'));
         }
-    
         if ($user->role->name !== 'OPERATOR') {
             return view('dashboard', compact('user'));
         }
-    
-        // ════════════════════════════════════════════════════════════════════════
-        //  OPERATOR
-        // ════════════════════════════════════════════════════════════════════════
-    
+
+        // ════════════════════════════════════════════════════════════════════
+        // OPERATOR
+        // ════════════════════════════════════════════════════════════════════
+
         $userId   = $user->id;
         $now      = Carbon::now('Asia/Jakarta');
         $today    = Carbon::today('Asia/Jakarta');
         $itemCode = $user->jobs->item_code ?? null;
-    
-        // ── 1. MACHINE JOB (query sekali, pakai ulang) ───────────────────────────
+
+        // ── 1. MACHINE JOB ───────────────────────────────────────────────────
         $machineJob      = MachineJob::where('user_id', $userId)->first();
         $machinejobid    = $machineJob;
         $machineJobShift = $machineJob->shift ?? 1;
-    
-        // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────────
-        // Jam 00:00 - 07:29 dianggap masih shift kemarin (shift 3 belum selesai)
-        $isEarlyMorning = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
-        $shiftToday     = ($isEarlyMorning ? Carbon::yesterday('Asia/Jakarta') : $today)->toDateString();
-        $shiftTomorrow  = ($isEarlyMorning ? $today : Carbon::tomorrow('Asia/Jakarta'))->toDateString();
-    
-        // ── 3. DAILY ITEM CODES ───────────────────────────────────────────────────
-        // PENTING: kalau jam 00:00-07:29, DIC shift 3 ada di schedule_date KEMARIN
-        // Jadi query harus include $shiftToday (bisa kemarin) dan $shiftTomorrow (bisa hari ini)
-        // agar shift 3 yang masih berjalan tetap muncul
+
+        // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────
+        //
+        // PENTING: Batas waktu shift 3 → shift 1 TIDAK ditentukan oleh jam.
+        // Yang menentukan adalah submit/selesai oleh operator.
+        //
+        // Namun kita tetap butuh window tanggal untuk query DIC shift 3
+        // yang mungkin punya schedule_date = kemarin (misal shift 3 mulai
+        // 23:00 kemarin dan selesai 07:00 hari ini).
+        //
+        // Aturan window:
+        //   - Kalau jam 00:00–07:29 → kita anggap "still in overnight window",
+        //     artinya DIC shift 3 dengan schedule_date KEMARIN masih relevan.
+        //     Tapi kita TIDAK auto-ganti shift / tampilan berdasarkan jam.
+        //   - Kalau jam 07:30+ → window normal (hari ini & besok).
+        //
+        $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+
+        // shiftDateA = tanggal "awal window" (bisa kemarin kalau overnight)
+        // shiftDateB = tanggal "akhir window" (bisa hari ini kalau overnight)
+        $shiftDateA = $isOvernightWindow
+            ? Carbon::yesterday('Asia/Jakarta')->toDateString()
+            : $today->toDateString();
+
+        $shiftDateB = $isOvernightWindow
+            ? $today->toDateString()
+            : Carbon::tomorrow('Asia/Jakarta')->toDateString();
+
+        // ── 3. DAILY ITEM CODES ──────────────────────────────────────────────
         $datas = DailyItemCode::where('user_id', $userId)
-            ->where(function ($q) use ($shiftToday, $shiftTomorrow) {
-                $q->whereDate('schedule_date', $shiftToday)
-                ->orWhereDate('schedule_date', $shiftTomorrow);
+            ->where(function ($q) use ($shiftDateA, $shiftDateB) {
+                $q->whereDate('schedule_date', $shiftDateA)
+                  ->orWhereDate('schedule_date', $shiftDateB);
             })
             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->get()
             ->sortBy([['shift', 'asc'], ['item_code', 'asc']]);
-    
-        // ── 4. AUTO-EXPIRE JADWAL LAMA (dari koleksi, tanpa query baru) ──────────
-        // Hanya expire DIC yang end_time-nya sudah lewat + 1 jam DAN tidak ada hourlyRemarks
+
+        // ── 4. AUTO-EXPIRE JADWAL LAMA ───────────────────────────────────────
+        //
+        // Expire DIC yang:
+        //   a) belum selesai (is_done = null)
+        //   b) tidak punya hourlyRemarks sama sekali
+        //   c) end_time sudah lewat lebih dari 1 jam
+        //
+        // TIDAK expire hanya karena jam melewati batas shift — harus lewat
+        // end_time + 1 jam DAN tidak ada aktivitas.
+        //
         $expiredIds = $datas
             ->whereNull('is_done')
-            ->filter(fn($dic) =>
-                $dic->hourlyRemarks->isEmpty() &&
-                Carbon::parse($dic->end_date . ' ' . $dic->end_time)->addHour()->lt($now)
+            ->filter(fn ($dic) =>
+                $dic->hourlyRemarks->isEmpty()
+                && Carbon::parse($dic->end_date . ' ' . $dic->end_time)
+                         ->addHour()
+                         ->lt($now)
             )
             ->pluck('id');
-    
+
         if ($expiredIds->isNotEmpty()) {
             DailyItemCode::whereIn('id', $expiredIds)->update(['is_done' => 99]);
-            // Update in-memory supaya tidak stale di langkah berikutnya
+            // Update in-memory supaya langkah berikutnya tidak pakai data stale
             $datas->each(function ($d) use ($expiredIds) {
                 if ($expiredIds->contains($d->id)) {
                     $d->is_done = 99;
                 }
             });
         }
-    
-        // ── 5. UPDATE TARGET & IS_ACHIEVE (bulk, isDirty check) ──────────────────
-        $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn($q) =>
-                $q->where('user_id', $userId)
-                ->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
-                    $q2->whereDate('schedule_date', $shiftToday)
-                        ->orWhereDate('schedule_date', $shiftTomorrow);
-                })
-            )
-            ->with('dailyItemCode.masterItem')
-            ->get();
-    
+
+        // ── 5. UPDATE TARGET & IS_ACHIEVE ────────────────────────────────────
+        $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn ($q) =>
+            $q->where('user_id', $userId)
+              ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
+                  $q2->whereDate('schedule_date', $shiftDateA)
+                     ->orWhereDate('schedule_date', $shiftDateB);
+              })
+        )
+        ->with('dailyItemCode.masterItem')
+        ->get();
+
         foreach ($todayRemarks as $remark) {
             $dic      = $remark->dailyItemCode;
             $temporal = $dic->temporal_cycle_time ?? null;
-    
+
             if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                $cavity         = max((int)($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+                $cavity        = max((int) ($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
                 $remark->target = floor(3600 / $temporal) * $cavity;
             }
-    
-            $remark->is_achieve = (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target)
-                ? 1 : 0;
-    
+
+            $remark->is_achieve = (!is_null($remark->actual_production)
+                && $remark->actual_production >= $remark->target) ? 1 : 0;
+
             if ($remark->isDirty()) {
                 $remark->save();
             }
         }
-    
-        // ── 6. ACTIVE DIC ────────────────────────────────────────────────────────
-        // Prioritas sama persis dengan kode asli:
-        // 1) previousDIC: DIC sebelum shiftToday yang belum selesai (termasuk kemarin kalau jam malam)
-        // 2) todayDIC: DIC di shiftToday/shiftTomorrow yang belum selesai
-        // 3) Fallback: tanpa filter tanggal
-    
+
+        // ── 6. ACTIVE DIC ────────────────────────────────────────────────────
+        //
+        // Prioritas:
+        //   1) previousDIC  – DIC sebelum shiftDateA yang belum selesai
+        //   2) todayDIC     – DIC dalam window (shiftDateA / shiftDateB) yang belum selesai
+        //   3) fallback     – tanpa filter tanggal sama sekali
+        //
         $previousDIC = DailyItemCode::where('user_id', $userId)
             ->where('item_code', $itemCode)
-            ->where('schedule_date', '<', $shiftToday)   // pakai $shiftToday bukan $today
+            ->where('schedule_date', '<', $shiftDateA)
             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->whereNull('is_done')
             ->orderByDesc('schedule_date')
             ->first();
-    
-        // Cari dari $datas (sudah include shiftToday + shiftTomorrow)
+
+        // Ambil dari $datas (sudah dalam window)
         $todayDIC = $datas
             ->where('item_code', $itemCode)
             ->whereNull('is_done')
             ->sortBy('shift')
             ->first();
-    
-        // Sama dengan kode asli: previousDIC didahulukan
+
         $activeDIC = $previousDIC ?? $todayDIC;
-    
+
         if (!$activeDIC) {
-            // Fallback terakhir: tanpa filter tanggal sama sekali
             $activeDIC = DailyItemCode::where('user_id', $userId)
                 ->where('item_code', $itemCode)
                 ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
                 ->whereNull('is_done')
                 ->first();
         }
-    
+
         $activeID = $activeDIC?->id;
-    
-        // ── 7. SCANNED DATA & HOURLY REMARKS ACTIVE DIC ──────────────────────────
+
+        // ── 7. SCANNED DATA & HOURLY REMARKS ACTIVE DIC ──────────────────────
         $hourlyRemarksActiveDIC = null;
         $totalScannedQuantity   = 0;
         $scannedCount           = 0;
-    
+
         if ($activeDIC) {
             $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
             $scannedCount         = $activeDIC->scannedData->count();
-    
+
             $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails.ngType')
                 ->where('dic_id', $activeID)
                 ->orderBy('start_time')
                 ->get();
-    
-            // Update is_achieve untuk remark active DIC
+
             foreach ($hourlyRemarksActiveDIC as $remark) {
-                if (!is_null($remark->actual_production) && $remark->actual_production >= $remark->target) {
+                if (!is_null($remark->actual_production)
+                    && $remark->actual_production >= $remark->target
+                ) {
                     $remark->is_achieve = 1;
                     if ($remark->isDirty()) {
                         $remark->save();
@@ -514,95 +789,129 @@ class DashboardController extends Controller
                 }
             }
         }
-    
-        // ── 8. HOURLY REMARKS WINDOW SHIFT ───────────────────────────────────────
+
+        // ── 8. HOURLY REMARKS WINDOW SHIFT ───────────────────────────────────
         $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
-            ->whereHas('dailyItemCode', fn($q) =>
-                $q->where(function ($q2) use ($shiftToday, $shiftTomorrow) {
-                    $q2->whereDate('schedule_date', $shiftToday)
-                    ->orWhereDate('schedule_date', $shiftTomorrow);
-                })
-                ->where('user_id', $userId)
+            ->whereHas('dailyItemCode', fn ($q) =>
+                $q->where('user_id', $userId)
+                  ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
+                      $q2->whereDate('schedule_date', $shiftDateA)
+                         ->orWhereDate('schedule_date', $shiftDateB);
+                  })
             )
-            ->where(fn($q) =>
+            ->where(fn ($q) =>
                 $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
-                ->orWhereBetween('start_time', ['00:00:00', '07:30:00'])
+                  ->orWhereBetween('start_time', ['00:00:00', '07:30:00'])
             )
             ->orderBy('start_time')
             ->get();
-    
-        // ── 9. LOGS (closure reusable) ────────────────────────────────────────────
+
+        // ── 9. LOGS ───────────────────────────────────────────────────────────
+        //
+        // FIX: Log change mould & adjust machine pakai shiftDateA (shift-aware),
+        // bukan Carbon::today() murni.
+        //
+        // Kalau jam 00:00–07:29, $shiftDateA = kemarin → log shift 3 muncul.
+        // Kalau jam 07:30+, $shiftDateA = hari ini → normal.
+        //
+        // RepairMachineLog menggunakan $today (kalender), karena repair bisa
+        // lintas shift dan biasanya dicari per tanggal kalender.
+        // Ubah ke $shiftDateA juga kalau ingin konsisten.
+        //
         $calcDuration = function ($log, string $endField = 'end_time') {
             $log->total_pengerjaan = ($log->created_at && $log->{$endField})
                 ? Carbon::parse($log->{$endField})->diffInMinutes(Carbon::parse($log->created_at))
                 : null;
         };
-    
-        // Log tetap pakai $today (tanggal kalender), bukan shift-aware
-        $mouldChangeLogs   = MouldChangeLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
-        $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
-        $repairMachineLogs = RepairMachineLog::where('user_id', $userId)->whereDate('created_at', $today)->get();
-    
-        $mouldChangeLogs->each(fn($log)   => $calcDuration($log, 'end_time'));
-        $adjustMachineLogs->each(fn($log) => $calcDuration($log, 'end_time'));
-        $repairMachineLogs->each(fn($log) => $calcDuration($log, 'finish_repair'));
-    
-        // ── 10. FILES & TOTAL QUANTITIES (satu whereIn, bukan per-item query) ────
-        $files           = [];
+
+        $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
+            ->whereDate('created_at', $shiftDateA)        // ← shift-aware
+            ->get();
+
+        $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)
+            ->whereDate('created_at', $shiftDateA)        // ← shift-aware
+            ->get();
+
+        $repairMachineLogs = RepairMachineLog::where('user_id', $userId)
+            ->whereDate('created_at', $today)             // kalender biasa
+            ->get();
+
+        $mouldChangeLogs->each(fn ($log)   => $calcDuration($log, 'end_time'));
+        $adjustMachineLogs->each(fn ($log) => $calcDuration($log, 'end_time'));
+        $repairMachineLogs->each(fn ($log) => $calcDuration($log, 'finish_repair'));
+
+        // ── 10. FILES & TOTAL QUANTITIES ─────────────────────────────────────
+        $files          = [];
         $totalQuantities = [];
         $itemCollections = [];
-        $uniquedata      = collect();   // selalu kosong, dipertahankan agar view tidak error
-        $dataWithSpkNo   = null;
-    
+        $uniquedata     = collect();   // dipertahankan agar view tidak error
+        $dataWithSpkNo  = null;
+
         $allItemCodes = $datas->pluck('item_code')->unique()->filter()->values();
         $allFiles     = File::whereIn('item_code', $allItemCodes)->get()->groupBy('item_code');
-    
+
         foreach ($datas as $data) {
             $ic       = $data->item_code;
             $mainCode = $ic ?? ($data->masterItem->pair ?? $ic);
-    
+
             $totalQuantities[$mainCode] = ($totalQuantities[$mainCode] ?? 0) + $data->quantity;
             $files[$mainCode]           = $allFiles->get($ic, collect());
         }
-    
-        // ── 11. ZONE / PENGAWAS ───────────────────────────────────────────────────
-        $zone         = $user->zone;
+
+        // ── 11. ZONE / PENGAWAS ───────────────────────────────────────────────
+        $zone = $user->zone;
+
         $zonePengawas = $zone?->zoneData()
             ->where('shift', $machineJobShift)
             ->whereDate('start_date', '<=', $now)
             ->whereDate('end_date', '>=', $now)
             ->latest('updated_at')
             ->first();
-    
+
         $pengawasName    = $zonePengawas?->pengawas;
         $pengawasUser    = $pengawasName
             ? \App\Models\OperatorUser::where('name', $pengawasName)->first()
             : null;
         $pengawasProfile = $pengawasUser?->profile_picture;
-    
-        // ── 12. MISC ──────────────────────────────────────────────────────────────
+
+        // ── 12. MISC ──────────────────────────────────────────────────────────
         $spkData = ProductionScannedData::where('dic_id', $activeID)->with('summary')->get();
-    
-        // todayitems: DIC yang masih aktif dalam window shift sekarang
+
+        // todayitems: DIC yang masih aktif dalam window shift
         // (dari $datas yang sudah shift-aware, tanpa query baru)
         $todayitems = $datas->whereNull('is_done')->sortBy('shift')->values();
-    
-        $ngData = ProductionNgType::all();
 
-         $outputLogs = $activeDIC
-             ? ProductionOutputLog::where('dic_id', $activeID)
-                 ->orderByDesc('logged_at')
-                 ->get()
-                : collect();
-    
+        $ngData     = ProductionNgType::all();
+        $outputLogs = $activeDIC
+            ? ProductionOutputLog::where('dic_id', $activeID)
+                ->orderByDesc('logged_at')
+                ->get()
+            : collect();
+
         return view('dashboards.dashboard-operator', compact(
-            'files', 'datas', 'itemCode', 'uniquedata', 'machineJobShift',
-            'dataWithSpkNo', 'machinejobid', 'itemCollections',
-            'mouldChangeLogs', 'adjustMachineLogs', 'repairMachineLogs',
-            'zone', 'pengawasName', 'pengawasProfile',
-            'activeDIC', 'totalScannedQuantity', 'scannedCount',
-            'hourlyRemarksActiveDIC', 'hourlyRemarks', 'spkData',
-            'todayitems', 'ngData', 'outputLogs'
+            'files',
+            'datas',
+            'itemCode',
+            'uniquedata',
+            'machineJobShift',
+            'dataWithSpkNo',
+            'machinejobid',
+            'itemCollections',
+            'mouldChangeLogs',
+            'adjustMachineLogs',
+            'repairMachineLogs',
+            'zone',
+            'pengawasName',
+            'pengawasProfile',
+            'activeDIC',
+            'totalScannedQuantity',
+            'scannedCount',
+            'hourlyRemarksActiveDIC',
+            'hourlyRemarks',
+            'spkData',
+            'todayitems',
+            'ngData',
+            'outputLogs'
         ));
     }
 
