@@ -215,7 +215,7 @@
                     DELIVERY SCHEDULE ANALYSIS
                 </div>
                 <div style="font-size:9px; color:#7A756E; letter-spacing:.1em; text-transform:uppercase; margin-top:1px;">
-                    SEID Request · Actual · Balance Del · Balance Stock
+                    Delivery Request · Actual · Balance Del · Balance Stock
                 </div>
             </div>
         </div>
@@ -471,10 +471,10 @@
                     </thead>
                     <tbody>
 
-                        {{-- SEID Request --}}
+                        {{-- Delivery Request --}}
                         <tr class="row-seid">
                             <td class="col-sticky-1" style="min-width:115px; border-right:2px solid var(--border); font-family:'IBM Plex Sans',sans-serif; font-size:10px; font-weight:600; color:var(--text);">
-                                SEID Request
+                                Delivery Request
                             </td>
                             <td class="col-sticky-2" style="border-right:2px solid var(--border); color:var(--muted); font-size:10px;">—</td>
                             @foreach($dateRange as $date)
@@ -559,7 +559,7 @@
 
                             @php
                                 $childRows = [
-                                    ['SEID Req',  'seid_request',  '#FAFAF8', '#1A1816'],
+                                    ['Delivery Req',  'seid_request',  '#FAFAF8', '#1A1816'],
                                     ['Actual',    'actual',        '#F0FAF4', '#166534'],
                                     ['Bal Del',   'balance_del',   '#FFFBF0', '#92400E'],
                                     ['Bal Stock', 'balance_stock', '#F0F5FF', '#1E3A5F'],
@@ -613,7 +613,7 @@
                                 Tanggal
                             </th>
                             <th style="min-width:80px;">Stk Awal</th>
-                            <th style="min-width:90px; background:#FAFAF8;">SEID Request</th>
+                            <th style="min-width:90px; background:#FAFAF8;">Delivery Request</th>
                             <th style="min-width:90px; background:#F6FBF8;">Actual Del</th>
                             <th style="min-width:90px; background:#FFFBF5;">Balance Del</th>
                             <th style="min-width:100px; background:#F5F8FF;">Balance Stock</th>
@@ -686,7 +686,7 @@
                                         Tanggal
                                     </th>
                                     <th style="min-width:80px;">Stk Awal</th>
-                                    <th style="min-width:90px; background:#FAFAF8;">SEID Req</th>
+                                    <th style="min-width:90px; background:#FAFAF8;">Deliver Req</th>
                                     <th style="min-width:90px; background:#F0FAF4;">Actual</th>
                                     <th style="min-width:90px; background:#FFFBF0;">Bal Del</th>
                                     <th style="min-width:100px; background:#F0F5FF;">Bal Stock</th>
