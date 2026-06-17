@@ -29,6 +29,7 @@ class DailyItemCode extends Model
         'end_date',
         'remark',
         'temporal_cycletime',
+        'resin_usage',
     ];
 
     public function user()

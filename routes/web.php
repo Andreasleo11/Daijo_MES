@@ -400,8 +400,11 @@ Route::middleware('auth')->group(function (){
     Route::post('/production-output-log', [DashboardController::class, 'storeOutputLog'])->name('production.output-log.store');
     Route::get('/production-output-log/print/{id}', [DashboardController::class, 'printOutputLog'])->name('production.output-log.print');
 
-     Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
+    Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
     ->name('daily-item-codes.updatecavity');
+
+    Route::put('/daily-item-codes/{id}/resin-usage', [DashboardController::class, 'updateResinUsage'])
+    ->name('daily-item-codes.updateresin');
 
     Route::post('/daily-item-codes/update-remark/{id}', [DashboardController::class, 'updateRemarkDIC']);
 

@@ -888,6 +888,42 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
+        // ── Active States for Refactored Status Widget ───────────────────────
+        $activeMould = MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
+        $activeAdjust = AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
+        $activeRepair = RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->latest()->first();
+
+        $activeState = 'RUNNING';
+        $activeOperatorName = null;
+        $activeOperatorProfile = null;
+        $activeStateStartTime = null;
+
+        if ($activeMould) {
+            $activeState = 'MOULD_CHANGE';
+            $activeOperatorName = $activeMould->pic;
+            $activeStateStartTime = $activeMould->created_at ? $activeMould->created_at->toIso8601String() : null;
+            $opUser = OperatorUser::where('name', $activeMould->pic)->first();
+            $activeOperatorProfile = $opUser && $opUser->profile_picture
+                ? asset('storage/' . $opUser->profile_picture)
+                : asset('images/default_profile.jpg');
+        } elseif ($activeAdjust) {
+            $activeState = 'ADJUSTING';
+            $activeOperatorName = $activeAdjust->pic;
+            $activeStateStartTime = $activeAdjust->created_at ? $activeAdjust->created_at->toIso8601String() : null;
+            $opUser = OperatorUser::where('name', $activeAdjust->pic)->first();
+            $activeOperatorProfile = $opUser && $opUser->profile_picture
+                ? asset('storage/' . $opUser->profile_picture)
+                : asset('images/default_profile.jpg');
+        } elseif ($activeRepair) {
+            $activeState = 'REPAIRING';
+            $activeOperatorName = $activeRepair->pic;
+            $activeStateStartTime = $activeRepair->created_at ? $activeRepair->created_at->toIso8601String() : null;
+            $opUser = OperatorUser::where('name', $activeRepair->pic)->first();
+            $activeOperatorProfile = $opUser && $opUser->profile_picture
+                ? asset('storage/' . $opUser->profile_picture)
+                : asset('images/default_profile.jpg');
+        }
+
         return view('dashboards.dashboard-operator', compact(
             'files',
             'datas',
@@ -911,7 +947,11 @@ class DashboardController extends Controller
             'spkData',
             'todayitems',
             'ngData',
-            'outputLogs'
+            'outputLogs',
+            'activeState',
+            'activeOperatorName',
+            'activeOperatorProfile',
+            'activeStateStartTime'
         ));
     }
 
@@ -1345,13 +1385,18 @@ class DashboardController extends Controller
         $startTime = $base->copy()->addMinutes($slotIndex * 60)->format('H:i:s');
         $endTime = $base->copy()->addMinutes(($slotIndex + 1) * 60)->format('H:i:s');
 
-        if ($activeDIC->temporal_cycle_time) {
+        $cycletime = 0;
+        if (!empty($activeDIC->temporal_cycle_time)) {
             $cycletime = $activeDIC->temporal_cycle_time; // sudah dalam detik
-        } else {
+        } elseif (!empty($activeDIC->master_fg?->cycle_time)) {
             $cycletime = $activeDIC->master_fg->cycle_time * 60; // dari menit ke detik
         }
         
-        $target = floor(3600 / $cycletime); // 1 jam = 3600 detik
+        if ($cycletime > 0) {
+            $target = floor(3600 / $cycletime); // 1 jam = 3600 detik
+        } else {
+            $target = 0;
+        }
 
         if (
             !empty($activeDIC->master_item?->pair) || 
@@ -2175,14 +2220,14 @@ class DashboardController extends Controller
         $daily = DailyItemCode::where('id', $dicId)->first();
         $temporal = $daily?->temporal_cycle_time;
         
-        if ($temporal && is_numeric($temporal)) {
+        if ($temporal && is_numeric($temporal) && $temporal > 0) {
             $target = floor(3600 / $temporal);
         } else {
             // Priority 2: Get from sap_inventory_fg
             $sap = SapInventoryFg::where('item_code', $itemCode)->first();
             $cycle = $sap?->cycle_time;
     
-            if ($cycle && is_numeric($cycle)) {
+            if ($cycle && is_numeric($cycle) && $cycle > 0) {
                 $target = floor(3600 / ($cycle * 60));
             } else {
                 $target = 0; // fallback jika semua kosong
@@ -2371,6 +2416,31 @@ class DashboardController extends Controller
         }
 
         return redirect()->back()->with('success', 'Temporal cavity berhasil diperbarui.');
+    }
+
+    // function untuk update resin usage oleh operator per shift per itemcode
+    public function updateResinUsage(Request $request, $id)
+    {
+        // Validasi input
+        $validated = $request->validate([
+            'resin_usage' => 'nullable|numeric|min:0',
+        ]);
+
+        // Ambil record
+        $dailyItemCode = DailyItemCode::findOrFail($id);
+        
+        // Update field resin_usage
+        $dailyItemCode->resin_usage = $validated['resin_usage'];
+        $dailyItemCode->save();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Resin usage berhasil diperbarui.'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Resin usage berhasil diperbarui.');
     }
 
     public function storeOutputLog(Request $request)

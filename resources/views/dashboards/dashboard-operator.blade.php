@@ -28,74 +28,153 @@
         @endif
     </div>
 
-    @php
-    $userId = auth()->id();
-    $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
-    @endphp
-
-    @php
-        $userId = auth()->id();
-        $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
-        $activeAdjustMachine = \App\Models\AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->exists();
-        $activeRepairMachine = \App\Models\RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->exists();
-    @endphp
-
-    <div class="flex justify-between items-start flex-wrap gap-4 px-4">
-        <!-- Button Group -->
-        <div class="flex flex-wrap gap-4 flex-grow">
-            <!-- Start Mould Change Button -->
-            <button id="startMouldChange" 
-                class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
-                @if($activeMouldChange) style="display: none;" @endif>
-                Change Mould
-            </button>
-
-            <!-- End Mould Change Button -->
-            <button id="endMouldChange" 
-                class="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-200 hidden">
-                Complete Change Mould
-            </button>
-
-            <!-- Start Adjust Machine Button -->
-            <button id="startAdjustMachine" 
-                class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
-                @if($activeAdjustMachine) style="display: none;" @endif>
-                Adjust Machine
-            </button>
-
-            <!-- End Adjust Machine Button -->
-            <button id="endAdjustMachine" 
-                class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
-                Complete Adjust Machine
-            </button>
-
+    <div class="w-full px-4 pt-4" id="machineStatusContainer">
+        <!-- Unified Machine Status & Control Widget -->
+        <div class="bg-gradient-to-r from-slate-50 to-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
             
-            <!-- Start Repair Machine Button -->
-            <button id="startRepairMachine" 
-                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200"
-                @if($activeRepairMachine) style="display: none;" @endif>
-                Repair Machine
-            </button>
+            <!-- Left Section: Current Status & Pulse Indicator -->
+            <div class="flex items-center space-x-4">
+                <div class="relative flex h-4 w-4">
+                    @if($activeState === 'RUNNING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
+                    @elseif($activeState === 'MOULD_CHANGE')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+                    @elseif($activeState === 'ADJUSTING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-blue-500"></span>
+                    @elseif($activeState === 'REPAIRING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+                    @endif
+                </div>
+                <div>
+                    <span class="text-[10px] font-semibold text-indigo-600 tracking-wider uppercase block">Status Mesin</span>
+                    <h2 class="text-md font-bold text-gray-800">
+                        @if($activeState === 'RUNNING')
+                            Mesin Berjalan (Running)
+                        @elseif($activeState === 'MOULD_CHANGE')
+                            Sedang Ganti Mould
+                        @elseif($activeState === 'ADJUSTING')
+                            Sedang Adjust Mesin
+                        @elseif($activeState === 'REPAIRING')
+                            Perbaikan Mesin (Repairing)
+                        @endif
+                    </h2>
+                </div>
+            </div>
 
-            <!-- Finish Repair Machine Button -->
-            <button id="endRepairMachine" 
-                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
-                Finish Repair Machine
-            </button>
+            <!-- Middle Section: Active Operator Details (Visible when state is not RUNNING) -->
+            @if($activeState !== 'RUNNING')
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center bg-white border border-gray-150 px-4 py-2 rounded-xl shadow-sm space-x-3">
+                        <img 
+                            src="{{ $activeOperatorProfile }}" 
+                            alt="Operator Profile" 
+                            class="w-10 h-10 rounded-full object-cover border border-gray-200"
+                        >
+                        <div>
+                            <span class="text-[10px] text-gray-500 uppercase block">Operator Aktif</span>
+                            <span class="text-xs font-semibold text-gray-800">{{ $activeOperatorName }}</span>
+                        </div>
+                    </div>
 
-            <a href="{{ route('adminoperator') }}"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-                    📊 JADWAL MESIN
+                    <!-- Timer Section -->
+                    <div class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-sm text-center min-w-[100px]">
+                        <span class="text-[9px] uppercase tracking-wider block opacity-75">Durasi Aktivitas</span>
+                        <span id="activityTimer" class="font-mono text-sm font-bold" data-start="{{ $activeStateStartTime }}">00:00:00</span>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Right Section: Context-Relevant Buttons -->
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+                @if($activeState === 'RUNNING')
+                    <button 
+                        id="startMouldChange" 
+                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        🔄 Change Mould
+                    </button>
+                    <button 
+                        id="startAdjustMachine" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ⚙️ Adjust Machine
+                    </button>
+                    <button 
+                        id="startRepairMachine" 
+                        class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        🔧 Repair Machine
+                    </button>
+                @elseif($activeState === 'MOULD_CHANGE')
+                    <button 
+                        id="endMouldChange" 
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Ganti Mould
+                    </button>
+                @elseif($activeState === 'ADJUSTING')
+                    <button 
+                        id="endAdjustMachine" 
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Adjust Mesin
+                    </button>
+                @elseif($activeState === 'REPAIRING')
+                    <button 
+                        id="endRepairMachine" 
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Perbaikan
+                    </button>
+                @endif
+
+                <a 
+                    href="{{ route('adminoperator') }}"
+                    class="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all duration-150"
+                >
+                    📅 JADWAL MESIN
                 </a>
 
-
-            <button 
-                id="reloadButton"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors fixed top-4 right-4"
+                <button 
+                    id="reloadButton"
+                    class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-sm transition-all duration-150"
                 >
-                Refresh
-            </button>
+                    🔄 Refresh
+                </button>
+            </div>
+
         </div>
+
+        <!-- Remarks Inputs based on Active State -->
+        @if($activeState === 'MOULD_CHANGE')
+            <div id="mouldChangeInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3">
+                <label for="mouldRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Ganti Mould (Opsional)</label>
+                <textarea id="mouldRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark mould change di sini..."></textarea>
+            </div>
+        @elseif($activeState === 'ADJUSTING')
+            <div id="adjustMachineInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3">
+                <label for="adjustRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Adjust Mesin (Opsional)</label>
+                <textarea id="adjustRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark adjust machine di sini..."></textarea>
+            </div>
+        @elseif($activeState === 'REPAIRING')
+            <div id="repairMachineInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3 space-y-3">
+                <div>
+                    <label for="repairProblem" class="block text-xs font-semibold text-red-600 tracking-wider uppercase mb-1">Masalah / Problem (Wajib)</label>
+                    <input type="text" id="repairProblem" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Jelaskan masalah perbaikan mesin...">
+                </div>
+                <div>
+                    <label for="repairRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Perbaikan (Opsional)</label>
+                    <textarea id="repairRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark perbaikan di sini..."></textarea>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    <div class="flex justify-between items-start flex-wrap gap-4 px-4 mt-4">
     
         <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">
             <div>
@@ -148,47 +227,7 @@
             </div>
         </div>
 
-        <div id="mouldChangeInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Mould Change in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentUserName" class="text-lg font-semibold"></span>
-            </div>
-            <div class="mb-2">
-                <label for="mouldRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="mouldRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
-            </div>
-        </div>
 
-        <div id="adjustMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Adjust Machine in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentAdjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentAdjustUserName" class="text-lg font-semibold"></span>
-            </div>
-
-            <div class="mb-2">
-                <label for="adjustRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="adjustRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
-            </div>
-        </div>
-
-        <div id="repairMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Repair Machine in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentRepairUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentRepairUserName" class="text-lg font-semibold"></span>
-            </div>
-
-            <div class="mb-2">
-                <label for="repairProblem" class="block text-sm font-medium text-gray-700">Problem</label>
-                <input type="text" id="repairProblem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Describe the problem...">
-            </div>
-            <div class="mb-2">
-                <label for="repairRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="repairRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
-            </div>
-        </div>
 
         <div class="container mx-auto py-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -409,6 +448,7 @@
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
+                                            <th class="py-1 px-2 text-gray-700">Resin Usage</th>
                                             <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
@@ -445,6 +485,17 @@
                                                     @else
                                                         <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm italic">
                                                             Belum di-assign
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-1 px-2">
+                                                    @if ($data->resin_usage)
+                                                        <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-semibold">
+                                                            {{ $data->resin_usage }} KG
+                                                        </span>
+                                                    @else
+                                                        <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-sm italic">
+                                                            -
                                                         </span>
                                                     @endif
                                                 </td>
@@ -489,6 +540,14 @@
                                                         Set Temporal Cavity
                                                     </button>
 
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded mt-1"
+                                                        onclick="openResinUsageModal('{{ $data->id }}', '{{ $data->resin_usage ?? '' }}')"
+                                                    >
+                                                        Set Resin Usage
+                                                    </button>
+
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -524,6 +583,49 @@
                                     </div>
                                 </div>
 
+                                 <div id="resinUsageModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                     <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+                                         <h2 class="text-lg font-semibold mb-4">Set Resin Usage</h2>
+
+                                         <form id="resinUsageForm" method="POST">
+                                             @csrf
+                                             @method('PUT')
+
+                                             <input type="hidden" name="data_id" id="ruDataIdInput">
+
+                                             <label for="resin_usage" class="block text-sm font-medium text-gray-700 mb-1">
+                                                 Resin Usage (KG)
+                                             </label>
+
+                                             <input 
+                                                 type="number"
+                                                 step="0.01"
+                                                 id="ruInput"
+                                                 name="resin_usage"
+                                                 class="w-full border rounded p-2 mb-4"
+                                                 placeholder="Contoh: 3.5"
+                                                 required
+                                             >
+
+                                             <div class="flex justify-end gap-2">
+                                                 <button 
+                                                     type="button" 
+                                                     onclick="closeResinUsageModal()" 
+                                                     class="bg-gray-400 text-white px-3 py-1 rounded"
+                                                 >
+                                                     Cancel
+                                                 </button>
+
+                                                 <button 
+                                                     type="submit" 
+                                                     class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                 >
+                                                     Submit
+                                                 </button>
+                                             </div>
+                                         </form>
+                                     </div>
+                                 </div>
                                 <div id="temporalCavityModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                     <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
                                         <h2 class="text-lg font-semibold mb-4">Set Temporal Cavity</h2>
@@ -1324,61 +1426,39 @@
         $(document).ready(function () {
             let verifiedUser = null;
 
-            // Check if a mould change is in progress on page load
-            let savedMouldOperator = localStorage.getItem('mouldChangeOperator');
-            if (savedMouldOperator) {
-                savedMouldOperator = JSON.parse(savedMouldOperator);
-                $('#mouldChangeInfo').removeClass('hidden');
-                $('#currentUserProfile').attr('src', savedMouldOperator.profile_path);
-                $('#currentUserName').text(savedMouldOperator.name);
-                $('#startMouldChange').hide();
-                $('#endMouldChange').show();
+            // Helper to dynamically update status widget container and other details
+            function refreshStatusAndContainers() {
+                $.get(window.location.href, function (html) {
+                    const $html = $('<div>').html(html);
+                    $('#machineStatusContainer').html($html.find('#machineStatusContainer').html());
+                    $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                    $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                    
+                    // Re-initialize elapsed timer
+                    initializeTimer();
+                });
             }
 
-            // Check if an adjust machine process is in progress on page load
-            let savedAdjustOperator = localStorage.getItem('adjustMachineOperator');
-            if (savedAdjustOperator) {
-                savedAdjustOperator = JSON.parse(savedAdjustOperator);
-                $('#adjustMachineInfo').removeClass('hidden');
-                $('#currentAdjustUserProfile').attr('src', savedAdjustOperator.profile_path);
-                $('#currentAdjustUserName').text(savedAdjustOperator.name);
-                $('#startAdjustMachine').hide();
-                $('#endAdjustMachine').show();
-            }
-
-            // Check if a repair machine process is in progress on page load
-            let savedRepairOperator = localStorage.getItem('repairMachineOperator');
-            if (savedRepairOperator) {
-                savedRepairOperator = JSON.parse(savedRepairOperator);
-                $('#repairMachineInfo').removeClass('hidden');
-                $('#currentRepairUserProfile').attr('src', savedRepairOperator.profile_path);
-                $('#currentRepairUserName').text(savedRepairOperator.name);
-                $('#startRepairMachine').hide();
-                $('#endRepairMachine').show();
-            }
-
-            // Show NIK modal when clicking "Change Mould"
-            $('#startMouldChange').click(function () {
+            // Show NIK modal when clicking start buttons (using event delegation)
+            $(document).on('click', '#startMouldChange', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
             });
 
-            // Show NIK modal when clicking "Adjust Machine"
-            $('#startAdjustMachine').click(function () {
+            $(document).on('click', '#startAdjustMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
             });
 
-            // Show NIK modal when clicking "Repair Machine"
-            $('#startRepairMachine').click(function () {
+            $(document).on('click', '#startRepairMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'repair');
             });
 
-            // Close the modal
-            $('#closeNikModal').click(function () {
+            // Close NIK modal
+            $(document).on('click', '#closeNikModal', function () {
                 $('#nikModal').addClass('hidden');
             });
 
             // Verify NIK and password
-            $('#verifyNik').click(function () {
+            $(document).on('click', '#verifyNik', function () {
                 let nik = $('#nik').val().trim();
                 let password = $('#password').val().trim();
                 let actionType = $('#nikModal').attr('data-action');
@@ -1407,7 +1487,7 @@
                         }
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Verifikasi gagal.');
                     }
                 });
             });
@@ -1420,57 +1500,37 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
-                        // Cek jika backend memberikan warning: tidak ada item
                         if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
-                            return; // STOP, jangan update UI atau simpan localStorage
+                            return;
                         }
-
-                        // Apakah sudah berjalan atau baru dimulai, tampilkan UI End
                         alert(response.message);
-
-                        // Simpan ke localStorage
                         localStorage.setItem('mouldChangeOperator', JSON.stringify(response.operator));
-
-                        // Tampilkan data operator & ubah UI
-                        $('#mouldChangeInfo').removeClass('hidden');
-                        $('#currentUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentUserName').text(response.operator.name);
-
-                        $('#startMouldChange').hide();
-                        $('#startAdjustMachine').hide();
-                        $('#endMouldChange').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        // Tampilkan pesan error default dari backend
                         const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai mould change';
                         alert(msg);
                     }
                 });
             }
 
-
             // Complete Mould Change Process
-            $('#endMouldChange').click(function () {
-                const remarks = $('#mouldRemarks').val(); // ambil input dari textarea
+            $(document).on('click', '#endMouldChange', function () {
+                const remarks = $('#mouldRemarks').val() || ''; 
 
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { remarks: remarks }, // kirim remarks ke backend
+                    data: { remarks: remarks },
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('mouldChangeOperator');
-
-                        $('#mouldChangeInfo').addClass('hidden');
-                        $('#startMouldChange').show();
-                        $('#endMouldChange').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal mengakhiri mould change.');
                     }
                 });
             });
@@ -1483,26 +1543,13 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { pic_name: picName },
                     success: function (response) {
-                        // Cek jika backend mengirim warning: tidak ada item
                         if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
-                            return; // STOP, jangan ubah UI atau simpan localStorage
+                            return;
                         }
-
-                        // Apakah sudah berjalan atau baru dimulai, tampilkan UI End
                         alert(response.message);
-
-                        // Simpan ke localStorage
                         localStorage.setItem('adjustMachineOperator', JSON.stringify(response.operator));
-
-                        // Update UI
-                        $('#adjustMachineInfo').removeClass('hidden');
-                        $('#currentAdjustUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentAdjustUserName').text(response.operator.name);
-
-                        $('#startMouldChange').hide();
-                        $('#startAdjustMachine').hide();
-                        $('#endAdjustMachine').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
                         const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai adjust machine';
@@ -1512,30 +1559,24 @@
             }
 
             // Complete Adjust Machine Process
-            $('#endAdjustMachine').click(function () {
-                const remarks = $('#adjustRemarks').val(); // ambil input dari textarea
+            $(document).on('click', '#endAdjustMachine', function () {
+                const remarks = $('#adjustRemarks').val() || '';
 
                 $.ajax({
                     url: "{{ route('adjust.machine.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { remarks: remarks }, // kirim remarks ke backend
+                    data: { remarks: remarks },
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('adjustMachineOperator');
-
-                        $('#adjustMachineInfo').addClass('hidden');
-                        $('#startAdjustMachine').show();
-                        $('#endAdjustMachine').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal mengakhiri adjust machine.');
                     }
                 });
             });
-
 
             // Start Repair Machine Process
             function startRepairMachine(picName) {
@@ -1547,24 +1588,18 @@
                     success: function (response) {
                         alert(response.message);
                         localStorage.setItem('repairMachineOperator', JSON.stringify(response.operator));
-
-                        $('#repairMachineInfo').removeClass('hidden');
-                        $('#currentRepairUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentRepairUserName').text(response.operator.name);
-
-                        $('#startRepairMachine').hide();
-                        $('#endRepairMachine').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal memulai perbaikan.');
                     }
                 });
             }
 
             // Complete Repair Machine Process
-            $('#endRepairMachine').click(function () {
-                const problem = $('#repairProblem').val();
-                const remarks = $('#repairRemarks').val();
+            $(document).on('click', '#endRepairMachine', function () {
+                const problem = $('#repairProblem').val() || '';
+                const remarks = $('#repairRemarks').val() || '';
 
                 $.ajax({
                     url: "{{ route('repair.machine.end') }}",
@@ -1577,12 +1612,7 @@
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('repairMachineOperator');
-
-                        $('#repairMachineInfo').addClass('hidden');
-                        $('#startRepairMachine').show();
-                        $('#endRepairMachine').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
                         alert(xhr.responseJSON?.error || 'Terjadi kesalahan.');
@@ -1727,6 +1757,35 @@
                     },
                     error: function (xhr) {
                         alert('Gagal mengupdate temporal cavity.');
+                    }
+                });
+            });
+
+            // AJAX submit for Resin Usage (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#resinUsageForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Resin Usage updated successfully!');
+                        closeResinUsageModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate resin usage.');
                     }
                 });
             });
@@ -1913,40 +1972,44 @@
             location.reload();
         });
 
-        document.addEventListener("DOMContentLoaded", function () {
-            const startMouldChange = document.getElementById("startMouldChange");
-            const endMouldChange = document.getElementById("endMouldChange");
-            const startAdjustMachine = document.getElementById("startAdjustMachine");
-            const endAdjustMachine = document.getElementById("endAdjustMachine");
+        let activeInterval = null;
 
-            // Handle Mould Change Start
-            startMouldChange.addEventListener("click", function () {
-                startMouldChange.style.display = "none";
-                startAdjustMachine.style.display = "none"; // Hide adjust machine button
-                endMouldChange.style.display = "inline-block";
-            });
+        function initializeTimer() {
+            if (activeInterval) {
+                clearInterval(activeInterval);
+                activeInterval = null;
+            }
+            const timerEl = document.getElementById('activityTimer');
+            if (timerEl) {
+                const startTimeStr = timerEl.getAttribute('data-start');
+                if (startTimeStr) {
+                    const startTime = new Date(startTimeStr).getTime();
+                    
+                    function updateTimer() {
+                        const now = new Date().getTime();
+                        const diff = now - startTime;
+                        
+                        if (diff > 0) {
+                            const hours = Math.floor(diff / 3600000);
+                            const minutes = Math.floor((diff % 3600000) / 60000);
+                            const seconds = Math.floor((diff % 60000) / 1000);
+                            
+                            const formatted = 
+                                String(hours).padStart(2, '0') + ':' + 
+                                String(minutes).padStart(2, '0') + ':' + 
+                                String(seconds).padStart(2, '0');
+                                
+                            timerEl.textContent = formatted;
+                        }
+                    }
+                    
+                    updateTimer();
+                    activeInterval = setInterval(updateTimer, 1000);
+                }
+            }
+        }
 
-            // Handle Mould Change End
-            endMouldChange.addEventListener("click", function () {
-                startMouldChange.style.display = "inline-block";
-                startAdjustMachine.style.display = "inline-block"; // Show adjust machine button again
-                endMouldChange.style.display = "none";
-            });
-
-            // Handle Adjust Machine Start
-            startAdjustMachine.addEventListener("click", function () {
-                startMouldChange.style.display = "none"; // Hide mould change button
-                startAdjustMachine.style.display = "none";
-                endAdjustMachine.style.display = "inline-block";
-            });
-
-            // Handle Adjust Machine End
-            endAdjustMachine.addEventListener("click", function () {
-                startMouldChange.style.display = "inline-block"; // Show mould change button again
-                startAdjustMachine.style.display = "inline-block";
-                endAdjustMachine.style.display = "none";
-            });
-        });
+        document.addEventListener("DOMContentLoaded", initializeTimer);
 
 
             document.addEventListener("DOMContentLoaded", function () {
@@ -2414,6 +2477,19 @@
 
         function closeTemporalCavityModal() {
             document.getElementById('temporalCavityModal').classList.add('hidden');
+        }
+
+        function openResinUsageModal(id, value) {
+            document.getElementById('ruDataIdInput').value = id;
+            document.getElementById('ruInput').value = value;
+            document.getElementById('resinUsageModal').classList.remove('hidden');
+
+            // Set action URL
+            document.getElementById('resinUsageForm').action = `/daily-item-codes/${id}/resin-usage`;
+        }
+
+        function closeResinUsageModal() {
+            document.getElementById('resinUsageModal').classList.add('hidden');
         }
 
         // AJAX handler untuk penambahan Output Log tanpa reload halaman
