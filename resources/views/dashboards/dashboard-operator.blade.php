@@ -449,7 +449,7 @@
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
-                                            <th class="py-1 px-2 text-gray-700">Resin Usage</th>
+                                            <th class="py-1 px-2 text-gray-700">Berat Purging</th>
                                             <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
@@ -546,7 +546,7 @@
                                                         class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded mt-1"
                                                         onclick="openResinUsageModal('{{ $data->id }}', '{{ $data->resin_usage ?? '' }}')"
                                                     >
-                                                        Set Resin Usage
+                                                        Set Berat Purging
                                                     </button>
 
                                                 </td>
@@ -586,7 +586,7 @@
 
                                  <div id="resinUsageModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
-                                         <h2 class="text-lg font-semibold mb-4">Set Resin Usage</h2>
+                                         <h2 class="text-lg font-semibold mb-4">Set Berat Purging</h2>
 
                                          <form id="resinUsageForm" method="POST">
                                              @csrf
@@ -595,7 +595,7 @@
                                              <input type="hidden" name="data_id" id="ruDataIdInput">
 
                                              <label for="resin_usage" class="block text-sm font-medium text-gray-700 mb-1">
-                                                 Resin Usage (KG)
+                                                 Berat Purging (KG)
                                              </label>
 
                                              <input 
