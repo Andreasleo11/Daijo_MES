@@ -283,6 +283,7 @@
                                     <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
                                     <p><strong>Waktu Selesai Perbaikan:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
                                     <p><strong>PIC :</strong> {{ $log->pic }}</p>
+                                    <p><strong>Problem :</strong> {{ $log->problem ?? '-' }}</p>
                                     <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
                                     <p><strong>Remark :</strong> {{ $log->remark }}</p>
                                 </li>

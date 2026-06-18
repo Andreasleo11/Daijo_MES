@@ -1874,23 +1874,42 @@ class DashboardController extends Controller
             'pic_name' => 'required|string|max:255',
         ]);
 
+        $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        $operatorUser = OperatorUser::where('name',$request->pic_name)->first();
+        // Guard: cek apakah sudah ada repair machine aktif (belum selesai)
+        $activeRepairMachine = RepairMachineLog::where('user_id', $userId)
+            ->whereNull('finish_repair')
+            ->first();
 
-        // Create a new mould change log entry
+        if ($activeRepairMachine) {
+            return response()->json([
+                'message' => 'Repair machine sudah berjalan',
+                'repair_id' => $activeRepairMachine->id,
+                'log_id' => $activeRepairMachine->id,
+                'operator' => [
+                    'name' => $operatorUser ? $operatorUser->name : $activeRepairMachine->pic,
+                    'profile_path' => $operatorUser && $operatorUser->profile_picture
+                        ? asset('storage/' . $operatorUser->profile_picture)
+                        : asset('images/default_profile.jpg'),
+                ],
+            ]);
+        }
+
+        // Create a new repair machine log entry
         $repairmachine = RepairMachineLog::create([
             'user_id' => $userId,
             'pic' => $request->pic_name,
             'created_at' => Carbon::now(), // Start time
         ]);
 
-      
+        // Set machine job user_id to NULL (machine is inactive)
+        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
 
-        return response()->json(['message' => 'Repair Machine started', 'repair_id' => $repairmachine->id,'operator' => [
-            'name' => $operatorUser->name,
-           'profile_path' => $operatorUser->profile_picture 
-            ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
-            : asset('images/default_profile.jpg'),  // Default profile image
+        return response()->json(['message' => 'Repair Machine started', 'repair_id' => $repairmachine->id, 'log_id' => $repairmachine->id, 'operator' => [
+            'name' => $operatorUser ? $operatorUser->name : $request->pic_name,
+            'profile_path' => $operatorUser && $operatorUser->profile_picture 
+                ? asset('storage/' . $operatorUser->profile_picture)  // Convert to full URL
+                : asset('images/default_profile.jpg'),  // Default profile image
         ],]);
     }
 
@@ -1998,6 +2017,9 @@ class DashboardController extends Controller
                 'problem' => $request->problem,
                 'remark' => $request->remarks,
             ]);
+
+            // Reset machine job langsung di sini
+            $this->resetUserJob($userId);
 
             return response()->json(['message' => 'Repair Machine completed']);
         }
