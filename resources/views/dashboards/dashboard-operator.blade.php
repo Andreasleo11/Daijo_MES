@@ -1366,62 +1366,115 @@
     <script type="module">
         document.addEventListener('DOMContentLoaded', function () {
             // Bind Fancybox
-            Fancybox.bind('[data-fancybox="gallery"]', {
-                Thumbs: false,
-                Image: {
-                    zoom: true,
-                    fit: "contain",
-                },
-                transitionEffect: "fade",
-                Slideshow: {
-                    autoStart: false, // Set ke false, kita handle manual
-                    timeout: 3000, // 3 detik per slide
-                },
-            });
+            try {
+                Fancybox.bind('[data-fancybox="gallery"]', {
+                    Thumbs: false,
+                    Image: {
+                        zoom: true,
+                        fit: "contain",
+                    },
+                    transitionEffect: "fade",
+                    Slideshow: {
+                        autoStart: false, // Set ke false, kita handle manual
+                        timeout: 10000, // 10 detik per slide
+                    },
+                });
+            } catch (e) {
+                console.error("Error binding Fancybox:", e);
+            }
+
             const galleryItems = document.querySelectorAll('[data-fancybox="gallery"]');
             if (galleryItems.length === 0) return;
-            function openRandomGallery() {
-                const randomIndex = Math.floor(Math.random() * galleryItems.length);
 
-                // Buka gallery dengan random index
-                const fancybox = Fancybox.show(
-                    Array.from(galleryItems).map(el => ({
-                        src: el.getAttribute('href'),
-                        caption: el.getAttribute('data-caption') || '',
-                        type: 'image',
-                    })),
-                    {
-                        startIndex: randomIndex,
-                        Thumbs: false,
-                        Slideshow: {
-                            autoStart: false,
-                            timeout: 3000,
-                        },
+            function openRandomGallery() {
+                try {
+                    // Cegah penumpukan jika Fancybox sudah terbuka (cek DOM element)
+                    if (document.querySelector('.fancybox__container') || document.querySelector('.fancybox-container')) {
+                        return;
                     }
-                );
-                // Tunggu gallery fully loaded, baru jalankan slideshow
-                setTimeout(() => {
-                    if (fancybox) {
-                        // Trigger slideshow toggle
-                        const slideshowBtn = document.querySelector('[data-fancybox-toggle-slideshow]');
-                        if (slideshowBtn) {
-                            slideshowBtn.click();
-                        } else {
-                            // Alternative: gunakan API Fancybox langsung
-                            if (fancybox.Slideshow) {
-                                fancybox.Slideshow.toggle();
-                            }
+
+                    const randomIndex = Math.floor(Math.random() * galleryItems.length);
+
+                    // Buka gallery dengan random index
+                    const fancybox = Fancybox.show(
+                        Array.from(galleryItems).map(el => ({
+                            src: el.getAttribute('href'),
+                            caption: el.getAttribute('data-caption') || '',
+                            type: 'image',
+                        })),
+                        {
+                            startIndex: randomIndex,
+                            Thumbs: false,
+                            Slideshow: {
+                                autoStart: false,
+                                timeout: 10000, // 10 detik per slide
+                            },
                         }
-                    }
-                }, 5000);
+                    );
+                    
+                    // Tunggu gallery fully loaded, baru jalankan slideshow
+                    setTimeout(() => {
+                        try {
+                            if (fancybox) {
+                                const slideshowBtn = document.querySelector('[data-fancybox-toggle-slideshow]');
+                                if (slideshowBtn) {
+                                    slideshowBtn.click();
+                                } else if (fancybox.Slideshow) {
+                                    fancybox.Slideshow.toggle();
+                                }
+                            }
+                        } catch (ex) {
+                            console.error("Slideshow toggle failed:", ex);
+                        }
+                    }, 5000);
+                } catch (err) {
+                    console.error("Error in openRandomGallery:", err);
+                }
             }
-            // ⏱️ Auto open setiap 5 menit (300000 ms) dengan slideshow
-            setInterval(() => {
-                openRandomGallery();
-            }, 300000); // 5 menit
-            // Optional: Juga buka di awal page load
-            // Uncomment jika mau langsung buka saat page load:
-            // openRandomGallery();
+
+            // ⏱️ Idle detection untuk auto-open gallery/SPS setelah 10 detik tidak ada aktivitas
+            let idleTimer = null;
+
+            function resetIdleTimer() {
+                if (idleTimer) {
+                    clearTimeout(idleTimer);
+                }
+                
+                // Set timer untuk membuka gallery setelah 20 detik idle (20000 ms)
+                idleTimer = setTimeout(() => {
+                    openRandomGallery();
+                }, 40000);
+            }
+
+            // Gunakan MutationObserver secara native untuk mendeteksi kapan modal Fancybox ditutup/dihapus dari DOM
+            try {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.removedNodes.forEach((node) => {
+                            if (node.nodeType === 1 && (
+                                node.classList.contains('fancybox__container') || 
+                                node.classList.contains('fancybox-container') ||
+                                node.querySelector?.('.fancybox__container') ||
+                                node.querySelector?.('.fancybox-container')
+                            )) {
+                                resetIdleTimer();
+                            }
+                        });
+                    });
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+                console.error("MutationObserver failed to initialize:", e);
+            }
+
+            // Listen ke berbagai event aktivitas user
+            const activityEvents = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+            activityEvents.forEach(eventName => {
+                document.addEventListener(eventName, resetIdleTimer, true);
+            });
+
+            // Jalankan idle timer pertama kali
+            resetIdleTimer();
         });
 
         $(document).ready(function () {

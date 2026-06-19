@@ -1600,32 +1600,11 @@ class DashboardController extends Controller
             }
         }
 
-        // Get the current time (or a specific time if needed)
-        $currentTime = now(); // For current time, or you can use Carbon::parse('specific-time')
-        // Define shift times
-        $shift1Start = Carbon::parse('07:30:00');
-        $shift1End = Carbon::parse('15:30:00');
-        $shift2Start = Carbon::parse('15:31:00');
-        $shift2End = Carbon::parse('23:30:00');
-        $shift3Start = Carbon::parse('23:31:00');
-        $shift3End = Carbon::parse('07:29:59');
-
-        // Determine the shift based on the current time
-        $shift = null;
-
-        if ($currentTime->between($shift1Start, $shift1End)) {
-            $shift = 1;
-        } elseif ($currentTime->between($shift2Start, $shift2End)) {
-            $shift = 2;
-        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
-            $shift = 3;
-        }
-        
-        // Reset the machine job
+        // Reset the machine job — shift hanya bisa berubah lewat manual submit oleh operator
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
         $machineJob->update([
             'item_code' => null,
-            'shift' => $shift,
+            'shift' => null,
         ]);
 
         return redirect()
@@ -1939,27 +1918,10 @@ class DashboardController extends Controller
 
     private function resetUserJob($userId)
     {
-        $currentTime = now();
-
-        $shift1Start = Carbon::parse('07:30:00');
-        $shift1End = Carbon::parse('15:30:00');
-        $shift2Start = Carbon::parse('15:31:00');
-        $shift2End = Carbon::parse('23:30:00');
-        $shift3Start = Carbon::parse('23:31:00');
-        $shift3End = Carbon::parse('07:29:59');
-
-        $shift = null;
-        if ($currentTime->between($shift1Start, $shift1End)) {
-            $shift = 1;
-        } elseif ($currentTime->between($shift2Start, $shift2End)) {
-            $shift = 2;
-        } elseif ($currentTime->between($shift3Start, $shift3End) || $currentTime->lessThan($shift1Start)) {
-            $shift = 3;
-        }
-
+        // Shift hanya bisa berubah lewat manual submit oleh operator (updateMachineJob)
         MachineJob::where('user_id', $userId)->update([
             'item_code' => null,
-            'shift' => $shift,
+            'shift' => null,
         ]);
     }
 
