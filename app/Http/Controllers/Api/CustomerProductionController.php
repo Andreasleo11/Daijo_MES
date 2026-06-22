@@ -23,15 +23,20 @@ class CustomerProductionController extends Controller
         $data = $dailyItems
             ->groupBy('item_code')
             ->map(function ($items, $itemCode) {
+                $totalShots = (int)$items->sum(function ($item) {
+                    return $item->hourlyRemarks->sum('actual_production');
+                });
+                $totalNg = (int)$items->sum(function ($item) {
+                    return $item->hourlyRemarks->sum('NG');
+                });
+
                 return [
                     'item_code' => $itemCode,
                     'planned_quantity' => (int)$items->sum('quantity'),
-                    'total_shots' => (int)$items->sum(function ($item) {
-                        return $item->hourlyRemarks->sum('actual_production');
-                    }),
-                    'total_ng' => (int)$items->sum(function ($item) {
-                        return $item->hourlyRemarks->sum('NG');
-                    }),
+                    'actual_quantity' => $totalShots,
+                    'final_quantity' => $totalShots + $totalNg,
+                    'total_shots' => $totalShots,
+                    'total_ng' => $totalNg,
                     'machines' => $items
                         ->map(function ($item) {
                             $actualQty = (int)$item->hourlyRemarks->sum('actual_production');
@@ -86,15 +91,20 @@ class CustomerProductionController extends Controller
         $data = $dailyItems
             ->groupBy('item_code')
             ->map(function ($items, $itemCode) {
+                $totalShots = (int)$items->sum(function ($item) {
+                    return $item->hourlyRemarks->sum('actual_production');
+                });
+                $totalNg = (int)$items->sum(function ($item) {
+                    return $item->hourlyRemarks->sum('NG');
+                });
+
                 return [
                     'item_code' => $itemCode,
                     'planned_quantity' => (int)$items->sum('quantity'),
-                    'total_shots' => (int)$items->sum(function ($item) {
-                        return $item->hourlyRemarks->sum('actual_production');
-                    }),
-                    'total_ng' => (int)$items->sum(function ($item) {
-                        return $item->hourlyRemarks->sum('NG');
-                    }),
+                    'actual_quantity' => $totalShots,
+                    'final_quantity' => $totalShots + $totalNg,
+                    'total_shots' => $totalShots,
+                    'total_ng' => $totalNg,
                     'machines' => $items
                         ->map(function ($item) {
                             $actualQty = (int)$item->hourlyRemarks->sum('actual_production');
