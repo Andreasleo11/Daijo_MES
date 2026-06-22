@@ -26,6 +26,9 @@ class ReceiptProductionLogs extends Component
     public array $pushingRows  = []; // Track which rows are currently pushing
     public array $pushResults  = []; // Store push results
 
+    public array $selectedLogs = [];
+    public bool  $selectAll    = false;
+
     public function mount(): void
     {
         Carbon::setLocale('id');
@@ -36,28 +39,57 @@ class ReceiptProductionLogs extends Component
     { 
         $this->resetPage(); 
         cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 
     public function updatingFilterSpk() 
     { 
         $this->resetPage(); 
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 
     public function updatingFilterWarehouse() 
     { 
         $this->resetPage(); 
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 
     public function updatingFilterDate() 
     { 
         $this->resetPage(); 
         cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 
     public function updatingFilterStatus() 
     { 
         $this->resetPage(); 
         cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    public function updatedPage(): void
+    {
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    public function updatedSelectAll($value): void
+    {
+        if ($value) {
+            $this->selectedLogs = collect($this->logs->items())
+                ->filter(fn($row) => in_array($row->sap_sent, [0, 2]))
+                ->pluck('id')
+                ->map(fn($id) => (string)$id)
+                ->toArray();
+        } else {
+            $this->selectedLogs = [];
+        }
     }
 
     public function markAsIgnored(int $id): void
@@ -85,6 +117,82 @@ class ReceiptProductionLogs extends Component
 
         cache()->forget("receipt_stats_{$this->filterDate}");
         $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK direset ke pending']);
+    }
+
+    public function ignoreAllFiltered(): void
+    {
+        if ($this->filterStatus === 'sent' || $this->filterStatus === 'ignored') {
+            $this->dispatch('push-notification', ['status' => 'warning', 'message' => 'Tidak ada data pending terfilter untuk diabaikan']);
+            return;
+        }
+
+        $query = DB::table('production_summary')
+            ->whereIn('warehouse', ['FFI', 'KRFFI'])
+            ->whereIn('production_summary.sap_sent', [0, 2])
+            ->when($this->filterWarehouse, fn($q) =>
+                $q->where('warehouse', $this->filterWarehouse)
+            )
+            ->leftJoin(
+                DB::raw('(SELECT spk_code, MIN(item_code) as item_code
+                          FROM production_scanned_data
+                          GROUP BY spk_code) as psd'),
+                'production_summary.spk_code', '=', 'psd.spk_code'
+            )
+            ->when($this->filterDate, fn($q) =>
+                $q->whereDate('production_summary.created_date', $this->filterDate)
+            )
+            ->when($this->filterSpk, fn($q) =>
+                $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
+            )
+            ->when($this->filterItemCode, fn($q) =>
+                $q->where('psd.item_code', 'like', "%{$this->filterItemCode}%")
+            );
+
+        $ids = $query->pluck('production_summary.id')->toArray();
+
+        if (empty($ids)) {
+            $this->dispatch('push-notification', ['status' => 'warning', 'message' => 'Tidak ada data pending terfilter untuk diabaikan']);
+            return;
+        }
+
+        DB::table('production_summary')
+            ->whereIn('id', $ids)
+            ->update([
+                'sap_sent'   => 99,
+                'updated_at' => now(),
+            ]);
+
+        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
+        cache()->forget($cacheKey);
+        cache()->forget("receipt_stats_{$this->filterDate}");
+
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => count($ids) . ' SPK berhasil diabaikan']);
+    }
+
+    public function ignoreSelected(): void
+    {
+        if (empty($this->selectedLogs)) {
+            $this->dispatch('push-notification', ['status' => 'warning', 'message' => 'Tidak ada data terpilih untuk diabaikan']);
+            return;
+        }
+
+        DB::table('production_summary')
+            ->whereIn('id', $this->selectedLogs)
+            ->update([
+                'sap_sent'   => 99,
+                'updated_at' => now(),
+            ]);
+
+        $count = count($this->selectedLogs);
+
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+
+        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
+        cache()->forget($cacheKey);
+        cache()->forget("receipt_stats_{$this->filterDate}");
+
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => "{$count} SPK berhasil diabaikan"]);
     }
 
     /**

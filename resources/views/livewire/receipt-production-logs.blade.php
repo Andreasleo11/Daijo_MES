@@ -97,9 +97,29 @@
             </select>
         </div>
 
-        {{-- Batch Push Button --}}
-        @if($this->stats['pending'] > 0)
-        <div style="margin-left:auto;">
+        {{-- Batch Push, Ignore & Selection Action Buttons --}}
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+            @if(count($selectedLogs) > 0)
+            <button wire:click="ignoreSelected()"
+                    wire:confirm="Yakin ingin mengabaikan {{ count($selectedLogs) }} SPK terpilih?"
+                    style="background:#DC2626; color:#fff; border:none; border-radius:2px; 
+                           padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; 
+                           font-family:'IBM Plex Sans',sans-serif; text-transform:uppercase; 
+                           letter-spacing:.08em; transition:all 0.2s; hover:background:#B91C1C;">
+                ⊘ Abaikan Terpilih ({{ count($selectedLogs) }})
+            </button>
+            @endif
+
+            @if($this->stats['pending'] > 0)
+            <button wire:click="ignoreAllFiltered()"
+                    wire:confirm="Yakin ingin mengabaikan semua SPK pending yang terfilter?"
+                    style="background:#7C3AED; color:#fff; border:none; border-radius:2px; 
+                           padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; 
+                           font-family:'IBM Plex Sans',sans-serif; text-transform:uppercase; 
+                           letter-spacing:.08em; transition:all 0.2s; hover:background:#6D28D9;">
+                ⊘ Abaikan Semua Terfilter
+            </button>
+
             <button wire:click="pushPendingBatchToSap()"
                     @if(collect($pushingRows)->count() > 0) disabled @endif
                     wire:confirm="Yakin ingin mengirim semua {{ $this->stats['pending'] }} SPK pending ke SAP?"
@@ -110,8 +130,8 @@
                            @if(collect($pushingRows)->count() > 0) opacity:0.5; cursor:not-allowed; @else hover:background:#16A34A; @endif">
                 🚀 Push Semua Pending ({{ $this->stats['pending'] }})
             </button>
+            @endif
         </div>
-        @endif
     </div>
 
     {{-- Table --}}
@@ -119,6 +139,11 @@
         <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
                 <tr style="background:#1A1816; color:#fff;">
+                    <th style="padding:10px 14px; text-align:center; font-size:9px; font-weight:700;
+                               letter-spacing:.12em; text-transform:uppercase; width:40px;">
+                        <input type="checkbox" wire:model.live="selectAll"
+                               style="width:14px; height:14px; cursor:pointer; vertical-align:middle;">
+                    </th>
                     <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
                                letter-spacing:.12em; text-transform:uppercase;">Tanggal</th>
                     <th style="padding:10px 14px; text-align:left; font-size:9px; font-weight:700;
@@ -158,6 +183,16 @@
                 @endphp
                 <tr wire:key="row-{{ $row->id }}"
                     style="border-bottom:1px solid #F0EDE8; background:{{ $bg }}; border-left:{{ $bl }};">
+
+                    {{-- Checkbox --}}
+                    <td style="padding:10px 14px; text-align:center; width:40px;">
+                        @if(in_array($row->sap_sent, [0, 2]))
+                            <input type="checkbox" wire:model.live="selectedLogs" value="{{ $row->id }}"
+                                   style="width:14px; height:14px; cursor:pointer; vertical-align:middle;">
+                        @else
+                            <input type="checkbox" disabled style="width:14px; height:14px; cursor:not-allowed; opacity:0.3; vertical-align:middle;">
+                        @endif
+                    </td>
 
                     {{-- Tanggal --}}
                     <td style="padding:10px 14px; color:#5A554E; font-size:11px;">
@@ -429,7 +464,7 @@
                 {{-- Expanded detail row — di LUAR <tr> utama, sejajar --}}
                 @if(isset($expandedRows[$row->id]))
                 <tr wire:key="detail-{{ $row->id }}" style="background:#F0F7FF; border-left:3px solid #1D4ED8;">
-                    <td colspan="10" style="padding:0;">
+                    <td colspan="11" style="padding:0;">
                         <div style="padding:14px 20px;">
                             <div style="font-size:10px; font-weight:700; color:#1D4ED8; letter-spacing:.1em;
                                         text-transform:uppercase; margin-bottom:10px;">
@@ -516,7 +551,7 @@
                 @endif
                 @empty
                 <tr wire:key="row-empty">
-                    <td colspan="10" style="padding:60px; text-align:center; color:#C8C4BC;">
+                    <td colspan="11" style="padding:60px; text-align:center; color:#C8C4BC;">
                         <div style="font-size:28px; margin-bottom:8px;">◈</div>
                         Tidak ada data
                     </td>
@@ -528,7 +563,7 @@
             @if($this->logs->count() > 0)
             <tfoot>
                 <tr wire:key="tfoot-total" style="background:#1A1816;">
-                    <td colspan="4" style="padding:12px 14px; font-size:10px; font-weight:700;
+                    <td colspan="5" style="padding:12px 14px; font-size:10px; font-weight:700;
                                            color:#9A9590; letter-spacing:.08em; text-transform:uppercase;">
                         {{ $this->logs->total() }} SPK ditemukan
                     </td>
@@ -541,7 +576,7 @@
                             {{ number_format($this->filteredTotalQty) }}
                         </div>
                     </td>
-                    <td colspan="4"></td>
+                    <td colspan="5"></td>
                 </tr>
             </tfoot>
             @endif
