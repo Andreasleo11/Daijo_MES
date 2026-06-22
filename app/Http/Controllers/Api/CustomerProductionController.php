@@ -24,7 +24,7 @@ class CustomerProductionController extends Controller
             ->groupBy('item_code')
             ->map(function ($items, $itemCode) {
                 $totalShots = (int)$items->sum(function ($item) {
-                    return $item->hourlyRemarks->sum('actual_production');
+                    return $item->hourlyRemarks->sum('actual_production') + $item->hourlyRemarks->sum('NG');
                 });
                 $totalNg = (int)$items->sum(function ($item) {
                     return $item->hourlyRemarks->sum('NG');
@@ -33,8 +33,6 @@ class CustomerProductionController extends Controller
                 return [
                     'item_code' => $itemCode,
                     'planned_quantity' => (int)$items->sum('quantity'),
-                    'actual_quantity' => $totalShots,
-                    'final_quantity' => $totalShots + $totalNg,
                     'total_shots' => $totalShots,
                     'total_ng' => $totalNg,
                     'machines' => $items
@@ -53,7 +51,7 @@ class CustomerProductionController extends Controller
                                 'start_time' => $item->start_time,
                                 'end_time' => $item->end_time,
                                 'remark' => $item->remark,
-                                'total_shots' => $actualQty,
+                                'total_shots' => $actualQty + $ngQty,
                                 'total_ng' => $ngQty,
                             ];
                         })
@@ -92,7 +90,7 @@ class CustomerProductionController extends Controller
             ->groupBy('item_code')
             ->map(function ($items, $itemCode) {
                 $totalShots = (int)$items->sum(function ($item) {
-                    return $item->hourlyRemarks->sum('actual_production');
+                    return $item->hourlyRemarks->sum('actual_production') + $item->hourlyRemarks->sum('NG');
                 });
                 $totalNg = (int)$items->sum(function ($item) {
                     return $item->hourlyRemarks->sum('NG');
@@ -101,8 +99,6 @@ class CustomerProductionController extends Controller
                 return [
                     'item_code' => $itemCode,
                     'planned_quantity' => (int)$items->sum('quantity'),
-                    'actual_quantity' => $totalShots,
-                    'final_quantity' => $totalShots + $totalNg,
                     'total_shots' => $totalShots,
                     'total_ng' => $totalNg,
                     'machines' => $items
@@ -121,7 +117,7 @@ class CustomerProductionController extends Controller
                                 'start_time' => $item->start_time,
                                 'end_time' => $item->end_time,
                                 'remark' => $item->remark,
-                                'total_shots' => $actualQty,
+                                'total_shots' => $actualQty + $ngQty,
                                 'total_ng' => $ngQty,
                             ];
                         })
