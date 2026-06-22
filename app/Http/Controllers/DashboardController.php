@@ -663,10 +663,17 @@ class DashboardController extends Controller
             : Carbon::tomorrow('Asia/Jakarta')->toDateString();
 
         // ── 3. DAILY ITEM CODES ──────────────────────────────────────────────
+        // PENTING: Jika ada DIC yang belum selesai (is_done = null),
+        // kita tetap sertakan ke dalam window agar tidak hilang dari dashboard
+        // saat waktu melewati batas shift (misal lewat jam 07:30) atau bahkan keesokan harinya,
+        // sebelum disubmit secara manual oleh operator.
         $datas = DailyItemCode::where('user_id', $userId)
             ->where(function ($q) use ($shiftDateA, $shiftDateB) {
-                $q->whereDate('schedule_date', $shiftDateA)
-                  ->orWhereDate('schedule_date', $shiftDateB);
+                $q->where(function ($inner) use ($shiftDateA, $shiftDateB) {
+                    $inner->whereDate('schedule_date', $shiftDateA)
+                          ->orWhereDate('schedule_date', $shiftDateB);
+                })
+                ->orWhereNull('is_done');
             })
             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->get()
@@ -791,33 +798,37 @@ class DashboardController extends Controller
         }
 
         // ── 8. HOURLY REMARKS WINDOW SHIFT ───────────────────────────────────
-        $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
-            ->whereHas('dailyItemCode', fn ($q) =>
-                $q->where('user_id', $userId)
-                  ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
-                      $q2->whereDate('schedule_date', $shiftDateA)
-                         ->orWhereDate('schedule_date', $shiftDateB);
-                  })
-            )
-            ->where(fn ($q) =>
-                $q->whereBetween('start_time', ['07:30:00', '23:59:59'])
-                  ->orWhereBetween('start_time', ['00:00:00', '07:30:00'])
-            )
-            ->orderBy('start_time')
-            ->get();
+        // Jika ada active DIC, tampilkan hourly remarks khusus untuk active DIC tersebut.
+        // Ini memastikan operator yang masih di shift 3 (kemarin) tetap melihat hourly remarks job-nya
+        // meskipun waktu sudah melewati jam 07:30.
+        if ($activeDIC) {
+            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+                ->where('dic_id', $activeID)
+                ->orderBy('start_time')
+                ->get();
+        } else {
+            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+                ->whereHas('dailyItemCode', fn ($q) =>
+                    $q->where('user_id', $userId)
+                      ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
+                          $q2->whereDate('schedule_date', $shiftDateA)
+                             ->orWhereDate('schedule_date', $shiftDateB);
+                      })
+                )
+                ->orderBy('start_time')
+                ->get();
+        }
 
         // ── 9. LOGS ───────────────────────────────────────────────────────────
         //
-        // FIX: Log change mould & adjust machine pakai shiftDateA (shift-aware),
-        // bukan Carbon::today() murni.
+        // FIX: Log change mould & adjust machine & repair machine pakai activeShiftDate (shift-aware),
+        // bukan Carbon::today() murni atau shiftDateA statis.
         //
-        // Kalau jam 00:00–07:29, $shiftDateA = kemarin → log shift 3 muncul.
-        // Kalau jam 07:30+, $shiftDateA = hari ini → normal.
+        // Jika active DIC terjadwal kemarin (shift 3), maka activeShiftDate = kemarin.
+        // Sehingga log shift 3 kemarin tetap muncul selama operator belum submit.
         //
-        // RepairMachineLog menggunakan $today (kalender), karena repair bisa
-        // lintas shift dan biasanya dicari per tanggal kalender.
-        // Ubah ke $shiftDateA juga kalau ingin konsisten.
-        //
+        $activeShiftDate = $activeDIC ? $activeDIC->schedule_date : $shiftDateA;
+
         $calcDuration = function ($log, string $endField = 'end_time') {
             $log->total_pengerjaan = ($log->created_at && $log->{$endField})
                 ? Carbon::parse($log->{$endField})->diffInMinutes(Carbon::parse($log->created_at))
@@ -825,15 +836,15 @@ class DashboardController extends Controller
         };
 
         $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
-            ->whereDate('created_at', $shiftDateA)        // ← shift-aware
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $shiftDateA)        // ← shift-aware
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $repairMachineLogs = RepairMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $today)             // kalender biasa
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $mouldChangeLogs->each(fn ($log)   => $calcDuration($log, 'end_time'));
