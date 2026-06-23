@@ -43,7 +43,7 @@ class PalletFormIndex extends Component
 
     public function render()
     {
-        $palletForms = WmsPalletForm::with('position')
+        $palletForms = WmsPalletForm::with(['position', 'details.item.customer'])
             ->where(function($query) {
                 $query->where('pallet_id', 'like', '%' . $this->search . '%')
                       ->orWhere('part_no', 'like', '%' . $this->search . '%')

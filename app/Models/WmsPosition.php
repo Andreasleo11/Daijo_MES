@@ -24,4 +24,9 @@ class WmsPosition extends Model
     {
         return $this->hasMany(WmsPalletForm::class, 'position_id');
     }
+
+    public function customer()
+    {
+        return $this->belongsTo(MasterCustomerDelivery::class, 'customer_code', 'customer_code');
+    }
 }

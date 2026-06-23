@@ -61,6 +61,7 @@
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Timestamp</th>
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Direction</th>
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Pallet Identifier</th>
+                            <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Customer</th>
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Location</th>
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Operator</th>
                             <th class="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Remarks</th>
@@ -86,6 +87,24 @@
                                 </td>
                                 <td class="px-8 py-6">
                                     <div class="text-sm font-black text-gray-900 tracking-tight italic">{{ $log->pallet_id }}</div>
+                                </td>
+                                <td class="px-8 py-6">
+                                    @php
+                                        $customers = optional($log->pallet)->details 
+                                            ? $log->pallet->details->map(fn($d) => $d->item?->customer)->filter()->unique('customer_code') 
+                                            : collect();
+                                    @endphp
+                                    @if($customers->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach($customers as $cust)
+                                                <div class="text-[10px] font-bold text-gray-800" title="{{ $cust->customer_code }}">
+                                                    {{ $cust->customer_name }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-[10px] text-gray-400 font-bold italic">No Customer</span>
+                                    @endif
                                 </td>
                                 <td class="px-8 py-6">
                                     @if($log->position)

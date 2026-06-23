@@ -130,9 +130,25 @@ class ProductionDashboardService
             ? round(($summary['total_actual'] / $summary['total_target']) * 100, 2) 
             : 0;
 
+        $summary['total_purging'] = (float)$dailyData->sum('resin_usage');
+
+        $purgingDetails = $dailyData->filter(function($dic) {
+            return $dic->resin_usage !== null && $dic->resin_usage > 0;
+        })->map(function($dic) {
+            return [
+                'dic_id' => $dic->id,
+                'date' => $dic->start_date ?? $dic->schedule_date,
+                'shift' => $dic->shift,
+                'machine_name' => $dic->user->name ?? 'Unknown',
+                'item_code' => $dic->item_code,
+                'resin_usage' => (float)$dic->resin_usage,
+            ];
+        })->values()->toArray();
+
         return [
             'chart_data' => $chartData,
             'summary' => $summary,
+            'purging_details' => $purgingDetails,
         ];
     }
 

@@ -39,6 +39,7 @@
                             <th class="px-6 py-4">Pallet ID</th>
                             <th class="px-6 py-4">Date</th>
                             <th class="px-6 py-4">Part No / Model</th>
+                            <th class="px-6 py-4">Customer</th>
                             <th class="px-6 py-4">Qty</th>
                             <th class="px-6 py-4">Rack Position</th>
                             <th class="px-6 py-4 text-right">Action</th>
@@ -65,6 +66,22 @@
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-gray-800">{{ $form->part_no }}</div>
                                     <div class="text-xs text-gray-500">{{ $form->model_name }}</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    @php
+                                        $customers = $form->details->map(fn($d) => $d->item?->customer)->filter()->unique('customer_code');
+                                    @endphp
+                                    @if($customers->isNotEmpty())
+                                        <div class="flex flex-col gap-1">
+                                            @foreach($customers as $cust)
+                                                <div class="text-xs font-bold text-gray-800" title="{{ $cust->customer_code }}">
+                                                    {{ $cust->customer_name }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-xs text-gray-400 italic">No Customer</span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="font-bold text-blue-600">{{ number_format($form->total_pallet_qty, 0) }} pcs</div>

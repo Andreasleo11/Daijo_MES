@@ -15,6 +15,10 @@ class RackMapping extends Component
     public $editMaxCapacity;
     public $editCustomerCode;
     
+    // Filtering State
+    public $filterCustomer = '';
+    protected $queryString = ['filterCustomer'];
+    
     // UI State
     public $showDetail = false;
 
@@ -157,18 +161,22 @@ class RackMapping extends Component
     public function render()
     {
         $racks = WmsRack::with(['positions' => function($query) {
-            $query->withCount('palletForms')
+            $query->with('customer')
+                  ->withCount('palletForms')
                   ->orderBy('level_no', 'desc')
                   ->orderBy('slot_no', 'asc');
         }])->get();
 
         $selectedPosData = $this->selectedPositionId 
-            ? WmsPosition::with('palletForms')->withCount('palletForms')->find($this->selectedPositionId) 
+            ? WmsPosition::with(['palletForms', 'customer'])->withCount('palletForms')->find($this->selectedPositionId) 
             : null;
+
+        $customers = \App\Models\MasterCustomerDelivery::orderBy('customer_code')->get();
 
         return view('livewire.wms.rack-mapping', [
             'racks' => $racks,
-            'selectedPosData' => $selectedPosData
+            'selectedPosData' => $selectedPosData,
+            'customers' => $customers,
         ]);
     }
 }

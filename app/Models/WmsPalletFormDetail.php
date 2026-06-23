@@ -35,4 +35,9 @@ class WmsPalletFormDetail extends Model
     {
         return $this->belongsTo(WmsPalletForm::class, 'pallet_form_id', 'pallet_id');
     }
+
+    public function item()
+    {
+        return $this->belongsTo(MasterListItem::class, 'part_no', 'item_code');
+    }
 }

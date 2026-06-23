@@ -8,6 +8,17 @@
                 <p class="text-gray-500 text-sm">Monitoring Hunian Rak Gudang J06 (Highly Marelli)</p>
             </div>
             <div class="flex items-center gap-4">
+                <!-- Customer Filter -->
+                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Filter Customer</span>
+                    <select wire:model.live="filterCustomer" class="bg-white border border-gray-200 rounded-lg text-[10px] font-bold px-2 py-1 focus:ring-0 focus:border-blue-500 outline-none">
+                        <option value="">ALL CUSTOMERS</option>
+                        @foreach($customers as $c)
+                            <option value="{{ $c->customer_code }}">{{ $c->customer_code }} - {{ $c->customer_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <div class="flex items-center px-3 py-1 bg-white rounded-lg border border-gray-200 text-[10px] font-bold text-gray-400">
                         <span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span> EMPTY
@@ -59,20 +70,32 @@
                                                 $statusColor = 'bg-gray-100 hover:bg-gray-200 border-gray-200';
                                                 if($pos->status == 'PARTIAL') $statusColor = 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300';
                                                 if($pos->status == 'FULL') $statusColor = 'bg-red-100 hover:bg-red-200 border-red-300';
+
+                                                $isHighlighted = true;
+                                                if ($filterCustomer && $pos->customer_code !== $filterCustomer) {
+                                                    $isHighlighted = false;
+                                                }
+                                                $opacityClass = $isHighlighted ? 'opacity-100' : 'opacity-25 grayscale';
                                             @endphp
                                             <button wire:click="selectPosition({{ $pos->id }})" 
-                                                    class="w-full aspect-square border-2 {{ $statusColor }} rounded-lg p-1 transition-all group relative overflow-hidden"
-                                                    title="{{ $pos->position_code }}">
+                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
+                                                    title="{{ $pos->position_code }} @if($pos->customer) (Customer: {{ $pos->customer->customer_name }}) @endif">
                                                 
                                                 <div class="text-[8px] font-black text-gray-400 group-hover:text-gray-600 text-center uppercase leading-none">
                                                     S{{ $pos->slot_no }}
                                                 </div>
 
+                                                @if($pos->customer_code)
+                                                    <div class="text-[7px] font-extrabold text-blue-600 group-hover:text-blue-800 bg-blue-50 px-1 py-0.5 rounded leading-none w-full truncate text-center">
+                                                        {{ $pos->customer_code }}
+                                                    </div>
+                                                @endif
+ 
                                                 @if($pos->pallet_forms_count > 0)
-                                                    <div class="absolute bottom-1 right-1">
-                                                        <span class="flex h-2 w-2">
+                                                    <div class="absolute top-1 right-1">
+                                                        <span class="flex h-1.5 w-1.5">
                                                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $pos->status == 'FULL' ? 'bg-red-400' : 'bg-yellow-400' }}"></span>
-                                                            <span class="relative inline-flex rounded-full h-2 w-2 {{ $pos->status == 'FULL' ? 'bg-red-500' : 'bg-yellow-500' }}"></span>
+                                                            <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $pos->status == 'FULL' ? 'bg-red-500' : 'bg-yellow-500' }}"></span>
                                                         </span>
                                                     </div>
                                                 @endif
@@ -97,6 +120,11 @@
                             <div class="relative z-10">
                                 <h3 class="text-3xl font-black italic uppercase tracking-tighter">{{ $selectedPosData->position_code }}</h3>
                                 <p class="text-blue-100 text-xs font-bold uppercase tracking-widest mt-1">Slot Identification Detail</p>
+                                @if($selectedPosData->customer)
+                                    <p class="text-blue-200 text-[10px] font-black uppercase tracking-wider mt-2 bg-blue-700/50 w-fit px-2 py-0.5 rounded border border-blue-500/30">
+                                        Cust: {{ $selectedPosData->customer->customer_name }}
+                                    </p>
+                                @endif
                             </div>
                         </div>
 
@@ -157,7 +185,12 @@
                                     </div>
                                     <div>
                                         <label class="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">Customer</label>
-                                        <input type="text" wire:model.defer="editCustomerCode" placeholder="CUST ID" class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white focus:border-blue-500 outline-none transition-all uppercase">
+                                        <select wire:model.defer="editCustomerCode" class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white focus:border-blue-500 outline-none transition-all uppercase">
+                                            <option value="">-- NO CUSTOMER --</option>
+                                            @foreach($customers as $c)
+                                                <option value="{{ $c->customer_code }}">{{ $c->customer_code }} - {{ $c->customer_name }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 
@@ -205,8 +238,12 @@
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1 italic">Pre-Assign Customer ID (Optional)</label>
-                            <input type="text" wire:model.defer="newRackCustomer" placeholder="Ex: MARELLI" 
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-black text-xs text-center uppercase tracking-widest transition-all">
+                            <select wire:model.defer="newRackCustomer" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-black text-xs uppercase tracking-widest transition-all">
+                                <option value="">-- NONE --</option>
+                                @foreach($customers as $c)
+                                    <option value="{{ $c->customer_code }}">{{ $c->customer_code }} - {{ $c->customer_name }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="grid grid-cols-3 gap-3">

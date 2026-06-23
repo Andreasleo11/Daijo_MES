@@ -42,7 +42,7 @@ class PalletLogIndex extends Component
 
     public function render()
     {
-        $logs = WmsPalletLog::with(['position', 'user'])
+        $logs = WmsPalletLog::with(['position', 'user', 'pallet.details.item.customer'])
             ->when($this->search, function($query) {
                 $query->where('pallet_id', 'like', '%' . $this->search . '%')
                       ->orWhere('notes', 'like', '%' . $this->search . '%');

@@ -27,6 +27,7 @@ class ProductionDashboard extends Component
     public array $downtimeAnalysis = []; // ✅ NEW
     public array $topRemarks = []; // ✅ NEW
     public array $machineWorkingHours = []; // ✅ NEW
+    public array $purgingDetails = [];
 
     public array $years = [];
     public array $months = [];
@@ -178,6 +179,7 @@ class ProductionDashboard extends Component
 
         $this->chartData = $data['chart_data'] ?? [];
         $this->summary = $data['summary'] ?? [];
+        $this->purgingDetails = $data['purging_details'] ?? [];
 
         $this->ngBreakdown = $this->productionService->getNgBreakdown(
             $startDate,
