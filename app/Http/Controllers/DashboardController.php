@@ -670,8 +670,8 @@ class DashboardController extends Controller
         $datas = DailyItemCode::where('user_id', $userId)
             ->where(function ($q) use ($shiftDateA, $shiftDateB) {
                 $q->where(function ($inner) use ($shiftDateA, $shiftDateB) {
-                    $inner->whereDate('schedule_date', $shiftDateA)
-                          ->orWhereDate('schedule_date', $shiftDateB);
+                    $inner->where('schedule_date', $shiftDateA)
+                          ->orWhere('schedule_date', $shiftDateB);
                 })
                 ->orWhereNull('is_done');
             })
@@ -710,30 +710,25 @@ class DashboardController extends Controller
         }
 
         // ── 5. UPDATE TARGET & IS_ACHIEVE ────────────────────────────────────
-        $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn ($q) =>
-            $q->where('user_id', $userId)
-              ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
-                  $q2->whereDate('schedule_date', $shiftDateA)
-                     ->orWhereDate('schedule_date', $shiftDateB);
-              })
-        )
-        ->with('dailyItemCode.masterItem')
-        ->get();
+        foreach ($datas as $dic) {
+            if ($dic->schedule_date === $shiftDateA || $dic->schedule_date === $shiftDateB) {
+                $temporal = $dic->temporal_cycle_time ?? null;
+                $cavity = null;
+                foreach ($dic->hourlyRemarks as $remark) {
+                    if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
+                        if (is_null($cavity)) {
+                            $cavity = max((int) ($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+                        }
+                        $remark->target = floor(3600 / $temporal) * $cavity;
+                    }
 
-        foreach ($todayRemarks as $remark) {
-            $dic      = $remark->dailyItemCode;
-            $temporal = $dic->temporal_cycle_time ?? null;
+                    $remark->is_achieve = (!is_null($remark->actual_production)
+                        && $remark->actual_production >= $remark->target) ? 1 : 0;
 
-            if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                $cavity        = max((int) ($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
-                $remark->target = floor(3600 / $temporal) * $cavity;
-            }
-
-            $remark->is_achieve = (!is_null($remark->actual_production)
-                && $remark->actual_production >= $remark->target) ? 1 : 0;
-
-            if ($remark->isDirty()) {
-                $remark->save();
+                    if ($remark->isDirty()) {
+                        $remark->save();
+                    }
+                }
             }
         }
 
@@ -744,12 +739,11 @@ class DashboardController extends Controller
         //   2) todayDIC     – DIC dalam window (shiftDateA / shiftDateB) yang belum selesai
         //   3) fallback     – tanpa filter tanggal sama sekali
         //
-        $previousDIC = DailyItemCode::where('user_id', $userId)
+        $previousDIC = $datas
             ->where('item_code', $itemCode)
             ->where('schedule_date', '<', $shiftDateA)
-            ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->whereNull('is_done')
-            ->orderByDesc('schedule_date')
+            ->sortByDesc('schedule_date')
             ->first();
 
         // Ambil dari $datas (sudah dalam window)
@@ -762,9 +756,8 @@ class DashboardController extends Controller
         $activeDIC = $previousDIC ?? $todayDIC;
 
         if (!$activeDIC) {
-            $activeDIC = DailyItemCode::where('user_id', $userId)
+            $activeDIC = $datas
                 ->where('item_code', $itemCode)
-                ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
                 ->whereNull('is_done')
                 ->first();
         }
@@ -780,10 +773,7 @@ class DashboardController extends Controller
             $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
             $scannedCount         = $activeDIC->scannedData->count();
 
-            $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails.ngType')
-                ->where('dic_id', $activeID)
-                ->orderBy('start_time')
-                ->get();
+            $hourlyRemarksActiveDIC = $activeDIC->hourlyRemarks->sortBy('start_time')->values();
 
             foreach ($hourlyRemarksActiveDIC as $remark) {
                 if (!is_null($remark->actual_production)
@@ -802,21 +792,18 @@ class DashboardController extends Controller
         // Ini memastikan operator yang masih di shift 3 (kemarin) tetap melihat hourly remarks job-nya
         // meskipun waktu sudah melewati jam 07:30.
         if ($activeDIC) {
-            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
-                ->where('dic_id', $activeID)
-                ->orderBy('start_time')
-                ->get();
+            $hourlyRemarks = $hourlyRemarksActiveDIC;
         } else {
-            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
-                ->whereHas('dailyItemCode', fn ($q) =>
-                    $q->where('user_id', $userId)
-                      ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
-                          $q2->whereDate('schedule_date', $shiftDateA)
-                             ->orWhereDate('schedule_date', $shiftDateB);
-                      })
-                )
-                ->orderBy('start_time')
-                ->get();
+            $hourlyRemarks = collect();
+            foreach ($datas as $dic) {
+                if ($dic->schedule_date === $shiftDateA || $dic->schedule_date === $shiftDateB) {
+                    foreach ($dic->hourlyRemarks as $remark) {
+                        $remark->setRelation('dailyItemCode', $dic);
+                        $hourlyRemarks->push($remark);
+                    }
+                }
+            }
+            $hourlyRemarks = $hourlyRemarks->sortBy('start_time')->values();
         }
 
         // ── 9. LOGS ───────────────────────────────────────────────────────────
@@ -836,15 +823,15 @@ class DashboardController extends Controller
         };
 
         $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
             ->get();
 
         $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
             ->get();
 
         $repairMachineLogs = RepairMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
             ->get();
 
         $mouldChangeLogs->each(fn ($log)   => $calcDuration($log, 'end_time'));
@@ -874,8 +861,8 @@ class DashboardController extends Controller
 
         $zonePengawas = $zone?->zoneData()
             ->where('shift', $machineJobShift)
-            ->whereDate('start_date', '<=', $now)
-            ->whereDate('end_date', '>=', $now)
+            ->where('start_date', '<=', $now->toDateString())
+            ->where('end_date', '>=', $now->toDateString())
             ->latest('updated_at')
             ->first();
 
@@ -891,6 +878,40 @@ class DashboardController extends Controller
         // todayitems: DIC yang masih aktif dalam window shift
         // (dari $datas yang sudah shift-aware, tanpa query baru)
         $todayitems = $datas->whereNull('is_done')->sortBy('shift')->values();
+
+        // Calculate default next item code for Change Mould and Adjust Machine actions
+        $currentItemCode = $itemCode;
+        $dailyItemsForNext = DailyItemCode::where('user_id', $userId)
+            ->where('schedule_date', $today->toDateString())
+            ->orderBy('start_time', 'asc')
+            ->pluck('item_code')
+            ->toArray();
+
+        $defaultNextItemCode = null;
+        $currentIndex = array_search($currentItemCode, $dailyItemsForNext);
+
+        if ($currentIndex !== false && isset($dailyItemsForNext[$currentIndex + 1])) {
+            $defaultNextItemCode = $dailyItemsForNext[$currentIndex + 1];
+        } else {
+            if ($currentIndex === false) {
+                $defaultNextItemCode = $dailyItemsForNext[0] ?? null;
+            }
+
+            if (!$defaultNextItemCode) {
+                $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                $defaultNextItemCode = DailyItemCode::where('user_id', $userId)
+                    ->where('schedule_date', $nextDay)
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+            }
+
+            if (!$defaultNextItemCode) {
+                $defaultNextItemCode = DailyItemCode::where('user_id', $userId)
+                    ->whereNull('is_done')
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+            }
+        }
 
         $ngData     = ProductionNgType::all();
         $outputLogs = $activeDIC
@@ -962,7 +983,8 @@ class DashboardController extends Controller
             'activeState',
             'activeOperatorName',
             'activeOperatorProfile',
-            'activeStateStartTime'
+            'activeStateStartTime',
+            'defaultNextItemCode'
         ));
     }
 
@@ -1677,22 +1699,25 @@ class DashboardController extends Controller
 
         $request->validate([
             'pic_name' => 'required|string|max:255',
+            'item_code' => 'nullable|string|max:255',
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        // Ambil semua item hari ini (pakai schedule_date karena beda field)
-        $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('schedule_date', $today)
-            ->orderBy('start_time', 'asc')
-            ->pluck('item_code')
-            ->toArray();
+        $nextItemCode = $request->item_code;
 
-        $nextItemCode = null;
-        $currentIndex = array_search($currentItemCode, $dailyItems);
+        if (!$nextItemCode) {
+            // Ambil semua item hari ini (pakai schedule_date karena beda field)
+            $dailyItems = DailyItemCode::where('user_id', $userId)
+                ->whereDate('schedule_date', $today)
+                ->orderBy('start_time', 'asc')
+                ->pluck('item_code')
+                ->toArray();
 
-        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+            $currentIndex = array_search($currentItemCode, $dailyItems);
+
+            if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
             // Masih ada item berikutnya hari ini
             $nextItemCode = $dailyItems[$currentIndex + 1];
         } else {
@@ -1720,6 +1745,7 @@ class DashboardController extends Controller
                     ->value('item_code');
                 $nextItemCode = $undoneItem ?? null;
             }
+        }
         }
 
         // Kalau tetap gak ada, berarti belum ada job yang bisa diassign
@@ -1768,49 +1794,53 @@ class DashboardController extends Controller
 
         $request->validate([
             'pic_name' => 'required|string|max:255',
+            'item_code' => 'nullable|string|max:255',
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        // Ambil daftar item hari ini
-        $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('start_date', $today)
-            ->orderBy('start_time', 'asc')
-            ->pluck('item_code')
-            ->toArray();
+        $nextItemCode = $request->item_code;
 
-        $nextItemCode = null;
-        $currentIndex = array_search($currentItemCode, $dailyItems);
+        if (!$nextItemCode) {
+            // Ambil daftar item hari ini
+            $dailyItems = DailyItemCode::where('user_id', $userId)
+                ->whereDate('start_date', $today)
+                ->orderBy('start_time', 'asc')
+                ->pluck('item_code')
+                ->toArray();
 
-        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
-            // Masih ada item berikutnya di hari ini
-            $nextItemCode = $dailyItems[$currentIndex + 1];
-        } else {
-            // Kalau current item gak ada di hari ini atau sudah di akhir
-            if ($currentIndex === false) {
-                // Coba ambil item pertama hari ini
-                $nextItemCode = $dailyItems[0] ?? null;
-            }
+            $currentIndex = array_search($currentItemCode, $dailyItems);
 
-            // Kalau tetap null, ambil item pertama besok
-            if (!$nextItemCode) {
-                $nextDay = Carbon::tomorrow()->format('Y-m-d');
-                $nextDayItem = DailyItemCode::where('user_id', $userId)
-                    ->whereDate('start_date', $nextDay)
-                    ->orderBy('start_time', 'asc')
-                    ->value('item_code');
-                $nextItemCode = $nextDayItem ?? null;
-            }
+            if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+                // Masih ada item berikutnya di hari ini
+                $nextItemCode = $dailyItems[$currentIndex + 1];
+            } else {
+                // Kalau current item gak ada di hari ini atau sudah di akhir
+                if ($currentIndex === false) {
+                    // Coba ambil item pertama hari ini
+                    $nextItemCode = $dailyItems[0] ?? null;
+                }
 
-            // 🔥 Fallback terakhir: ambil item_code yang belum selesai (is_done null)
-            if (!$nextItemCode) {
-                $undoneItem = DailyItemCode::where('user_id', $userId)
-                    ->whereNull('is_done')
-                    ->orderBy('start_time', 'asc')
-                    ->value('item_code');
+                // Kalau tetap null, ambil item pertama besok
+                if (!$nextItemCode) {
+                    $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                    $nextDayItem = DailyItemCode::where('user_id', $userId)
+                        ->whereDate('start_date', $nextDay)
+                        ->orderBy('start_time', 'asc')
+                        ->value('item_code');
+                    $nextItemCode = $nextDayItem ?? null;
+                }
 
-                $nextItemCode = $undoneItem ?? null;
+                // 🔥 Fallback terakhir: ambil item_code yang belum selesai (is_done null)
+                if (!$nextItemCode) {
+                    $undoneItem = DailyItemCode::where('user_id', $userId)
+                        ->whereNull('is_done')
+                        ->orderBy('start_time', 'asc')
+                        ->value('item_code');
+
+                    $nextItemCode = $undoneItem ?? null;
+                }
             }
         }
 

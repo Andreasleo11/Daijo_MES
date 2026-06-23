@@ -38,11 +38,6 @@ Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
 });
 
 Route::get(
-    '/production-status',
-    [CustomerProductionController::class, 'index']
-);
-
-Route::get(
     '/production-status-range',
     [CustomerProductionController::class, 'range']
 );

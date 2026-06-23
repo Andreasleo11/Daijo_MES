@@ -220,6 +220,21 @@
                 <h2 class="text-lg font-bold mb-4">Enter NIK & Password</h2>
                 <input type="text" id="nik" class="border p-2 w-full rounded" placeholder="Enter NIK...">
                 <input type="password" id="password" class="border p-2 w-full rounded mt-2" placeholder="Enter Password...">
+                
+                <div id="nextItemCodeContainer" class="mt-3 hidden">
+                    <label for="next_item_code" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Item Code Selanjutnya:
+                    </label>
+                    <select id="next_item_code" class="border border-gray-300 rounded-xl p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">-- Pilih Item Code --</option>
+                        @foreach($todayitems as $item)
+                            <option value="{{ $item->item_code }}" {{ $item->item_code === $defaultNextItemCode ? 'selected' : '' }}>
+                                {{ $item->item_code }} - Shift {{ $item->shift }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="flex justify-end mt-4">
                     <button id="closeNikModal" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
                     <button id="verifyNik" class="bg-blue-600 text-white px-4 py-2 rounded">Verify</button>
@@ -229,7 +244,7 @@
 
 
 
-        <div class="container mx-auto py-6">
+        <div class="container mx-auto py-6" id="logsContainer">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Mould Change Log Card -->
                 <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
@@ -1487,6 +1502,7 @@
                     $('#machineStatusContainer').html($html.find('#machineStatusContainer').html());
                     $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
                     $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                    $('#logsContainer').html($html.find('#logsContainer').html());
                     
                     // Re-initialize elapsed timer
                     initializeTimer();
@@ -1496,14 +1512,17 @@
             // Show NIK modal when clicking start buttons (using event delegation)
             $(document).on('click', '#startMouldChange', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
+                $('#nextItemCodeContainer').removeClass('hidden');
             });
 
             $(document).on('click', '#startAdjustMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
+                $('#nextItemCodeContainer').removeClass('hidden');
             });
 
             $(document).on('click', '#startRepairMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'repair');
+                $('#nextItemCodeContainer').addClass('hidden');
             });
 
             // Close NIK modal
@@ -1516,9 +1535,15 @@
                 let nik = $('#nik').val().trim();
                 let password = $('#password').val().trim();
                 let actionType = $('#nikModal').attr('data-action');
+                let nextItemCode = $('#next_item_code').val();
 
                 if (nik === '' || password === '') {
                     alert('Please enter both NIK and password.');
+                    return;
+                }
+
+                if ((actionType === 'mould' || actionType === 'adjust') && !nextItemCode) {
+                    alert('Please select next item code.');
                     return;
                 }
 
@@ -1533,9 +1558,9 @@
                         $('#nikModal').addClass('hidden');
 
                         if (actionType === 'mould') {
-                            startMouldChange(verifiedUser.name);
+                            startMouldChange(verifiedUser.name, nextItemCode);
                         } else if (actionType === 'adjust') {
-                            startAdjustMachine(verifiedUser.name);
+                            startAdjustMachine(verifiedUser.name, nextItemCode);
                         } else if (actionType === 'repair') {
                             startRepairMachine(verifiedUser.name);
                         }
@@ -1547,12 +1572,12 @@
             });
 
             // Start Mould Change Process
-            function startMouldChange(picName) {
+            function startMouldChange(picName, nextItemCode) {
                 $.ajax({
                     url: "{{ route('mould.change.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { pic_name: picName },
+                    data: { pic_name: picName, item_code: nextItemCode },
                     success: function (response) {
                         if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
@@ -1590,12 +1615,12 @@
             });
 
             // Start Adjust Machine Process
-            function startAdjustMachine(picName) {
+            function startAdjustMachine(picName, nextItemCode) {
                 $.ajax({
                     url: "{{ route('adjust.machine.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { pic_name: picName },
+                    data: { pic_name: picName, item_code: nextItemCode },
                     success: function (response) {
                         if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
