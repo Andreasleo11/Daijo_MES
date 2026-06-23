@@ -42,7 +42,7 @@ Route::get(
     [CustomerProductionController::class, 'index']
 );
 
-Route::post(
+Route::get(
     '/production-status-range',
     [CustomerProductionController::class, 'range']
 );
