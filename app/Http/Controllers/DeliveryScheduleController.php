@@ -1148,7 +1148,7 @@ class DeliveryScheduleController extends Controller
 		$uploadedFile->move(storage_path('app/temp/'), $fileName);
 
 		// Define paths
-		$pythonPath = "C:\\Users\\Andre\\AppData\\Local\\Programs\\Python\\Python312\\python.exe";
+		$pythonPath = env('PYTHON_PATH', 'python');
 		$scriptPath = base_path('scripts/process_excel.py'); // Your Python script path
 		$outputFilePath = storage_path("app/temp/output/processed_{$fileName}");
 
@@ -1158,7 +1158,7 @@ class DeliveryScheduleController extends Controller
 
 		// Check for errors
 		if (!$process->isSuccessful()) {
-			throw new ProcessFailedException($process);
+			throw new \Exception('Python script execution failed: ' . $process->getErrorOutput());
 		}
 
 		// Import the processed Excel file into the database using Laravel Excel

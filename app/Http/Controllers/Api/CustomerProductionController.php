@@ -13,7 +13,7 @@ class CustomerProductionController extends Controller
     {
         // ── Token Authentication ──
         $expectedToken = config('services.customer_api.token');
-        $token = $request->header('X-API-TOKEN') ?? $request->query('token');
+        $token = $request->bearerToken() ?? $request->header('X-API-TOKEN');
 
         if (empty($expectedToken) || $token !== $expectedToken) {
             return response()->json([
