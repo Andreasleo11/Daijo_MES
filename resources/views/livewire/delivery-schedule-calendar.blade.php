@@ -347,7 +347,7 @@
                         @if (count($selectedDateSchedules) > 0)
                             <div class="space-y-3">
                                 @foreach ($selectedDateSchedules as $schedule)
-                                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-5 border-2 border-indigo-200 hover:shadow-lg transition-all">
+                                    <div wire:key="schedule-card-{{ $schedule->id }}" class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-5 border-2 border-indigo-200 hover:shadow-lg transition-all">
                                         <div class="flex justify-between items-start mb-3">
                                             <div class="flex-1">
                                                 <div class="flex items-center gap-2 mb-2">
@@ -373,7 +373,7 @@
                                         </div>
                                         
                                         @if($editingScheduleId === $schedule->id)
-                                            <div class="flex items-center gap-3 pt-3 border-t border-indigo-200 mt-3">
+                                            <div wire:key="edit-actions-{{ $schedule->id }}" class="flex items-center gap-3 pt-3 border-t border-indigo-200 mt-3">
                                                 <div class="flex-1">
                                                     <label class="block text-[10px] font-bold text-indigo-600 mb-1">Edit Quantity</label>
                                                     <input 
@@ -385,13 +385,17 @@
                                                 </div>
                                                 <div class="flex items-end gap-1.5 self-end">
                                                     <button 
+                                                        type="button"
                                                         wire:click="saveSchedule"
+                                                        wire:key="save-btn-{{ $schedule->id }}"
                                                         class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition"
                                                     >
                                                         Save
                                                     </button>
                                                     <button 
+                                                        type="button"
                                                         wire:click="cancelEdit"
+                                                        wire:key="cancel-btn-{{ $schedule->id }}"
                                                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition"
                                                     >
                                                         Cancel
@@ -399,18 +403,22 @@
                                                 </div>
                                             </div>
                                         @else
-                                            <div class="flex justify-between items-center pt-3 border-t border-indigo-200 mt-3">
+                                            <div wire:key="view-actions-{{ $schedule->id }}" class="flex justify-between items-center pt-3 border-t border-indigo-200 mt-3">
                                                 <span class="text-xs text-gray-500 font-medium">Created: {{ $schedule->created_at->format('d M Y H:i') }}</span>
                                                 <div class="flex gap-2">
                                                     <button 
+                                                        type="button"
                                                         wire:click="editSchedule({{ $schedule->id }})"
+                                                        wire:key="edit-btn-{{ $schedule->id }}"
                                                         class="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-1 border border-indigo-200 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition"
                                                     >
                                                         ✏️ Edit
                                                     </button>
                                                     <button 
+                                                        type="button"
                                                         wire:click="deleteSchedule({{ $schedule->id }})"
                                                         wire:confirm="Apakah Anda yakin ingin menghapus schedule ini?"
+                                                        wire:key="delete-btn-{{ $schedule->id }}"
                                                         class="text-rose-600 hover:text-rose-800 text-[11px] font-bold flex items-center gap-1 border border-rose-200 px-2.5 py-1.5 rounded-lg hover:bg-rose-50/50 transition"
                                                     >
                                                         🗑️ Delete
