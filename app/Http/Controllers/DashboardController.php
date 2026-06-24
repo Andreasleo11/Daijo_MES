@@ -633,7 +633,7 @@ class DashboardController extends Controller
         // ── 1. MACHINE JOB ───────────────────────────────────────────────────
         $machineJob      = MachineJob::where('user_id', $userId)->first();
         $machinejobid    = $machineJob;
-        $machineJobShift = $machineJob->shift ?? 1;
+        $machineJobShift = $machineJob?->shift ?? 1;
 
         // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────
         //
@@ -717,7 +717,7 @@ class DashboardController extends Controller
                 foreach ($dic->hourlyRemarks as $remark) {
                     if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
                         if (is_null($cavity)) {
-                            $cavity = max((int) ($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+                            $cavity = max((int) ($dic->temporal_cavity ?? $dic->masterItem?->cavity ?? 0), 1);
                         }
                         $remark->target = floor(3600 / $temporal) * $cavity;
                     }
@@ -850,7 +850,7 @@ class DashboardController extends Controller
 
         foreach ($datas as $data) {
             $ic       = $data->item_code;
-            $mainCode = $ic ?? ($data->masterItem->pair ?? $ic);
+            $mainCode = $ic ?? ($data->masterItem?->pair ?? $ic);
 
             $totalQuantities[$mainCode] = ($totalQuantities[$mainCode] ?? 0) + $data->quantity;
             $files[$mainCode]           = $allFiles->get($ic, collect());
