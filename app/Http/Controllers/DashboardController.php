@@ -633,7 +633,7 @@ class DashboardController extends Controller
         // ── 1. MACHINE JOB ───────────────────────────────────────────────────
         $machineJob      = MachineJob::where('user_id', $userId)->first();
         $machinejobid    = $machineJob;
-        $machineJobShift = $machineJob?->shift ?? 1;
+         $machineJobShift = $machineJob->shift ?? 1;
 
         // ── 2. SHIFT DATE BOUNDARY ───────────────────────────────────────────
         //
@@ -670,8 +670,8 @@ class DashboardController extends Controller
          $datas = DailyItemCode::where('user_id', $userId)
             ->where(function ($q) use ($shiftDateA, $shiftDateB) {
                 $q->where(function ($inner) use ($shiftDateA, $shiftDateB) {
-                    $inner->where('schedule_date', $shiftDateA)
-                          ->orWhere('schedule_date', $shiftDateB);
+                    $inner->whereDate('schedule_date', $shiftDateA)
+                          ->orWhereDate('schedule_date', $shiftDateB);
                 })
                 ->orWhereNull('is_done');
             })
@@ -710,25 +710,30 @@ class DashboardController extends Controller
         }
 
         // ── 5. UPDATE TARGET & IS_ACHIEVE ────────────────────────────────────
-        foreach ($datas as $dic) {
-            if ($dic->schedule_date === $shiftDateA || $dic->schedule_date === $shiftDateB) {
-                $temporal = $dic->temporal_cycle_time ?? null;
-                $cavity = null;
-                foreach ($dic->hourlyRemarks as $remark) {
-                    if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
-                        if (is_null($cavity)) {
-                            $cavity = max((int) ($dic->temporal_cavity ?? $dic->masterItem?->cavity ?? 0), 1);
-                        }
-                        $remark->target = floor(3600 / $temporal) * $cavity;
-                    }
+        $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn ($q) =>
+            $q->where('user_id', $userId)
+              ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
+                  $q2->whereDate('schedule_date', $shiftDateA)
+                     ->orWhereDate('schedule_date', $shiftDateB);
+              })
+        )
+        ->with('dailyItemCode.masterItem')
+        ->get();
 
-                    $remark->is_achieve = (!is_null($remark->actual_production)
-                        && $remark->actual_production >= $remark->target) ? 1 : 0;
+        foreach ($todayRemarks as $remark) {
+            $dic      = $remark->dailyItemCode;
+            $temporal = $dic->temporal_cycle_time ?? null;
 
-                    if ($remark->isDirty()) {
-                        $remark->save();
-                    }
-                }
+            if (!is_null($temporal) && is_numeric($temporal) && $temporal != 0) {
+                $cavity        = max((int) ($dic->temporal_cavity ?? $dic->masterItem->cavity ?? 0), 1);
+                $remark->target = floor(3600 / $temporal) * $cavity;
+            }
+
+            $remark->is_achieve = (!is_null($remark->actual_production)
+                && $remark->actual_production >= $remark->target) ? 1 : 0;
+
+            if ($remark->isDirty()) {
+                $remark->save();
             }
         }
 
@@ -739,11 +744,12 @@ class DashboardController extends Controller
         //   2) todayDIC     – DIC dalam window (shiftDateA / shiftDateB) yang belum selesai
         //   3) fallback     – tanpa filter tanggal sama sekali
         //
-        $previousDIC = $datas
+        $previousDIC = DailyItemCode::where('user_id', $userId)
             ->where('item_code', $itemCode)
             ->where('schedule_date', '<', $shiftDateA)
+            ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->whereNull('is_done')
-            ->sortByDesc('schedule_date')
+            ->orderByDesc('schedule_date')
             ->first();
 
         // Ambil dari $datas (sudah dalam window)
@@ -756,8 +762,9 @@ class DashboardController extends Controller
         $activeDIC = $previousDIC ?? $todayDIC;
 
         if (!$activeDIC) {
-            $activeDIC = $datas
+            $activeDIC = DailyItemCode::where('user_id', $userId)
                 ->where('item_code', $itemCode)
+                ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
                 ->whereNull('is_done')
                 ->first();
         }
@@ -773,7 +780,10 @@ class DashboardController extends Controller
             $totalScannedQuantity = $activeDIC->scannedData->sum('quantity');
             $scannedCount         = $activeDIC->scannedData->count();
 
-            $hourlyRemarksActiveDIC = $activeDIC->hourlyRemarks->sortBy('start_time')->values();
+            $hourlyRemarksActiveDIC = HourlyRemark::with('ngDetails.ngType')
+                ->where('dic_id', $activeID)
+                ->orderBy('start_time')
+                ->get();
 
             foreach ($hourlyRemarksActiveDIC as $remark) {
                 if (!is_null($remark->actual_production)
@@ -792,18 +802,21 @@ class DashboardController extends Controller
         // Ini memastikan operator yang masih di shift 3 (kemarin) tetap melihat hourly remarks job-nya
         // meskipun waktu sudah melewati jam 07:30.
         if ($activeDIC) {
-            $hourlyRemarks = $hourlyRemarksActiveDIC;
+            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+                ->where('dic_id', $activeID)
+                ->orderBy('start_time')
+                ->get();
         } else {
-            $hourlyRemarks = collect();
-            foreach ($datas as $dic) {
-                if ($dic->schedule_date === $shiftDateA || $dic->schedule_date === $shiftDateB) {
-                    foreach ($dic->hourlyRemarks as $remark) {
-                        $remark->setRelation('dailyItemCode', $dic);
-                        $hourlyRemarks->push($remark);
-                    }
-                }
-            }
-            $hourlyRemarks = $hourlyRemarks->sortBy('start_time')->values();
+            $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
+                ->whereHas('dailyItemCode', fn ($q) =>
+                    $q->where('user_id', $userId)
+                      ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
+                          $q2->whereDate('schedule_date', $shiftDateA)
+                             ->orWhereDate('schedule_date', $shiftDateB);
+                      })
+                )
+                ->orderBy('start_time')
+                ->get();
         }
 
         // ── 9. LOGS ───────────────────────────────────────────────────────────
@@ -823,15 +836,15 @@ class DashboardController extends Controller
         };
 
         $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
-            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)
-            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $repairMachineLogs = RepairMachineLog::where('user_id', $userId)
-            ->whereBetween('created_at', [$activeShiftDate . ' 00:00:00', $activeShiftDate . ' 23:59:59'])
+            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
             ->get();
 
         $mouldChangeLogs->each(fn ($log)   => $calcDuration($log, 'end_time'));
@@ -850,7 +863,7 @@ class DashboardController extends Controller
 
         foreach ($datas as $data) {
             $ic       = $data->item_code;
-            $mainCode = $ic ?? ($data->masterItem?->pair ?? $ic);
+            $mainCode = $ic ?? ($data->masterItem->pair ?? $ic);
 
             $totalQuantities[$mainCode] = ($totalQuantities[$mainCode] ?? 0) + $data->quantity;
             $files[$mainCode]           = $allFiles->get($ic, collect());
@@ -861,8 +874,8 @@ class DashboardController extends Controller
 
         $zonePengawas = $zone?->zoneData()
             ->where('shift', $machineJobShift)
-            ->where('start_date', '<=', $now->toDateString())
-            ->where('end_date', '>=', $now->toDateString())
+            ->whereDate('start_date', '<=', $now)
+            ->whereDate('end_date', '>=', $now)
             ->latest('updated_at')
             ->first();
 
