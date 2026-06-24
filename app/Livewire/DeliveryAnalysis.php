@@ -32,11 +32,8 @@ class DeliveryAnalysis extends Component
 
     public function mount()
     {
-        $minDate = DB::table('sap_delsched')->min('delivery_date');
-        $maxDate = DB::table('sap_delsched')->max('delivery_date');
-
-        $this->filterDateFrom = $minDate ?? now()->format('Y-m-d');
-        $this->filterDateTo   = $maxDate ?? now()->format('Y-m-d');
+        $this->filterDateFrom = now()->subDays(30)->format('Y-m-d');
+        $this->filterDateTo   = now()->addDays(30)->format('Y-m-d');
         $this->filterCutOffDate = '';
     }
 
