@@ -128,12 +128,12 @@ new class extends Component {
                 />
 
 
-                <livewire:sidebar-link
+                <!-- <livewire:sidebar-link
                     href="{{ route('indexds') }}"
                     label="Delivery Schedule Data"
                     :active="request()->routeIs('indexds')"
                     wire:navigate
-                />
+                /> -->
                 
                 <livewire:sidebar-link
                     href="{{ route('delivery.analysis') }}"
