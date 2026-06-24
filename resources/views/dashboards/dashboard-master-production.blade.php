@@ -110,59 +110,101 @@
 
 
                         <!-- Repair Machine Logs -->
-                     
                         @php
                             $selectedDate = request('date', now()->toDateString());
-                            $selectedMonth = \Carbon\Carbon::parse($selectedDate)->format('Y-m');
                             $selectedMachine = request('machine_name');
-
                             $allLogs = $data['repair_machine_logs'] ?? [];
                             
-
-                            // Filter berdasarkan bulan dan mesin
-                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedMonth, $selectedMachine) {
-                                return \Carbon\Carbon::parse($log['start_time'])->format('Y-m') === $selectedMonth
+                            // Filter berdasarkan HARI dan mesin (dengan konversi timezone Asia/Jakarta)
+                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedDate, $selectedMachine) {
+                                return \Carbon\Carbon::parse($log['start_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d') === $selectedDate
                                     && (!$selectedMachine || $log['machine_name'] === $selectedMachine);
                             });
-                           
                         @endphp
-                    <!-- Repair Machine Logs -->
-                    @if(isset($filteredRepairLogs) && count($filteredRepairLogs) > 0)
-                    <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left">Operator</th>
-                                        <th class="px-4 py-2 text-left">Status</th>
-                                        <th class="px-4 py-2 text-left">Start Time</th>
-                                        <th class="px-4 py-2 text-left">End Time</th>
-                                        <th class="px-4 py-2 text-left">Actual Time</th>
-                                        <th class="px-4 py-2 text-left">Problem</th>
-                                        <th class="px-4 py-2 text-left">Remark</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($filteredRepairLogs as $repairLog)
-                                        <tr class="border-t">
-                                            <td class="px-4 py-2 flex items-center space-x-3">
-                                                <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-10 h-10 rounded-full border">
-                                                <span class="font-medium">{{ $repairLog['pic'] }}</span>
-                                            </td>
-                                            <td class="px-4 py-2">{{ $repairLog['status'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['start_time'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['end_time'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['actual_time'] }} min</td>
-                                            <td class="px-4 py-2">{{ $repairLog['problem'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['remark'] }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p>No Repair Machine Logs Available</p>
-                    @endif
+
+                        @if(isset($filteredRepairLogs) && count($filteredRepairLogs) > 0)
+                            <div class="mt-8 mb-6">
+                                <h4 class="text-md font-bold text-slate-700 mb-3 flex items-center space-x-2">
+                                    <span>🔧 Repair Machine Logs</span>
+                                    <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-0.5 rounded-full font-semibold">{{ count($filteredRepairLogs) }} Data</span>
+                                </h4>
+                                <div class="overflow-hidden border border-slate-100 rounded-xl shadow-sm bg-white">
+                                    <table class="min-w-full divide-y divide-slate-100 text-xs">
+                                        <thead class="bg-slate-50">
+                                            <tr>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Operator & Machine</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Start Time</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">End Time</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Duration</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Problem</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Remark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            @foreach ($filteredRepairLogs as $repairLog)
+                                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                                    <td class="px-4 py-3">
+                                                        <div class="flex items-center space-x-2.5">
+                                                            <img src="{{ $repairLog['pic_profile_path'] }}" alt="{{ $repairLog['pic'] }}" class="w-8 h-8 rounded-full border border-slate-200 object-cover shadow-sm">
+                                                            <div>
+                                                                <div class="font-bold text-slate-800">{{ $repairLog['pic'] }}</div>
+                                                                <div class="text-[10px] text-indigo-600 font-semibold uppercase">Machine: {{ $repairLog['machine_name'] }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        @if(!$repairLog['is_completed'])
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                Ongoing
+                                                            </span>
+                                                        @elseif(($repairLog['status'] ?? '') === 'problem')
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-rose-500"></span>
+                                                                Problem (&gt;30m)
+                                                            </span>
+                                                        @else
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500"></span>
+                                                                Safe (&le;30m)
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
+                                                        {{ \Carbon\Carbon::parse($repairLog['start_time'])->setTimezone('Asia/Jakarta')->format('d-m-Y H:i') }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
+                                                        @if($repairLog['end_time'])
+                                                            {{ \Carbon\Carbon::parse($repairLog['end_time'])->setTimezone('Asia/Jakarta')->format('d-m-Y H:i') }}
+                                                        @else
+                                                            <span class="text-slate-400 italic font-normal">-</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                                                        @if(!$repairLog['is_completed'])
+                                                            <span class="text-amber-600 font-medium">{{ $repairLog['actual_time'] }} min (elapsed)</span>
+                                                        @else
+                                                            <span class="{{ ($repairLog['status'] ?? '') === 'problem' ? 'text-rose-600' : 'text-slate-700' }}">{{ $repairLog['actual_time'] }} min</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-700 font-medium max-w-[200px] truncate" title="{{ $repairLog['problem'] }}">
+                                                        {{ $repairLog['problem'] }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 italic max-w-[200px] truncate" title="{{ $repairLog['remark'] ?: 'No remark' }}">
+                                                        {{ $repairLog['remark'] ?: '-' }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-8 mb-6 p-4 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-center text-slate-400 text-xs italic">
+                                No Repair Machine Logs Available for {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}
+                            </div>
+                        @endif
 
                             <!-- Mould Change Log -->
                             <h4 class="text-lg font-semibold mt-4">Mould Change Summary</h4>

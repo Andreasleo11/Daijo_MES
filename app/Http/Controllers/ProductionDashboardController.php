@@ -45,6 +45,9 @@ class ProductionDashboardController extends Controller
             },
             'adjustMachineLogs' => function ($query) use ($selectedDate) {
                 $query->whereDate('created_at', $selectedDate);
+            },
+            'repairMachineLogs' => function ($query) use ($selectedDate) {
+                $query->whereDate('created_at', $selectedDate);
             }
         ])
         ->when($machineId, function ($query) use ($machineId) {
@@ -155,12 +158,12 @@ class ProductionDashboardController extends Controller
                 ];
             }
 
-            // Process repair machine logs
+             // Process repair machine logs
             foreach ($machineJob->repairMachineLogs as $repairLog) {
                 $startTime = Carbon::parse($repairLog->created_at);
-                $endTime = Carbon::parse($repairLog->finish_repair);
-                $actualTime = $startTime->diffInMinutes($endTime);
-                // dd($startTime);
+                $endTime = $repairLog->finish_repair ? Carbon::parse($repairLog->finish_repair) : null;
+                $actualTime = $endTime ? $startTime->diffInMinutes($endTime) : $startTime->diffInMinutes(now());
+                
                 $operatorUser = OperatorUser::where('name', $repairLog->pic)->first();
                 $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
                     ? asset('storage/' . $operatorUser->profile_picture) 
@@ -170,10 +173,11 @@ class ProductionDashboardController extends Controller
                     'id' => $repairLog->id,
                     'machine_name' => $repairLog->user->name,
                     'start_time' => $startTime->format('Y-m-d H:i:s'),
-                    'end_time' => $endTime->format('Y-m-d H:i:s'),
+                    'end_time' => $endTime ? $endTime->format('Y-m-d H:i:s') : null,
                     'problem' => $repairLog->problem,
                     'remark' => $repairLog->remark,
                     'actual_time' => $actualTime,
+                    'is_completed' => !is_null($repairLog->finish_repair),
                     'pic' => $repairLog->pic,
                     'pic_profile_path' => $operatorProfilePath,
                     'status' => ($actualTime > 30) ? 'problem' : 'safe',
