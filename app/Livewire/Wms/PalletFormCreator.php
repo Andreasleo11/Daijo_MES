@@ -383,8 +383,8 @@ class PalletFormCreator extends Component
             $freshPallet = $pallet->fresh();
             $status = (int)$freshPallet->sap_sync_status;
 
-            // Jika status sudah bukan 0 (Pending), berarti sudah ada respon (1: Success, 2: Failed)
-            if ($status !== 0) {
+            // Jika status sudah 1 (Success) atau 2 (Failed), berarti proses sinkronisasi selesai
+            if ($status === 1 || $status === 2) {
                 $this->sapSyncStatus = 'completed';
                 
                 // Ambil detail yang gagal
