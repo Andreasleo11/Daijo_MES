@@ -359,7 +359,39 @@ class ProductionDashboardController extends Controller
                     return $a['shift'] <=> $b['shift'];
                 }
                 
-                // Jika shift sama, urutkan berdasarkan created_at
+                // Jika shift sama, urutkan secara kronologis berdasarkan start_time
+                // Menentukan jam dasar (base hour) per shift untuk menangani wrap-around tengah malam (shift 3)
+                $baseHour = 7; // Default Shift 1 (07:30 - 15:30)
+                if ($a['shift'] == 2) {
+                    $baseHour = 15; // Shift 2 (15:30 - 23:30)
+                } elseif ($a['shift'] == 3) {
+                    $baseHour = 23; // Shift 3 (23:30 - 07:30)
+                }
+
+                $getMinutesFromBase = function ($timeStr, $baseH) {
+                    $parts = explode(':', $timeStr);
+                    $hour = intval($parts[0] ?? 0);
+                    $minute = intval($parts[1] ?? 0);
+                    
+                    $totalMinutes = $hour * 60 + $minute;
+                    $baseMinutes = $baseH * 60;
+                    
+                    $diff = $totalMinutes - $baseMinutes;
+                    if ($diff < 0) {
+                        $diff += 1440; // Tambah 24 jam dalam menit jika melewati tengah malam
+                    }
+                    
+                    return $diff;
+                };
+
+                $offsetA = $getMinutesFromBase($a['start_time'], $baseHour);
+                $offsetB = $getMinutesFromBase($b['start_time'], $baseHour);
+
+                if ($offsetA !== $offsetB) {
+                    return $offsetA <=> $offsetB;
+                }
+                
+                // Jika start_time sama, fallback ke created_at
                 $createdAtA = \Carbon\Carbon::parse($a['created_at']);
                 $createdAtB = \Carbon\Carbon::parse($b['created_at']);
                 
