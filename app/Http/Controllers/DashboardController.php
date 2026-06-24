@@ -1472,7 +1472,6 @@ class DashboardController extends Controller
 
         $existingScan = ProductionScannedData::where('spk_code', $spk_code)
             ->where('label', $label)
-            ->where('quantity', $quantity)
             ->first();
 
 
