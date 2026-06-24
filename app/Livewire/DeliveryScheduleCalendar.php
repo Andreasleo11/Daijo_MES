@@ -21,6 +21,8 @@ class DeliveryScheduleCalendar extends Component
     public $selectedDate = null;
     public $selectedDateSchedules = [];
     public $showModal = false;
+    public $editingScheduleId = null;
+    public $editingQuantity = 0;
 
     public function mount()
     {
@@ -139,6 +141,64 @@ class DeliveryScheduleCalendar extends Component
         $this->showModal = false;
         $this->selectedDate = null;
         $this->selectedDateSchedules = [];
+        $this->editingScheduleId = null;
+    }
+
+    public function editSchedule($scheduleId)
+    {
+        $schedule = MasterDeliverySchedule::find($scheduleId);
+        if ($schedule) {
+            $this->editingScheduleId = $scheduleId;
+            $this->editingQuantity = $schedule->quantity;
+        }
+    }
+
+    public function saveSchedule()
+    {
+        $this->validate([
+            'editingQuantity' => 'required|integer|min:0',
+        ]);
+
+        $schedule = MasterDeliverySchedule::find($this->editingScheduleId);
+        if ($schedule) {
+            if ($this->editingQuantity == 0) {
+                $schedule->delete();
+            } else {
+                $schedule->quantity = $this->editingQuantity;
+                $schedule->save();
+            }
+
+            $this->editingScheduleId = null;
+            $this->loadCalendarData();
+            
+            // Refresh modal data
+            if ($this->selectedDate) {
+                $this->selectedDateSchedules = $this->calendarData[$this->selectedDate]['schedules'] ?? [];
+            }
+            
+            session()->flash('modal_success', 'Schedule updated successfully!');
+        }
+    }
+
+    public function cancelEdit()
+    {
+        $this->editingScheduleId = null;
+    }
+
+    public function deleteSchedule($scheduleId)
+    {
+        $schedule = MasterDeliverySchedule::find($scheduleId);
+        if ($schedule) {
+            $schedule->delete();
+            $this->loadCalendarData();
+
+            // Refresh modal data
+            if ($this->selectedDate) {
+                $this->selectedDateSchedules = $this->calendarData[$this->selectedDate]['schedules'] ?? [];
+            }
+
+            session()->flash('modal_success', 'Schedule deleted successfully!');
+        }
     }
 
     public function previousMonth()

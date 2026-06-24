@@ -338,6 +338,12 @@
 
                     <!-- Modal Body -->
                     <div class="p-6 max-h-[60vh] overflow-y-auto">
+                        @if (session()->has('modal_success'))
+                            <div class="bg-green-50 border-l-4 border-green-500 p-3 rounded-lg mb-4 text-green-800 text-sm font-medium">
+                                {{ session('modal_success') }}
+                            </div>
+                        @endif
+
                         @if (count($selectedDateSchedules) > 0)
                             <div class="space-y-3">
                                 @foreach ($selectedDateSchedules as $schedule)
@@ -366,9 +372,52 @@
                                             </div>
                                         </div>
                                         
-                                        <div class="flex gap-2 text-xs text-gray-500 pt-3 border-t border-indigo-200">
-                                            <span>Created: {{ $schedule->created_at->format('d M Y H:i') }}</span>
-                                        </div>
+                                        @if($editingScheduleId === $schedule->id)
+                                            <div class="flex items-center gap-3 pt-3 border-t border-indigo-200 mt-3">
+                                                <div class="flex-1">
+                                                    <label class="block text-[10px] font-bold text-indigo-600 mb-1">Edit Quantity</label>
+                                                    <input 
+                                                        type="number" 
+                                                        wire:model="editingQuantity"
+                                                        min="0"
+                                                        class="w-full px-3 py-1.5 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-semibold"
+                                                    >
+                                                </div>
+                                                <div class="flex items-end gap-1.5 self-end">
+                                                    <button 
+                                                        wire:click="saveSchedule"
+                                                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button 
+                                                        wire:click="cancelEdit"
+                                                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="flex justify-between items-center pt-3 border-t border-indigo-200 mt-3">
+                                                <span class="text-xs text-gray-500 font-medium">Created: {{ $schedule->created_at->format('d M Y H:i') }}</span>
+                                                <div class="flex gap-2">
+                                                    <button 
+                                                        wire:click="editSchedule({{ $schedule->id }})"
+                                                        class="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-1 border border-indigo-200 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition"
+                                                    >
+                                                        ✏️ Edit
+                                                    </button>
+                                                    <button 
+                                                        wire:click="deleteSchedule({{ $schedule->id }})"
+                                                        wire:confirm="Apakah Anda yakin ingin menghapus schedule ini?"
+                                                        class="text-rose-600 hover:text-rose-800 text-[11px] font-bold flex items-center gap-1 border border-rose-200 px-2.5 py-1.5 rounded-lg hover:bg-rose-50/50 transition"
+                                                    >
+                                                        🗑️ Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
