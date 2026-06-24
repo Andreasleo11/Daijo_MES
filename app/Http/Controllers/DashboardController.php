@@ -2096,6 +2096,60 @@ class DashboardController extends Controller
         ]);
     }
 
+    // Update Mould Change Log
+    public function updateMouldChangeLog(Request $request, $id)
+    {
+        $request->validate([
+            'created_at' => 'required|date',
+            'end_time'   => 'required|date',
+            'remark'     => 'nullable|string',
+        ]);
+
+        $log = MouldChangeLog::findOrFail($id);
+        $log->created_at = Carbon::parse($request->created_at);
+        $log->end_time   = Carbon::parse($request->end_time);
+        $log->remark     = $request->remark;
+        $log->save();
+
+        return response()->json(['success' => true, 'message' => 'Mould Change Log updated successfully']);
+    }
+
+    // Update Adjust Machine Log
+    public function updateAdjustMachineLog(Request $request, $id)
+    {
+        $request->validate([
+            'created_at' => 'required|date',
+            'end_time'   => 'required|date',
+            'remark'     => 'nullable|string',
+        ]);
+
+        $log = AdjustMachineLog::findOrFail($id);
+        $log->created_at = Carbon::parse($request->created_at);
+        $log->end_time   = Carbon::parse($request->end_time);
+        $log->remark     = $request->remark;
+        $log->save();
+
+        return response()->json(['success' => true, 'message' => 'Adjust Machine Log updated successfully']);
+    }
+
+    // Update Repair Machine Log
+    public function updateRepairMachineLog(Request $request, $id)
+    {
+        $request->validate([
+            'created_at'    => 'required|date',
+            'finish_repair' => 'required|date',
+            'remark'        => 'nullable|string',
+        ]);
+
+        $log = RepairMachineLog::findOrFail($id);
+        $log->created_at    = Carbon::parse($request->created_at);
+        $log->finish_repair = Carbon::parse($request->finish_repair);
+        $log->remark        = $request->remark;
+        $log->save();
+
+        return response()->json(['success' => true, 'message' => 'Repair Machine Log updated successfully']);
+    }
+
     //function untuk auto-login semua user dengan link/auto-login/{user}
     public function autoLogin($user, Request $request)
     {

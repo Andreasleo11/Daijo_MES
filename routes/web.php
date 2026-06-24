@@ -421,10 +421,13 @@ Route::middleware('auth')->group(function (){
     // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
     Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
+    Route::post('/mould-change/update/{id}', [DashboardController::class, 'updateMouldChangeLog'])->name('mould.change.update');
     Route::post('/adjust-machine/start', [DashboardController::class, 'startAdjustMachine'])->name('adjust.machine.start');
     Route::post('/adjust-machine/end', [DashboardController::class, 'endAdjustMachine'])->name('adjust.machine.end');
+    Route::post('/adjust-machine/update/{id}', [DashboardController::class, 'updateAdjustMachineLog'])->name('adjust.machine.update');
     Route::post('/repair-machine/start', [DashboardController::class, 'startRepairMachine'])->name('repair.machine.start');
     Route::post('/repair-machine/end', [DashboardController::class, 'endRepairMachine'])->name('repair.machine.end');
+    Route::post('/repair-machine/update/{id}', [DashboardController::class, 'updateRepairMachineLog'])->name('repair.machine.update');
     // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
 
     Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);

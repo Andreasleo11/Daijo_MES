@@ -272,67 +272,202 @@
         </div>
 
 
+        <!-- Edit Log Modal -->
+        <div id="editLogModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
+            <div class="bg-white p-6 rounded-2xl shadow-xl w-[90%] sm:w-[450px] relative z-50 border border-slate-100 animate-in zoom-in-95 duration-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                    <span>✏️</span>
+                    <span>Edit Log Pengerjaan</span>
+                </h2>
+
+                <input type="hidden" id="edit_log_id">
+                <input type="hidden" id="edit_log_type">
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit_log_created_at" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Waktu Mulai</label>
+                        <input type="datetime-local" id="edit_log_created_at" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="edit_log_end_time" id="edit_log_end_time_label" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Waktu Selesai</label>
+                        <input type="datetime-local" id="edit_log_end_time" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="edit_log_remark" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remark</label>
+                        <textarea id="edit_log_remark" rows="3" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ketik remark di sini..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-6 space-x-2">
+                    <button id="closeEditLogModal" class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-gray-200 transition">Cancel</button>
+                    <button id="saveEditLog" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-indigo-700 transition">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+
 
         <div class="container mx-auto py-6" id="logsContainer">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
                 <!-- Mould Change Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Mould Change Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-indigo-700 tracking-tight flex items-center justify-between">
+                        <span>🔄 Mould Change Log</span>
+                        <span class="bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $mouldChangeLogs->count() }} Data</span>
+                    </h2>
                     @if($mouldChangeLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data mould change hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($mouldChangeLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('mould', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->end_time }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Item Code</span>
+                                            <span class="font-bold text-indigo-600">{{ $log->item_code ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
 
                 <!-- Adjust Machine Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Adjust Machine Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-blue-700 tracking-tight flex items-center justify-between">
+                        <span>⚙️ Adjust Machine Log</span>
+                        <span class="bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $adjustMachineLogs->count() }} Data</span>
+                    </h2>
                     @if($adjustMachineLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data adjust machine hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($adjustMachineLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('adjust', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->end_time }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Item Code</span>
+                                            <span class="font-bold text-indigo-600">{{ $log->item_code ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
 
                 <!-- Repair Machine Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Repair Machine Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-red-700 tracking-tight flex items-center justify-between">
+                        <span>🔧 Repair Machine Log</span>
+                        <span class="bg-red-50 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $repairMachineLogs->count() }} Data</span>
+                    </h2>
                     @if($repairMachineLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data repair machine hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($repairMachineLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai Perbaikan:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Problem :</strong> {{ $log->problem ?? '-' }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('repair', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->finish_repair }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->finish_repair ? \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Masalah / Problem</span>
+                                            <span class="font-semibold text-red-600">{{ $log->problem ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -2094,6 +2229,83 @@
                     },
                     error: function (xhr) {
                         alert('Failed to update NG.');
+                    }
+                });
+            });
+
+            // Open Edit Log Modal
+            window.openEditLogModal = function (type, id, createdAt, endTime, remark) {
+                $('#edit_log_type').val(type);
+                $('#edit_log_id').val(id);
+                
+                // Format dates to YYYY-MM-DDTHH:mm
+                $('#edit_log_created_at').val(formatDatetimeLocal(createdAt));
+                $('#edit_log_end_time').val(formatDatetimeLocal(endTime));
+                $('#edit_log_remark').val(remark || '');
+
+                // Update label dynamically based on type
+                if (type === 'repair') {
+                    $('#edit_log_end_time_label').text('Waktu Selesai Perbaikan');
+                } else {
+                    $('#edit_log_end_time_label').text('Waktu Selesai');
+                }
+
+                $('#editLogModal').removeClass('hidden');
+            };
+
+            function formatDatetimeLocal(datetimeStr) {
+                if (!datetimeStr) return '';
+                // replace space with 'T' and strip seconds if any
+                return datetimeStr.substring(0, 16).replace(' ', 'T');
+            }
+
+            // Close Edit Log Modal
+            $(document).on('click', '#closeEditLogModal', function () {
+                $('#editLogModal').addClass('hidden');
+            });
+
+            // Save Edit Log
+            $(document).on('click', '#saveEditLog', function () {
+                let type = $('#edit_log_type').val();
+                let id = $('#edit_log_id').val();
+                let createdAt = $('#edit_log_created_at').val();
+                let endTime = $('#edit_log_end_time').val();
+                let remark = $('#edit_log_remark').val();
+
+                if (!createdAt || !endTime) {
+                    alert('Waktu Mulai dan Waktu Selesai harus diisi.');
+                    return;
+                }
+
+                let url = '';
+                let data = {
+                    created_at: createdAt,
+                    remark: remark
+                };
+
+                if (type === 'mould') {
+                    url = `/mould-change/update/${id}`;
+                    data.end_time = endTime;
+                } else if (type === 'adjust') {
+                    url = `/adjust-machine/update/${id}`;
+                    data.end_time = endTime;
+                } else if (type === 'repair') {
+                    url = `/repair-machine/update/${id}`;
+                    data.finish_repair = endTime;
+                }
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: data,
+                    success: function (response) {
+                        alert(response.message);
+                        $('#editLogModal').addClass('hidden');
+                        refreshStatusAndContainers();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON?.message || 'Gagal menyimpan perubahan log.');
                     }
                 });
             });
