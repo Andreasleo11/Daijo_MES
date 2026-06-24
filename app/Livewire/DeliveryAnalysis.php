@@ -29,6 +29,7 @@ class DeliveryAnalysis extends Component
     public $filterCutOffDate = '';
     public $perPage        = 10;
     public $exportMode = 'horizontal';
+    public $totalItems = 0;
 
     public function mount()
     {
@@ -129,7 +130,14 @@ class DeliveryAnalysis extends Component
         }
 
         // ── 2. Pagination ──────────────────────────────────────
-        $offset     = ($this->getPage() - 1) * $this->perPage;
+        $this->totalItems = $allItemCodes->count();
+        $totalPages = (int) ceil($this->totalItems / $this->perPage);
+        if ($this->getPage() > $totalPages && $totalPages > 0) {
+            $this->setPage(1);
+            $offset = 0;
+        } else {
+            $offset = ($this->getPage() - 1) * $this->perPage;
+        }
         $pagedCodes = $allItemCodes->slice($offset, $this->perPage * 3)->values();
 
         // ── 3. Query data untuk halaman ini ───────────────────
@@ -1253,7 +1261,7 @@ class DeliveryAnalysis extends Component
     {
         $analysisData = $this->getAnalysisData();
         $dateRange    = $this->generateDateRange();
-        $totalItems   = $this->getTotalItems();
+        $totalItems   = $this->totalItems;
         $totalPages   = (int) ceil($totalItems / $this->perPage);
         $currentPage  = $this->getPage();
 
