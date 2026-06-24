@@ -33,6 +33,7 @@ class DeliveryScheduleForm extends Component
     {
         $this->selectedMonth = now()->month;
         $this->selectedYear = now()->year;
+        $this->generateScheduleTable();
     }
 
     public function updatedCustomerSearch()

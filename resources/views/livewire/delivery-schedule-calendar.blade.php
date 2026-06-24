@@ -210,9 +210,7 @@
                     <div class="grid grid-cols-7 gap-2">
                         @php
                             $firstDay = \Carbon\Carbon::createFromDate($selectedYear, $selectedMonth, 1);
-                            $startDayOfWeek = $firstDay->dayOfWeek; // 0=Sunday, 1=Monday, etc
-                            // Adjust to make Monday = 0
-                            $startDayOfWeek = ($startDayOfWeek == 0) ? 6 : $startDayOfWeek - 1;
+                            $startDayOfWeek = $firstDay->dayOfWeek; // 0=Sunday, 1=Monday, ..., 6=Saturday
                         @endphp
 
                         <!-- Empty cells before first day -->

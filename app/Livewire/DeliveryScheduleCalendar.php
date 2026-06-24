@@ -26,6 +26,7 @@ class DeliveryScheduleCalendar extends Component
     {
         $this->selectedMonth = now()->month;
         $this->selectedYear = now()->year;
+        $this->loadCalendarData();
     }
 
     public function updatedCustomerSearch()
@@ -83,11 +84,6 @@ class DeliveryScheduleCalendar extends Component
 
     public function loadCalendarData()
     {
-        // Jika tidak ada filter sama sekali, jangan load
-        if (!$this->selectedCustomer && !$this->selectedItemCode) {
-            $this->calendarData = [];
-            return;
-        }
 
         $startDate = Carbon::createFromDate($this->selectedYear, $this->selectedMonth, 1)->startOfMonth();
         $endDate = Carbon::createFromDate($this->selectedYear, $this->selectedMonth, 1)->endOfMonth();
