@@ -2106,8 +2106,8 @@ class DashboardController extends Controller
         ]);
 
         $log = MouldChangeLog::findOrFail($id);
-        $log->created_at = Carbon::parse($request->created_at);
-        $log->end_time   = Carbon::parse($request->end_time);
+        $log->created_at = Carbon::parse($request->created_at, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
+        $log->end_time   = Carbon::parse($request->end_time, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
         $log->remark     = $request->remark;
         $log->save();
 
@@ -2124,8 +2124,8 @@ class DashboardController extends Controller
         ]);
 
         $log = AdjustMachineLog::findOrFail($id);
-        $log->created_at = Carbon::parse($request->created_at);
-        $log->end_time   = Carbon::parse($request->end_time);
+        $log->created_at = Carbon::parse($request->created_at, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
+        $log->end_time   = Carbon::parse($request->end_time, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
         $log->remark     = $request->remark;
         $log->save();
 
@@ -2142,8 +2142,8 @@ class DashboardController extends Controller
         ]);
 
         $log = RepairMachineLog::findOrFail($id);
-        $log->created_at    = Carbon::parse($request->created_at);
-        $log->finish_repair = Carbon::parse($request->finish_repair);
+        $log->created_at    = Carbon::parse($request->created_at, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
+        $log->finish_repair = Carbon::parse($request->finish_repair, 'Asia/Jakarta')->setTimezone(config('app.timezone'));
         $log->remark        = $request->remark;
         $log->save();
 

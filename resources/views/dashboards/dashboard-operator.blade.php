@@ -327,7 +327,7 @@
                                     <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
                                         <button 
-                                            onclick="openEditLogModal('mould', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->end_time }}', @js($log->remark))"
+                                            onclick="openEditLogModal('mould', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
                                             class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
                                         >
                                             <span>✏️ Edit</span>
@@ -380,7 +380,7 @@
                                     <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
                                         <button 
-                                            onclick="openEditLogModal('adjust', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->end_time }}', @js($log->remark))"
+                                            onclick="openEditLogModal('adjust', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
                                             class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
                                         >
                                             <span>✏️ Edit</span>
@@ -433,7 +433,7 @@
                                     <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
                                         <button 
-                                            onclick="openEditLogModal('repair', {{ $log->id }}, '{{ $log->created_at }}', '{{ $log->finish_repair }}', @js($log->remark))"
+                                            onclick="openEditLogModal('repair', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->finish_repair ? \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
                                             class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
                                         >
                                             <span>✏️ Edit</span>
