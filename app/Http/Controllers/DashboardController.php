@@ -933,7 +933,9 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        // ── Active States for Refactored Status Widget ───────────────────────
+        $setupMolders = OperatorUser::where('position', 'Setup Mold')->get();
+        $adjusters    = OperatorUser::where('position', 'Adjuster')->get();
+
         $activeMould = MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
         $activeAdjust = AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
         $activeRepair = RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->latest()->first();
@@ -997,7 +999,9 @@ class DashboardController extends Controller
             'activeOperatorName',
             'activeOperatorProfile',
             'activeStateStartTime',
-            'defaultNextItemCode'
+            'defaultNextItemCode',
+            'setupMolders',
+            'adjusters'
         ));
     }
 

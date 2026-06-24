@@ -218,6 +218,35 @@
         <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
             <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
                 <h2 class="text-lg font-bold mb-4">Enter NIK & Password</h2>
+
+                <div id="setupMolderSelectContainer" class="mb-3 hidden">
+                    <label for="setup_molder_select" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Operator Setup Mold:
+                    </label>
+                    <select id="setup_molder_select" class="border border-gray-300 rounded p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" data-password="">-- Pilih Nama --</option>
+                        @foreach($setupMolders as $molder)
+                            <option value="{{ $molder->name }}" data-password="{{ $molder->password }}">
+                                {{ $molder->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div id="adjusterSelectContainer" class="mb-3 hidden">
+                    <label for="adjuster_select" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Operator Adjuster:
+                    </label>
+                    <select id="adjuster_select" class="border border-gray-300 rounded p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" data-password="">-- Pilih Nama --</option>
+                        @foreach($adjusters as $adjuster)
+                            <option value="{{ $adjuster->name }}" data-password="{{ $adjuster->password }}">
+                                {{ $adjuster->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <input type="text" id="nik" class="border p-2 w-full rounded" placeholder="Enter NIK...">
                 <input type="password" id="password" class="border p-2 w-full rounded mt-2" placeholder="Enter Password...">
                 
@@ -1513,16 +1542,52 @@
             $(document).on('click', '#startMouldChange', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
                 $('#nextItemCodeContainer').removeClass('hidden');
+                $('#setupMolderSelectContainer').removeClass('hidden');
+                $('#adjusterSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
             });
 
             $(document).on('click', '#startAdjustMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
                 $('#nextItemCodeContainer').removeClass('hidden');
+                $('#adjusterSelectContainer').removeClass('hidden');
+                $('#setupMolderSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
             });
 
             $(document).on('click', '#startRepairMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'repair');
                 $('#nextItemCodeContainer').addClass('hidden');
+                $('#setupMolderSelectContainer').addClass('hidden');
+                $('#adjusterSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
+            });
+
+            // Handle Setup Molder selection
+            $(document).on('change', '#setup_molder_select', function () {
+                let selectedOption = $(this).find('option:selected');
+                let name = selectedOption.val();
+                let password = selectedOption.attr('data-password') || '';
+                $('#nik').val(name);
+                $('#password').val(password);
+            });
+
+            // Handle Adjuster selection
+            $(document).on('change', '#adjuster_select', function () {
+                let selectedOption = $(this).find('option:selected');
+                let name = selectedOption.val();
+                let password = selectedOption.attr('data-password') || '';
+                $('#nik').val(name);
+                $('#password').val(password);
             });
 
             // Close NIK modal
