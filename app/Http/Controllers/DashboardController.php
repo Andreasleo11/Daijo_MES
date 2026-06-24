@@ -667,7 +667,7 @@ class DashboardController extends Controller
         // kita tetap sertakan ke dalam window agar tidak hilang dari dashboard
         // saat waktu melewati batas shift (misal lewat jam 07:30) atau bahkan keesokan harinya,
         // sebelum disubmit secara manual oleh operator.
-        $datas = DailyItemCode::where('user_id', $userId)
+         $datas = DailyItemCode::where('user_id', $userId)
             ->where(function ($q) use ($shiftDateA, $shiftDateB) {
                 $q->where(function ($inner) use ($shiftDateA, $shiftDateB) {
                     $inner->whereDate('schedule_date', $shiftDateA)
@@ -892,6 +892,40 @@ class DashboardController extends Controller
         // (dari $datas yang sudah shift-aware, tanpa query baru)
         $todayitems = $datas->whereNull('is_done')->sortBy('shift')->values();
 
+        // Calculate default next item code for Change Mould and Adjust Machine actions
+        $currentItemCode = $itemCode;
+        $dailyItemsForNext = DailyItemCode::where('user_id', $userId)
+            ->where('schedule_date', $today->toDateString())
+            ->orderBy('start_time', 'asc')
+            ->pluck('item_code')
+            ->toArray();
+
+        $defaultNextItemCode = null;
+        $currentIndex = array_search($currentItemCode, $dailyItemsForNext);
+
+        if ($currentIndex !== false && isset($dailyItemsForNext[$currentIndex + 1])) {
+            $defaultNextItemCode = $dailyItemsForNext[$currentIndex + 1];
+        } else {
+            if ($currentIndex === false) {
+                $defaultNextItemCode = $dailyItemsForNext[0] ?? null;
+            }
+
+            if (!$defaultNextItemCode) {
+                $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                $defaultNextItemCode = DailyItemCode::where('user_id', $userId)
+                    ->where('schedule_date', $nextDay)
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+            }
+
+            if (!$defaultNextItemCode) {
+                $defaultNextItemCode = DailyItemCode::where('user_id', $userId)
+                    ->whereNull('is_done')
+                    ->orderBy('start_time', 'asc')
+                    ->value('item_code');
+            }
+        }
+
         $ngData     = ProductionNgType::all();
         $outputLogs = $activeDIC
             ? ProductionOutputLog::where('dic_id', $activeID)
@@ -962,7 +996,8 @@ class DashboardController extends Controller
             'activeState',
             'activeOperatorName',
             'activeOperatorProfile',
-            'activeStateStartTime'
+            'activeStateStartTime',
+            'defaultNextItemCode'
         ));
     }
 
@@ -1677,22 +1712,25 @@ class DashboardController extends Controller
 
         $request->validate([
             'pic_name' => 'required|string|max:255',
+            'item_code' => 'nullable|string|max:255',
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        // Ambil semua item hari ini (pakai schedule_date karena beda field)
-        $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('schedule_date', $today)
-            ->orderBy('start_time', 'asc')
-            ->pluck('item_code')
-            ->toArray();
+        $nextItemCode = $request->item_code;
 
-        $nextItemCode = null;
-        $currentIndex = array_search($currentItemCode, $dailyItems);
+        if (!$nextItemCode) {
+            // Ambil semua item hari ini (pakai schedule_date karena beda field)
+            $dailyItems = DailyItemCode::where('user_id', $userId)
+                ->whereDate('schedule_date', $today)
+                ->orderBy('start_time', 'asc')
+                ->pluck('item_code')
+                ->toArray();
 
-        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+            $currentIndex = array_search($currentItemCode, $dailyItems);
+
+            if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
             // Masih ada item berikutnya hari ini
             $nextItemCode = $dailyItems[$currentIndex + 1];
         } else {
@@ -1720,6 +1758,7 @@ class DashboardController extends Controller
                     ->value('item_code');
                 $nextItemCode = $undoneItem ?? null;
             }
+        }
         }
 
         // Kalau tetap gak ada, berarti belum ada job yang bisa diassign
@@ -1768,49 +1807,53 @@ class DashboardController extends Controller
 
         $request->validate([
             'pic_name' => 'required|string|max:255',
+            'item_code' => 'nullable|string|max:255',
         ]);
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
 
-        // Ambil daftar item hari ini
-        $dailyItems = DailyItemCode::where('user_id', $userId)
-            ->whereDate('start_date', $today)
-            ->orderBy('start_time', 'asc')
-            ->pluck('item_code')
-            ->toArray();
+        $nextItemCode = $request->item_code;
 
-        $nextItemCode = null;
-        $currentIndex = array_search($currentItemCode, $dailyItems);
+        if (!$nextItemCode) {
+            // Ambil daftar item hari ini
+            $dailyItems = DailyItemCode::where('user_id', $userId)
+                ->whereDate('start_date', $today)
+                ->orderBy('start_time', 'asc')
+                ->pluck('item_code')
+                ->toArray();
 
-        if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
-            // Masih ada item berikutnya di hari ini
-            $nextItemCode = $dailyItems[$currentIndex + 1];
-        } else {
-            // Kalau current item gak ada di hari ini atau sudah di akhir
-            if ($currentIndex === false) {
-                // Coba ambil item pertama hari ini
-                $nextItemCode = $dailyItems[0] ?? null;
-            }
+            $currentIndex = array_search($currentItemCode, $dailyItems);
 
-            // Kalau tetap null, ambil item pertama besok
-            if (!$nextItemCode) {
-                $nextDay = Carbon::tomorrow()->format('Y-m-d');
-                $nextDayItem = DailyItemCode::where('user_id', $userId)
-                    ->whereDate('start_date', $nextDay)
-                    ->orderBy('start_time', 'asc')
-                    ->value('item_code');
-                $nextItemCode = $nextDayItem ?? null;
-            }
+            if ($currentIndex !== false && isset($dailyItems[$currentIndex + 1])) {
+                // Masih ada item berikutnya di hari ini
+                $nextItemCode = $dailyItems[$currentIndex + 1];
+            } else {
+                // Kalau current item gak ada di hari ini atau sudah di akhir
+                if ($currentIndex === false) {
+                    // Coba ambil item pertama hari ini
+                    $nextItemCode = $dailyItems[0] ?? null;
+                }
 
-            // 🔥 Fallback terakhir: ambil item_code yang belum selesai (is_done null)
-            if (!$nextItemCode) {
-                $undoneItem = DailyItemCode::where('user_id', $userId)
-                    ->whereNull('is_done')
-                    ->orderBy('start_time', 'asc')
-                    ->value('item_code');
+                // Kalau tetap null, ambil item pertama besok
+                if (!$nextItemCode) {
+                    $nextDay = Carbon::tomorrow()->format('Y-m-d');
+                    $nextDayItem = DailyItemCode::where('user_id', $userId)
+                        ->whereDate('start_date', $nextDay)
+                        ->orderBy('start_time', 'asc')
+                        ->value('item_code');
+                    $nextItemCode = $nextDayItem ?? null;
+                }
 
-                $nextItemCode = $undoneItem ?? null;
+                // 🔥 Fallback terakhir: ambil item_code yang belum selesai (is_done null)
+                if (!$nextItemCode) {
+                    $undoneItem = DailyItemCode::where('user_id', $userId)
+                        ->whereNull('is_done')
+                        ->orderBy('start_time', 'asc')
+                        ->value('item_code');
+
+                    $nextItemCode = $undoneItem ?? null;
+                }
             }
         }
 

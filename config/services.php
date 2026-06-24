@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'customer_api' => [
+        'token' => env('CUSTOMER_API_TOKEN'),
+    ],
+
+
 ];
