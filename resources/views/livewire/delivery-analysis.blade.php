@@ -228,7 +228,7 @@
 
         {{-- ═══ FILTER ROW ═══ --}}
         <div class="ds-card p-4 mb-5">
-            <div style="display:grid; grid-template-columns:1.5fr 1.5fr 1fr 1fr 1fr; gap:12px; align-items:end;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; align-items:end;">
 
                 {{-- Customer filter --}}
                 <div>
@@ -275,7 +275,16 @@
                 {{-- Cut Off Date --}}
                 <div>
                     <label class="ds-label">CutOffDate</label>
-                    <input type="date" wire:model.live="filterCutOffDate" class="form-control">
+                    <input type="date" wire:model.live="filterCutOffDate" class="ds-input" style="padding: 5px 10px;">
+                </div>
+
+                {{-- Filter BOM (Has Children) --}}
+                <div>
+                    <label class="ds-label">Filter BOM</label>
+                    <select wire:model.live="filterHasChildren" class="ds-input" style="cursor:pointer;">
+                        <option value="">— Semua Item</option>
+                        <option value="1">Hanya Item Punya Anak (BOM)</option>
+                    </select>
                 </div>
 
             </div>

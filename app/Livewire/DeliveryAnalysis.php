@@ -44,8 +44,10 @@ class DeliveryAnalysis extends Component
     public function updatingFilterCutOffDate() { $this->resetPage(); }
 
     public $filterCustomer = '';
+    public $filterHasChildren = '';
 
     public function updatingFilterCustomer() { $this->resetPage(); }
+    public function updatingFilterHasChildren() { $this->resetPage(); }
 
     public function getCustomerList(): array
     {
@@ -120,6 +122,11 @@ class DeliveryAnalysis extends Component
                     ->distinct()->pluck('item_no')
             )
             ->unique()->values();
+
+        if ($this->filterHasChildren) {
+            $fgWithChildren = DB::table('sap_bom_wip')->distinct()->pluck('fg_code')->toArray();
+            $allItemCodes = $allItemCodes->intersect($fgWithChildren)->values();
+        }
 
         // ── 2. Pagination ──────────────────────────────────────
         $offset     = ($this->getPage() - 1) * $this->perPage;
