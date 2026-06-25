@@ -106,7 +106,7 @@ class ProductionDashboardController extends Controller
 
             // Process mould change logs
             foreach ($machineJob->mouldChangeLogs as $mouldChange) {
-                $setupTimeMinute = $mouldChange->masterListItem->setup_time_minute ?? 0;
+                $setupTimeMinute = 20; // Mould change predicted time is capped/changed to max 20 minutes
                 $startTime = Carbon::parse($mouldChange->created_at);
                 $endTime = Carbon::parse($mouldChange->end_time);
                 $actualTime = $startTime->diffInMinutes($endTime);
@@ -551,9 +551,43 @@ class ProductionDashboardController extends Controller
             // ->whereIn('id', MachineJob::pluck('user_id'))
             ->whereIn('name', $machineNames)
             ->pluck('name', 'id');
-            
+        
+        // Fetch all mould changes on the selected date to find the ones > 20 minutes
+        $allMouldChanges = MouldChangeLog::whereDate('created_at', $selectedDate)
+            ->with(['user', 'masterListItem'])
+            ->get();
+
+        $longMouldChanges = [];
+        foreach ($allMouldChanges as $mouldChange) {
+            $startTime = Carbon::parse($mouldChange->created_at);
+            $endTime = Carbon::parse($mouldChange->end_time);
+            $actualTime = $startTime->diffInMinutes($endTime);
+
+            if ($actualTime > 20) {
+                $operatorUser = OperatorUser::where('name', $mouldChange->pic)->first();
+                $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
+                    ? asset('storage/' . $operatorUser->profile_picture) 
+                    : asset('images/default_profile.jpg');
+
+                $longMouldChanges[] = [
+                    'id' => $mouldChange->id,
+                    'machine_name' => $mouldChange->user->name ?? 'Unknown',
+                    'item_code' => $mouldChange->item_code,
+                    'start_time' => $startTime->format('Y-m-d H:i:s'),
+                    'end_time' => $endTime->format('Y-m-d H:i:s'),
+                    'predicted_time' => 20,
+                    'actual_time' => $actualTime,
+                    'pic' => $mouldChange->pic,
+                    'pic_profile_path' => $operatorProfilePath,
+                    'status' => 'problem',
+                    'remark' => $mouldChange->remark,
+                ];
+            }
+        }
+        usort($longMouldChanges, fn ($a, $b) => $b['actual_time'] <=> $a['actual_time']);
+
         // dd($structuredData);
-        return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate'));
+        return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate', 'longMouldChanges'));
     }
 
     public function getMachinesByItem(Request $request)

@@ -63,6 +63,21 @@
                     <div class="w-full sm:w-auto">
                         <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Apply Filter</button>
                     </div>
+
+                    <!-- Mould Change Alert Button -->
+                    <div class="w-full sm:w-auto">
+                        @if(isset($longMouldChanges) && count($longMouldChanges) > 0)
+                            <button type="button" id="showLongMouldModal" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded flex items-center space-x-2 font-bold shadow-md transition-all duration-200">
+                                <span>⚠️ Mould Change &gt; 20m</span>
+                                <span class="bg-white text-rose-700 px-2 py-0.5 rounded-full text-xs font-extrabold">{{ count($longMouldChanges) }}</span>
+                            </button>
+                        @else
+                            <button type="button" disabled class="bg-gray-300 text-gray-500 px-4 py-2 rounded flex items-center space-x-2 font-medium cursor-not-allowed">
+                                <span>Mould Change &gt; 20m</span>
+                                <span class="bg-gray-400 text-white px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </button>
+                        @endif
+                    </div>
                 </div>
             </form>
                 @if (request('machine_name')) <!-- Only show tables if a machine is selected -->
@@ -753,6 +768,88 @@
         </div>
     </div>
 
+    <!-- Modal for long mould changes (>20m) -->
+    <div id="longMouldModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+
+        <!-- Modal Box -->
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 max-h-[90vh] flex flex-col">
+
+            <!-- Header -->
+            <div class="p-6 border-b bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-t-lg">
+                <h2 class="text-lg font-bold flex items-center space-x-2">
+                    <span>⚠️ Mould Changes Exceeding 20 Minutes ({{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }})</span>
+                </h2>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="p-6 overflow-y-auto flex-1">
+                @if(isset($longMouldChanges) && count($longMouldChanges) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse border border-gray-300 text-sm">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="border px-4 py-2 text-left">Machine</th>
+                                    <th class="border px-4 py-2 text-left">Item Code</th>
+                                    <th class="border px-4 py-2 text-left">Start Time</th>
+                                    <th class="border px-4 py-2 text-left">End Time</th>
+                                    <th class="border px-4 py-2 text-center">Predicted (min)</th>
+                                    <th class="border px-4 py-2 text-center">Actual (min)</th>
+                                    <th class="border px-4 py-2 text-left">PIC</th>
+                                    <th class="border px-4 py-2 text-left">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($longMouldChanges as $log)
+                                    <tr class="bg-red-50 hover:bg-red-100 transition-colors">
+                                        <td class="border px-4 py-2 font-semibold text-slate-800">{{ $log['machine_name'] }}</td>
+                                        <td class="border px-4 py-2 font-mono text-xs">{{ $log['item_code'] }}</td>
+                                        <td class="border px-4 py-2 text-slate-600">
+                                            {{ \Carbon\Carbon::parse($log['start_time'])
+                                                ->setTimezone('Asia/Jakarta')
+                                                ->format('Y-m-d H:i') }}
+                                        </td>
+                                        <td class="border px-4 py-2 text-slate-600">
+                                            {{ \Carbon\Carbon::parse($log['end_time'])
+                                                ->setTimezone('Asia/Jakarta')
+                                                ->format('Y-m-d H:i') }}
+                                        </td>
+                                        <td class="border px-4 py-2 text-center text-slate-500">
+                                            {{ $log['predicted_time'] }} Min
+                                        </td>
+                                        <td class="border px-4 py-2 text-center font-bold text-red-600">
+                                            {{ $log['actual_time'] }} Min
+                                        </td>
+                                        <td class="border px-4 py-2">
+                                            <div class="flex items-center space-x-2">
+                                                <img src="{{ asset($log['pic_profile_path']) }}"
+                                                     alt="{{ $log['pic'] }}"
+                                                     class="w-6 h-6 rounded-full object-cover">
+                                                <span>{{ $log['pic'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="border px-4 py-2 text-slate-700 italic">{{ $log['remark'] ?: '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-center text-gray-500 py-8">No mould changes exceeding 20 minutes found for this day.</p>
+                @endif
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t flex justify-end">
+                <button id="closeLongMouldModal"
+                    class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 
     <script type="module">
     $(document).ready(function() {
@@ -844,33 +941,65 @@
     const modal = document.getElementById('detailModal');
     const closeBtn = document.getElementById('closeModal');
 
-    showBtn.addEventListener('click', () => {
-        modal.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden'); // lock background scroll
-    });
+    if (showBtn) {
+        showBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden'); // lock background scroll
+        });
+    }
 
-    closeBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    });
-
-    // Click backdrop to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
-        }
-    });
+        });
+    }
 
-    // ESC to close
+    if (modal) {
+        // Click backdrop to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+    }
+
+    // Long Mould Changes Modal JS
+    const showLongMouldBtn = document.getElementById('showLongMouldModal');
+    const longMouldModal = document.getElementById('longMouldModal');
+    const closeLongMouldBtn = document.getElementById('closeLongMouldModal');
+
+    if (showLongMouldBtn && longMouldModal) {
+        showLongMouldBtn.addEventListener('click', () => {
+            longMouldModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        });
+
+        if (closeLongMouldBtn) {
+            closeLongMouldBtn.addEventListener('click', () => {
+                longMouldModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            });
+        }
+
+        longMouldModal.addEventListener('click', (e) => {
+            if (e.target === longMouldModal) {
+                longMouldModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+    }
+
+    // ESC to close all modals
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            modal.classList.add('hidden');
+            if (modal) modal.classList.add('hidden');
+            if (longMouldModal) longMouldModal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
         }
     });
 </script>
-    </script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
