@@ -486,7 +486,8 @@ class ProductionDashboardController extends Controller
                             : $cycleTimeMap->get($remark['item_code']);
 
                         if ($cycleTimeSec && $cycleTimeSec > 0) {
-                            $jamProdDetik += $remark['actual_production'] * $cycleTimeSec;
+                            $totalQty = ($remark['actual_production'] ?? 0) + ($remark['ng'] ?? 0);
+                            $jamProdDetik += $totalQty * $cycleTimeSec;
                         }
                     }
                     $totalProdDetik += min($jamProdDetik, 3600);
@@ -495,8 +496,13 @@ class ProductionDashboardController extends Controller
                 // Patokan berdasarkan shift aktif × 8 jam
                 $activeShifts = $remarks->pluck('shift')->unique()->count();
                 $patokanJam   = $activeShifts * 8;
-                $maxDetik     = $patokanJam * 3600;
 
+                // Hitung downtime dari mould change & adjust machine dalam detik
+                $mouldChangeMinutes = collect($machineData['mould_change_log'] ?? [])->sum('actual_time');
+                $adjustMinutes       = collect($machineData['adjust_machine_logs'] ?? [])->sum('actual_time');
+                $setupDowntimeSeconds = ($mouldChangeMinutes + $adjustMinutes) * 60;
+
+                $maxDetik     = max(($patokanJam * 3600) - $setupDowntimeSeconds, 0);
                 
                 $efficiency = $maxDetik > 0 ? ($totalProdDetik / $maxDetik) * 100 : 0;
 
