@@ -64,11 +64,11 @@ class ReceiptProductionService extends BaseSapService
             if (!$scannedData) {
                 Log::warning("Scanned data not found for SPK", ['spk_code' => $summary->spk_code]);
 
-                // Revert lock ke 0 supaya bisa dicoba ulang
+                // Mark as Failed (3) instead of reverting to 0
                 DB::table('production_summary')
                     ->where('id', $summary->id)
                     ->where('sap_sent', 2)
-                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
+                    ->update(['sap_sent' => 3, 'updated_at' => now()]);
 
                 $this->saveApiLog(
                     'receipt_production',
@@ -90,7 +90,7 @@ class ReceiptProductionService extends BaseSapService
                     'item_code' => $scannedData->item_code,
                     'warehouse' => $summary->warehouse,
                     'quantity'  => $summary->total_quantity,
-                    'label'     => $summary->label,
+                    'label'     => (string) $summary->id,
                 ]
             ];
 
@@ -138,11 +138,11 @@ class ReceiptProductionService extends BaseSapService
                         'json'     => $json,
                     ]);
 
-                    // Revert lock ke 0 supaya bisa dicoba ulang di run berikutnya
+                    // Mark as Failed (3) instead of reverting to 0
                     DB::table('production_summary')
                         ->where('id', $summary->id)
                         ->where('sap_sent', 2)
-                        ->update(['sap_sent' => 0, 'updated_at' => now()]);
+                        ->update(['sap_sent' => 3, 'updated_at' => now()]);
 
                     $this->saveApiLog(
                         'receipt_production',
@@ -162,11 +162,11 @@ class ReceiptProductionService extends BaseSapService
                     'error'    => $e->getMessage(),
                 ]);
 
-                // Revert lock ke 0 supaya bisa dicoba ulang
+                // Mark as Failed (3) instead of reverting to 0
                 DB::table('production_summary')
                     ->where('id', $summary->id)
                     ->where('sap_sent', 2)
-                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
+                    ->update(['sap_sent' => 3, 'updated_at' => now()]);
 
                 $this->saveApiLog(
                     'receipt_production',
@@ -210,7 +210,7 @@ class ReceiptProductionService extends BaseSapService
                     'item_code' => $scannedData->item_code,
                     'warehouse' => $summary->warehouse,
                     'quantity'  => $summary->total_quantity,
-                    'label'     => $summary->label,
+                    'label'     => (string) $summary->id,
                 ]
             ];
  
@@ -261,11 +261,11 @@ class ReceiptProductionService extends BaseSapService
                     'json'     => $json,
                 ]);
 
-                // Revert lock ke 0 supaya bisa dicoba ulang
+                // Mark as Failed (3) instead of reverting to 0
                 DB::table('production_summary')
                     ->where('id', $summary->id)
                     ->where('sap_sent', 2)
-                    ->update(['sap_sent' => 0, 'updated_at' => now()]);
+                    ->update(['sap_sent' => 3, 'updated_at' => now()]);
  
                 $this->saveApiLog(
                     'receipt_production',
@@ -292,11 +292,11 @@ class ReceiptProductionService extends BaseSapService
                 'error'    => $e->getMessage(),
             ]);
 
-            // Revert lock ke 0 supaya bisa dicoba ulang
+            // Mark as Failed (3) instead of reverting to 0
             DB::table('production_summary')
                 ->where('id', $summary->id)
                 ->where('sap_sent', 2)
-                ->update(['sap_sent' => 0, 'updated_at' => now()]);
+                ->update(['sap_sent' => 3, 'updated_at' => now()]);
  
             $this->saveApiLog(
                 'receipt_production',

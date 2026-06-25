@@ -173,8 +173,9 @@
                     $sent        = $row->sap_sent == 1;
                     $processing  = $row->sap_sent == 2;
                     $ignored     = $row->sap_sent == 99;
+                    $failed      = $row->sap_sent == 3;
                     $bg          = $i % 2 === 0 ? '#fff' : '#FAFAF8';
-                    $bl          = $sent ? '3px solid #22C55E' : ($ignored ? '3px solid #7C3AED' : ($processing ? '3px solid #F59E0B' : '3px solid #F97316'));
+                    $bl          = $sent ? '3px solid #22C55E' : ($ignored ? '3px solid #7C3AED' : ($processing ? '3px solid #F59E0B' : ($failed ? '3px solid #EF4444' : '3px solid #F97316')));
                     $createdAt   = Carbon\Carbon::parse($row->created_at)->timezone('Asia/Jakarta');
                     $createdDate = Carbon\Carbon::parse($row->created_date);
                     $isPushing   = isset($pushingRows[$row->id]);
@@ -186,7 +187,7 @@
 
                     {{-- Checkbox --}}
                     <td style="padding:10px 14px; text-align:center; width:40px;">
-                        @if(in_array($row->sap_sent, [0, 2]))
+                        @if(in_array($row->sap_sent, [0, 2, 3]))
                             <input type="checkbox" wire:model.live="selectedLogs" value="{{ $row->id }}"
                                    style="width:14px; height:14px; cursor:pointer; vertical-align:middle;">
                         @else
@@ -261,8 +262,13 @@
                                     font-weight:700; padding:3px 10px; border-radius:20px;">
                             ⏳ Processing
                         </span>
+                        @elseif($failed)
+                        <span style="background:#FEE2E2; color:#EF4444; font-size:10px;
+                                    font-weight:700; padding:3px 10px; border-radius:20px;">
+                            ✕ Gagal / Timeout
+                        </span>
                         @else
-                        <span style="background:#FEE2E2; color:#B91C1C; font-size:10px;
+                        <span style="background:#F0EDE8; color:#5A554E; font-size:10px;
                                     font-weight:700; padding:3px 10px; border-radius:20px;">
                             ✕ Belum
                         </span>
@@ -298,6 +304,15 @@
                         <div style="font-size:10px; color:#9A9590; margin-top:2px;">
                             {{ $sentAt->format('d M Y') }}
                         </div>
+                        @elseif($failed)
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            <span style="background:#FEE2E2; color:#EF4444; font-size:10px;
+                                        font-weight:700; padding:2px 8px; border-radius:2px;
+                                        display:inline-block; width:fit-content;">
+                                ✕ Gagal / Timeout
+                            </span>
+                            <span style="font-size:10px; color:#9A9590;">Butuh pengecekan manual</span>
+                        </div>
                         @else
                         <div style="display:flex; flex-direction:column; gap:2px;">
                             <span style="background:#FEF3C7; color:#B45309; font-size:10px;
@@ -324,8 +339,8 @@
                             </button>
 
                             {{-- Push or Manage Buttons --}}
-                            @if($row->sap_sent == 0)
-                                {{-- Pending: Show Push Button --}}
+                            @if($row->sap_sent == 0 || $row->sap_sent == 3)
+                                {{-- Pending or Failed: Show Push Button --}}
                                 @if($isPushing)
                                 <button disabled style="background:#E0E7FF; border:1px solid #C7D2FE; color:#818CF8;
                                             padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
@@ -410,6 +425,19 @@
                                             white-space:nowrap; width:100%; transition:all 0.2s;
                                             hover:background:#E8E4DC;">
                                     ✕ Tutup
+                                </button>
+                                @endif
+
+                                {{-- Mark as Success Button (only for Failed status) --}}
+                                @if($row->sap_sent == 3)
+                                <button wire:click="markAsSuccess({{ $row->id }})"
+                                        wire:confirm="Yakin ingin menandai SPK {{ $row->spk_code }} ini sebagai sukses di SAP (tanpa mengirim ulang)?"
+                                        style="background:#DCFCE7; border:1px solid #86EFAC; color:#15803D;
+                                            padding:5px 10px; border-radius:2px; font-size:10px; font-weight:700;
+                                            cursor:pointer; font-family:'IBM Plex Sans',sans-serif; 
+                                            white-space:nowrap; width:100%; transition:all 0.2s;
+                                            hover:background:#BBF7D0; margin-top: 4px; border-style:dashed;">
+                                    ✓ Tandai Sukses (Sudah di SAP)
                                 </button>
                                 @endif
 

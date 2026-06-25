@@ -83,7 +83,7 @@ class ReceiptProductionLogs extends Component
     {
         if ($value) {
             $this->selectedLogs = collect($this->logs->items())
-                ->filter(fn($row) => in_array($row->sap_sent, [0, 2]))
+                ->filter(fn($row) => in_array($row->sap_sent, [0, 2, 3]))
                 ->pluck('id')
                 ->map(fn($id) => (string)$id)
                 ->toArray();
@@ -119,6 +119,20 @@ class ReceiptProductionLogs extends Component
         $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK direset ke pending']);
     }
 
+    public function markAsSuccess(int $id): void
+    {
+        DB::table('production_summary')
+            ->where('id', $id)
+            ->update([
+                'sap_sent'    => 1,
+                'sap_sent_at' => now(),
+                'updated_at'  => now(),
+            ]);
+
+        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK berhasil ditandai sebagai sukses']);
+    }
+
     public function ignoreAllFiltered(): void
     {
         if ($this->filterStatus === 'sent' || $this->filterStatus === 'ignored') {
@@ -128,7 +142,7 @@ class ReceiptProductionLogs extends Component
 
         $query = DB::table('production_summary')
             ->whereIn('warehouse', ['FFI', 'KRFFI'])
-            ->whereIn('production_summary.sap_sent', [0, 2])
+            ->whereIn('production_summary.sap_sent', [0, 2, 3])
             ->when($this->filterWarehouse, fn($q) =>
                 $q->where('warehouse', $this->filterWarehouse)
             )
@@ -431,8 +445,8 @@ class ReceiptProductionLogs extends Component
                 $q->where('production_summary.sap_sent', 1)
             )
             ->when($this->filterStatus === 'pending', fn($q) =>
-                // Pending = belum terkirim (0) atau stuck/processing (2)
-                $q->whereIn('production_summary.sap_sent', [0, 2])
+                // Pending = belum terkirim (0), stuck/processing (2), atau gagal/timeout (3)
+                $q->whereIn('production_summary.sap_sent', [0, 2, 3])
             )
             ->when($this->filterStatus === 'ignored', fn($q) =>
                 $q->where('production_summary.sap_sent', 99)
@@ -462,7 +476,7 @@ class ReceiptProductionLogs extends Component
                 $q->where('psd.item_code', 'like', "%{$this->filterItemCode}%")
             )
             ->when($this->filterStatus === 'sent',    fn($q) => $q->where('production_summary.sap_sent', 1))
-            ->when($this->filterStatus === 'pending', fn($q) => $q->whereIn('production_summary.sap_sent', [0, 2]))
+            ->when($this->filterStatus === 'pending', fn($q) => $q->whereIn('production_summary.sap_sent', [0, 2, 3]))
             ->when($this->filterStatus === 'ignored', fn($q) => $q->where('production_summary.sap_sent', 99))
             ->sum('production_summary.total_quantity');
     }
@@ -488,7 +502,7 @@ class ReceiptProductionLogs extends Component
                     ->selectRaw('
                         COUNT(*) as total,
                         SUM(CASE WHEN sap_sent = 1  THEN 1 ELSE 0 END) as sent,
-                        SUM(CASE WHEN sap_sent IN (0, 2) THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN sap_sent IN (0, 2, 3) THEN 1 ELSE 0 END) as pending,
                         SUM(CASE WHEN sap_sent = 99 THEN 1 ELSE 0 END) as ignored,
                         SUM(CASE WHEN sap_sent = 2  THEN 1 ELSE 0 END) as processing,
                         SUM(total_quantity) as total_qty
