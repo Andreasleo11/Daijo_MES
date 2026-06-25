@@ -98,6 +98,12 @@ use App\Livewire\ManualSync;
 |
 */
 
+    //barcode untuk generate label produksi terbaru 
+    Route::get('/barcode/custom-generate', [InitialBarcodeController::class, 'customGenerateForm'])->name('barcode.custom.form');
+    Route::post('/barcode/custom-generate/print', [InitialBarcodeController::class, 'customGeneratePrint'])->name('barcode.custom.print');
+    Route::get('/api/get-spks-by-item', [InitialBarcodeController::class, 'getSpksByItem'])->name('api.get-spks-by-item');
+    //barcode untuk generate label produksi terbaru 
+
 
     Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
         ->name('machine.monitor');
@@ -478,9 +484,6 @@ Route::middleware('auth')->group(function (){
     Route::post('/barcodes/generate', [InitialBarcodeController::class, 'generate'])->name('barcode.generate');
     Route::get('/manualbarcodes', [InitialBarcodeController::class, 'manualgenerate'])->name('manualbarcode.index');
     Route::post('/generate-barcode', [InitialBarcodeController::class, 'generateBarcode'])->name('generate.barcode');
-    Route::get('/barcode/custom-generate', [InitialBarcodeController::class, 'customGenerateForm'])->name('barcode.custom.form');
-    Route::post('/barcode/custom-generate/print', [InitialBarcodeController::class, 'customGeneratePrint'])->name('barcode.custom.print');
-    Route::get('/api/get-spks-by-item', [InitialBarcodeController::class, 'getSpksByItem'])->name('api.get-spks-by-item');
 
     //ROUTE UNTUK FITUR BARCODE STORE 
 
