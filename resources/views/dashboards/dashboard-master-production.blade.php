@@ -130,10 +130,9 @@
                             $selectedMachine = request('machine_name');
                             $allLogs = $data['repair_machine_logs'] ?? [];
                             
-                            // Filter berdasarkan HARI dan mesin (dengan konversi timezone Asia/Jakarta)
-                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedDate, $selectedMachine) {
-                                return \Carbon\Carbon::parse($log['start_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d') === $selectedDate
-                                    && (!$selectedMachine || $log['machine_name'] === $selectedMachine);
+                            // Filter berdasarkan mesin saja, karena tanggal/shift sudah difilter di controller secara presisi
+                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedMachine) {
+                                return !$selectedMachine || $log['machine_name'] === $selectedMachine;
                             });
                         @endphp
 

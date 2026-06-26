@@ -35,19 +35,23 @@ class ProductionDashboardController extends Controller
         $machineName = $request->input('machine_name', '');
         $machineId = User::where('name', $machineName)->pluck('id')->first();
 
+        // Calculate shift range: from 07:30 Jakarta time of selectedDate to 07:30 Jakarta time of next day
+        $startDateStr = Carbon::parse($selectedDate . ' 07:30:00', 'Asia/Jakarta')->setTimezone('UTC');
+        $endDateStr = Carbon::parse($selectedDate . ' 07:30:00', 'Asia/Jakarta')->addDay()->setTimezone('UTC');
+
         $machineJobs = MachineJob::with([
             'user',
             'dailyItemCode' => function ($query) use ($selectedDate) {
                 $query->where('schedule_date', $selectedDate)->with(['scannedData', 'hourlyRemarks','masterItem','delsched']);
             },
-            'mouldChangeLogs' => function ($query) use ($selectedDate) {
-                $query->whereDate('created_at', $selectedDate);
+            'mouldChangeLogs' => function ($query) use ($startDateStr, $endDateStr) {
+                $query->whereBetween('created_at', [$startDateStr, $endDateStr]);
             },
-            'adjustMachineLogs' => function ($query) use ($selectedDate) {
-                $query->whereDate('created_at', $selectedDate);
+            'adjustMachineLogs' => function ($query) use ($startDateStr, $endDateStr) {
+                $query->whereBetween('created_at', [$startDateStr, $endDateStr]);
             },
-            'repairMachineLogs' => function ($query) use ($selectedDate) {
-                $query->whereDate('created_at', $selectedDate);
+            'repairMachineLogs' => function ($query) use ($startDateStr, $endDateStr) {
+                $query->whereBetween('created_at', [$startDateStr, $endDateStr]);
             }
         ])
         ->when($machineId, function ($query) use ($machineId) {
