@@ -652,29 +652,20 @@ class DashboardController extends Controller
         //
         $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
 
-        // shiftDateA = tanggal "awal window" (bisa kemarin kalau overnight)
-        // shiftDateB = tanggal "akhir window" (bisa hari ini kalau overnight)
+        // shiftDateA = tanggal jadwal aktif:
+        //   - Sebelum 07:30 → kemarin (shift 3 kemarin masih berjalan)
+        //   - Mulai 07:30   → hari ini (jadwal baru dimulai)
         $shiftDateA = $isOvernightWindow
             ? Carbon::yesterday('Asia/Jakarta')->toDateString()
             : $today->toDateString();
 
-        $shiftDateB = $isOvernightWindow
-            ? $today->toDateString()
-            : Carbon::tomorrow('Asia/Jakarta')->toDateString();
-
         // ── 3. DAILY ITEM CODES ──────────────────────────────────────────────
-        // PENTING: Jika ada DIC yang belum selesai (is_done = null),
-        // kita tetap sertakan ke dalam window agar tidak hilang dari dashboard
-        // saat waktu melewati batas shift (misal lewat jam 07:30) atau bahkan keesokan harinya,
-        // sebelum disubmit secara manual oleh operator.
+        // Hanya tampilkan DIC untuk tanggal jadwal aktif ($shiftDateA).
+        // Sebelum 07:30 → tampilkan semua shift (1,2,3) dari hari kemarin.
+        // Mulai 07:30   → switch ke jadwal hari ini.
+        // TIDAK menarik DIC dari tanggal lain meskipun belum selesai.
          $datas = DailyItemCode::where('user_id', $userId)
-            ->where(function ($q) use ($shiftDateA, $shiftDateB) {
-                $q->where(function ($inner) use ($shiftDateA, $shiftDateB) {
-                    $inner->whereDate('schedule_date', $shiftDateA)
-                          ->orWhereDate('schedule_date', $shiftDateB);
-                })
-                ->orWhereNull('is_done');
-            })
+            ->whereDate('schedule_date', $shiftDateA)
             ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
             ->get()
             ->sortBy([['shift', 'asc'], ['item_code', 'asc']]);
@@ -712,10 +703,7 @@ class DashboardController extends Controller
         // ── 5. UPDATE TARGET & IS_ACHIEVE ────────────────────────────────────
         $todayRemarks = HourlyRemark::whereHas('dailyItemCode', fn ($q) =>
             $q->where('user_id', $userId)
-              ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
-                  $q2->whereDate('schedule_date', $shiftDateA)
-                     ->orWhereDate('schedule_date', $shiftDateB);
-              })
+              ->whereDate('schedule_date', $shiftDateA)
         )
         ->with('dailyItemCode.masterItem')
         ->get();
@@ -810,10 +798,7 @@ class DashboardController extends Controller
             $hourlyRemarks = HourlyRemark::with('ngDetails.ngType')
                 ->whereHas('dailyItemCode', fn ($q) =>
                     $q->where('user_id', $userId)
-                      ->where(function ($q2) use ($shiftDateA, $shiftDateB) {
-                          $q2->whereDate('schedule_date', $shiftDateA)
-                             ->orWhereDate('schedule_date', $shiftDateB);
-                      })
+                      ->whereDate('schedule_date', $shiftDateA)
                 )
                 ->orderBy('start_time')
                 ->get();
