@@ -10,7 +10,7 @@
         }
 
         body {
-            font-family: "Times New Roman", Times, serif;
+            font-family: Arial, Helvetica, sans-serif;
             margin: 0;
             padding: 0 1mm; /* margin kiri-kanan 1mm */
             display: flex;
