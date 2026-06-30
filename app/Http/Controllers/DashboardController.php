@@ -1410,30 +1410,66 @@ class DashboardController extends Controller
 
         $loggedInUserId = auth()->user()->id;
 
-        // Proteksi validasi activeDIC agar data scan selalu masuk ke mesin yang sedang login (auth()->user())
-        if (!$activeDIC || $activeDIC->user_id != $loggedInUserId) {
+        // Resolve target item code dari SPK
+        $spkRecord = SpkMaster::where('spk_number', $spk_code)->first();
+        $targetItemCode = $spkRecord?->item_code ?? ($activeDIC->item_code ?? null);
+
+        // Hitung shiftDateA yang aktif saat ini secara dinamis (sama seperti di index)
+        $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+        $shiftDateA = $isOvernightWindow
+            ? Carbon::yesterday('Asia/Jakarta')->toDateString()
+            : Carbon::today('Asia/Jakarta')->toDateString();
+
+        // 1. Cari DIC aktif milik user yang login untuk item ini pada tanggal jadwal aktif yang belum selesai
+        $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+            ->where('item_code', $targetItemCode)
+            ->whereDate('schedule_date', $shiftDateA)
+            ->whereNull('is_done')
+            ->first();
+
+        // 2. Jika tidak ada, cari DIC yang belum selesai untuk item ini (tanpa memandang tanggal)
+        if (!$resolvedDIC) {
+            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->where('item_code', $targetItemCode)
+                ->whereNull('is_done')
+                ->orderByDesc('schedule_date')
+                ->first();
+        }
+
+        // 3. Jika tidak ada yang belum selesai untuk item ini, cari DIC pada tanggal jadwal aktif (meskipun sudah is_done)
+        if (!$resolvedDIC) {
+            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->where('item_code', $targetItemCode)
+                ->whereDate('schedule_date', $shiftDateA)
+                ->first();
+        }
+
+        // 4. Jika tidak ada sama sekali untuk item ini, cari DIC paling baru milik user/mesin ini (apapun item-nya yang belum selesai)
+        if (!$resolvedDIC) {
             $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
                 ->whereNull('is_done')
+                ->orderByDesc('schedule_date')
                 ->first();
-                
-            if (!$resolvedDIC) {
-                $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                    ->orderBy('schedule_date', 'desc')
-                    ->first();
+        }
+
+        // 5. Fallback terakhir: jika tetap tidak ada, cari DIC paling baru untuk mesin ini
+        if (!$resolvedDIC) {
+            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->orderByDesc('schedule_date')
+                ->first();
+        }
+
+        if ($resolvedDIC) {
+            $activeDIC = $resolvedDIC;
+        } else {
+            $errorMessage = 'Error: Tidak ada jadwal produksi yang terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 422);
             }
-            
-            if ($resolvedDIC) {
-                $activeDIC = $resolvedDIC;
-            } else {
-                $errorMessage = 'Error: Tidak ada jadwal produksi yang terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
-                if ($request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $errorMessage
-                    ], 422);
-                }
-                return redirect()->back()->withErrors(['error' => $errorMessage]);
-            }
+            return redirect()->back()->withErrors(['error' => $errorMessage]);
         }
 
         // ✅ Perbaikan logika slot waktu
@@ -1593,8 +1629,8 @@ class DashboardController extends Controller
         $dic = json_decode($request->input('activedic'));
         $loggedInUserId = auth()->user()->id;
 
-        // Validasi: pastikan DIC yang disubmit adalah milik mesin yang sedang login (auth()->user())
-        if (!$dic || $dic->user_id != $loggedInUserId) {
+        // Validasi: pastikan DIC yang disubmit adalah milik mesin yang sedang login (auth()->user()) dan belum selesai (is_done is null)
+        if (!$dic || $dic->user_id != $loggedInUserId || !is_null($dic->is_done)) {
             // Cari DIC aktif milik user yang login untuk mengamankan data
             $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
                 ->whereNull('is_done')
