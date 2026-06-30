@@ -1409,21 +1409,15 @@ class DashboardController extends Controller
         $now = Carbon::now('Asia/Jakarta');
 
         $loggedInUserId = auth()->user()->id;
-        
-        // Resolve target item code dari SPK
-        $spkRecord = SpkMaster::where('spk_number', $spk_code)->first();
-        $targetItemCode = $spkRecord?->item_code ?? ($activeDIC->item_code ?? null);
 
         // Proteksi validasi activeDIC agar data scan selalu masuk ke mesin yang sedang login (auth()->user())
-        if (!$activeDIC || $activeDIC->user_id != $loggedInUserId || $activeDIC->item_code != $targetItemCode) {
+        if (!$activeDIC || $activeDIC->user_id != $loggedInUserId) {
             $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                ->where('item_code', $targetItemCode)
                 ->whereNull('is_done')
                 ->first();
                 
             if (!$resolvedDIC) {
                 $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                    ->where('item_code', $targetItemCode)
                     ->orderBy('schedule_date', 'desc')
                     ->first();
             }
@@ -1431,7 +1425,7 @@ class DashboardController extends Controller
             if ($resolvedDIC) {
                 $activeDIC = $resolvedDIC;
             } else {
-                $errorMessage = 'Error: Jadwal item (' . $targetItemCode . ') tidak terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
+                $errorMessage = 'Error: Tidak ada jadwal produksi yang terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
                 if ($request->ajax()) {
                     return response()->json([
                         'success' => false,
