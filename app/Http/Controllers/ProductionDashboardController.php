@@ -596,8 +596,53 @@ class ProductionDashboardController extends Controller
         }
         usort($longMouldChanges, fn ($a, $b) => $b['actual_time'] <=> $a['actual_time']);
 
+        // Fetch all hourly remarks on the selected date that have actual_production = 0 (or null)
+        $allHourlyRemarks = HourlyRemark::whereHas('dailyItemCode', function ($query) use ($selectedDate) {
+            $query->where('schedule_date', $selectedDate);
+        })
+        ->where(function($q) {
+            $q->where('actual_production', 0)
+              ->orWhereNull('actual_production');
+        })
+        ->with(['dailyItemCode.user', 'dailyItemCode.masterItem'])
+        ->get();
+
+        $zeroActualRemarks = [];
+        foreach ($allHourlyRemarks as $remark) {
+            $operatorUser = OperatorUser::where('name', $remark->pic)->first();
+            $operatorProfilePath = $operatorUser && $operatorUser->profile_picture 
+                ? asset('storage/' . $operatorUser->profile_picture) 
+                : asset('images/default_profile.jpg');
+
+            $zeroActualRemarks[] = [
+                'id' => $remark->id,
+                'machine_name' => $remark->dailyItemCode->user->name ?? 'Unknown',
+                'item_code' => $remark->dailyItemCode->item_code ?? 'Unknown',
+                'item_name' => $remark->dailyItemCode->masterItem->item_name ?? 'Unknown',
+                'time_range' => Carbon::parse($remark->start_time)->format('H:i') . ' - ' . Carbon::parse($remark->end_time)->format('H:i'),
+                'target' => $remark->target,
+                'actual' => $remark->actual,
+                'ng' => $remark->NG,
+                'remark' => $remark->remark ?: '-',
+                'pic' => $remark->pic,
+                'pic_profile_path' => $operatorProfilePath,
+                'shift' => $remark->dailyItemCode->shift ?? '-',
+            ];
+        }
+
+        // Urutkan berdasarkan shift, lalu nama mesin, lalu jam mulai
+        usort($zeroActualRemarks, function ($a, $b) {
+            if ($a['shift'] !== $b['shift']) {
+                return $a['shift'] <=> $b['shift'];
+            }
+            if ($a['machine_name'] !== $b['machine_name']) {
+                return $a['machine_name'] <=> $b['machine_name'];
+            }
+            return $a['time_range'] <=> $b['time_range'];
+        });
+
         // dd($structuredData);
-        return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate', 'longMouldChanges'));
+        return view('dashboards.dashboard-master-production', compact('structuredData', 'machines', 'selectedDate', 'longMouldChanges', 'zeroActualRemarks'));
     }
 
     public function getMachinesByItem(Request $request)

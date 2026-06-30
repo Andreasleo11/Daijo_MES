@@ -78,6 +78,21 @@
                             </button>
                         @endif
                     </div>
+
+                    <!-- Actual Produksi 0 Alert Button -->
+                    <div class="w-full sm:w-auto">
+                        @if(isset($zeroActualRemarks) && count($zeroActualRemarks) > 0)
+                            <button type="button" id="showZeroActualModal" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded flex items-center space-x-2 font-bold shadow-md transition-all duration-200">
+                                <span>📉 Actual Produksi 0</span>
+                                <span class="bg-white text-amber-700 px-2 py-0.5 rounded-full text-xs font-extrabold">{{ count($zeroActualRemarks) }}</span>
+                            </button>
+                        @else
+                            <button type="button" disabled class="bg-gray-300 text-gray-500 px-4 py-2 rounded flex items-center space-x-2 font-medium cursor-not-allowed">
+                                <span>Actual Produksi 0</span>
+                                <span class="bg-gray-400 text-white px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </button>
+                        @endif
+                    </div>
                 </div>
             </form>
                 @if (request('machine_name')) <!-- Only show tables if a machine is selected -->
@@ -383,25 +398,28 @@
 
                             <!-- Hourly Remarks -->
                             @if(count($data['hourly_remarks']) > 0)
-                                <h4 class="text-lg font-semibold mt-6 mb-4">Hourly Remarks</h4>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse border border-gray-300 mt-2">
-                                        <thead class="bg-gray-200">
+                                <h4 class="text-lg font-bold text-slate-800 mt-8 mb-4 flex items-center space-x-2">
+                                    <span class="w-2.5 h-5 bg-indigo-600 rounded-sm"></span>
+                                    <span>Hourly Remarks</span>
+                                </h4>
+                                <div class="overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white mt-2">
+                                    <table class="w-full text-sm text-left text-slate-600 border-collapse">
+                                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase text-xs tracking-wider">
                                             <tr>
-                                                <th class="border px-4 py-2">PIC</th>
-                                                <th class="border px-4 py-2">Item Code</th>
-                                                <th class="border px-4 py-2">Dibuat Jam</th>
-                                                <th class="border px-4 py-2">Time Range</th>
-                                                <th class="border px-4 py-2">Shift</th>
-                                                <th class="border px-4 py-2">Target</th>
-                                                <th class="border px-4 py-2">Actual Scan</th>
-                                                <th class="border px-4 py-2">Actual Production</th>
-                                                <th class="border px-4 py-2">NG</th>
-                                                <th class="border px-4 py-2">Status</th>
-                                                <th class="border px-4 py-2">Remark</th>
+                                                <th class="px-4 py-3.5">PIC</th>
+                                                <th class="px-4 py-3.5">Item Code</th>
+                                                <th class="px-4 py-3.5">Dibuat Jam</th>
+                                                <th class="px-4 py-3.5 text-center">Time Range</th>
+                                                <th class="px-4 py-3.5 text-center">Shift</th>
+                                                <th class="px-4 py-3.5 text-center">Target</th>
+                                                <th class="px-4 py-3.5 text-center">Actual Scan</th>
+                                                <th class="px-4 py-3.5 text-center">Actual Production</th>
+                                                <th class="px-4 py-3.5 text-center">NG</th>
+                                                <th class="px-4 py-3.5 text-center">Status</th>
+                                                <th class="px-4 py-3.5">Remark</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody class="divide-y divide-slate-100">
                                         @php
                                             $currentShift = null;
                                             $totalActual = 0;
@@ -410,7 +428,7 @@
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
                                                 $effectiveAchieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
-                                                $statusClass = $effectiveAchieved ? 'bg-green-100' : 'bg-red-100';
+                                                $borderIndicator = $effectiveAchieved ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-rose-500';
 
                                                 // Cek jika ganti shift
                                                 if ($currentShift !== $remark['shift']) {
@@ -421,54 +439,63 @@
                                                 $totalActual += $remark['actual_production'];
                                             @endphp
 
-                                            <tr class="{{ $statusClass }}">
-                                                <td class="border px-4 py-2 flex items-center space-x-3">
-                                                    <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-10 h-10 rounded-full border">
-                                                    <span class="font-medium">{{ $remark['pic'] }}</span>
+                                            <tr class="hover:bg-slate-50/70 transition-colors {{ $borderIndicator }}">
+                                                <td class="px-4 py-3.5 flex items-center space-x-3">
+                                                    <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm">
+                                                    <span class="font-medium text-slate-800">{{ $remark['pic'] }}</span>
                                                 </td>
-                                                <td class="border px-4 py-2">{{ $remark['item_code'] }}</td>
-                                                 <td class="border px-4 py-2">{{ $remark['updated_at'] }}</td>
-                                                <td class="border px-4 py-2">{{ $remark['time_range'] }}</td>
-                                                <td class="border px-4 py-2 text-center">  {{ $remark['shift'] }}</td>
-                                                <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
-                                                <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
-                                                <td class="border px-4 py-2 text-center font-bold">
-                                                    {{ $remark['actual_production'] ?? 0 }}
+                                                <td class="px-4 py-3.5 font-mono text-xs font-semibold text-slate-700">{{ $remark['item_code'] }}</td>
+                                                <td class="px-4 py-3.5 text-xs text-slate-500">
+                                                    {{ \Carbon\Carbon::parse($remark['updated_at'])->format('d M, H:i') }}
                                                 </td>
-                                                <td class="border px-4 py-2 text-center font-bold">
-                                                    {{ $remark['ng'] ?? 0 }}
-                                                    <button 
-                                                        class="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
-                                                        onclick='showNgDetails(@json($remark["ng_details"]))'
-                                                    >
-                                                        Show
-                                                    </button>
-                                                    
+                                                <td class="px-4 py-3.5 text-center font-medium text-slate-700">{{ $remark['time_range'] }}</td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
+                                                        {{ $remark['shift'] }}
+                                                    </span>
                                                 </td>
-                                                <td class="border px-4 py-2 text-center">
-                                                    <span class="px-2 py-1 rounded text-xs font-bold 
-                                                        {{ $effectiveAchieved ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
-                                                        {{ $effectiveAchieved ? 'Achieved' : 'Not Achieved' }}
+                                                <td class="px-4 py-3.5 text-center font-mono text-slate-500">{{ $remark['target'] }}</td>
+                                                <td class="px-4 py-3.5 text-center font-bold font-mono text-slate-700">{{ $remark['actual'] }}</td>
+                                                <td class="px-4 py-3.5 text-center font-extrabold font-mono text-indigo-600">{{ $remark['actual_production'] ?? 0 }}</td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <div class="inline-flex items-center space-x-1.5">
+                                                        <span class="font-bold font-mono {{ ($remark['ng'] ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400' }}">
+                                                            {{ $remark['ng'] ?? 0 }}
+                                                        </span>
+                                                        @if(($remark['ng'] ?? 0) > 0)
+                                                            <button 
+                                                                class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5 rounded font-semibold border border-rose-200 transition"
+                                                                onclick='showNgDetails(@json($remark["ng_details"]))'
+                                                            >
+                                                                Details
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm
+                                                        {{ $effectiveAchieved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200' }}">
+                                                        {{ $effectiveAchieved ? '✓ Achieved' : '✗ Not Achieved' }}
                                                     </span>
 
                                                     @if(!empty($remark['is_multi_item']))
-                                                    <div style="font-size:9px; color:#888; margin-top:3px;">
+                                                    <div style="font-size:9px;" class="text-slate-400 mt-1">
                                                         combined: {{ min(round($remark['combined_actual_seconds'] / 60, 1), 60) }}m / 60m
                                                     </div>
                                                     @endif
                                                 </td>
-                                                <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
+                                                <td class="px-4 py-3.5 text-slate-600 italic max-w-xs truncate" title="{{ $remark['remark'] }}">{{ $remark['remark'] }}</td>
                                             </tr>
 
-
-                                            <div id="ngDetailModal" class="fixed inset-0 hidden bg-black bg-opacity-40 justify-center items-center">
-                                                <div class="bg-white p-6 rounded shadow-lg w-96">
-                                                    <h2 class="text-lg font-bold mb-3">NG Details</h2>
-
-                                                    <div id="ngDetailList" class="space-y-2 max-h-64 overflow-y-auto"></div>
-
-                                                    <div class="mt-4 text-right">
-                                                        <button onclick="closeNgDetailModal()" class="px-4 py-1 bg-gray-500 text-white rounded">
+                                            <div id="ngDetailModal" class="fixed inset-0 hidden bg-black/40 justify-center items-center z-[100]">
+                                                <div class="bg-white p-6 rounded-2xl shadow-xl w-96 max-w-full mx-4 border border-slate-100">
+                                                    <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                                                        <span class="text-rose-500">⚠️</span>
+                                                        <span>NG Details</span>
+                                                    </h2>
+                                                    <div id="ngDetailList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+                                                    <div class="mt-5 text-right">
+                                                        <button onclick="closeNgDetailModal()" class="px-5 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold transition">
                                                             Close
                                                         </button>
                                                     </div>
@@ -481,10 +508,10 @@
                                             @endphp
 
                                             @if ($isLastInShift)
-                                                <tr class="bg-blue-100 text-blue-900 font-semibold text-sm">
-                                                    <td colspan="8" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
-                                                    <td class="border px-4 py-2 text-center">{{ $totalActual }}</td>
-                                                    <td colspan="2" class="border px-4 py-2"></td>
+                                                <tr class="bg-indigo-50/50 text-indigo-950 font-bold text-sm">
+                                                    <td colspan="7" class="px-4 py-3 text-right">Total Actual (Shift {{ $currentShift }})</td>
+                                                    <td class="px-4 py-3 text-center text-indigo-700 font-extrabold font-mono">{{ $totalActual }}</td>
+                                                    <td colspan="3" class="px-4 py-3"></td>
                                                 </tr>
                                             @endif
                                         @endforeach
@@ -849,6 +876,89 @@
         </div>
     </div>
 
+    <!-- Modal for Zero Actual Production Hourly Remarks -->
+    <div id="zeroActualModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+
+        <!-- Modal Box -->
+        <div class="bg-white rounded-2xl shadow-2xl w-11/12 md:w-3/4 max-h-[90vh] flex flex-col border border-gray-100 overflow-hidden transform transition-all duration-300 scale-100">
+
+            <!-- Header -->
+            <div class="p-6 border-b bg-gradient-to-r from-amber-500 to-orange-600 text-white flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <span>📉 Hourly Remarks (Actual Produksi = 0)</span>
+                    </h2>
+                    <p class="text-amber-100 text-xs mt-1">Jadwal Tanggal: {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}</p>
+                </div>
+                <button id="closeZeroActualBtnTop" class="text-white hover:text-amber-200 transition-colors text-2xl font-semibold">&times;</button>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
+                @if(isset($zeroActualRemarks) && count($zeroActualRemarks) > 0)
+                    <div class="overflow-hidden rounded-xl border border-gray-200 shadow-sm bg-white">
+                        <table class="w-full text-sm text-gray-700">
+                            <thead class="bg-slate-100 border-b border-gray-200 text-slate-700 font-semibold uppercase text-xs tracking-wider sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-5 py-3 text-center">Shift</th>
+                                    <th class="px-5 py-3 text-left">Machine</th>
+                                    <th class="px-5 py-3 text-left">Item Code</th>
+                                    <th class="px-5 py-3 text-left">Item Name</th>
+                                    <th class="px-5 py-3 text-center">Time Range</th>
+                                    <th class="px-5 py-3 text-center">Target</th>
+                                    <th class="px-5 py-3 text-center">Actual Scan</th>
+                                    <th class="px-5 py-3 text-left">PIC</th>
+                                    <th class="px-5 py-3 text-left">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($zeroActualRemarks as $remark)
+                                    <tr class="hover:bg-amber-50/40 transition-colors">
+                                        <td class="px-5 py-4 text-center">
+                                            <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                                                Shift {{ $remark['shift'] }}
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4 font-semibold text-slate-800">{{ $remark['machine_name'] }}</td>
+                                        <td class="px-5 py-4 font-mono text-xs text-indigo-600 font-semibold">{{ $remark['item_code'] }}</td>
+                                        <td class="px-5 py-4 text-slate-600 max-w-xs truncate" title="{{ $remark['item_name'] }}">{{ $remark['item_name'] }}</td>
+                                        <td class="px-5 py-4 text-center font-medium text-slate-600 bg-slate-50/50">{{ $remark['time_range'] }}</td>
+                                        <td class="px-5 py-4 text-center text-slate-500 font-mono">{{ $remark['target'] }}</td>
+                                        <td class="px-5 py-4 text-center font-bold text-slate-500 font-mono">{{ $remark['actual'] }}</td>
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center space-x-2">
+                                                <img src="{{ asset($remark['pic_profile_path']) }}"
+                                                     alt="{{ $remark['pic'] }}"
+                                                     class="w-7 h-7 rounded-full object-cover border border-gray-200 shadow-sm">
+                                                <span class="font-medium text-slate-700">{{ $remark['pic'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4 text-slate-600 italic max-w-xs truncate" title="{{ $remark['remark'] }}">{{ $remark['remark'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                        <span class="text-4xl">🎉</span>
+                        <p class="text-gray-500 font-medium mt-2">Tidak ada hourly remark dengan actual produksi 0 pada hari ini.</p>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t bg-slate-50 flex justify-end">
+                <button id="closeZeroActualModal"
+                    class="bg-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 
     <script type="module">
     $(document).ready(function() {
@@ -990,11 +1100,43 @@
         });
     }
 
+    // Zero Actual Production Modal JS
+    const showZeroActualBtn = document.getElementById('showZeroActualModal');
+    const zeroActualModal = document.getElementById('zeroActualModal');
+    const closeZeroActualBtn = document.getElementById('closeZeroActualModal');
+    const closeZeroActualBtnTop = document.getElementById('closeZeroActualBtnTop');
+
+    if (showZeroActualBtn && zeroActualModal) {
+        showZeroActualBtn.addEventListener('click', () => {
+            zeroActualModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        });
+
+        const closeZeroActual = () => {
+            zeroActualModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        if (closeZeroActualBtn) {
+            closeZeroActualBtn.addEventListener('click', closeZeroActual);
+        }
+        if (closeZeroActualBtnTop) {
+            closeZeroActualBtnTop.addEventListener('click', closeZeroActual);
+        }
+
+        zeroActualModal.addEventListener('click', (e) => {
+            if (e.target === zeroActualModal) {
+                closeZeroActual();
+            }
+        });
+    }
+
     // ESC to close all modals
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (modal) modal.classList.add('hidden');
             if (longMouldModal) longMouldModal.classList.add('hidden');
+            if (zeroActualModal) zeroActualModal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
         }
     });
