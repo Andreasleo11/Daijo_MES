@@ -427,8 +427,28 @@
 
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
-                                                $effectiveAchieved = $remark['combined_achieved'] ?? $remark['is_achieve'];
-                                                $borderIndicator = $effectiveAchieved ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-rose-500';
+                                                $pct = 0;
+                                                if ($remark['target'] > 0) {
+                                                    $pct = round(($remark['actual_production'] / $remark['target']) * 100, 1);
+                                                }
+
+                                                // Penentuan warna status dinamis
+                                                if ($pct >= 100) {
+                                                    $borderIndicator = 'border-l-4 border-l-emerald-500';
+                                                    $badgeClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                                                    $textClass = 'text-emerald-600';
+                                                    $statusText = '✓ Achieved';
+                                                } elseif ($pct >= 50) {
+                                                    $borderIndicator = 'border-l-4 border-l-amber-500';
+                                                    $badgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
+                                                    $textClass = 'text-amber-600';
+                                                    $statusText = '⚠ Warning';
+                                                } else {
+                                                    $borderIndicator = 'border-l-4 border-l-rose-500';
+                                                    $badgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+                                                    $textClass = 'text-rose-600';
+                                                    $statusText = '✗ Not Achieved';
+                                                }
 
                                                 // Cek jika ganti shift
                                                 if ($currentShift !== $remark['shift']) {
@@ -473,18 +493,11 @@
                                                     </div>
                                                 </td>
                                                 <td class="px-4 py-3.5 text-center">
-                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm
-                                                        {{ $effectiveAchieved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200' }}">
-                                                        {{ $effectiveAchieved ? '✓ Achieved' : '✗ Not Achieved' }}
+                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm {{ $badgeClass }}">
+                                                        {{ $statusText }}
                                                     </span>
 
-                                                    @php
-                                                        $pct = 0;
-                                                        if ($remark['target'] > 0) {
-                                                            $pct = round(($remark['actual_production'] / $remark['target']) * 100, 1);
-                                                        }
-                                                    @endphp
-                                                    <div class="text-[11px] font-bold mt-1.5 {{ $effectiveAchieved ? 'text-emerald-600' : 'text-rose-600' }}">
+                                                    <div class="text-[11px] font-bold mt-1.5 {{ $textClass }}">
                                                         {{ $pct }}%
                                                     </div>
 
