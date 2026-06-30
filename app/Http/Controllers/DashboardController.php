@@ -1408,6 +1408,40 @@ class DashboardController extends Controller
         $user = $request->input('nik') ?? session('verifiedNIK');
         $now = Carbon::now('Asia/Jakarta');
 
+        $loggedInUserId = auth()->user()->id;
+        
+        // Resolve target item code dari SPK
+        $spkRecord = SpkMaster::where('spk_number', $spk_code)->first();
+        $targetItemCode = $spkRecord?->item_code ?? ($activeDIC->item_code ?? null);
+
+        // Proteksi validasi activeDIC agar data scan selalu masuk ke mesin yang sedang login (auth()->user())
+        if (!$activeDIC || $activeDIC->user_id != $loggedInUserId || $activeDIC->item_code != $targetItemCode) {
+            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->where('item_code', $targetItemCode)
+                ->whereNull('is_done')
+                ->first();
+                
+            if (!$resolvedDIC) {
+                $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                    ->where('item_code', $targetItemCode)
+                    ->orderBy('schedule_date', 'desc')
+                    ->first();
+            }
+            
+            if ($resolvedDIC) {
+                $activeDIC = $resolvedDIC;
+            } else {
+                $errorMessage = 'Error: Jadwal item (' . $targetItemCode . ') tidak terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMessage
+                    ], 422);
+                }
+                return redirect()->back()->withErrors(['error' => $errorMessage]);
+            }
+        }
+
         // ✅ Perbaikan logika slot waktu
         if ($now->lt(Carbon::createFromTime(7, 30, 0, 'Asia/Jakarta'))) {
             $base = Carbon::yesterday('Asia/Jakarta')->setTime(7, 30, 0);
@@ -1563,6 +1597,27 @@ class DashboardController extends Controller
         $datas = json_decode($request->input('datas'), true);
         $uniquedata = json_decode($request->input('uniqueData'));
         $dic = json_decode($request->input('activedic'));
+        $loggedInUserId = auth()->user()->id;
+
+        // Validasi: pastikan DIC yang disubmit adalah milik mesin yang sedang login (auth()->user())
+        if (!$dic || $dic->user_id != $loggedInUserId) {
+            // Cari DIC aktif milik user yang login untuk mengamankan data
+            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->whereNull('is_done')
+                ->first();
+                
+            if (!$resolvedDIC) {
+                $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                    ->orderBy('schedule_date', 'desc')
+                    ->first();
+            }
+
+            if ($resolvedDIC) {
+                $dic = $resolvedDIC;
+            } else {
+                return redirect()->back()->withErrors(['error' => 'Error: Jadwal aktif untuk mesin Anda (' . auth()->user()->name . ') tidak ditemukan. Tidak dapat melakukan submit.']);
+            }
+        }
         $dicId = $dic->id;
 
         $spkToUpdate = ProductionScannedData::where('dic_id', $dicId)
