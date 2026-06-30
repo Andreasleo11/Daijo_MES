@@ -428,8 +428,9 @@
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
                                                 $pct = 0;
+                                                $actualProdWithNg = ($remark['actual_production'] ?? 0) + ($remark['ng'] ?? 0);
                                                 if ($remark['target'] > 0) {
-                                                    $pct = round(($remark['actual_production'] / $remark['target']) * 100, 1);
+                                                    $pct = round(($actualProdWithNg / $remark['target']) * 100, 1);
                                                 }
 
                                                 // Penentuan warna status dinamis
@@ -442,7 +443,7 @@
                                                     $borderIndicator = 'border-l-4 border-l-amber-500';
                                                     $badgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
                                                     $textClass = 'text-amber-600';
-                                                    $statusText = '⚠ Warning';
+                                                    $statusText = '✗ Not Achieved';
                                                 } else {
                                                     $borderIndicator = 'border-l-4 border-l-rose-500';
                                                     $badgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
@@ -456,7 +457,7 @@
                                                     $totalActual = 0;
                                                 }
 
-                                                $totalActual += $remark['actual_production'];
+                                                $totalActual += $actualProdWithNg;
                                             @endphp
 
                                             <tr class="hover:bg-slate-50/70 transition-colors {{ $borderIndicator }}">
