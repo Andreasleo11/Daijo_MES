@@ -428,9 +428,9 @@
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
                                                 $pct = 0;
-                                                $actualProdWithNg = ($remark['actual_production'] ?? 0) + ($remark['ng'] ?? 0);
+                                                $actualProd = $remark['actual_production'] ?? 0;
                                                 if ($remark['target'] > 0) {
-                                                    $pct = round(($actualProdWithNg / $remark['target']) * 100, 1);
+                                                    $pct = round(($actualProd / $remark['target']) * 100, 1);
                                                 }
 
                                                 // Penentuan warna status dinamis
@@ -457,7 +457,7 @@
                                                     $totalActual = 0;
                                                 }
 
-                                                $totalActual += $actualProdWithNg;
+                                                $totalActual += $actualProd;
                                             @endphp
 
                                             <tr class="hover:bg-slate-50/70 transition-colors {{ $borderIndicator }}">

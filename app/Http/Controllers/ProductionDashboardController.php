@@ -426,23 +426,20 @@ class ProductionDashboardController extends Controller
                 foreach ($remarks as $remark) {
                     $cycleTimeSec = $cycleTimeMap->get($remark['item_code']);
                     if ($cycleTimeSec && $cycleTimeSec > 0) {
-                        $totalQty = ($remark['actual_production'] ?? 0) + ($remark['ng'] ?? 0);
-                        $totalProdSeconds += $totalQty * $cycleTimeSec;
+                        $totalProdSeconds += $remark['actual_production'] * $cycleTimeSec;
                     }
                 }
 
                 if ($singleItem) {
-                    // Single item — pakai logic: (actual_production + ng) >= target
+                    // Single item — pakai logic: (actual_production) >= target
                     $firstRemark = $remarks->first();
-                    $totalQty = ($firstRemark['actual_production'] ?? 0) + ($firstRemark['ng'] ?? 0);
-                    $combinedAchieved = $totalQty >= $firstRemark['target'];
+                    $combinedAchieved = ($firstRemark['actual_production'] ?? 0) >= $firstRemark['target'];
                 } elseif ($totalProdSeconds > 0) {
                     // Multi item — pakai cycle time
                     $combinedAchieved = $totalProdSeconds >= 3600;
                 } else {
-                    // Multi item tapi cycle time tidak ada — fallback sum (actual + ng) vs max target
-                    $totalActualWithNg = $remarks->sum('actual_production') + $remarks->sum('ng');
-                    $combinedAchieved = $totalActualWithNg >= $remarks->max('target');
+                    // Multi item tapi cycle time tidak ada — fallback sum actual vs max target
+                    $combinedAchieved = $remarks->sum('actual_production') >= $remarks->max('target');
                 }
 
                 foreach ($structuredData[$userName]['hourly_remarks'] as &$remark) {
