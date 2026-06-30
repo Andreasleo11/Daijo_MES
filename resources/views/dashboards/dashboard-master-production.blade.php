@@ -478,6 +478,16 @@
                                                         {{ $effectiveAchieved ? '✓ Achieved' : '✗ Not Achieved' }}
                                                     </span>
 
+                                                    @php
+                                                        $pct = 0;
+                                                        if ($remark['target'] > 0) {
+                                                            $pct = round(($remark['actual_production'] / $remark['target']) * 100, 1);
+                                                        }
+                                                    @endphp
+                                                    <div class="text-[11px] font-bold mt-1.5 {{ $effectiveAchieved ? 'text-emerald-600' : 'text-rose-600' }}">
+                                                        {{ $pct }}%
+                                                    </div>
+
                                                     @if(!empty($remark['is_multi_item']))
                                                     <div style="font-size:9px;" class="text-slate-400 mt-1">
                                                         combined: {{ min(round($remark['combined_actual_seconds'] / 60, 1), 60) }}m / 60m
