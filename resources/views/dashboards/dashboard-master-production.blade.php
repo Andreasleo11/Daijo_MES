@@ -507,7 +507,7 @@
                                                     </div>
                                                     @endif
                                                 </td>
-                                                <td class="px-4 py-3.5 text-slate-600 italic max-w-xs truncate" title="{{ $remark['remark'] }}">{{ $remark['remark'] }}</td>
+                                                <td class="px-4 py-3.5 text-slate-600 italic break-words min-w-[200px]">{{ $remark['remark'] }}</td>
                                             </tr>
 
                                             <div id="ngDetailModal" class="fixed inset-0 hidden bg-black/40 justify-center items-center z-[100]">
@@ -959,7 +959,7 @@
                                                 <span class="font-medium text-slate-700">{{ $remark['pic'] }}</span>
                                             </div>
                                         </td>
-                                        <td class="px-5 py-4 text-slate-600 italic max-w-xs truncate" title="{{ $remark['remark'] }}">{{ $remark['remark'] }}</td>
+                                        <td class="px-5 py-4 text-slate-600 italic break-words min-w-[200px]">{{ $remark['remark'] }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
