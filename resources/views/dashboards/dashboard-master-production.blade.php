@@ -930,7 +930,8 @@
                                     <th class="px-5 py-3 text-left">Item Name</th>
                                     <th class="px-5 py-3 text-center">Time Range</th>
                                     <th class="px-5 py-3 text-center">Target</th>
-                                    <th class="px-5 py-3 text-center">Actual Scan</th>
+                                    <th class="px-5 py-3 text-center">Actual Production</th>
+                                    <th class="px-5 py-3 text-center">NG</th>
                                     <th class="px-5 py-3 text-left">PIC</th>
                                     <th class="px-5 py-3 text-left">Remark</th>
                                 </tr>
@@ -948,7 +949,8 @@
                                         <td class="px-5 py-4 text-slate-600 max-w-xs truncate" title="{{ $remark['item_name'] }}">{{ $remark['item_name'] }}</td>
                                         <td class="px-5 py-4 text-center font-medium text-slate-600 bg-slate-50/50">{{ $remark['time_range'] }}</td>
                                         <td class="px-5 py-4 text-center text-slate-500 font-mono">{{ $remark['target'] }}</td>
-                                        <td class="px-5 py-4 text-center font-bold text-slate-500 font-mono">{{ $remark['actual'] }}</td>
+                                        <td class="px-5 py-4 text-center font-bold text-slate-700 font-mono">{{ $remark['actual_production'] }}</td>
+                                        <td class="px-5 py-4 text-center font-bold text-rose-600 font-mono">{{ $remark['ng'] }}</td>
                                         <td class="px-5 py-4">
                                             <div class="flex items-center space-x-2">
                                                 <img src="{{ asset($remark['pic_profile_path']) }}"
