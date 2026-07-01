@@ -728,33 +728,54 @@ class DashboardController extends Controller
         // ── 6. ACTIVE DIC ────────────────────────────────────────────────────
         //
         // Prioritas:
-        //   1) previousDIC  – DIC sebelum shiftDateA yang belum selesai
-        //   2) todayDIC     – DIC dalam window (shiftDateA / shiftDateB) yang belum selesai
-        //   3) fallback     – tanpa filter tanggal sama sekali
+        //   1) dic_id dari machine_job (terpilih aktif oleh operator)
+        //   2) previousDIC  – DIC sebelum shiftDateA yang belum selesai
+        //   3) todayDIC     – DIC dalam window (shiftDateA / shiftDateB) yang belum selesai
         //
-        $previousDIC = DailyItemCode::where('user_id', $userId)
-            ->where('item_code', $itemCode)
-            ->where('schedule_date', '<', $shiftDateA)
-            ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
-            ->whereNull('is_done')
-            ->orderByDesc('schedule_date')
-            ->first();
+        $activeDIC = null;
+        if ($machineJob && $machineJob->dic_id) {
+            $activeDIC = DailyItemCode::where('id', $machineJob->dic_id)
+                ->where('user_id', $userId)
+                ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+                ->first();
 
-        // Ambil dari $datas (sudah dalam window)
-        $todayDIC = $datas
-            ->where('item_code', $itemCode)
-            ->whereNull('is_done')
-            ->sortBy('shift')
-            ->first();
-
-        $activeDIC = $previousDIC ?? $todayDIC;
+            // Self-healing: Jika DIC dihapus PPIC tapi dic_id masih tertinggal di machine_jobs, reset machine job
+            if (!$activeDIC) {
+                $machineJob->update([
+                    'item_code' => null,
+                    'shift' => null,
+                    'dic_id' => null,
+                ]);
+                $itemCode = null;
+                $machineJobShift = 1;
+            }
+        }
 
         if (!$activeDIC) {
-            $activeDIC = DailyItemCode::where('user_id', $userId)
+            $previousDIC = DailyItemCode::where('user_id', $userId)
                 ->where('item_code', $itemCode)
+                ->where('schedule_date', '<', $shiftDateA)
                 ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
                 ->whereNull('is_done')
+                ->orderByDesc('schedule_date')
                 ->first();
+
+            // Ambil dari $datas (sudah dalam window)
+            $todayDIC = $datas
+                ->where('item_code', $itemCode)
+                ->whereNull('is_done')
+                ->sortBy('shift')
+                ->first();
+
+            $activeDIC = $previousDIC ?? $todayDIC;
+
+            if (!$activeDIC) {
+                $activeDIC = DailyItemCode::where('user_id', $userId)
+                    ->where('item_code', $itemCode)
+                    ->with(['masterItem', 'scannedData', 'masterFg', 'hourlyRemarks.ngDetails.ngType'])
+                    ->whereNull('is_done')
+                    ->first();
+            }
         }
 
         $activeID = $activeDIC?->id;
@@ -820,16 +841,22 @@ class DashboardController extends Controller
                 : null;
         };
 
+        $logStart = Carbon::parse($activeShiftDate, 'Asia/Jakarta')->setTime(7, 30, 0);
+        $logEnd = $logStart->copy()->addDay();
+
         $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->where('created_at', '>=', $logStart)
+            ->where('created_at', '<', $logEnd)
             ->get();
 
         $adjustMachineLogs = AdjustMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->where('created_at', '>=', $logStart)
+            ->where('created_at', '<', $logEnd)
             ->get();
 
         $repairMachineLogs = RepairMachineLog::where('user_id', $userId)
-            ->whereDate('created_at', $activeShiftDate)        // ← shift-aware
+            ->where('created_at', '>=', $logStart)
+            ->where('created_at', '<', $logEnd)
             ->get();
 
         $mouldChangeLogs->each(fn ($log)   => $calcDuration($log, 'end_time'));
@@ -1124,84 +1151,42 @@ class DashboardController extends Controller
     {
         // Validate the input
         $request->validate([
-            'item_code' => 'required|string|max:255',
+            'dic_id' => 'required|integer',
         ]);
 
         // Get the authenticated user
         $user = auth()->user();
 
-        // Get the item code from the form input
-        $itemCode = $request->input('item_code');
+        // Get the DailyItemCode ID from the form input
+        $dicId = $request->input('dic_id');
 
-        // Find the DailyItemCode records for the user
-        $verified_data = DailyItemCode::where('user_id', $user->id)->whereNull('is_done')->get();
-        
-        // Check if the item code exists for the user
-        $itemCodeExists = $verified_data->contains('item_code', $itemCode);
+        // Find the specific DailyItemCode for the user
+        $targetDIC = DailyItemCode::where('id', $dicId)
+            ->where('user_id', $user->id)
+            ->whereNull('is_done')
+            ->first();
 
-        if ($itemCodeExists) {
-            // Retrieve the specific DailyItemCode for the item code
-            $dailyItemCode = DailyItemCode::where('item_code', $itemCode)->whereNull('is_done')->first();
-            
-            // Get the current time
-            $currentTime = now();
-
-            // // Check if the current time is not within the range of start_time and end_time
-            // if ($currentTime->lt($dailyItemCode->start_time) && $currentTime->gt($dailyItemCode->end_time)) {
-            //     $startTime = \Carbon\Carbon::parse($dailyItemCode->start_time)->format('H:i');
-            //     $endTime = \Carbon\Carbon::parse($dailyItemCode->end_time)->format('H:i');
-
-            //     // Return with an error message if the current time is outside the range
-            //     return redirect()
-            //         ->back()
-            //         ->withErrors(['item_code' => 'The item code is not valid for the current time.'])
-            //         ->withInput()
-            //         ->with('error', "The current time is outside the shift time range ($startTime-$endTime) for this item code.");
-            // }
-
+        if ($targetDIC) {
             // Find the machine job record related to the user
             $machineJob = MachineJob::where('user_id', $user->id)->first();
 
             if ($machineJob) {
-                // Update the machine job with the new item_code
-                $machineJob->item_code = $itemCode;
-
-                $currentDateTime = Carbon::now('Asia/Bangkok'); // Get the current date and time
-                $dailyItemCodes = DailyItemCode::where('user_id', auth()->user()->id)->get();
-                // Loop through the DailyItemCode records
-
-                foreach ($dailyItemCodes as $dailyItemCode) {
-                    // Combine the start_date with start_time and end_date with end_time
-                    $startDateTime = Carbon::parse($dailyItemCode->start_date . ' ' . $dailyItemCode->start_time, 'Asia/Bangkok');
-                    $endDateTime = Carbon::parse($dailyItemCode->end_date . ' ' . $dailyItemCode->end_time, 'Asia/Bangkok');
-
-                    // Check if the current time falls between the start and end time
-                    if ($currentDateTime->between($startDateTime, $endDateTime)) {
-                        // dd($currentDateTime);
-                        // Assign the shift from the matching DailyItemCode
-                        $machineJob->shift = $dailyItemCode->shift;
-                        break; // Exit the loop once a matching shift is found
-                    }
-                }
-
-                // If no matching shift is found, you can set a default value if needed
-                // if (!isset($machineJob->shift)) {
-                //     return redirect()->back()->with('error', 'No matching shift found!');
-                // }
-
+                // Update the machine job with the new item_code, dic_id, and shift
+                $machineJob->item_code = $targetDIC->item_code;
+                $machineJob->dic_id = $targetDIC->id;
+                $machineJob->shift = $targetDIC->shift;
                 $machineJob->save();
 
                 return redirect()->back()->with('success', 'Machine job updated successfully.');
             } else {
-                return redirect()->back()->with('error', 'Machine job not found.');
+                return redirect()->back()->with('error', 'Machine job record not found.');
             }
         } else {
-            // Return an error message if the item code does not exist for the user
             return redirect()
                 ->back()
-                ->withErrors(['item_code' => 'Item code does not exist for the user.'])
+                ->withErrors(['dic_id' => 'Jadwal kerja tidak ditemukan atau sudah selesai.'])
                 ->withInput()
-                ->with('error', 'Item code does not exist for the user.');
+                ->with('error', 'Jadwal kerja tidak ditemukan atau sudah selesai.');
         }
     }
 
@@ -1410,59 +1395,37 @@ class DashboardController extends Controller
 
         $loggedInUserId = auth()->user()->id;
 
-        // Resolve target item code dari SPK
-        $spkRecord = SpkMaster::where('spk_number', $spk_code)->first();
-        $targetItemCode = $spkRecord?->item_code ?? ($activeDIC->item_code ?? null);
+        // Ambil MachineJob aktif milik user/mesin yang sedang login
+        $machineJob = MachineJob::where('user_id', $loggedInUserId)->first();
+        $activeDicId = $machineJob?->dic_id ?? null;
 
-        // Hitung shiftDateA yang aktif saat ini secara dinamis (sama seperti di index)
-        $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
-        $shiftDateA = $isOvernightWindow
-            ? Carbon::yesterday('Asia/Jakarta')->toDateString()
-            : Carbon::today('Asia/Jakarta')->toDateString();
+        // Cari DailyItemCode berdasarkan dic_id tersebut
+        $resolvedDIC = null;
+        if ($activeDicId) {
+            $resolvedDIC = DailyItemCode::where('id', $activeDicId)
+                ->where('user_id', $loggedInUserId)
+                ->first();
+        }
 
-        // 1. Cari DIC aktif milik user yang login untuk item ini pada tanggal jadwal aktif yang belum selesai
-        $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-            ->where('item_code', $targetItemCode)
-            ->whereDate('schedule_date', $shiftDateA)
-            ->whereNull('is_done')
-            ->first();
-
-        // 2. Jika tidak ada, cari DIC yang belum selesai untuk item ini (tanpa memandang tanggal)
+        // Jika tidak ditemukan dic_id di machine_job (misal operator belum meng-assign job tapi langsung scan),
+        // maka fallback mencari DIC aktif yang belum selesai hari ini
         if (!$resolvedDIC) {
+            $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+            $shiftDateA = $isOvernightWindow
+                ? Carbon::yesterday('Asia/Jakarta')->toDateString()
+                : Carbon::today('Asia/Jakarta')->toDateString();
+            $shiftDateB = Carbon::parse($shiftDateA)->addDay()->toDateString();
+
             $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                ->where('item_code', $targetItemCode)
+                ->whereIn('schedule_date', [$shiftDateA, $shiftDateB])
                 ->whereNull('is_done')
-                ->orderByDesc('schedule_date')
-                ->first();
-        }
-
-        // 3. Jika tidak ada yang belum selesai untuk item ini, cari DIC pada tanggal jadwal aktif (meskipun sudah is_done)
-        if (!$resolvedDIC) {
-            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                ->where('item_code', $targetItemCode)
-                ->whereDate('schedule_date', $shiftDateA)
-                ->first();
-        }
-
-        // 4. Jika tidak ada sama sekali untuk item ini, cari DIC paling baru milik user/mesin ini (apapun item-nya yang belum selesai)
-        if (!$resolvedDIC) {
-            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                ->whereNull('is_done')
-                ->orderByDesc('schedule_date')
-                ->first();
-        }
-
-        // 5. Fallback terakhir: jika tetap tidak ada, cari DIC paling baru untuk mesin ini
-        if (!$resolvedDIC) {
-            $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
-                ->orderByDesc('schedule_date')
                 ->first();
         }
 
         if ($resolvedDIC) {
             $activeDIC = $resolvedDIC;
         } else {
-            $errorMessage = 'Error: Tidak ada jadwal produksi yang terdaftar di mesin Anda (' . auth()->user()->name . '). Data scan ditolak.';
+            $errorMessage = 'Error: Tidak ada jadwal produksi (DailyItemCode) aktif yang ditugaskan ke mesin Anda (' . auth()->user()->name . '). Harap pilih Pekerjaan terlebih dahulu di Dashboard.';
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -1631,13 +1594,22 @@ class DashboardController extends Controller
 
         // Validasi: pastikan DIC yang disubmit adalah milik mesin yang sedang login (auth()->user()) dan belum selesai (is_done is null)
         if (!$dic || $dic->user_id != $loggedInUserId || !is_null($dic->is_done)) {
-            // Cari DIC aktif milik user yang login untuk mengamankan data
+            $now = Carbon::now('Asia/Jakarta');
+            $isOvernightWindow = $now->hour < 7 || ($now->hour === 7 && $now->minute < 30);
+            $shiftDateA = $isOvernightWindow
+                ? Carbon::yesterday('Asia/Jakarta')->toDateString()
+                : Carbon::today('Asia/Jakarta')->toDateString();
+            $shiftDateB = Carbon::parse($shiftDateA)->addDay()->toDateString();
+
+            // Cari DIC aktif milik user yang login untuk mengamankan data (hanya pada rentang tanggal jadwal hari ini/besok)
             $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                ->whereIn('schedule_date', [$shiftDateA, $shiftDateB])
                 ->whereNull('is_done')
                 ->first();
                 
             if (!$resolvedDIC) {
                 $resolvedDIC = DailyItemCode::where('user_id', $loggedInUserId)
+                    ->whereIn('schedule_date', [$shiftDateA, $shiftDateB])
                     ->orderBy('schedule_date', 'desc')
                     ->first();
             }
@@ -1645,7 +1617,7 @@ class DashboardController extends Controller
             if ($resolvedDIC) {
                 $dic = $resolvedDIC;
             } else {
-                return redirect()->back()->withErrors(['error' => 'Error: Jadwal aktif untuk mesin Anda (' . auth()->user()->name . ') tidak ditemukan. Tidak dapat melakukan submit.']);
+                return redirect()->back()->withErrors(['error' => 'Error: Jadwal aktif untuk mesin Anda (' . auth()->user()->name . ') pada tanggal hari ini tidak ditemukan. Tidak dapat melakukan submit.']);
             }
         }
         $dicId = $dic->id;
@@ -1672,10 +1644,13 @@ class DashboardController extends Controller
         DailyItemCode::where('id', $dicId)->update(['is_done' => 1]);
 
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
-        $machineJob->update([
-            'item_code' => null,
-            'shift' => null,
-        ]);
+        if ($machineJob) {
+            $machineJob->update([
+                'item_code' => null,
+                'shift' => null,
+                'dic_id' => null,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'SPK quantities updated successfully.');
     }
@@ -1683,48 +1658,61 @@ class DashboardController extends Controller
     // function untuk reset jobs manual (operator)
     public function resetJobs(Request $request)
     {
-        
         $uniquedata = json_decode($request->input('uniqueData'), true);
-
         $datas = json_decode($request->input('datas'));
 
-        // dd($uniquedata);
-        // dd($datas);
-        
-        foreach ($uniquedata as $uniquedatum) {
-            $targetQuantity = $uniquedatum['count'];
-            $actualProductionQuantity = $uniquedatum['scannedData'];
+        $reportUpdated = false;
+        $updatedSpkNo = null;
 
-            if ($actualProductionQuantity < $targetQuantity) {
-                $dataSendToPpic = [
-                    'machine_id' => auth()->user()->id,
-                    'spk_no' => $uniquedatum['spk'],
-                    'target' => $uniquedatum['count'],
-                    'scanned' => $uniquedatum['scannedData'],
-                    'outstanding' => $uniquedatum['count'] - $uniquedatum['scannedData'],
-                ];
+        if (!empty($uniquedata)) {
+            foreach ($uniquedata as $uniquedatum) {
+                $targetQuantity = $uniquedatum['count'] ?? 0;
+                $actualProductionQuantity = $uniquedatum['scannedData'] ?? 0;
 
-                $dataWithSpkNo = ProductionReport::where('spk_no', $uniquedatum['spk'])->first();
-                if ($dataWithSpkNo) {
-                    $dataWithSpkNo->update($dataSendToPpic);
-                    return redirect()
-                        ->back()
-                        ->with('success', "Successfully updating spk number $dataWithSpkNo->spk_no");
-                } else {
-                    ProductionReport::create($dataSendToPpic);
-                    // Send mail notification
-                    $ppicUser = User::where('name', 'budiman')->first();
-                    $ppicUser->notify(new \App\Notifications\ProductionReportCreated($dataSendToPpic));
+                if ($actualProductionQuantity < $targetQuantity) {
+                    $dataSendToPpic = [
+                        'machine_id' => auth()->user()->id,
+                        'spk_no' => $uniquedatum['spk'],
+                        'target' => $targetQuantity,
+                        'scanned' => $actualProductionQuantity,
+                        'outstanding' => $targetQuantity - $actualProductionQuantity,
+                    ];
+
+                    $dataWithSpkNo = ProductionReport::where('spk_no', $uniquedatum['spk'])->first();
+                    if ($dataWithSpkNo) {
+                        $dataWithSpkNo->update($dataSendToPpic);
+                        $reportUpdated = true;
+                        $updatedSpkNo = $dataWithSpkNo->spk_no;
+                    } else {
+                        ProductionReport::create($dataSendToPpic);
+                        // Send mail notification
+                        $ppicUser = User::where('name', 'budiman')->first();
+                        if ($ppicUser) {
+                            $ppicUser->notify(new \App\Notifications\ProductionReportCreated($dataSendToPpic));
+                        }
+                    }
                 }
             }
         }
 
-        // Reset the machine job — shift hanya bisa berubah lewat manual submit oleh operator
+        // Reset the machine job
         $machineJob = MachineJob::where('user_id', auth()->user()->id)->first();
-        $machineJob->update([
-            'item_code' => null,
-            'shift' => null,
-        ]);
+        if ($machineJob) {
+            $machineJob->update([
+                'item_code' => null,
+                'shift' => null,
+                'dic_id' => null,
+            ]);
+        }
+
+        if ($reportUpdated) {
+            return redirect()
+                ->back()
+                ->with([
+                    'success' => "Successfully updating spk number " . $updatedSpkNo,
+                    'deactivateScanMode' => true,
+                ]);
+        }
 
         return redirect()
             ->back()
@@ -1961,7 +1949,7 @@ class DashboardController extends Controller
         ]);
 
         // Set machine job user_id to NULL (machine is inactive)
-        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
+        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null, 'dic_id' => null]);
 
         return response()->json(['message' => 'Adjust Machine started', 'log_id' => $adjustMachine->id, 'operator' => [
             'name' => $operatorUser->name,
@@ -2009,7 +1997,7 @@ class DashboardController extends Controller
         ]);
 
         // Set machine job user_id to NULL (machine is inactive)
-        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null]);
+        MachineJob::where('user_id', $userId)->update(['item_code' => null, 'shift' => null, 'dic_id' => null]);
 
         return response()->json(['message' => 'Repair Machine started', 'repair_id' => $repairmachine->id, 'log_id' => $repairmachine->id, 'operator' => [
             'name' => $operatorUser ? $operatorUser->name : $request->pic_name,
@@ -2049,6 +2037,7 @@ class DashboardController extends Controller
         MachineJob::where('user_id', $userId)->update([
             'item_code' => null,
             'shift' => null,
+            'dic_id' => null,
         ]);
     }
 

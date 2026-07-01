@@ -549,11 +549,11 @@
                                             </div> -->
 
                                             <div>
-                                                <select id="item_code" name="item_code" required
-                                                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('item_code') border-red-500 @enderror">
+                                                <select id="dic_id" name="dic_id" required
+                                                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('dic_id') border-red-500 @enderror">
                                                     <option value="">-- Pilih Item Code --</option>
                                                     @foreach($todayitems as $item)
-                                                        <option value="{{ $item->item_code }}">
+                                                        <option value="{{ $item->id }}">
                                                             {{ $item->item_code }} - Shift {{ $item->shift }}
                                                         </option>
                                                     @endforeach
@@ -564,7 +564,7 @@
                                                     Update Job
                                                 </button>
 
-                                                @error('item_code')
+                                                @error('dic_id')
                                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                                 @enderror
                                             </div>
