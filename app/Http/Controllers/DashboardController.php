@@ -841,7 +841,7 @@ class DashboardController extends Controller
                 : null;
         };
 
-        $logStart = Carbon::parse($activeShiftDate, 'Asia/Jakarta')->setTime(7, 30, 0);
+        $logStart = Carbon::parse($activeShiftDate, 'Asia/Jakarta')->setTime(7, 30, 0)->utc();
         $logEnd = $logStart->copy()->addDay();
 
         $mouldChangeLogs = MouldChangeLog::where('user_id', $userId)
