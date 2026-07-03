@@ -634,6 +634,7 @@
                                                 <th class="border px-4 py-2">SAP Cycle Time</th>
                                                 <th class="border px-4 py-2">Start Time</th>
                                                 <th class="border px-4 py-2">End Time</th>
+                                                <th class="border px-4 py-2">Berat Purging</th>
                                                 <th class="border px-4 py-2">Delivery Schedule</th>
                                             </tr>
                                         </thead>
@@ -657,6 +658,9 @@
                                                     </td>
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['end_date'] }} {{ \Carbon\Carbon::parse($dailyItem['end_time'])->subHours(7)->format('H:i') }}
+                                                    </td>
+                                                    <td class="border px-4 py-2 text-center font-semibold text-orange-600">
+                                                        {{ !is_null($dailyItem['resin_usage']) ? $dailyItem['resin_usage'] . ' KG' : '-' }}
                                                     </td>
                                                    <td class="border px-4 py-2 text-center">
                                                         <button 

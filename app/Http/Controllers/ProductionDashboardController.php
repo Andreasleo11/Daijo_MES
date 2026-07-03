@@ -241,7 +241,8 @@ class ProductionDashboardController extends Controller
                     'cycle_time_seconds' => $cycleTimeInSeconds,
                     'sap_cycle_time' => $sapCycleTime,  
                     'scanned_data' => [],
-                    'delsched' => $delschedData
+                    'delsched' => $delschedData,
+                    'resin_usage' => $dailyItem->resin_usage
                 ];
 
                 // Hourly production
