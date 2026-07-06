@@ -9,6 +9,8 @@ class MasterListItem extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     public function files()
     {
         return $this->hasMany(File::class, 'item_code', 'item_code');

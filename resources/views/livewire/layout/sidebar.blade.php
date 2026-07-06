@@ -149,6 +149,7 @@ new class extends Component {
 
                 <livewire:parent-dropdown label="Setting" :childRoutes="[
                     ['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule'],
+                    ['name' => 'admin.master-list-manager', 'label' => 'Master List Manager'],
                 ]" />
             @endif
 

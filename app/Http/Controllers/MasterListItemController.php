@@ -60,4 +60,8 @@ class MasterListItemController extends Controller
 
         return view('master-list-item.machine-list', compact('machines', 'qrcodes', 'machineName', 'images'));
     }
+    public function manage()
+    {
+        return view('master_list_manager.index');
+    }
 }
