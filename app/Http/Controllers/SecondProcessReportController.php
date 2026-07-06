@@ -432,10 +432,18 @@ class SecondProcessReportController extends Controller
             return response()->json([]);
         }
 
-        $items = \App\Models\MasterAllItem::where('item_code', 'LIKE', "%{$query}%")
-            ->orWhere('item_description', 'LIKE', "%{$query}%")
+        $items = \App\Models\MasterListItem::where('item_code', 'LIKE', "%{$query}%")
+            ->orWhere('item_name', 'LIKE', "%{$query}%")
             ->limit(20)
-            ->get();
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_name,
+                    'item_description' => $item->item_name,
+                ];
+            });
 
         return response()->json($items);
     }
