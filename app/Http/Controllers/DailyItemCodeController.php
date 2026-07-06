@@ -15,6 +15,7 @@ use Carbon\Carbon;
 
 class DailyItemCodeController extends Controller
 {
+    //view index untuk ppic assign item code ke mesin ( planning produksi harian)
     public function index()
     {
         $users = User::all();
@@ -24,6 +25,7 @@ class DailyItemCodeController extends Controller
         return view('daily-item-codes.index', compact('dailyItemCodes', 'users', 'itemCodes'));
     }
 
+    // view untuk ppic pilih tiap mesin dan assign item code per shift ( planning produksi harian)
     public function create(Request $request)
     {
         // dd('test');
@@ -55,13 +57,14 @@ class DailyItemCodeController extends Controller
         return view('daily-item-codes.create', compact('machines', 'masterListItem', 'selectedDate', 'selectedMachine', 'dailyItemCodes'));
     }
 
+    //ajax call di create view untuk show item code yang diketik user (PPIC)
     // Tambahkan method baru di controller untuk API endpoint
     public function getItemCodes(Request $request)
     {
         $search = $request->get('search', '');
         $limit = $request->get('limit', 100); // Limit hasil pencarian
         
-        $query = sapInventoryFg::select('item_code');
+        $query = MasterListItem::select('item_code');
         
         if ($search) {
             $query->where('item_code', 'LIKE', '%' . $search . '%');
@@ -79,6 +82,7 @@ class DailyItemCodeController extends Controller
         ]);
     }
     
+    //function untuk transform username mesin 
     private function transformUsername($username) {
         // Use regular expression to match the numeric part and the alphabetic part separately
         if (preg_match('/^0*(\d+)([A-Z])$/', $username, $matches)) {
@@ -91,6 +95,7 @@ class DailyItemCodeController extends Controller
         return $username;
     }
 
+    //ajax call di create view untuk calculate item code yang akan diassign ke mesin
     public function calculateItem(Request $request)
     {
         $data = $request->json()->all();
@@ -127,6 +132,7 @@ class DailyItemCodeController extends Controller
         ]);
     }
 
+    //store data yang diinput oleh ppic seperti item code dan quantity ke mesin yang diassign 
     public function store(StoreDailyItemCodeRequest $request)
     {
 
@@ -246,6 +252,7 @@ class DailyItemCodeController extends Controller
         return redirect()->route('daily-item-code.index')->with('success', 'Daily Item Codes assigned successfully.');
     }
 
+    //view daily item code ( planning produksi harian)
     public function daily(Request $request)
     {
         $selectedDate = $request->query('date'); // Get the date from the query parameter
@@ -263,6 +270,7 @@ class DailyItemCodeController extends Controller
         return view('daily-item-codes.daily', compact('selectedDate', 'machines'));
     }
 
+    //update data yang diinput oleh ppic seperti item code dan quantity ke mesin yang diassign (revisi per shift) 
     public function update(Request $request, $id){
         // dd($request->all());
         $validatedData = $request->validate([
@@ -281,6 +289,7 @@ class DailyItemCodeController extends Controller
         return redirect()->back()->with('success', 'Daily Item Code updated successfully.');
     }
 
+    //hold | unused| function untuk push data scan operator ke table untuk dikirim ke SAP pakai API 
     public function generateDataForSap()
     {
    
@@ -333,6 +342,7 @@ class DailyItemCodeController extends Controller
         return view('send-api-table', compact('data'));
     }
 
+    // function untuk menghapus jadwal yang sudah dibuat oleh PPIC 
     public function destroy($id)
     {
         $item = DailyItemCode::find($id);

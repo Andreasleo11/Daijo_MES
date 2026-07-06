@@ -6,6 +6,7 @@ use App\Models\MasterListItem;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 
 class ItemSearch extends Component
 {
@@ -15,6 +16,13 @@ class ItemSearch extends Component
 
     public $showOnlyNoFiles = false;
     public $showAllNoFiles = false;
+
+    #[On('refresh-items')]
+    public function refreshItems()
+    {
+        // Simply triggers a re-render
+        $this->resetPage();
+    }
 
     public function toggleShowOnlyNoFiles()
     {
@@ -27,6 +35,17 @@ class ItemSearch extends Component
         $this->showAllNoFiles = !$this->showAllNoFiles;
         $this->showOnlyNoFiles = false; // matikan filter daily saat all aktif
         $this->resetPage();
+    }
+
+    public function deleteFile($fileId)
+    {
+        $file = \App\Models\File::find($fileId);
+        if ($file) {
+            $filename = $file->name;
+            \Illuminate\Support\Facades\Storage::delete('public/files/' . $filename);
+            $file->delete();
+            $this->dispatch('showAlert', message: 'File deleted successfully!', type: 'success');
+        }
     }
 
     public function render()
@@ -44,14 +63,18 @@ class ItemSearch extends Component
             ->when($this->showAllNoFiles, function ($query) {
                 $query->doesntHave('files');
              })
-            ->where(function ($query) {
-                $query->where('item_code', 'like', '%'.$this->search.'%')
-                    ->orWhereHas('files', function ($query) {
-                        $query->where('name', 'like', '%'.$this->search.'%');
-                    });
+            ->when(!empty(trim($this->search)), function ($query) {
+                $query->where(function ($q) {
+                    $q->where('item_code', 'like', '%'.$this->search.'%')
+                      ->orWhereIn('item_code', function ($subQuery) {
+                          $subQuery->select('item_code')
+                              ->from('files')
+                              ->where('name', 'like', '%'.$this->search.'%');
+                      });
+                });
             })
             ->with('files')
-            ->orderByRaw('(select count(*) from files where files.item_code = master_list_items.item_code) desc')
+            ->orderBy('item_code', 'asc')
             ->paginate(10);
 
         return view('livewire.item-search', ['items' => $items]);

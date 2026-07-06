@@ -13,17 +13,72 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
 
-        // $schedule->command('sap:dispatch-receipt')->hourly()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
+        
+        $schedule->command('summary:generate')->everyTenMinutes()->withoutOverlapping();
+        // PASTIKAN PRODUCTION SUMMARY SUDAH DI 1 dulu semua sebelum RUN 
+        $schedule->command('sap:dispatch-receipt')->everyTenMinutes()->withoutOverlapping()->appendOutputTo(storage_path('logs/sap_dispatch.log')); 
+        
 
-        $schedule->command('summary:generate')->hourly();
-        $schedule->command('sync:delivery-data')->dailyAt('06:00');
+
+
+
+        // Push quality data shift 1 setiap hari jam 07:35 WIB
+        // $schedule->command('quality:push-shift1')
+        //     ->dailyAt('07:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+        // // Push quality data shift 2 setiap hari jam 15:35 WIB
+        // $schedule->command('quality:push-shift2')
+        //     ->dailyAt('15:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+        // // Push quality data shift 3 setiap hari jam 22:35 WIB
+        // $schedule->command('quality:push-shift3')
+        //     ->dailyAt('22:35')
+        //     ->timezone('Asia/Jakarta')
+        //     ->onOneServer();
+
+
+        //START HARI SENIN 10 menit setelah update
+
+        $schedule->command('delsched:run')
+        ->dailyAt('08:10')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+
+        $schedule->command('delsched:run')
+        ->dailyAt('14:10')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+
+    $schedule->command('delivery:send')
+        ->dailyAt('09:00')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+    $schedule->command('delivery:send')
+        ->dailyAt('15:00')
+        ->timezone('Asia/Jakarta')
+        ->withoutOverlapping();
+
+
+
+        $schedule->command('sync:delivery-data')->dailyAt('08:15')->timezone('Asia/Jakarta');
+        $schedule->command('sync:delivery-data')->dailyAt('14:00')->timezone('Asia/Jakarta');
+        $schedule->command('sync:delivery-data')->dailyAt('16:30')->timezone('Asia/Jakarta');
         // $schedule->command('app:send-daily-waiting-purchase-orders')->dailyAt('01:00'); // Adjust time as needed
         // $schedule->command('report:send-outstanding')
         //     ->dailyAt('09:00')
         //     ->timezone('Asia/Jakarta'); // or your preferred timezone
 
         $schedule->command('spk:sync')->dailyAt('07:40')->timezone('Asia/Jakarta');
+        $schedule->command('spk:sync')->dailyAt('10:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('12:00')->timezone('Asia/Jakarta');
+        $schedule->command('spk:sync')->dailyAt('15:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('17:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('23:00')->timezone('Asia/Jakarta');
     }

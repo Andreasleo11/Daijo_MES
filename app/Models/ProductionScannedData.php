@@ -20,10 +20,16 @@ class ProductionScannedData extends Model
         'label',
         'user',
         'processed',
+        'summary_id',
     ];
 
     public function ParentDailyItemCode()
     {
         return $this->hasOne(DailyItemCode::class, 'id', 'dic_id');
+    }
+    
+    public function summary()
+    {
+        return $this->belongsTo(ProductionSummary::class, 'summary_id', 'id');
     }
 }

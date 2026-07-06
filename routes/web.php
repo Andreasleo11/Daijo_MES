@@ -31,17 +31,23 @@ use App\Http\Controllers\ProductionReportController;
 use App\Http\Controllers\ProductionNgController;
 use App\Http\Controllers\MasterItemPhotoController;
 use App\Http\Controllers\DeliveryVerificationController;
+use App\Http\Controllers\ProductionPayableController;
 
 
 
 use App\Livewire\Barcode\StoreDashboard;
-
+use App\Livewire\DeliveryAnalysis;
 
 use App\Livewire\Maintenance\Machine\Index as MaintenanceMachineIndex;
 use App\Livewire\Maintenance\Mould\Index as MaintenanceMouldIndex;
 use App\Livewire\Maintenance\MaintenanceDashboard as DashboardMaintenance;
 use App\Livewire\Maintenance\MachineDashboard as DashboardMachine;
 use App\Livewire\Maintenance\MouldDashboard as DashboardMould;
+
+use App\Livewire\DeliveryScheduleForm;
+use App\Livewire\DeliveryScheduleCalendar;
+
+use App\Livewire\MasterListItemView;
 
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -65,6 +71,22 @@ use App\Services\RejectService;
 
 use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
+use App\Livewire\Asakai\AsakaiForm;
+use App\Livewire\Asakai\AsakaiList;
+use App\Livewire\Asakai\AsakaiDetail;
+use App\Livewire\Report\DailyReport;
+use App\Livewire\Report\WeeklyReport;
+use App\Livewire\Report\MonthlyReport;
+use App\Http\Controllers\ReportController;
+use App\Livewire\ProductionDashboard;
+
+use App\Livewire\ProductionSummaryMonitor;
+use App\Livewire\ReceiptProductionLogs;
+use App\Livewire\ManualSync;
+
+
+
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -76,7 +98,47 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 |
 */
 
+    //barcode untuk generate label produksi terbaru 
+    Route::get('/barcode/custom-generate', [InitialBarcodeController::class, 'customGenerateForm'])->name('barcode.custom.form');
+    Route::post('/barcode/custom-generate/print', [InitialBarcodeController::class, 'customGeneratePrint'])->name('barcode.custom.print');
+    Route::get('/api/get-spks-by-item', [InitialBarcodeController::class, 'getSpksByItem'])->name('api.get-spks-by-item');
+    //barcode untuk generate label produksi terbaru 
 
+
+    Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
+        ->name('machine.monitor');
+
+
+
+
+    Route::get('/production-dashboard', ProductionDashboard::class)
+        ->name('production-dashboard');
+    
+
+   Route::prefix('asakai')->name('asakai.')->group(function () {
+        Route::get('/', AsakaiList::class)->name('index');
+        Route::get('/create', AsakaiForm::class)->name('create');
+        Route::get('/{id}/edit', AsakaiForm::class)->name('edit');
+        Route::get('/{id}', AsakaiDetail::class)->name('detail');
+    });
+
+
+    // ============================================
+    // REPORT ROUTES (NO AUTH)
+    // ============================================
+    Route::prefix('report')->name('report.')->group(function () {
+        Route::get('/daily', DailyReport::class)->name('daily');
+        Route::get('/daily/export', [ReportController::class, 'exportDaily'])->name('daily.export');
+        
+        Route::get('/weekly', WeeklyReport::class)->name('weekly');
+        Route::get('/weekly/export', [ReportController::class, 'exportWeekly'])->name('weekly.export');
+        
+        Route::get('/monthly', MonthlyReport::class)->name('monthly');
+        Route::get('/monthly/export', [ReportController::class, 'exportMonthly'])->name('monthly.export');
+        
+        // New Route for Machine Active Hours
+        Route::get('/machine-active-hours', \App\Livewire\Report\MachineActiveHours::class)->name('machine-active-hours');
+    });
 
 
     //Route untuk delivery verification controller
@@ -92,6 +154,8 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     Route::post('/master-items-photo/{itemCode}/upload', [MasterItemPhotoController::class, 'upload'])
         ->name('master.items.upload');
     //Route untuk photo master item
+
+    Route::get('/master-list-item', MasterListItemView::class)->name('master-list-item');
 
     //ROUTE untuk handle ng-type produksi 
     Route::get('/ng-types', [ProductionNgController::class, 'index'])->name('ngtypes.index');
@@ -111,6 +175,9 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
     // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
+
+    Route::get('/machine-monitor', [\App\Http\Controllers\Production\MachineStatusController::class, 'index'])
+        ->name('machine.monitor');
 
     Route::get("/test-bomwip", function (LineProductionService $LineProductionService) {
         return $LineProductionService->SyncData();
@@ -132,7 +199,9 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     Route::get('/all-label-yanfeng', [BarcodeController::class, 'generateAllLabelYangeng'])->name('all.label.yanfeng');
 
     Route::post('/generate-label-yanfeng40x15', [BarcodeController::class, 'generateLabelYangeng40x15'])->name('generate.label.yanfeng40x15');   
-    Route::post('/generate-label-yanfeng25x10', [BarcodeController::class, 'generateLabelYangeng25x10'])->name('generate.label.yanfeng25x10');   
+    Route::post('/generate-label-yanfeng25x10', [BarcodeController::class, 'generateLabelYangeng25x10'])->name('generate.label.yanfeng25x10');  
+    
+    Route::post('/generate-label-yanfeng50x20', [BarcodeController::class, 'generateLabelYangeng50x20'])->name('generate.label.yanfeng50x20');  
     Route::post('/generate-label-yanfeng50x35', [BarcodeController::class, 'generateLabelYangeng50x35'])->name('generate.label.yanfeng50x35');   
     // Route untuk barcode ALC Engineering 
 
@@ -192,7 +261,7 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
 
     //Route untuk production day dashboard dan api log dashboard
     Route::get('/production-day-dashboard', [ProductionDashboardController::class, 'index'])->name('djoni.dashboard');
-    Route::get('/api-log-dashboard', [DashboardController::class, 'apiLog'])->name('api.dashboard');
+    Route::get('/api-log-dashboard', \App\Livewire\Report\ApiLogDashboard::class)->name('api.dashboard');
     Route::get('/get-machines-by-item', [ProductionDashboardController::class, 'getMachinesByItem']);
     //Route untuk production day dashboard dan api log dashboard
 
@@ -270,6 +339,56 @@ use App\Livewire\LoginSwitcher as LivewireLoginSwitcher;
     // Route untuk auto login
 
 Route::middleware('auth')->group(function (){
+
+    // untuk update spk secara manual 
+    Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
+
+    //untuk upload spk history di program store 
+    Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->name('upload.spk.history');
+
+    Route::prefix('wms')->name('wms.')->group(function () {
+        Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
+        Route::get('/mapping', \App\Livewire\Wms\RackMapping::class)->name('mapping');
+        Route::get('/pallet-logs', \App\Livewire\Wms\PalletLogIndex::class)->name('logs');
+        Route::get('/pallet-form/lookup', \App\Livewire\Wms\PalletFormLookup::class)->name('pallet-form.lookup');
+        Route::get('/pallet-form/history', \App\Livewire\Wms\PalletFormIndex::class)->name('pallet-form.index');
+        Route::get('/pallet-form/create', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create');
+        Route::get('/sap-sync-monitor', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor');
+        Route::get('/pallet-form/print/{id}', function ($id) {
+            $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
+            return view('wms.pallet_form_print', compact('palletForm'));
+        })->name('pallet-form.print');
+    });
+
+
+    Route::prefix('production-payables')->group(function () {
+
+        Route::get('/', [ProductionPayableController::class, 'index'])
+            ->name('production-payables.index');
+
+        Route::get('/upload', [ProductionPayableController::class, 'uploadForm'])
+            ->name('production-payables.upload');
+
+        Route::post('/import', [ProductionPayableController::class, 'import'])
+            ->name('production-payables.import');
+
+        Route::get('/{id}', [ProductionPayableController::class, 'show'])
+            ->name('production-payables.show');
+
+        Route::put('/{id}/status', [ProductionPayableController::class, 'updateStatus'])
+            ->name('production-payables.status');
+
+        Route::delete('/{id}', [ProductionPayableController::class, 'destroy'])
+            ->name('production-payables.destroy');
+    });
+
+
+    Route::get('/production-summary-monitor', ProductionSummaryMonitor::class)->name('production-summary-monitor');
+
+    Route::get('/receipt-production-logs', ReceiptProductionLogs::class)->name('receipt-production-logs');
+
+
+
     //-- Production project route
     Route::post('/dashboard/update-machine-job', [DashboardController::class, 'updateMachineJob'])->name('update.machine_job');
     Route::get('/generate-barcode/{item_code}/{quantity}', [DashboardController::class, 'itemCodeBarcode'])->name('generate.itemcode.barcode');
@@ -284,9 +403,14 @@ Route::middleware('auth')->group(function (){
     Route::put('/daily-item-codes/{id}/temporal-cycle-time', [DashboardController::class, 'updateCycleTime'])
     ->name('daily-item-codes.updateCycleTime');
     Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
+    Route::post('/production-output-log', [DashboardController::class, 'storeOutputLog'])->name('production.output-log.store');
+    Route::get('/production-output-log/print/{id}', [DashboardController::class, 'printOutputLog'])->name('production.output-log.print');
 
-     Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
+    Route::put('/daily-item-codes/{id}/temporal-cavity', [DashboardController::class, 'updateTemporalCavity'])
     ->name('daily-item-codes.updatecavity');
+
+    Route::put('/daily-item-codes/{id}/resin-usage', [DashboardController::class, 'updateResinUsage'])
+    ->name('daily-item-codes.updateresin');
 
     Route::post('/daily-item-codes/update-remark/{id}', [DashboardController::class, 'updateRemarkDIC']);
 
@@ -303,10 +427,13 @@ Route::middleware('auth')->group(function (){
     // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
     Route::post('/mould-change/start', [DashboardController::class, 'startMouldChange'])->name('mould.change.start');
     Route::post('/mould-change/end', [DashboardController::class, 'endMouldChange'])->name('mould.change.end');
+    Route::post('/mould-change/update/{id}', [DashboardController::class, 'updateMouldChangeLog'])->name('mould.change.update');
     Route::post('/adjust-machine/start', [DashboardController::class, 'startAdjustMachine'])->name('adjust.machine.start');
     Route::post('/adjust-machine/end', [DashboardController::class, 'endAdjustMachine'])->name('adjust.machine.end');
+    Route::post('/adjust-machine/update/{id}', [DashboardController::class, 'updateAdjustMachineLog'])->name('adjust.machine.update');
     Route::post('/repair-machine/start', [DashboardController::class, 'startRepairMachine'])->name('repair.machine.start');
     Route::post('/repair-machine/end', [DashboardController::class, 'endRepairMachine'])->name('repair.machine.end');
+    Route::post('/repair-machine/update/{id}', [DashboardController::class, 'updateRepairMachineLog'])->name('repair.machine.update');
     // ROUTE UNTUK MOULD , ADJUST dan REPAIR (AJAX CALL)
 
     Route::get('/dashboardplastic', [DashboardController::class, 'dashboardPlastic']);
@@ -321,6 +448,7 @@ Route::middleware('auth')->group(function (){
     Route::post('process/inandoutbarcode', [BarcodeController::class, 'storeInAndOut'])->name('processbarcodeinandout');
     Route::get('indexbarcode', [BarcodeController::class, 'indexBarcode'])->name('barcodeindex');
     Route::post('packaging-barcode-generate', [BarcodeController::class, 'generateBarcode'])->name('generatepackagingbarcode');
+    Route::post('packaging-barcode-zebra', [BarcodeController::class, 'generateLabelZebra'])->name('generate.zebra.barcode');
     Route::get('barcode/list', [BarcodeController::class, 'barcodelist'])->name('list.barcode');
     Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
     Route::get('barcode/historytable', [BarcodeController::class, 'historybarcodelist'])->name('barcode.historytable');
@@ -328,6 +456,18 @@ Route::middleware('auth')->group(function (){
     Route::get('barcode/latest/item', [BarcodeController::class, 'latestitemdetails'])->name('updated.barcode.item.position');
     Route::get('barcode/stockall/{location?}', [BarcodeController::class, 'stockall'])->name('stockallbarcode');
     Route::get('barcode/summary', [BarcodeController::class, 'summaryDashboard'])->name('summaryDashboard');
+
+    //Route untuk master box data (Part Master)
+    Route::get('barcode/box-master', [BarcodeController::class, 'indexStoreBoxData'])->name('barcode.box_master.index');
+    Route::post('barcode/box-master', [BarcodeController::class, 'storeStoreBoxData'])->name('barcode.box_master.store');
+    Route::put('barcode/box-master/{id}', [BarcodeController::class, 'updateStoreBoxData'])->name('barcode.box_master.update');
+    Route::delete('barcode/box-master/{id}', [BarcodeController::class, 'destroyStoreBoxData'])->name('barcode.box_master.destroy');
+
+    //Route history barcode generated
+    Route::get('barcode/history', [BarcodeController::class, 'historyStoreBoxDetails'])->name('barcode.history.index');
+    Route::get('barcode/box-detail', [BarcodeController::class, 'indexStoreBoxDetail'])->name('barcode.box_detail.index');
+    Route::put('barcode/box-detail/{id}', [BarcodeController::class, 'updateStoreBoxDetail'])->name('barcode.box_detail.update');
+    Route::post('barcode/reprint', [BarcodeController::class, 'reprintBarcode'])->name('barcode.reprint');
 
     //Route untuk tambahin customer di store barcode
     Route::get('/add-customer', [BarcodeController::class, 'addCustomer'])->name('customer.add');
@@ -365,6 +505,7 @@ Route::middleware('auth')->group(function (){
     //Route untuk bikin tanggal Maintenance (not finish)
 
     //Route untuk Handle SO dari diss 
+    Route::get('/so/dashboard', [SOController::class, 'dashboard'])->name('so.dashboard');
     Route::get('/so/index', [SOController::class, 'index'])->name('so.index');
     Route::get('/so/filter', [SOController::class, 'index'])->name('so.filter');
     Route::get('/so/filterauto', [SoController::class, 'filter'])->name('so.filterauto');
@@ -374,6 +515,14 @@ Route::middleware('auth')->group(function (){
     Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
 
     Route::get('/pegawai/scan', [SOController::class, 'indexpegawai'])->name('pegawai.scan');
+    //Route untuk Handle SO dari diss 
+
+    Route::put('/scan/{id}', [SOController::class, 'update'])
+        ->name('scan.update');
+
+    Route::delete('/scan/{id}', [SOController::class, 'destroy'])
+        ->name('scan.delete');
+
     //Route untuk Handle SO dari diss
 
     
@@ -459,16 +608,38 @@ Route::middleware('auth')->group(function (){
     Route::get('deliveryschedule/index', [DeliveryScheduleController::class, 'index'])->name('indexds');
     Route::get("deliveryschedule/raw", [DeliveryScheduleController::class, "indexraw"])->name("rawdelsched");
     Route::get('deliveryschedule/wip', [DeliveryScheduleController::class, 'indexfinal'])->name('indexfinalwip');
+
+
+    // Trigger background process
     Route::get("delsched/start1", [DeliveryScheduleController::class, "step1"])->name("deslsched.step1");
+    Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
+
+    // Cek status proses (untuk polling)
+    Route::get("delsched/check-status", [DeliveryScheduleController::class, "checkStatus"])->name("delsched.checkStatus");
+
+    // Route lama (bisa dihapus kalau tidak dipakai lagi)
     Route::get("delsched/start2", [DeliveryScheduleController::class, "step2"])->name("deslsched.step2");
     Route::get("delsched/start3", [DeliveryScheduleController::class, "step3"])->name("deslsched.step3");
     Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
-    Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
     Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
-    //Route untuk Delivery Schedule
+
+    Route::get('/delivery-analysis', DeliveryAnalysis::class)->name('delivery.analysis');
 
 
-        
+    // Route::get("delsched/start1", [DeliveryScheduleController::class, "step1"])->name("deslsched.step1");
+    // Route::get("delsched/start2", [DeliveryScheduleController::class, "step2"])->name("deslsched.step2");
+    // Route::get("delsched/start3", [DeliveryScheduleController::class, "step3"])->name("deslsched.step3");
+    // Route::get("delsched/start4", [DeliveryScheduleController::class, "step4"])->name("deslsched.step4");
+    // Route::get("delsched/wip/step1", [DeliveryScheduleController::class, "step1wip"])->name("delschedwip.step1");
+    // Route::get("delsched/wip/step2", [DeliveryScheduleController::class, "step2wip"])->name("delschedwip.step2");
+    // Route untuk Delivery Schedule
+
+
+    // route untuk add delivery schedule baru 
+    Route::get('/delivery-schedule-create', DeliveryScheduleForm::class)->name('delivery-schedule.form');
+    Route::get('/delivery-schedule/calendar', DeliveryScheduleCalendar::class)->name('delivery-schedule.calendar');
+
+    // route untuk show delivery schedule dalam table bisa export dan insert 
     Route::get('new-delivery-schedule', [DeliveryScheduleController::class, 'deliveryScheduleNewIndex'])->name('testnewdelivery');
     // Route::get('/login', LivewireLoginSwitcher::class)->name('login');
 
@@ -508,6 +679,7 @@ Route::middleware('auth')->group(function (){
     //ROUTE UNTUK INVENTORY MATERIAL DAN FINISHED GOODS
     Route::get('/inventory/mtr', [InventoryController::class, 'showMtrInventory'])->name('inventory.mtr');
     Route::get('/inventory/fg', [InventoryController::class, 'showFgInventory'])->name('inventory.fg');
+    Route::get('/inventory/stock-health', [\App\Http\Controllers\Inventory\StockHealthController::class, 'index'])->name('inventory.stock-health');
     Route::get('/inventory/line-list',  [InvLineListController::class, "index"])->name('invlinelist');
     Route::post("/add/line", [InvLineListController::class, "addline"])->name('addline');
     Route::put("/edit/line/{id}", [InvLineListController::class, "editline"])->name('editline');
@@ -533,9 +705,9 @@ Route::middleware('auth')->group(function (){
     //ROUTE UNTUK CAPACITY BY FORECASTING BAWAAN DISS 
 
 
-    Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
-    Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
-    ->name('generate.machine.list');
+    // Route::get('/master-list-item', [MasterListItemController::class, 'index'])->name('master.list.item');
+    // Route::post('/generate-machine-list', [MasterListItemController::class, 'generateMachineList'])
+    // ->name('generate.machine.list');
 
 
     Route::post('/submit/spk', [DashboardController::class, 'submitSPK'])->name('submit.spk');
@@ -555,3 +727,5 @@ Route::middleware('auth')->group(function (){
 
 
 require __DIR__.'/auth.php';
+
+Route::get('/public/machine-monitor', \App\Livewire\MachineStatusPublic::class)->name('machine.monitor.public');

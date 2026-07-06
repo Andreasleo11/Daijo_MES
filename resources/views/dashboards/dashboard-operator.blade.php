@@ -28,74 +28,153 @@
         @endif
     </div>
 
-    @php
-    $userId = auth()->id();
-    $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
-    @endphp
-
-    @php
-        $userId = auth()->id();
-        $activeMouldChange = \App\Models\MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->exists();
-        $activeAdjustMachine = \App\Models\AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->exists();
-        $activeRepairMachine = \App\Models\RepairMachineLog::where('user_id', $userId)->whereNull('finish_repair')->exists();
-    @endphp
-
-    <div class="flex justify-between items-start flex-wrap gap-4 px-4">
-        <!-- Button Group -->
-        <div class="flex flex-wrap gap-4 flex-grow">
-            <!-- Start Mould Change Button -->
-            <button id="startMouldChange" 
-                class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-200"
-                @if($activeMouldChange) style="display: none;" @endif>
-                Change Mould
-            </button>
-
-            <!-- End Mould Change Button -->
-            <button id="endMouldChange" 
-                class="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-200 hidden">
-                Complete Change Mould
-            </button>
-
-            <!-- Start Adjust Machine Button -->
-            <button id="startAdjustMachine" 
-                class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600 transition duration-200"
-                @if($activeAdjustMachine) style="display: none;" @endif>
-                Adjust Machine
-            </button>
-
-            <!-- End Adjust Machine Button -->
-            <button id="endAdjustMachine" 
-                class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition duration-200 hidden">
-                Complete Adjust Machine
-            </button>
-
+    <div class="w-full px-4 pt-4" id="machineStatusContainer">
+        <!-- Unified Machine Status & Control Widget -->
+        <div class="bg-gradient-to-r from-slate-50 to-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
             
-            <!-- Start Repair Machine Button -->
-            <button id="startRepairMachine" 
-                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200"
-                @if($activeRepairMachine) style="display: none;" @endif>
-                Repair Machine
-            </button>
+            <!-- Left Section: Current Status & Pulse Indicator -->
+            <div class="flex items-center space-x-4">
+                <div class="relative flex h-4 w-4">
+                    @if($activeState === 'RUNNING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
+                    @elseif($activeState === 'MOULD_CHANGE')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+                    @elseif($activeState === 'ADJUSTING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-blue-500"></span>
+                    @elseif($activeState === 'REPAIRING')
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+                    @endif
+                </div>
+                <div>
+                    <span class="text-[10px] font-semibold text-indigo-600 tracking-wider uppercase block">Status Mesin</span>
+                    <h2 class="text-md font-bold text-gray-800">
+                        @if($activeState === 'RUNNING')
+                            Mesin Berjalan (Running)
+                        @elseif($activeState === 'MOULD_CHANGE')
+                            Sedang Ganti Mould
+                        @elseif($activeState === 'ADJUSTING')
+                            Sedang Adjust Mesin
+                        @elseif($activeState === 'REPAIRING')
+                            Perbaikan Mesin (Repairing)
+                        @endif
+                    </h2>
+                </div>
+            </div>
 
-            <!-- Finish Repair Machine Button -->
-            <button id="endRepairMachine" 
-                class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-200 hidden">
-                Finish Repair Machine
-            </button>
+            <!-- Middle Section: Active Operator Details (Visible when state is not RUNNING) -->
+            @if($activeState !== 'RUNNING')
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center bg-white border border-gray-150 px-4 py-2 rounded-xl shadow-sm space-x-3">
+                        <img 
+                            src="{{ $activeOperatorProfile }}" 
+                            alt="Operator Profile" 
+                            class="w-10 h-10 rounded-full object-cover border border-gray-200"
+                        >
+                        <div>
+                            <span class="text-[10px] text-gray-500 uppercase block">Operator Aktif</span>
+                            <span class="text-xs font-semibold text-gray-800">{{ $activeOperatorName }}</span>
+                        </div>
+                    </div>
 
-            <a href="{{ route('adminoperator') }}"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-                    📊 JADWAL MESIN
+                    <!-- Timer Section -->
+                    <div class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-sm text-center min-w-[100px]">
+                        <span class="text-[9px] uppercase tracking-wider block opacity-75">Durasi Aktivitas</span>
+                        <span id="activityTimer" class="font-mono text-sm font-bold" data-start="{{ $activeStateStartTime }}">00:00:00</span>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Right Section: Context-Relevant Buttons -->
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+                @if($activeState === 'RUNNING')
+                    <button 
+                        id="startMouldChange" 
+                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        🔄 Change Mould
+                    </button>
+                    <button 
+                        id="startAdjustMachine" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ⚙️ Adjust Machine
+                    </button>
+                    <button 
+                        id="startRepairMachine" 
+                        class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        🔧 Repair Machine
+                    </button>
+                @elseif($activeState === 'MOULD_CHANGE')
+                    <button 
+                        id="endMouldChange" 
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Ganti Mould
+                    </button>
+                @elseif($activeState === 'ADJUSTING')
+                    <button 
+                        id="endAdjustMachine" 
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Adjust Mesin
+                    </button>
+                @elseif($activeState === 'REPAIRING')
+                    <button 
+                        id="endRepairMachine" 
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150"
+                    >
+                        ✅ Selesai Perbaikan
+                    </button>
+                @endif
+
+                <a 
+                    href="{{ route('adminoperator') }}"
+                    class="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all duration-150"
+                >
+                    📅 JADWAL MESIN
                 </a>
 
-
-            <button 
-                id="reloadButton"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors fixed top-4 right-4"
+                <button 
+                    id="reloadButton"
+                    class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-sm transition-all duration-150"
                 >
-                Refresh
-            </button>
+                    🔄 Refresh
+                </button>
+            </div>
+
         </div>
+
+        <!-- Remarks Inputs based on Active State -->
+        @if($activeState === 'MOULD_CHANGE')
+            <div id="mouldChangeInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3">
+                <label for="mouldRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Ganti Mould (Opsional)</label>
+                <textarea id="mouldRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark mould change di sini..."></textarea>
+            </div>
+        @elseif($activeState === 'ADJUSTING')
+            <div id="adjustMachineInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3">
+                <label for="adjustRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Adjust Mesin (Opsional)</label>
+                <textarea id="adjustRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark adjust machine di sini..."></textarea>
+            </div>
+        @elseif($activeState === 'REPAIRING')
+            <div id="repairMachineInfo" class="bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm mt-3 space-y-3">
+                <div>
+                    <label for="repairProblem" class="block text-xs font-semibold text-red-600 tracking-wider uppercase mb-1">Masalah / Problem (Wajib)</label>
+                    <input type="text" id="repairProblem" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Jelaskan masalah perbaikan mesin...">
+                </div>
+                <div>
+                    <label for="repairRemarks" class="block text-xs font-semibold text-indigo-600 tracking-wider uppercase mb-1">Remarks Perbaikan (Opsional)</label>
+                    <textarea id="repairRemarks" rows="2" class="mt-1 block w-full rounded-xl border-gray-200 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs" placeholder="Ketik remark perbaikan di sini..."></textarea>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    <div class="flex justify-between items-start flex-wrap gap-4 px-4 mt-4">
     
         <div class="w-full px-6 py-3 bg-white border border-gray-200 rounded-xl shadow-md flex items-center space-x-6">
             <div>
@@ -139,8 +218,52 @@
         <div id="nikModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
             <div class="bg-white p-6 rounded-lg shadow-lg w-1/3 relative z-50">
                 <h2 class="text-lg font-bold mb-4">Enter NIK & Password</h2>
+
+                <div id="setupMolderSelectContainer" class="mb-3 hidden">
+                    <label for="setup_molder_select" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Operator Setup Mold:
+                    </label>
+                    <select id="setup_molder_select" class="border border-gray-300 rounded p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" data-password="">-- Pilih Nama --</option>
+                        @foreach($setupMolders as $molder)
+                            <option value="{{ $molder->name }}" data-password="{{ $molder->password }}">
+                                {{ $molder->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div id="adjusterSelectContainer" class="mb-3 hidden">
+                    <label for="adjuster_select" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Operator Adjuster:
+                    </label>
+                    <select id="adjuster_select" class="border border-gray-300 rounded p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" data-password="">-- Pilih Nama --</option>
+                        @foreach($adjusters as $adjuster)
+                            <option value="{{ $adjuster->name }}" data-password="{{ $adjuster->password }}">
+                                {{ $adjuster->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <input type="text" id="nik" class="border p-2 w-full rounded" placeholder="Enter NIK...">
                 <input type="password" id="password" class="border p-2 w-full rounded mt-2" placeholder="Enter Password...">
+                
+                <div id="nextItemCodeContainer" class="mt-3 hidden">
+                    <label for="next_item_code" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                        Pilih Item Code Selanjutnya:
+                    </label>
+                    <select id="next_item_code" class="border border-gray-300 rounded-xl p-2 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">-- Pilih Item Code --</option>
+                        @foreach($todayitems as $item)
+                            <option value="{{ $item->item_code }}" {{ $item->item_code === $defaultNextItemCode ? 'selected' : '' }}>
+                                {{ $item->item_code }} - Shift {{ $item->shift }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="flex justify-end mt-4">
                     <button id="closeNikModal" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
                     <button id="verifyNik" class="bg-blue-600 text-white px-4 py-2 rounded">Verify</button>
@@ -148,107 +271,203 @@
             </div>
         </div>
 
-        <div id="mouldChangeInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Mould Change in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentUserName" class="text-lg font-semibold"></span>
-            </div>
-            <div class="mb-2">
-                <label for="mouldRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="mouldRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
+
+        <!-- Edit Log Modal -->
+        <div id="editLogModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden z-50">
+            <div class="bg-white p-6 rounded-2xl shadow-xl w-[90%] sm:w-[450px] relative z-50 border border-slate-100 animate-in zoom-in-95 duration-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                    <span>✏️</span>
+                    <span>Edit Log Pengerjaan</span>
+                </h2>
+
+                <input type="hidden" id="edit_log_id">
+                <input type="hidden" id="edit_log_type">
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit_log_created_at" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Waktu Mulai</label>
+                        <input type="datetime-local" id="edit_log_created_at" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="edit_log_end_time" id="edit_log_end_time_label" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Waktu Selesai</label>
+                        <input type="datetime-local" id="edit_log_end_time" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="edit_log_remark" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remark</label>
+                        <textarea id="edit_log_remark" rows="3" class="border border-gray-300 rounded-xl p-2.5 w-full text-xs shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ketik remark di sini..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-6 space-x-2">
+                    <button id="closeEditLogModal" class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-gray-200 transition">Cancel</button>
+                    <button id="saveEditLog" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-indigo-700 transition">Save Changes</button>
+                </div>
             </div>
         </div>
 
-        <div id="adjustMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Adjust Machine in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentAdjustUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentAdjustUserName" class="text-lg font-semibold"></span>
-            </div>
 
-            <div class="mb-2">
-                <label for="adjustRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="adjustRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
-            </div>
-        </div>
 
-        <div id="repairMachineInfo" class="hidden bg-gray-100 p-4 rounded-lg shadow-lg mt-4">
-            <h2 class="text-lg font-bold mb-2">Repair Machine in Progress</h2>
-            <div class="flex items-center">
-                <img id="currentRepairUserProfile" src="" alt="Profile Picture" class="w-12 h-12 rounded-full mr-3">
-                <span id="currentRepairUserName" class="text-lg font-semibold"></span>
-            </div>
-
-            <div class="mb-2">
-                <label for="repairProblem" class="block text-sm font-medium text-gray-700">Problem</label>
-                <input type="text" id="repairProblem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Describe the problem...">
-            </div>
-            <div class="mb-2">
-                <label for="repairRemarks" class="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea id="repairRemarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Any remarks..."></textarea>
-            </div>
-        </div>
-
-        <div class="container mx-auto py-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="container mx-auto py-6" id="logsContainer">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
                 <!-- Mould Change Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Mould Change Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-indigo-700 tracking-tight flex items-center justify-between">
+                        <span>🔄 Mould Change Log</span>
+                        <span class="bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $mouldChangeLogs->count() }} Data</span>
+                    </h2>
                     @if($mouldChangeLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data mould change hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($mouldChangeLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('mould', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Item Code</span>
+                                            <span class="font-bold text-indigo-600">{{ $log->item_code ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
 
                 <!-- Adjust Machine Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Adjust Machine Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-blue-700 tracking-tight flex items-center justify-between">
+                        <span>⚙️ Adjust Machine Log</span>
+                        <span class="bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $adjustMachineLogs->count() }} Data</span>
+                    </h2>
                     @if($adjustMachineLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data adjust machine hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($adjustMachineLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai:</strong> {{ \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('adjust', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->end_time ? \Carbon\Carbon::parse($log->end_time)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Item Code</span>
+                                            <span class="font-bold text-indigo-600">{{ $log->item_code ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
 
                 <!-- Repair Machine Log Card -->
-                <div class="card p-4 border border-gray-300 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-semibold mb-4">Repair Machine Log</h2>
+                <div class="bg-white p-5 border border-indigo-50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200">
+                    <h2 class="text-md font-bold mb-4 text-red-700 tracking-tight flex items-center justify-between">
+                        <span>🔧 Repair Machine Log</span>
+                        <span class="bg-red-50 text-red-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">{{ $repairMachineLogs->count() }} Data</span>
+                    </h2>
                     @if($repairMachineLogs->isEmpty())
-                        <p class="text-gray-500">Tidak ada data</p>
+                        <p class="text-gray-400 text-xs italic py-4 text-center">Tidak ada data repair machine hari ini</p>
                     @else
-                        <ul>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                             @foreach($repairMachineLogs as $log)
-                                <li class="mb-2">
-                                    <p><strong>Waktu Mulai:</strong> {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>Waktu Selesai Perbaikan:</strong> {{ \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i') }} WIB</p>
-                                    <p><strong>PIC :</strong> {{ $log->pic }}</p>
-                                    <p><strong>Total Time:</strong> {{ $log->total_pengerjaan }} minutes</p>
-                                    <p><strong>Remark :</strong> {{ $log->remark }}</p>
-                                </li>
+                                <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-200/60 pb-1.5">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Detail Log</span>
+                                        <button 
+                                            onclick="openEditLogModal('repair', {{ $log->id }}, '{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}', '{{ $log->finish_repair ? \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') : '' }}', @js($log->remark))"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center space-x-1"
+                                        >
+                                            <span>✏️ Edit</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-y-1.5 text-[11px] gap-x-2">
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Mulai</span>
+                                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d-m-Y H:i') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Waktu Selesai</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->finish_repair ? \Carbon\Carbon::parse($log->finish_repair)->timezone('Asia/Jakarta')->format('d-m-Y H:i') : '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">Masalah / Problem</span>
+                                            <span class="font-semibold text-red-600">{{ $log->problem ?? '-' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block text-[9px] uppercase">PIC</span>
+                                            <span class="font-semibold text-gray-800">{{ $log->pic }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Durasi Pengerjaan</span>
+                                            <span class="font-bold text-emerald-600">{{ $log->total_pengerjaan ?? '-' }} menit</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-400 block text-[9px] uppercase">Remark</span>
+                                            <span class="text-gray-700 italic block">{{ $log->remark ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -330,11 +549,11 @@
                                             </div> -->
 
                                             <div>
-                                                <select id="item_code" name="item_code" required
-                                                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('item_code') border-red-500 @enderror">
+                                                <select id="dic_id" name="dic_id" required
+                                                    class="px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 @error('dic_id') border-red-500 @enderror">
                                                     <option value="">-- Pilih Item Code --</option>
                                                     @foreach($todayitems as $item)
-                                                        <option value="{{ $item->item_code }}">
+                                                        <option value="{{ $item->id }}">
                                                             {{ $item->item_code }} - Shift {{ $item->shift }}
                                                         </option>
                                                     @endforeach
@@ -345,7 +564,7 @@
                                                     Update Job
                                                 </button>
 
-                                                @error('item_code')
+                                                @error('dic_id')
                                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                                 @enderror
                                             </div>
@@ -391,7 +610,7 @@
 
 
                 <!-- Daily Production Plan Section -->
-                <div class="mx-auto sm:px-4 lg:px-6 pt-6">
+                <div id="productionPlanContainer" class="mx-auto sm:px-4 lg:px-6 pt-6">
                     <div class="bg-white shadow-sm sm:rounded-lg">
                         <div class="p-4">
                             <h3 class="text-xl font-bold mb-2">Daily Production Plan <span
@@ -409,6 +628,7 @@
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
+                                            <th class="py-1 px-2 text-gray-700">Berat Purging</th>
                                             <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
                                             <!-- <th class="py-1 px-2 text-gray-700">Actual Quantity</th> -->
@@ -445,6 +665,17 @@
                                                     @else
                                                         <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm italic">
                                                             Belum di-assign
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-1 px-2">
+                                                    @if ($data->resin_usage)
+                                                        <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-semibold">
+                                                            {{ $data->resin_usage }} KG
+                                                        </span>
+                                                    @else
+                                                        <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-sm italic">
+                                                            -
                                                         </span>
                                                     @endif
                                                 </td>
@@ -489,6 +720,14 @@
                                                         Set Temporal Cavity
                                                     </button>
 
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded mt-1"
+                                                        onclick="openResinUsageModal('{{ $data->id }}', '{{ $data->resin_usage ?? '' }}')"
+                                                    >
+                                                        Set Berat Purging
+                                                    </button>
+
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -524,6 +763,49 @@
                                     </div>
                                 </div>
 
+                                 <div id="resinUsageModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                     <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+                                         <h2 class="text-lg font-semibold mb-4">Set Berat Purging</h2>
+
+                                         <form id="resinUsageForm" method="POST">
+                                             @csrf
+                                             @method('PUT')
+
+                                             <input type="hidden" name="data_id" id="ruDataIdInput">
+
+                                             <label for="resin_usage" class="block text-sm font-medium text-gray-700 mb-1">
+                                                 Berat Purging (KG)
+                                             </label>
+
+                                             <input 
+                                                 type="number"
+                                                 step="0.01"
+                                                 id="ruInput"
+                                                 name="resin_usage"
+                                                 class="w-full border rounded p-2 mb-4"
+                                                 placeholder="Contoh: 3.5"
+                                                 required
+                                             >
+
+                                             <div class="flex justify-end gap-2">
+                                                 <button 
+                                                     type="button" 
+                                                     onclick="closeResinUsageModal()" 
+                                                     class="bg-gray-400 text-white px-3 py-1 rounded"
+                                                 >
+                                                     Cancel
+                                                 </button>
+
+                                                 <button 
+                                                     type="submit" 
+                                                     class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                 >
+                                                     Submit
+                                                 </button>
+                                             </div>
+                                         </form>
+                                     </div>
+                                 </div>
                                 <div id="temporalCavityModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                     <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
                                         <h2 class="text-lg font-semibold mb-4">Set Temporal Cavity</h2>
@@ -598,7 +880,7 @@
                             $pairCode = $activeDIC->masterItem->pair ?? null;
                             $hasPair = $pairCode !== null && $pairCode !== '0';
                         @endphp
-                    <div class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
+                    <div id="pekerjaanTableContainer" class="bg-white overflow-hidden shadow-md rounded-lg p-4 flex-1">
                       <span class="text-xl font-bold">
                             Detail Pekerjaan - {{ optional($activeDIC)->item_code ?? '-' }} 
                             (Shift: {{ optional($activeDIC)->shift ?? '-' }})
@@ -668,6 +950,87 @@
                             @endif
                             </tbody>
                         </table>
+                        <div x-data="{ openLog: false }" class="bg-white border border-gray-200 rounded-xl shadow-lg mt-6 p-6 transition-all duration-300">
+                            <div @click="openLog = !openLog" :class="openLog ? 'mb-6 pb-4 border-b border-gray-100' : ''" class="flex justify-between items-center cursor-pointer select-none transition-all duration-300">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                        📦 Output Log Produksi
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1">
+                                        Dicatat per produk keluar berdasarkan cycle time / cavity mesin
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <!-- <span class="bg-indigo-50 text-indigo-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-indigo-100">
+                                        Quantity per shot: <strong>{{ $activeDIC ? (!empty($activeDIC->temporal_cavity) && $activeDIC->temporal_cavity > 0 ? $activeDIC->temporal_cavity : ($activeDIC->masterItem->cavity ?? 1)) : 1 }}</strong>
+                                    </span> -->
+                                    <span class="bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-full text-xs border border-emerald-100">
+                                        Total Logs Today: <strong id="total-logs-count">{{ $outputLogs->count() }}</strong>
+                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform duration-200" :class="openLog ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div x-show="openLog" x-transition>
+                                <!-- Form Submit Log -->
+                                <form id="output-log-form" action="{{ route('production.output-log.store') }}" method="POST" class="mb-6 flex gap-4 items-center">
+                                    @csrf
+                                    <input type="hidden" name="operator_name" :value="localStorage.getItem('operator_name') || ''" />
+                                    
+                                    <button type="submit" 
+                                        class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition duration-200 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Tambah Log Output
+                                    </button>
+                                </form>
+
+                                <!-- Table Log -->
+                                <div class="rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                    {{-- Sticky thead --}}
+                                    <table class="min-w-full bg-white text-center text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Waktu (WIB)</th>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Operator</th>
+                                                <th class="py-3 px-4 text-gray-600 font-bold uppercase tracking-wider text-xs">Quantity</th>
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                    {{-- Scrollable tbody — max ~5 rows (each row ≈ 48px, 5 rows = 240px) --}}
+                                    <div class="overflow-y-auto" style="max-height: 240px;">
+                                        <table class="min-w-full bg-white text-center text-sm">
+                                            <tbody id="output-logs-tbody" class="divide-y divide-gray-100">
+                                                @forelse ($outputLogs as $log)
+                                                    <tr class="hover:bg-gray-50/50 transition-colors">
+                                                        <td class="py-3 px-4 font-semibold text-gray-700 w-1/3">
+                                                            {{ $log->logged_at ? $log->logged_at->format('H:i:s') : '-' }}
+                                                        </td>
+                                                        <td class="py-3 px-4 text-gray-700 w-1/3">
+                                                            <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                                                {{ $log->operator_name }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="py-3 px-4 text-gray-900 font-bold w-1/3">
+                                                            {{ $log->quantity }}
+                                                        </td>
+                                                    </tr>
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="3" class="text-center text-gray-400 py-6 italic bg-gray-50/20">
+                                                            Belum ada log output untuk DIC ini hari ini.
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
 
                             <dialog id="detailDataModal" class="p-6 rounded-lg w-11/12 max-w-4xl">
@@ -684,10 +1047,11 @@
                                             <th class="border border-gray-300 px-3 py-2">Label</th>
                                             <th class="border border-gray-300 px-3 py-2">User</th>
                                             <th class="border border-gray-300 px-3 py-2">Created At</th>
+                                            <th class="border border-gray-300 px-3 py-1">SAP Status</th>
                                             <th class="border border-gray-300 px-3 py-2">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="detailDataModalTbody">
                                         @forelse ($spkData as $scan)
                                             <tr>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->id }}</td>
@@ -699,6 +1063,25 @@
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->label }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->user }}</td>
                                                 <td class="border border-gray-300 px-3 py-1">{{ $scan->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}</td>
+                                                <td class="border border-gray-300 px-3 py-1 text-center">
+                                                    @if($scan->summary)
+                                                        @if($scan->summary->sap_sent == 1)
+                                                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ✓ Terkirim
+                                                            </span>
+                                                        @elseif($scan->summary->sap_sent == 99)
+                                                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ⊘ Diabaikan
+                                                            </span>
+                                                        @else
+                                                            <span class="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                                ⏳ Pending
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-gray-400 text-xs">—</span>
+                                                    @endif
+                                                </td>
                                                 <td>
                                                 <form method="POST" action="{{ route('spk-scan.destroy', $scan->id) }}">
                                                         @csrf
@@ -710,7 +1093,7 @@
                                                 </td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="9" class="text-center py-4">Tidak ada data scan.</td></tr>
+                                            <tr><td colspan="10" class="text-center py-4">Tidak ada data scan.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -733,7 +1116,7 @@
                                 </div>
 
                                 <dialog id="addHourlyRemarksModal" class="rounded-md p-6 w-full max-w-md bg-white shadow">
-                                    <form method="POST" action="{{ route('hourly-remarks.store') }}" x-data="autoSubmitForm()" >
+                                    <form id="addHourlyRemarksForm" method="POST" action="{{ route('hourly-remarks.store') }}" x-data="autoSubmitForm()" >
                                         @csrf
                                         <h3 class="text-lg font-bold mb-4">Tambah Hourly Remarks</h3>
 
@@ -783,7 +1166,7 @@
                                             <th class="py-2 px-4 border">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="detailRemarkModalTbody">
                                         @if (!empty($hourlyRemarksActiveDIC))
                                         @foreach ($hourlyRemarksActiveDIC as $slot)
                                                 <tr class="text-center">
@@ -830,6 +1213,15 @@
                                                     </td>
                                                     </td>
                                                 </tr>
+
+                                            @endforeach
+                                        @else
+                                            <tr>
+                                                <td colspan="3" class="text-center py-2 text-gray-500">No hourly data available</td>
+                                            </tr>
+                                        @endif
+                                    </tbody>
+                                </table>
 
                                                     <div id="productionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
                                                         <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -946,14 +1338,6 @@
                                                             </form>
                                                         </div>
                                                     </div>
-                                            @endforeach
-                                        @else
-                                            <tr>
-                                                <td colspan="3" class="text-center py-2 text-gray-500">No hourly data available</td>
-                                            </tr>
-                                        @endif
-                                    </tbody>
-                                </table>
                             </dialog>
 
                             <dialog id="remarkModal" class="rounded-md shadow-lg p-4 w-full max-w-md">
@@ -1006,7 +1390,8 @@
 
 
                 <div class="bg-white shadow-sm sm:rounded-lg p-4 mt-6">
-                    <h3 class="text-xl font-bold">Scan Barcode</h3>
+                    <h3 class="text-xl font-bold mb-2">Scan Barcode</h3>
+                    <div id="ajaxAlert" class="hidden p-3 rounded mb-4 font-bold text-center"></div>
                     <form id="scanForm" action="{{ route('process.productionbarcode') }}" method="POST"
                         class="space-y-3" x-data="autoSubmitForm()" >
                         @csrf
@@ -1023,25 +1408,25 @@
                                 <label for="spk_code">SPK Code</label>
                                 <input type="text" id="spk_code" name="spk_code_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="SPK Code" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="SPK Code" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="quantity">Quantity</label>
                                 <input type="number" id="quantity" name="quantity_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Quantity" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Quantity" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="warehouse">Warehouse</label>
                                 <input type="text" id="warehouse" name="warehouse_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Warehouse" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Warehouse" x-on:input="debouncedSubmit()" />
                             </div>
                             <div>
                                 <label for="label">Label</label>
                                 <input type="number" id="label" name="label_auto" required
                                     class="border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                                    placeholder="Label" x-on:input="checkAndSubmitForm()" />
+                                    placeholder="Label" x-on:input="debouncedSubmit()" />
                             </div>
                         </div>
 
@@ -1109,8 +1494,7 @@
                             </button>
                         </form>
                     </div> -->
-                </div>
-
+                        <div id="summaryTableContainer">
                   <table class="w-full border border-gray-200 text-sm mt-6">
                             <thead class="bg-gray-100">
                                 <tr>
@@ -1146,11 +1530,12 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center py-3 text-gray-500">Belum ada data summary</td>
+                                         <td colspan="7" class="text-center py-3 text-gray-500">Belum ada data summary</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
+                  </div>
             </div>
     </div>
     
@@ -1158,80 +1543,207 @@
 
 
     <script type="module">
-        Fancybox.bind('[data-fancybox="gallery"]', {
-            Thumbs: {
-                autoStart: true,
-            },
-            Image: {
-                zoom: true,
-            },
-            transitionEffect: "fade",
+        document.addEventListener('DOMContentLoaded', function () {
+            // Bind Fancybox
+            try {
+                Fancybox.bind('[data-fancybox="gallery"]', {
+                    Thumbs: false,
+                    Image: {
+                        zoom: true,
+                        fit: "contain",
+                    },
+                    transitionEffect: "fade",
+                    Slideshow: {
+                        autoStart: false, // Set ke false, kita handle manual
+                        timeout: 10000, // 10 detik per slide
+                    },
+                });
+            } catch (e) {
+                console.error("Error binding Fancybox:", e);
+            }
+
+            const galleryItems = document.querySelectorAll('[data-fancybox="gallery"]');
+            if (galleryItems.length === 0) return;
+
+            function openRandomGallery() {
+                try {
+                    // Cegah penumpukan jika Fancybox sudah terbuka (cek DOM element)
+                    if (document.querySelector('.fancybox__container') || document.querySelector('.fancybox-container')) {
+                        return;
+                    }
+
+                    const randomIndex = Math.floor(Math.random() * galleryItems.length);
+
+                    // Buka gallery dengan random index
+                    const fancybox = Fancybox.show(
+                        Array.from(galleryItems).map(el => ({
+                            src: el.getAttribute('href'),
+                            caption: el.getAttribute('data-caption') || '',
+                            type: 'image',
+                        })),
+                        {
+                            startIndex: randomIndex,
+                            Thumbs: false,
+                            Slideshow: {
+                                autoStart: false,
+                                timeout: 10000, // 10 detik per slide
+                            },
+                        }
+                    );
+                    
+                    // Tunggu gallery fully loaded, baru jalankan slideshow
+                    setTimeout(() => {
+                        try {
+                            if (fancybox) {
+                                const slideshowBtn = document.querySelector('[data-fancybox-toggle-slideshow]');
+                                if (slideshowBtn) {
+                                    slideshowBtn.click();
+                                } else if (fancybox.Slideshow) {
+                                    fancybox.Slideshow.toggle();
+                                }
+                            }
+                        } catch (ex) {
+                            console.error("Slideshow toggle failed:", ex);
+                        }
+                    }, 5000);
+                } catch (err) {
+                    console.error("Error in openRandomGallery:", err);
+                }
+            }
+
+            // ⏱️ Idle detection untuk auto-open gallery/SPS setelah 10 detik tidak ada aktivitas
+            let idleTimer = null;
+
+            function resetIdleTimer() {
+                if (idleTimer) {
+                    clearTimeout(idleTimer);
+                }
+                
+                // Set timer untuk membuka gallery setelah 20 detik idle (20000 ms)
+                idleTimer = setTimeout(() => {
+                    openRandomGallery();
+                }, 40000);
+            }
+
+            // Gunakan MutationObserver secara native untuk mendeteksi kapan modal Fancybox ditutup/dihapus dari DOM
+            try {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.removedNodes.forEach((node) => {
+                            if (node.nodeType === 1 && (
+                                node.classList.contains('fancybox__container') || 
+                                node.classList.contains('fancybox-container') ||
+                                node.querySelector?.('.fancybox__container') ||
+                                node.querySelector?.('.fancybox-container')
+                            )) {
+                                resetIdleTimer();
+                            }
+                        });
+                    });
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+                console.error("MutationObserver failed to initialize:", e);
+            }
+
+            // Listen ke berbagai event aktivitas user
+            const activityEvents = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+            activityEvents.forEach(eventName => {
+                document.addEventListener(eventName, resetIdleTimer, true);
+            });
+
+            // Jalankan idle timer pertama kali
+            resetIdleTimer();
         });
 
         $(document).ready(function () {
             let verifiedUser = null;
 
-            // Check if a mould change is in progress on page load
-            let savedMouldOperator = localStorage.getItem('mouldChangeOperator');
-            if (savedMouldOperator) {
-                savedMouldOperator = JSON.parse(savedMouldOperator);
-                $('#mouldChangeInfo').removeClass('hidden');
-                $('#currentUserProfile').attr('src', savedMouldOperator.profile_path);
-                $('#currentUserName').text(savedMouldOperator.name);
-                $('#startMouldChange').hide();
-                $('#endMouldChange').show();
+            // Helper to dynamically update status widget container and other details
+            function refreshStatusAndContainers() {
+                $.get(window.location.href, function (html) {
+                    const $html = $('<div>').html(html);
+                    $('#machineStatusContainer').html($html.find('#machineStatusContainer').html());
+                    $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                    $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                    $('#logsContainer').html($html.find('#logsContainer').html());
+                    
+                    // Re-initialize elapsed timer
+                    initializeTimer();
+                });
             }
 
-            // Check if an adjust machine process is in progress on page load
-            let savedAdjustOperator = localStorage.getItem('adjustMachineOperator');
-            if (savedAdjustOperator) {
-                savedAdjustOperator = JSON.parse(savedAdjustOperator);
-                $('#adjustMachineInfo').removeClass('hidden');
-                $('#currentAdjustUserProfile').attr('src', savedAdjustOperator.profile_path);
-                $('#currentAdjustUserName').text(savedAdjustOperator.name);
-                $('#startAdjustMachine').hide();
-                $('#endAdjustMachine').show();
-            }
-
-            // Check if a repair machine process is in progress on page load
-            let savedRepairOperator = localStorage.getItem('repairMachineOperator');
-            if (savedRepairOperator) {
-                savedRepairOperator = JSON.parse(savedRepairOperator);
-                $('#repairMachineInfo').removeClass('hidden');
-                $('#currentRepairUserProfile').attr('src', savedRepairOperator.profile_path);
-                $('#currentRepairUserName').text(savedRepairOperator.name);
-                $('#startRepairMachine').hide();
-                $('#endRepairMachine').show();
-            }
-
-            // Show NIK modal when clicking "Change Mould"
-            $('#startMouldChange').click(function () {
+            // Show NIK modal when clicking start buttons (using event delegation)
+            $(document).on('click', '#startMouldChange', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'mould');
+                $('#nextItemCodeContainer').removeClass('hidden');
+                $('#setupMolderSelectContainer').removeClass('hidden');
+                $('#adjusterSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
             });
 
-            // Show NIK modal when clicking "Adjust Machine"
-            $('#startAdjustMachine').click(function () {
+            $(document).on('click', '#startAdjustMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'adjust');
+                $('#nextItemCodeContainer').removeClass('hidden');
+                $('#adjusterSelectContainer').removeClass('hidden');
+                $('#setupMolderSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
             });
 
-            // Show NIK modal when clicking "Repair Machine"
-            $('#startRepairMachine').click(function () {
+            $(document).on('click', '#startRepairMachine', function () {
                 $('#nikModal').removeClass('hidden').attr('data-action', 'repair');
+                $('#nextItemCodeContainer').addClass('hidden');
+                $('#setupMolderSelectContainer').addClass('hidden');
+                $('#adjusterSelectContainer').addClass('hidden');
+                $('#nik').val('');
+                $('#password').val('');
+                $('#setup_molder_select').val('');
+                $('#adjuster_select').val('');
             });
 
-            // Close the modal
-            $('#closeNikModal').click(function () {
+            // Handle Setup Molder selection
+            $(document).on('change', '#setup_molder_select', function () {
+                let selectedOption = $(this).find('option:selected');
+                let name = selectedOption.val();
+                let password = selectedOption.attr('data-password') || '';
+                $('#nik').val(name);
+                $('#password').val(password);
+            });
+
+            // Handle Adjuster selection
+            $(document).on('change', '#adjuster_select', function () {
+                let selectedOption = $(this).find('option:selected');
+                let name = selectedOption.val();
+                let password = selectedOption.attr('data-password') || '';
+                $('#nik').val(name);
+                $('#password').val(password);
+            });
+
+            // Close NIK modal
+            $(document).on('click', '#closeNikModal', function () {
                 $('#nikModal').addClass('hidden');
             });
 
             // Verify NIK and password
-            $('#verifyNik').click(function () {
+            $(document).on('click', '#verifyNik', function () {
                 let nik = $('#nik').val().trim();
                 let password = $('#password').val().trim();
                 let actionType = $('#nikModal').attr('data-action');
+                let nextItemCode = $('#next_item_code').val();
 
                 if (nik === '' || password === '') {
                     alert('Please enter both NIK and password.');
+                    return;
+                }
+
+                if ((actionType === 'mould' || actionType === 'adjust') && !nextItemCode) {
+                    alert('Please select next item code.');
                     return;
                 }
 
@@ -1246,107 +1758,77 @@
                         $('#nikModal').addClass('hidden');
 
                         if (actionType === 'mould') {
-                            startMouldChange(verifiedUser.name);
+                            startMouldChange(verifiedUser.name, nextItemCode);
                         } else if (actionType === 'adjust') {
-                            startAdjustMachine(verifiedUser.name);
+                            startAdjustMachine(verifiedUser.name, nextItemCode);
                         } else if (actionType === 'repair') {
                             startRepairMachine(verifiedUser.name);
                         }
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Verifikasi gagal.');
                     }
                 });
             });
 
             // Start Mould Change Process
-            function startMouldChange(picName) {
+            function startMouldChange(picName, nextItemCode) {
                 $.ajax({
                     url: "{{ route('mould.change.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { pic_name: picName },
+                    data: { pic_name: picName, item_code: nextItemCode },
                     success: function (response) {
-                        // Cek jika backend memberikan warning message
-                        if (response.message === 'Belum ada item yang diassign') {
+                        if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
-                            return; // STOP, jangan update UI atau simpan localStorage
+                            return;
                         }
-
-                        // Lanjut hanya kalau valid
                         alert(response.message);
-
-                        // Simpan ke localStorage
                         localStorage.setItem('mouldChangeOperator', JSON.stringify(response.operator));
-
-                        // Tampilkan data operator & ubah UI
-                        $('#mouldChangeInfo').removeClass('hidden');
-                        $('#currentUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentUserName').text(response.operator.name);
-
-                        $('#startMouldChange').hide();
-                        $('#endMouldChange').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        // Tampilkan pesan error default dari backend
                         const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai mould change';
                         alert(msg);
                     }
                 });
             }
 
-
             // Complete Mould Change Process
-            $('#endMouldChange').click(function () {
-                const remarks = $('#mouldRemarks').val(); // ambil input dari textarea
+            $(document).on('click', '#endMouldChange', function () {
+                const remarks = $('#mouldRemarks').val() || ''; 
 
                 $.ajax({
                     url: "{{ route('mould.change.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { remarks: remarks }, // kirim remarks ke backend
+                    data: { remarks: remarks },
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('mouldChangeOperator');
-
-                        $('#mouldChangeInfo').addClass('hidden');
-                        $('#startMouldChange').show();
-                        $('#endMouldChange').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal mengakhiri mould change.');
                     }
                 });
             });
 
             // Start Adjust Machine Process
-            function startAdjustMachine(picName) {
+            function startAdjustMachine(picName, nextItemCode) {
                 $.ajax({
                     url: "{{ route('adjust.machine.start') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { pic_name: picName },
+                    data: { pic_name: picName, item_code: nextItemCode },
                     success: function (response) {
-                        // Cek jika backend mengirim warning
-                        if (response.message === 'Belum ada item yang diassign') {
+                        if (response.message && response.message.includes('Belum ada item')) {
                             alert('Gagal: ' + response.message);
-                            return; // STOP, jangan ubah UI atau simpan localStorage
+                            return;
                         }
-
                         alert(response.message);
-
-                        // Simpan ke localStorage
                         localStorage.setItem('adjustMachineOperator', JSON.stringify(response.operator));
-
-                        // Update UI
-                        $('#adjustMachineInfo').removeClass('hidden');
-                        $('#currentAdjustUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentAdjustUserName').text(response.operator.name);
-
-                        $('#startAdjustMachine').hide();
-                        $('#endAdjustMachine').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
                         const msg = xhr.responseJSON?.error || 'Terjadi kesalahan saat memulai adjust machine';
@@ -1356,30 +1838,24 @@
             }
 
             // Complete Adjust Machine Process
-            $('#endAdjustMachine').click(function () {
-                const remarks = $('#adjustRemarks').val(); // ambil input dari textarea
+            $(document).on('click', '#endAdjustMachine', function () {
+                const remarks = $('#adjustRemarks').val() || '';
 
                 $.ajax({
                     url: "{{ route('adjust.machine.end') }}",
                     type: "POST",
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { remarks: remarks }, // kirim remarks ke backend
+                    data: { remarks: remarks },
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('adjustMachineOperator');
-
-                        $('#adjustMachineInfo').addClass('hidden');
-                        $('#startAdjustMachine').show();
-                        $('#endAdjustMachine').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal mengakhiri adjust machine.');
                     }
                 });
             });
-
 
             // Start Repair Machine Process
             function startRepairMachine(picName) {
@@ -1391,24 +1867,18 @@
                     success: function (response) {
                         alert(response.message);
                         localStorage.setItem('repairMachineOperator', JSON.stringify(response.operator));
-
-                        $('#repairMachineInfo').removeClass('hidden');
-                        $('#currentRepairUserProfile').attr('src', response.operator.profile_path);
-                        $('#currentRepairUserName').text(response.operator.name);
-
-                        $('#startRepairMachine').hide();
-                        $('#endRepairMachine').show();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
-                        alert(xhr.responseJSON.error);
+                        alert(xhr.responseJSON?.error || 'Gagal memulai perbaikan.');
                     }
                 });
             }
 
             // Complete Repair Machine Process
-            $('#endRepairMachine').click(function () {
-                const problem = $('#repairProblem').val();
-                const remarks = $('#repairRemarks').val();
+            $(document).on('click', '#endRepairMachine', function () {
+                const problem = $('#repairProblem').val() || '';
+                const remarks = $('#repairRemarks').val() || '';
 
                 $.ajax({
                     url: "{{ route('repair.machine.end') }}",
@@ -1421,12 +1891,7 @@
                     success: function (response) {
                         alert(response.message);
                         localStorage.removeItem('repairMachineOperator');
-
-                        $('#repairMachineInfo').addClass('hidden');
-                        $('#startRepairMachine').show();
-                        $('#endRepairMachine').hide();
-
-                        location.reload();
+                        refreshStatusAndContainers();
                     },
                     error: function (xhr) {
                         alert(xhr.responseJSON?.error || 'Terjadi kesalahan.');
@@ -1434,6 +1899,416 @@
                 });
             });
 
+            // AJAX barcode scan handler
+            $('#scanForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Clear previous alerts
+                const $alert = $('#ajaxAlert');
+                $alert.addClass('hidden').removeClass('bg-green-100 text-green-700 bg-red-100 text-red-700');
+
+                // Get form details
+                const actionUrl = $(this).attr('action');
+                const formData = $(this).serialize();
+
+                $.ajax({
+                    url: actionUrl,
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        // Display success message in alert
+                        $alert.text(response.message)
+                            .removeClass('hidden')
+                            .addClass('bg-green-100 text-green-700');
+
+                        // Fetch updated page content via background GET to replace elements
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            
+                            // 1. Update pekerjaanTableContainer
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+
+                            // 2. Update detailDataModal tbody
+                            $('#detailDataModalTbody').html($html.find('#detailDataModalTbody').html());
+
+                            // 3. Update detailRemarkModal tbody
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+
+                            // 4. Update summaryTableContainer
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                        });
+
+                        // Clear inputs
+                        $('#spk_code').val('');
+                        $('#quantity').val('');
+                        $('#warehouse').val('');
+                        $('#label').val('');
+
+                        // Refocus SPK Code input field
+                        setTimeout(function () {
+                            $('#spk_code').focus();
+                        }, 100);
+
+                        // Clear alert after 5 seconds
+                        setTimeout(function () {
+                            $alert.addClass('hidden');
+                        }, 5000);
+                    },
+                    error: function (xhr) {
+                        let errMsg = 'Terjadi kesalahan saat menscan barcode.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            // Extract validation errors
+                            const errors = xhr.responseJSON.errors;
+                            errMsg = Object.values(errors).map(errArr => errArr.join(', ')).join('; ');
+                        }
+                        
+                        // Display error in alert
+                        $alert.text(errMsg)
+                            .removeClass('hidden')
+                            .addClass('bg-red-100 text-red-700');
+
+                        // Clear inputs but refocus SPK code
+                        $('#spk_code').val('');
+                        $('#quantity').val('');
+                        $('#warehouse').val('');
+                        $('#label').val('');
+                        
+                        setTimeout(function () {
+                            $('#spk_code').focus();
+                        }, 100);
+                    }
+                });
+            });
+
+            // AJAX submit for Temporal Cycle Time (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#cycleTimeForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Cycle Time updated successfully!');
+                        closeCycleTimeModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate cycle time.');
+                    }
+                });
+            });
+
+            // AJAX submit for Temporal Cavity (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#temporalCavityForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Temporal Cavity updated successfully!');
+                        closeTemporalCavityModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate temporal cavity.');
+                    }
+                });
+            });
+
+            // AJAX submit for Resin Usage (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#resinUsageForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Resin Usage updated successfully!');
+                        closeResinUsageModal();
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#productionPlanContainer').html($html.find('#productionPlanContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate resin usage.');
+                    }
+                });
+            });
+
+            // AJAX submit for Add Hourly Remark (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#addHourlyRemarksForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Hourly Remark added successfully!');
+                        // Modal remains open
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        const errMsg = xhr.responseJSON?.message || 'Gagal menambahkan hourly remark.';
+                        alert(errMsg);
+                    }
+                });
+            });
+
+            // AJAX submit for Add Actual Production
+            $(document).on('submit', '#productionForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'Actual Production updated successfully!');
+                        // Modal remains open
+                        
+                        // Update containers
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal mengupdate actual production.');
+                    }
+                });
+            });
+
+            // AJAX submit for Add NG
+            $(document).on('submit', '#ngForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                
+                $.ajax({
+                    url: form.action,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (data) {
+                        alert(data.message || 'NG added successfully!');
+                        form.reset(); // Clear form fields
+                        
+                        // Update containers and refresh NG list inside modal
+                        $.get(window.location.href, function (html) {
+                            const $html = $(html);
+                            $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                            $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                            $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                            refreshNgList();
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Gagal menambahkan NG.');
+                    }
+                });
+            });
+
+            // AJAX submit for Edit Remark (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#remarkForm', function(e) {
+                e.preventDefault();
+                const id = $('#remarkId').val();
+                const remark = $('#remarkInput').val();
+                const token = $('input[name="_token"]').val();
+
+                $.ajax({
+                    url: `/hourly-remarks/${id}/update-remark`,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'X-CSRF-TOKEN': token },
+                    data: JSON.stringify({ remark }),
+                    success: function (data) {
+                        if (data.success) {
+                            alert('Remark saved successfully!');
+                            // Modal remains open
+                            
+                            // Update containers
+                            $.get(window.location.href, function (html) {
+                                const $html = $(html);
+                                $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                                $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                                $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                            });
+                        } else {
+                            alert("Gagal menyimpan remark");
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Gagal menyimpan remark.');
+                    }
+                });
+            });
+
+            // AJAX submit for Edit NG (using event delegation to support dynamic element replacement)
+            $(document).on('submit', '#editNgForm', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                const id = $('#edit_ng_id').val();
+
+                $.ajax({
+                    url: `/ng-detail/${id}`,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (res) {
+                        if (res.success) {
+                            alert('NG updated successfully');
+                            closeEditNgModal(); // Close the edit overlay modal
+                            // Main ngModal remains open
+                            
+                            // Update containers and refresh NG list inside modal
+                            $.get(window.location.href, function (html) {
+                                const $html = $(html);
+                                $('#detailRemarkModalTbody').html($html.find('#detailRemarkModalTbody').html());
+                                $('#summaryTableContainer').html($html.find('#summaryTableContainer').html());
+                                $('#pekerjaanTableContainer').html($html.find('#pekerjaanTableContainer').html());
+                                refreshNgList();
+                            });
+                        } else {
+                            alert('Failed to update NG');
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Failed to update NG.');
+                    }
+                });
+            });
+
+            // Open Edit Log Modal
+            window.openEditLogModal = function (type, id, createdAt, endTime, remark) {
+                $('#edit_log_type').val(type);
+                $('#edit_log_id').val(id);
+                
+                // Format dates to YYYY-MM-DDTHH:mm
+                $('#edit_log_created_at').val(formatDatetimeLocal(createdAt));
+                $('#edit_log_end_time').val(formatDatetimeLocal(endTime));
+                $('#edit_log_remark').val(remark || '');
+
+                // Update label dynamically based on type
+                if (type === 'repair') {
+                    $('#edit_log_end_time_label').text('Waktu Selesai Perbaikan');
+                } else {
+                    $('#edit_log_end_time_label').text('Waktu Selesai');
+                }
+
+                $('#editLogModal').removeClass('hidden');
+            };
+
+            function formatDatetimeLocal(datetimeStr) {
+                if (!datetimeStr) return '';
+                // replace space with 'T' and strip seconds if any
+                return datetimeStr.substring(0, 16).replace(' ', 'T');
+            }
+
+            // Close Edit Log Modal
+            $(document).on('click', '#closeEditLogModal', function () {
+                $('#editLogModal').addClass('hidden');
+            });
+
+            // Save Edit Log
+            $(document).on('click', '#saveEditLog', function () {
+                let type = $('#edit_log_type').val();
+                let id = $('#edit_log_id').val();
+                let createdAt = $('#edit_log_created_at').val();
+                let endTime = $('#edit_log_end_time').val();
+                let remark = $('#edit_log_remark').val();
+
+                if (!createdAt || !endTime) {
+                    alert('Waktu Mulai dan Waktu Selesai harus diisi.');
+                    return;
+                }
+
+                let url = '';
+                let data = {
+                    created_at: createdAt,
+                    remark: remark
+                };
+
+                if (type === 'mould') {
+                    url = `/mould-change/update/${id}`;
+                    data.end_time = endTime;
+                } else if (type === 'adjust') {
+                    url = `/adjust-machine/update/${id}`;
+                    data.end_time = endTime;
+                } else if (type === 'repair') {
+                    url = `/repair-machine/update/${id}`;
+                    data.finish_repair = endTime;
+                }
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: data,
+                    success: function (response) {
+                        alert(response.message);
+                        $('#editLogModal').addClass('hidden');
+                        refreshStatusAndContainers();
+                    },
+                    error: function (xhr) {
+                        alert(xhr.responseJSON?.message || 'Gagal menyimpan perubahan log.');
+                    }
+                });
+            });
 
         });
 
@@ -1453,40 +2328,44 @@
             location.reload();
         });
 
-        document.addEventListener("DOMContentLoaded", function () {
-            const startMouldChange = document.getElementById("startMouldChange");
-            const endMouldChange = document.getElementById("endMouldChange");
-            const startAdjustMachine = document.getElementById("startAdjustMachine");
-            const endAdjustMachine = document.getElementById("endAdjustMachine");
+        let activeInterval = null;
 
-            // Handle Mould Change Start
-            startMouldChange.addEventListener("click", function () {
-                startMouldChange.style.display = "none";
-                startAdjustMachine.style.display = "none"; // Hide adjust machine button
-                endMouldChange.style.display = "inline-block";
-            });
+        function initializeTimer() {
+            if (activeInterval) {
+                clearInterval(activeInterval);
+                activeInterval = null;
+            }
+            const timerEl = document.getElementById('activityTimer');
+            if (timerEl) {
+                const startTimeStr = timerEl.getAttribute('data-start');
+                if (startTimeStr) {
+                    const startTime = new Date(startTimeStr).getTime();
+                    
+                    function updateTimer() {
+                        const now = new Date().getTime();
+                        const diff = now - startTime;
+                        
+                        if (diff > 0) {
+                            const hours = Math.floor(diff / 3600000);
+                            const minutes = Math.floor((diff % 3600000) / 60000);
+                            const seconds = Math.floor((diff % 60000) / 1000);
+                            
+                            const formatted = 
+                                String(hours).padStart(2, '0') + ':' + 
+                                String(minutes).padStart(2, '0') + ':' + 
+                                String(seconds).padStart(2, '0');
+                                
+                            timerEl.textContent = formatted;
+                        }
+                    }
+                    
+                    updateTimer();
+                    activeInterval = setInterval(updateTimer, 1000);
+                }
+            }
+        }
 
-            // Handle Mould Change End
-            endMouldChange.addEventListener("click", function () {
-                startMouldChange.style.display = "inline-block";
-                startAdjustMachine.style.display = "inline-block"; // Show adjust machine button again
-                endMouldChange.style.display = "none";
-            });
-
-            // Handle Adjust Machine Start
-            startAdjustMachine.addEventListener("click", function () {
-                startMouldChange.style.display = "none"; // Hide mould change button
-                startAdjustMachine.style.display = "none";
-                endAdjustMachine.style.display = "inline-block";
-            });
-
-            // Handle Adjust Machine End
-            endAdjustMachine.addEventListener("click", function () {
-                startMouldChange.style.display = "inline-block"; // Show mould change button again
-                startAdjustMachine.style.display = "inline-block";
-                endAdjustMachine.style.display = "none";
-            });
-        });
+        document.addEventListener("DOMContentLoaded", initializeTimer);
 
 
             document.addEventListener("DOMContentLoaded", function () {
@@ -1638,17 +2517,32 @@
             function autoSubmitForm() {
             return {
                 nikInput: localStorage.getItem('nik') || '',
+                _submitTimer: null,
+
+                debouncedSubmit() {
+                    // Cancel any pending submit timer
+                    if (this._submitTimer) {
+                        clearTimeout(this._submitTimer);
+                    }
+                    // Only submit after user stops typing for 400ms
+                    this._submitTimer = setTimeout(() => {
+                        this.checkAndSubmitForm();
+                    }, 400);
+                },
 
                 checkAndSubmitForm() {
-                    console.log("LocalStorage NIK:", localStorage.getItem('nik'));
-                    console.log("Current NIK Input:", this.nikInput);
-
                     if (!this.nikInput) {
                         this.nikInput = localStorage.getItem('nik') || '';
-                        console.warn("NIK was empty, updated from localStorage:", this.nikInput);
                     }
 
-                    document.getElementById('nik').value = this.nikInput;
+                    // Securely set NIK in scan form hidden input
+                    const form = document.getElementById('scanForm');
+                    if (form) {
+                        const nikHiddenInput = form.querySelector('input[name="nik"]');
+                        if (nikHiddenInput) {
+                            nikHiddenInput.value = this.nikInput;
+                        }
+                    }
 
                     const requiredFieldNames = ['spk_code_auto', 'quantity_auto', 'warehouse_auto', 'label_auto'];
                     const allFilled = requiredFieldNames.every(name => {
@@ -1658,7 +2552,7 @@
 
                     if (allFilled && this.nikInput) {
                         console.log("✅ Form is valid. Submitting...");
-                        
+                        $('#scanForm').submit();
                     } else {
                         console.warn("❌ Form not submitted. Missing required fields or NIK.");
                     }
@@ -1689,34 +2583,12 @@
 
 
             function editRemark(id, remark) {
+                currentHourlyRemarkId = id;
                 document.getElementById('remarkId').value = id;
                 document.getElementById('remarkInput').value = remark || '';
                 document.getElementById('remarkModal').showModal();
             }
 
-            document.getElementById('remarkForm').addEventListener('submit', function (e) {
-                e.preventDefault();
-                const id = document.getElementById('remarkId').value;
-                const remark = document.getElementById('remarkInput').value;
-                const token = document.querySelector('input[name="_token"]').value;
-
-                fetch(`/hourly-remarks/${id}/update-remark`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': token
-                    },
-                    body: JSON.stringify({ remark })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert("Gagal menyimpan remark");
-                    }
-                });
-            });
 
             function openConfirmModal() {
                 document.getElementById('confirmModal').showModal();
@@ -1736,6 +2608,7 @@
             }
 
             function openProductionModal(slotId, currentValue = 0) {
+            currentHourlyRemarkId = slotId;
             const modal = document.getElementById('productionModal');
             const form = document.getElementById('productionForm');
             const input = document.getElementById('actualProductionInput');
@@ -1754,8 +2627,36 @@
 
         let currentHourlyRemarkId = null;
 
+        function refreshNgList() {
+            if (!currentHourlyRemarkId) return;
+            const btn = document.querySelector(`button[data-id="${currentHourlyRemarkId}"]`);
+            if (btn) {
+                const ngDetails = JSON.parse(btn.getAttribute("data-ng") || '[]');
+                let listHtml = "";
+                if (ngDetails.length === 0) {
+                    listHtml = `<p class="text-gray-500 text-sm">No NG recorded for this hour.</p>`;
+                } else {
+                    ngDetails.forEach(ng => {
+                        listHtml += `
+                            <div class="border-b py-1">
+                                <div class="text-sm font-semibold">${ng.ng_type?.ng_type ?? 'Unknown'}</div>
+                                <div class="text-xs">Qty: ${ng.ng_quantity}</div>
+                                <div class="text-xs text-gray-600">${ng.ng_remarks ?? ''}</div>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button class="text-blue-600 text-xs hover:underline" onclick="editNg(${ng.id})">Edit</button>
+                                <button class="text-red-600 text-xs hover:underline" onclick="deleteNg(${ng.id})">Delete</button>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('ngList').innerHTML = listHtml;
+            }
+        }
+
             function openNgModal(el) {
                 let hourlyRemarkId = el.getAttribute("data-id");
+                currentHourlyRemarkId = hourlyRemarkId;
                 let ngDetails = JSON.parse(el.getAttribute("data-ng"));
 
                 // Update form action
@@ -1837,7 +2738,28 @@
                 .then(res => {
                     if (res.success) {
                         alert('NG deleted successfully');
-                        location.reload();
+                        
+                        // Pure Vanilla JS fetch and DOM swap:
+                        fetch(window.location.href)
+                            .then(res => res.text())
+                            .then(html => {
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(html, 'text/html');
+                                
+                                const oldTbody = document.getElementById('detailRemarkModalTbody');
+                                const newTbody = doc.getElementById('detailRemarkModalTbody');
+                                if (oldTbody && newTbody) {
+                                    oldTbody.innerHTML = newTbody.innerHTML;
+                                }
+
+                                const oldSummary = document.getElementById('summaryTableContainer');
+                                const newSummary = doc.getElementById('summaryTableContainer');
+                                if (oldSummary && newSummary) {
+                                    oldSummary.innerHTML = newSummary.innerHTML;
+                                }
+
+                                refreshNgList();
+                            });
                     }
                 })
                 .catch(error => {
@@ -1849,35 +2771,6 @@
             function closeEditNgModal() {
                 document.getElementById('editNgModal').classList.add('hidden');
             }
-
-            // Handle form submit dengan AJAX (opsional, tapi lebih baik)
-            document.getElementById('editNgForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                const id = document.getElementById('edit_ng_id').value;
-                
-                fetch(`/ng-detail/${id}`, {
-                    method: 'POST', // 
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.success) {
-                        alert('NG updated successfully');
-                        closeEditNgModal();
-                        location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to update NG');
-                });
-            });
 
         function openRemarkModal(id, existingRemark = '') {
             document.getElementById('remark_dic_id').value = id;
@@ -1897,7 +2790,8 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({ remark })
             })
@@ -1905,7 +2799,26 @@
             .then(data => {
                 alert('Remark saved!');
                 closeRemarkModal();
-                location.reload();
+                
+                // Pure Vanilla JS fetch and DOM swap:
+                fetch(window.location.href)
+                    .then(res => res.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        const newPlan = doc.getElementById('productionPlanContainer');
+                        const oldPlan = document.getElementById('productionPlanContainer');
+                        if (newPlan && oldPlan) {
+                            oldPlan.innerHTML = newPlan.innerHTML;
+                        }
+
+                        const newPekerjaan = doc.getElementById('pekerjaanTableContainer');
+                        const oldPekerjaan = document.getElementById('pekerjaanTableContainer');
+                        if (newPekerjaan && oldPekerjaan) {
+                            oldPekerjaan.innerHTML = newPekerjaan.innerHTML;
+                        }
+                    });
             });
         }
 
@@ -1922,8 +2835,124 @@
             document.getElementById('temporalCavityModal').classList.add('hidden');
         }
 
+        function openResinUsageModal(id, value) {
+            document.getElementById('ruDataIdInput').value = id;
+            document.getElementById('ruInput').value = value;
+            document.getElementById('resinUsageModal').classList.remove('hidden');
 
+            // Set action URL
+            document.getElementById('resinUsageForm').action = `/daily-item-codes/${id}/resin-usage`;
+        }
+
+        function closeResinUsageModal() {
+            document.getElementById('resinUsageModal').classList.add('hidden');
+        }
+
+        // AJAX handler untuk penambahan Output Log tanpa reload halaman
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('output-log-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const button = form.querySelector('button[type="submit"]');
+                    const operatorName = localStorage.getItem('operator_name') || '';
+                    
+                    // Disable button
+                    button.disabled = true;
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({
+                            operator_name: operatorName
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const tbody = document.getElementById('output-logs-tbody');
+                            
+                            // Hapus baris kosong/placeholder jika ada
+                            const emptyRow = tbody.querySelector('tr td[colspan="3"]');
+                            if (emptyRow) {
+                                tbody.innerHTML = '';
+                            }
+                            
+                            // Render baris baru
+                            const newRowHtml = `
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-3 px-4 font-semibold text-gray-700 w-1/3">
+                                        ${data.log.time}
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-700 w-1/3">
+                                        <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                            ${data.log.operator_name}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-900 font-bold w-1/3">
+                                        ${data.log.quantity}
+                                    </td>
+                                </tr>
+                            `;
+                            
+                            // Sisipkan ke baris paling atas
+                            tbody.insertAdjacentHTML('afterbegin', newRowHtml);
+
+                            // Update badge count
+                            const countEl = document.getElementById('total-logs-count');
+                            if (countEl) {
+                                countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+                            }
+                            
+                            console.log('TESTING')
+                        //     Trigger Print menggunakan hidden iframe
+                           const printUrl = `/production-output-log/print/${data.log_id}`;
+                            const iframe = document.createElement('iframe');
+                           iframe.src = printUrl;
+                           iframe.style.position = 'absolute';
+                           iframe.style.width = '0';
+                           iframe.style.height = '0';
+                           iframe.style.border = '0';
+                           iframe.style.visibility = 'hidden';
+                            
+                           document.body.appendChild(iframe);
+                            
+                        //     Bersihkan iframe setelah print dipicu
+                            setTimeout(() => {
+                               iframe.remove();
+                            }, 10000);
+
+                            
+                        } else {
+                            alert(data.message || 'Gagal menambahkan log output.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Terjadi kesalahan saat menambahkan log.');
+                    })
+                    .finally(() => {
+                        // Re-enable button
+                        button.disabled = false;
+                        button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    });
+                });
+            }
+        });
     
     </script>
+
+    <!-- {{-- Hidden iframe untuk auto-print label barcode --}}
+    @if (session('print_log_id'))
+        <iframe src="{{ route('production.output-log.print', session('print_log_id')) }}" 
+                style="width:0; height:0; border:0; border:none; position:absolute; visibility:hidden;">
+        </iframe>
+    @endif -->
 
 </x-app-layout>

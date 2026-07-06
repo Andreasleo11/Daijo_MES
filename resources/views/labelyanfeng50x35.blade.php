@@ -57,7 +57,7 @@
 
         .info div {
             font-size: 2mm;
-            font-weight: bold;
+            /* font-weight: bold; */
             white-space: nowrap;
         }
 

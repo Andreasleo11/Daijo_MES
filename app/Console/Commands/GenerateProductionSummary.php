@@ -17,44 +17,90 @@ class GenerateProductionSummary extends Command
     {
         DB::beginTransaction();
         try {
-            // Get unprocessed data
-            $unprocessedData = ProductionScannedData::where('processed', false)->get();
+            // Ambil data scanned yang belum diproses dengan LOCK agar tidak diambil proses lain
+            $unprocessedData = ProductionScannedData::where('processed', false)
+                ->whereIn('warehouse', ['FFI', 'KRFFI'])
+                ->lockForUpdate() // <--- Lock baris ini sampai transaksi selesai
+                ->get();
 
             if ($unprocessedData->isEmpty()) {
                 $this->info('No new data to process.');
                 return;
             }
 
-            // Group by spk_code
-            $summaries = $unprocessedData->groupBy('spk_code');
+            // Group per SPK + Warehouse + Date (biar rapi per baris)
+            $summaries = $unprocessedData->groupBy(function ($item) {
+                return $item->spk_code . '||' . $item->warehouse . '||' . $item->created_at->toDateString();
+            });
 
             $processedIds = [];
+            $allPayloads = [];
 
-            foreach ($summaries as $spk_code => $group) {
-                // Sum quantity for this spk_code
+            foreach ($summaries as $groupKey => $group) {
                 $total_quantity = $group->sum('quantity');
-
-                // Get the first record’s warehouse and created_at date
-                $first = $group->first();
-                $warehouse = $first->warehouse;
-                $created_date = $first->created_at->toDateString();
-
-                // Insert into summary table
-                ProductionSummary::create([
-                    'spk_code'       => $spk_code,
+                $first          = $group->first();
+                
+                // SELALU BIKIN BARU (sesuai request)
+                $summary = ProductionSummary::create([
+                    'spk_code'       => $first->spk_code,
                     'total_quantity' => $total_quantity,
-                    'warehouse'      => $warehouse,
-                    'label'          => 'all', // Label is always 'all'
-                    'created_date'   => $created_date,
+                    'warehouse'      => $first->warehouse,
+                    'label'          => 'all',
+                    'created_date'   => $first->created_at->toDateString(),
+                    'sap_sent'       => 0,
+                    'sap_sent_at'    => null,
                 ]);
 
-                // Collect IDs of processed records
-                $processedIds = array_merge($processedIds, $group->pluck('id')->toArray());
+                $groupIds     = $group->pluck('id')->toArray();
+                $processedIds = array_merge($processedIds, $groupIds);
+
+                // Langsung ikat ke summary baru dan tandai sudah diproses
+                ProductionScannedData::whereIn('id', $groupIds)
+                    ->update([
+                        'processed'  => true,
+                        'summary_id' => $summary->id,
+                    ]);
+
+                \Log::info('Summary created', [
+                    'spk_code'    => $first->spk_code,
+                    'summary_id'  => $summary->id,
+                    'warehouse'   => $first->warehouse,
+                    'date'        => $first->created_at->toDateString(),
+                    'records'     => count($groupIds),
+                    'qty'         => $total_quantity,
+                ]);
+
+                // Tambahkan ke payload api_logs agar mudah dicari
+                $allPayloads[] = [
+                    'summary_id'     => $summary->id,
+                    'spk_code'       => $first->spk_code,
+                    'total_quantity' => $total_quantity,
+                    'warehouse'      => $first->warehouse,
+                    'label'          => 'all',
+                    'used_label'     => $group->pluck('label')->unique()->values()->toArray(),
+                    'created_date'   => $first->created_at->toDateString(),
+                    'records_count'  => count($groupIds),
+                ];
             }
 
-            // Mark processed records
-            // INI UNTUK UPDATE PROCESSED JADI TRUE NANTI KALAU METHOD SUDAH AMAN 
-            ProductionScannedData::whereIn('id', $processedIds)->update(['processed' => true]);
+            DB::table('api_logs')->insert([
+                'api_name'         => 'PRODUCTION_SUMMARY',
+                'method'           => 'INTERNAL',
+                'endpoint'         => 'summary:generate',
+                'request_payload'  => json_encode(['processed_ids' => $processedIds], JSON_PRETTY_PRINT),
+                'response_payload' => json_encode([
+                    'generated_at'   => now()->toDateTimeString(),
+                    'total_spk'      => count($allPayloads),
+                    'total_records'  => count($processedIds),
+                    'label_used'     => collect($allPayloads)->pluck('label')->unique()->values(),
+                    'summaries'      => $allPayloads,
+                ], JSON_PRETTY_PRINT),
+                'status_code'      => 200,
+                'status'           => 'success',
+                'message'          => 'Generated ' . count($allPayloads) . ' summaries from ' . count($processedIds) . ' records',
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
 
             DB::commit();
             $this->info('Production summary generated and data marked as processed.');

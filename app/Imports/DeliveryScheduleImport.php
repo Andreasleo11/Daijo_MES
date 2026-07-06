@@ -6,11 +6,20 @@ use App\Models\Delivery\DeliveryScheduleNew;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithBatchInserts;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Carbon\Carbon;
 
-
-class DeliveryScheduleImport implements ToModel, WithHeadingRow
+class DeliveryScheduleImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading
 {
+    private $existingCodes;
+
+    public function __construct()
+    {
+        // Pre-fetch all existing codes into an associative array for O(1) fast in-memory lookup
+        $this->existingCodes = DeliveryScheduleNew::pluck('code')->flip()->all();
+    }
+
     public function model(array $row)
     {
         return new DeliveryScheduleNew([
@@ -21,14 +30,16 @@ class DeliveryScheduleImport implements ToModel, WithHeadingRow
             'item_code'         => $row['item_code'],
             'delivery_quantity' => $row['delivery_quantity'],
         ]);
-        
     }
 
     private function generateUniqueCode()
     {
         do {
             $code = strtoupper(Str::random(6)); // Generates a 6-character random uppercase string
-        } while (DeliveryScheduleNew::where('code', $code)->exists());
+        } while (isset($this->existingCodes[$code]));
+
+        // Track the newly generated code in memory so subsequent rows in this import batch do not collide
+        $this->existingCodes[$code] = true;
 
         return $code;
     }
@@ -43,6 +54,14 @@ class DeliveryScheduleImport implements ToModel, WithHeadingRow
         // Otherwise, assume it's a valid date string and return it
         return Carbon::parse($excelDate)->format('Y-m-d');
     }
-    
-}
 
+    public function batchSize(): int
+    {
+        return 1000;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
+    }
+}

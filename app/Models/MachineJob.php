@@ -15,7 +15,13 @@ class MachineJob extends Model
         'item_code',
         'shift',
         'employee_name',
+        'dic_id',
     ];
+
+    public function activeDailyItemCode()
+    {
+        return $this->belongsTo(DailyItemCode::class, 'dic_id', 'id');
+    }
 
     public function user()
     {

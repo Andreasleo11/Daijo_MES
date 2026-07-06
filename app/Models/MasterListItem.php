@@ -11,6 +11,19 @@ class MasterListItem extends Model
 
     public $timestamps = false;
 
+     protected $fillable = [
+        'item_code',
+        'item_name',
+        'tipe_mesin',
+        'standart_packaging_list',
+        'setup_time_minute',
+        'pair',
+        'cavity',
+        'customer_code',
+        'cycle_time',
+    ];
+    
+
     public function files()
     {
         return $this->hasMany(File::class, 'item_code', 'item_code');
@@ -19,5 +32,14 @@ class MasterListItem extends Model
     public function photo()
     {
         return $this->hasOne(MasterItemPhoto::class, 'item_code', 'item_code');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(
+            MasterCustomerDelivery::class,
+            'customer_code',   // foreign key di master_list_items
+            'customer_code'    // owner key di master_customer_delivery
+        );
     }
 }

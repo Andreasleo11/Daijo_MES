@@ -63,6 +63,36 @@
                     <div class="w-full sm:w-auto">
                         <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Apply Filter</button>
                     </div>
+
+                    <!-- Mould Change Alert Button -->
+                    <div class="w-full sm:w-auto">
+                        @if(isset($longMouldChanges) && count($longMouldChanges) > 0)
+                            <button type="button" id="showLongMouldModal" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded flex items-center space-x-2 font-bold shadow-md transition-all duration-200">
+                                <span>⚠️ Mould Change &gt; 20m</span>
+                                <span class="bg-white text-rose-700 px-2 py-0.5 rounded-full text-xs font-extrabold">{{ count($longMouldChanges) }}</span>
+                            </button>
+                        @else
+                            <button type="button" disabled class="bg-gray-300 text-gray-500 px-4 py-2 rounded flex items-center space-x-2 font-medium cursor-not-allowed">
+                                <span>Mould Change &gt; 20m</span>
+                                <span class="bg-gray-400 text-white px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </button>
+                        @endif
+                    </div>
+
+                    <!-- Actual Produksi 0 Alert Button -->
+                    <div class="w-full sm:w-auto">
+                        @if(isset($zeroActualRemarks) && count($zeroActualRemarks) > 0)
+                            <button type="button" id="showZeroActualModal" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded flex items-center space-x-2 font-bold shadow-md transition-all duration-200">
+                                <span>📉 Actual Produksi 0</span>
+                                <span class="bg-white text-amber-700 px-2 py-0.5 rounded-full text-xs font-extrabold">{{ count($zeroActualRemarks) }}</span>
+                            </button>
+                        @else
+                            <button type="button" disabled class="bg-gray-300 text-gray-500 px-4 py-2 rounded flex items-center space-x-2 font-medium cursor-not-allowed">
+                                <span>Actual Produksi 0</span>
+                                <span class="bg-gray-400 text-white px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </button>
+                        @endif
+                    </div>
                 </div>
             </form>
                 @if (request('machine_name')) <!-- Only show tables if a machine is selected -->
@@ -79,7 +109,10 @@
                             @endif
                         </h2>
                          <h1>
-                            Daily Percentage : {{ $data['average_achievement'] ?? 0 }} %
+                            <!-- Daily Percentage : {{ $data['average_achievement'] ?? 0 }} % -->
+                            Efficiency: {{ $data['machine_efficiency'] ?? 0 }}%
+    |                       Jam Aktif: {{ $data['total_jam_aktif'] ?? 0 }} jam
+    |                       Prod: {{ $data['total_prod_menit'] ?? 0 }} menit
                         </h1>
 
                         <!-- @if(isset($data['pengawas']))
@@ -107,59 +140,100 @@
 
 
                         <!-- Repair Machine Logs -->
-                     
                         @php
                             $selectedDate = request('date', now()->toDateString());
-                            $selectedMonth = \Carbon\Carbon::parse($selectedDate)->format('Y-m');
                             $selectedMachine = request('machine_name');
-
                             $allLogs = $data['repair_machine_logs'] ?? [];
                             
-
-                            // Filter berdasarkan bulan dan mesin
-                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedMonth, $selectedMachine) {
-                                return \Carbon\Carbon::parse($log['start_time'])->format('Y-m') === $selectedMonth
-                                    && (!$selectedMachine || $log['machine_name'] === $selectedMachine);
+                            // Filter berdasarkan mesin saja, karena tanggal/shift sudah difilter di controller secara presisi
+                            $filteredRepairLogs = collect($allLogs)->filter(function ($log) use ($selectedMachine) {
+                                return !$selectedMachine || $log['machine_name'] === $selectedMachine;
                             });
-                           
                         @endphp
-                    <!-- Repair Machine Logs -->
-                    @if(isset($filteredRepairLogs) && count($filteredRepairLogs) > 0)
-                    <h4 class="text-lg font-semibold mt-4 mb-4">Repair Machine Logs</h4>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left">Operator</th>
-                                        <th class="px-4 py-2 text-left">Status</th>
-                                        <th class="px-4 py-2 text-left">Start Time</th>
-                                        <th class="px-4 py-2 text-left">End Time</th>
-                                        <th class="px-4 py-2 text-left">Actual Time</th>
-                                        <th class="px-4 py-2 text-left">Problem</th>
-                                        <th class="px-4 py-2 text-left">Remark</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($filteredRepairLogs as $repairLog)
-                                        <tr class="border-t">
-                                            <td class="px-4 py-2 flex items-center space-x-3">
-                                                <img src="{{ $repairLog['pic_profile_path'] }}" alt="Operator Profile" class="w-10 h-10 rounded-full border">
-                                                <span class="font-medium">{{ $repairLog['pic'] }}</span>
-                                            </td>
-                                            <td class="px-4 py-2">{{ $repairLog['status'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['start_time'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['end_time'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['actual_time'] }} min</td>
-                                            <td class="px-4 py-2">{{ $repairLog['problem'] }}</td>
-                                            <td class="px-4 py-2">{{ $repairLog['remark'] }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p>No Repair Machine Logs Available</p>
-                    @endif
+
+                        @if(isset($filteredRepairLogs) && count($filteredRepairLogs) > 0)
+                            <div class="mt-8 mb-6">
+                                <h4 class="text-md font-bold text-slate-700 mb-3 flex items-center space-x-2">
+                                    <span>🔧 Repair Machine Logs</span>
+                                    <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-0.5 rounded-full font-semibold">{{ count($filteredRepairLogs) }} Data</span>
+                                </h4>
+                                <div class="overflow-hidden border border-slate-100 rounded-xl shadow-sm bg-white">
+                                    <table class="min-w-full divide-y divide-slate-100 text-xs">
+                                        <thead class="bg-slate-50">
+                                            <tr>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Operator & Machine</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Start Time</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">End Time</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Duration</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Problem</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider">Remark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            @foreach ($filteredRepairLogs as $repairLog)
+                                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                                    <td class="px-4 py-3">
+                                                        <div class="flex items-center space-x-2.5">
+                                                            <img src="{{ $repairLog['pic_profile_path'] }}" alt="{{ $repairLog['pic'] }}" class="w-8 h-8 rounded-full border border-slate-200 object-cover shadow-sm">
+                                                            <div>
+                                                                <div class="font-bold text-slate-800">{{ $repairLog['pic'] }}</div>
+                                                                <div class="text-[10px] text-indigo-600 font-semibold uppercase">Machine: {{ $repairLog['machine_name'] }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        @if(!$repairLog['is_completed'])
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                Ongoing
+                                                            </span>
+                                                        @elseif(($repairLog['status'] ?? '') === 'problem')
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-rose-500"></span>
+                                                                Problem (&gt;30m)
+                                                            </span>
+                                                        @else
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500"></span>
+                                                                Safe (&le;30m)
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
+                                                        {{ \Carbon\Carbon::parse($repairLog['start_time'])->setTimezone('Asia/Jakarta')->format('d-m-Y H:i') }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
+                                                        @if($repairLog['end_time'])
+                                                            {{ \Carbon\Carbon::parse($repairLog['end_time'])->setTimezone('Asia/Jakarta')->format('d-m-Y H:i') }}
+                                                        @else
+                                                            <span class="text-slate-400 italic font-normal">-</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                                                        @if(!$repairLog['is_completed'])
+                                                            <span class="text-amber-600 font-medium">{{ $repairLog['actual_time'] }} min (elapsed)</span>
+                                                        @else
+                                                            <span class="{{ ($repairLog['status'] ?? '') === 'problem' ? 'text-rose-600' : 'text-slate-700' }}">{{ $repairLog['actual_time'] }} min</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-700 font-medium max-w-[200px] truncate" title="{{ $repairLog['problem'] }}">
+                                                        {{ $repairLog['problem'] }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 italic max-w-[200px] truncate" title="{{ $repairLog['remark'] ?: 'No remark' }}">
+                                                        {{ $repairLog['remark'] ?: '-' }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-8 mb-6 p-4 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-center text-slate-400 text-xs italic">
+                                No Repair Machine Logs Available for {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}
+                            </div>
+                        @endif
 
                             <!-- Mould Change Log -->
                             <h4 class="text-lg font-semibold mt-4">Mould Change Summary</h4>
@@ -180,64 +254,112 @@
                             </div>
 
                            <!-- Button to show details -->
-                            <button id="showDetails" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">View Details</button>
+                            <button id="showDetails"
+                                class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                View Details
+                            </button>
 
-                            <div id="detailModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-                                <div class="bg-white p-6 rounded-lg shadow-lg w-3/4">
-                                    <h2 class="text-lg font-bold mb-4">Mould Change & Adjusting Machine Details</h2>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full border-collapse border border-gray-300">
-                                            <thead class="bg-gray-200">
-                                                <tr>
-                                                    <th class="border px-4 py-2">Machine</th>
-                                                    <th class="border px-4 py-2">Item Code</th>
-                                                    <th class="border px-4 py-2">Start Time</th>
-                                                    <th class="border px-4 py-2">End Time</th>
-                                                    <th class="border px-4 py-2">Predicted Time (min)</th>
-                                                    <th class="border px-4 py-2">Actual Time (min)</th>
-                                                    <th class="border px-4 py-2">PIC</th>
-                                                    <th class="border px-4 py-2">Remark</th>
-                                                    <th class="border px-4 py-2">Status</th>
-                                                    <th class="border px-4 py-2">Type</th>
-                                                    <th class="border px-4 py-2">Foto</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @php
-                                                    $combinedLogs = array_merge($data['mould_change_log'], $data['adjust_machine_logs']);
-                                                    usort($combinedLogs, fn($a, $b) => strcmp($a['item_code'], $b['item_code']));
-                                                @endphp
+                            <!-- Modal -->
+                            <div id="detailModal"
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
 
-                                                @foreach ($combinedLogs as $log)
-                                                    <tr class="{{ isset($log['status']) && $log['status'] == 'problem' ? 'bg-red-200' : 'bg-green-200' }}">
-                                                        <td class="border px-4 py-2">{{ $log['machine_name'] }}</td>
-                                                        <td class="border px-4 py-2">{{ $log['item_code'] }}</td>
-                                                        <td class="border px-4 py-2">
-                                                            {{ \Carbon\Carbon::parse($log['start_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
-                                                        </td>
-                                                        <td class="border px-4 py-2">
-                                                            {{ \Carbon\Carbon::parse($log['end_time'])->setTimezone('Asia/Jakarta')->format('Y-m-d H:i') }}
-                                                        </td>
-                                                        <td class="border px-4 py-2">{{ $log['predicted_time'] }} Min</td>
-                                                        <td class="border px-4 py-2">{{ $log['actual_time'] }} Min</td>
-                                                        <td class="border px-4 py-2">{{ $log['pic'] }}</td>
-                                                        <td class="border px-4 py-2">{{ $log['remark'] }}</td>
-                                                        <td class="border px-4 py-2 font-bold">{{ ucfirst($log['status'] ?? 'N/A') }}</td>
-                                                        <td class="border px-4 py-2 font-bold">
-                                                            {{ in_array($log, $data['mould_change_log'], true) ? 'Mould Change' : 'Adjusting Machine' }}
-                                                        </td>
-                                                        <td class="border px-4 py-2 flex items-center gap-2">
-                                                            <img src="{{ asset($log['pic_profile_path']) }}" alt="{{ $log['pic'] }}" class="w-8 h-8 rounded-full object-cover">
-                                                        
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
+                                <!-- Modal Box -->
+                                <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 max-h-[90vh] flex flex-col">
+
+                                    <!-- Header -->
+                                    <div class="p-6 border-b">
+                                        <h2 class="text-lg font-bold">
+                                            Mould Change & Adjusting Machine Details
+                                        </h2>
                                     </div>
-                                    <button id="closeModal" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded">Close</button>
+
+                                    <!-- Scrollable Content -->
+                                    <div class="p-6 overflow-y-auto flex-1">
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full border-collapse border border-gray-300 text-sm">
+                                                <thead class="bg-gray-200 sticky top-0 z-10">
+                                                    <tr>
+                                                        <th class="border px-4 py-2">Machine</th>
+                                                        <th class="border px-4 py-2">Item Code</th>
+                                                        <th class="border px-4 py-2">Start Time</th>
+                                                        <th class="border px-4 py-2">End Time</th>
+                                                        <th class="border px-4 py-2">Predicted Time (min)</th>
+                                                        <th class="border px-4 py-2">Actual Time (min)</th>
+                                                        <th class="border px-4 py-2">PIC</th>
+                                                        <th class="border px-4 py-2">Remark</th>
+                                                        <th class="border px-4 py-2">Status</th>
+                                                        <th class="border px-4 py-2">Type</th>
+                                                        <th class="border px-4 py-2">Foto</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @php
+                                                        $combinedLogs = array_merge(
+                                                            $data['mould_change_log'],
+                                                            $data['adjust_machine_logs']
+                                                        );
+
+                                                        usort($combinedLogs, fn ($a, $b) =>
+                                                            strcmp($a['item_code'], $b['item_code'])
+                                                        );
+                                                    @endphp
+
+                                                    @foreach ($combinedLogs as $log)
+                                                        <tr class="{{ ($log['status'] ?? '') === 'problem'
+                                                            ? 'bg-red-200'
+                                                            : 'bg-green-200' }}">
+                                                            <td class="border px-4 py-2">{{ $log['machine_name'] }}</td>
+                                                            <td class="border px-4 py-2">{{ $log['item_code'] }}</td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ \Carbon\Carbon::parse($log['start_time'])
+                                                                    ->setTimezone('Asia/Jakarta')
+                                                                    ->format('Y-m-d H:i') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ \Carbon\Carbon::parse($log['end_time'])
+                                                                    ->setTimezone('Asia/Jakarta')
+                                                                    ->format('Y-m-d H:i') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ $log['predicted_time'] }} Min
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                {{ $log['actual_time'] }} Min
+                                                            </td>
+                                                            <td class="border px-4 py-2">{{ $log['pic'] }}</td>
+                                                            <td class="border px-4 py-2">{{ $log['remark'] }}</td>
+                                                            <td class="border px-4 py-2 font-bold">
+                                                                {{ ucfirst($log['status'] ?? 'N/A') }}
+                                                            </td>
+                                                            <td class="border px-4 py-2 font-bold">
+                                                                {{ in_array($log, $data['mould_change_log'], true)
+                                                                    ? 'Mould Change'
+                                                                    : 'Adjusting Machine' }}
+                                                            </td>
+                                                            <td class="border px-4 py-2">
+                                                                <img src="{{ asset($log['pic_profile_path']) }}"
+                                                                    alt="{{ $log['pic'] }}"
+                                                                    class="w-8 h-8 rounded-full object-cover">
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div class="p-4 border-t flex justify-end">
+                                        <button id="closeModal"
+                                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                            Close
+                                        </button>
+                                    </div>
+
                                 </div>
                             </div>
+
+
 
                             
 
@@ -276,25 +398,28 @@
 
                             <!-- Hourly Remarks -->
                             @if(count($data['hourly_remarks']) > 0)
-                                <h4 class="text-lg font-semibold mt-6 mb-4">Hourly Remarks</h4>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse border border-gray-300 mt-2">
-                                        <thead class="bg-gray-200">
+                                <h4 class="text-lg font-bold text-slate-800 mt-8 mb-4 flex items-center space-x-2">
+                                    <span class="w-2.5 h-5 bg-indigo-600 rounded-sm"></span>
+                                    <span>Hourly Remarks</span>
+                                </h4>
+                                <div class="overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white mt-2">
+                                    <table class="w-full text-sm text-left text-slate-600 border-collapse">
+                                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase text-xs tracking-wider">
                                             <tr>
-                                                <th class="border px-4 py-2">PIC</th>
-                                                <th class="border px-4 py-2">Item Code</th>
-                                                <th class="border px-4 py-2">Dibuat Jam</th>
-                                                <th class="border px-4 py-2">Time Range</th>
-                                                <th class="border px-4 py-2">Shift</th>
-                                                <th class="border px-4 py-2">Target</th>
-                                                <th class="border px-4 py-2">Actual Scan</th>
-                                                <th class="border px-4 py-2">Actual Production</th>
-                                                <th class="border px-4 py-2">NG</th>
-                                                <th class="border px-4 py-2">Status</th>
-                                                <th class="border px-4 py-2">Remark</th>
+                                                <th class="px-4 py-3.5">PIC</th>
+                                                <th class="px-4 py-3.5">Item Code</th>
+                                                <th class="px-4 py-3.5">Dibuat Jam</th>
+                                                <th class="px-4 py-3.5 text-center">Time Range</th>
+                                                <th class="px-4 py-3.5 text-center">Shift</th>
+                                                <th class="px-4 py-3.5 text-center">Target</th>
+                                                <th class="px-4 py-3.5 text-center">Actual Scan</th>
+                                                <th class="px-4 py-3.5 text-center">Actual Production</th>
+                                                <th class="px-4 py-3.5 text-center">NG</th>
+                                                <th class="px-4 py-3.5 text-center">Status</th>
+                                                <th class="px-4 py-3.5">Remark</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody class="divide-y divide-slate-100">
                                         @php
                                             $currentShift = null;
                                             $totalActual = 0;
@@ -302,7 +427,29 @@
 
                                         @foreach ($data['hourly_remarks'] as $index => $remark)
                                             @php
-                                                $statusClass = $remark['is_achieve'] ? 'bg-green-100' : 'bg-red-100';
+                                                $pct = 0;
+                                                $actualProd = $remark['actual_production'] ?? 0;
+                                                if ($remark['target'] > 0) {
+                                                    $pct = round(($actualProd / $remark['target']) * 100, 1);
+                                                }
+
+                                                // Penentuan warna status dinamis
+                                                if ($pct >= 100) {
+                                                    $borderIndicator = 'border-l-4 border-l-emerald-500';
+                                                    $badgeClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                                                    $textClass = 'text-emerald-600';
+                                                    $statusText = '✓ Achieved';
+                                                } elseif ($pct >= 50) {
+                                                    $borderIndicator = 'border-l-4 border-l-amber-500';
+                                                    $badgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
+                                                    $textClass = 'text-amber-600';
+                                                    $statusText = '✗ Not Achieved';
+                                                } else {
+                                                    $borderIndicator = 'border-l-4 border-l-rose-500';
+                                                    $badgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+                                                    $textClass = 'text-rose-600';
+                                                    $statusText = '✗ Not Achieved';
+                                                }
 
                                                 // Cek jika ganti shift
                                                 if ($currentShift !== $remark['shift']) {
@@ -310,50 +457,69 @@
                                                     $totalActual = 0;
                                                 }
 
-                                                $totalActual += $remark['actual_production'];
+                                                $totalActual += $actualProd;
                                             @endphp
 
-                                            <tr class="{{ $statusClass }}">
-                                                <td class="border px-4 py-2 flex items-center space-x-3">
-                                                    <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-10 h-10 rounded-full border">
-                                                    <span class="font-medium">{{ $remark['pic'] }}</span>
+                                            <tr class="hover:bg-slate-50/70 transition-colors {{ $borderIndicator }}">
+                                                <td class="px-4 py-3.5 flex items-center space-x-3">
+                                                    <img src="{{ $remark['pic_profile_path'] }}" alt="PIC Profile" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm">
+                                                    <span class="font-medium text-slate-800">{{ $remark['pic'] }}</span>
                                                 </td>
-                                                <td class="border px-4 py-2">{{ $remark['item_code'] }}</td>
-                                                 <td class="border px-4 py-2">{{ $remark['updated_at'] }}</td>
-                                                <td class="border px-4 py-2">{{ $remark['time_range'] }}</td>
-                                                <td class="border px-4 py-2 text-center">  {{ $remark['shift'] }}</td>
-                                                <td class="border px-4 py-2 text-center">{{ $remark['target'] }}</td>
-                                                <td class="border px-4 py-2 text-center font-bold">{{ $remark['actual'] }}</td>
-                                                <td class="border px-4 py-2 text-center font-bold">
-                                                    {{ $remark['actual_production'] ?? 0 }}
+                                                <td class="px-4 py-3.5 font-mono text-xs font-semibold text-slate-700">{{ $remark['item_code'] }}</td>
+                                                <td class="px-4 py-3.5 text-xs text-slate-500">
+                                                    {{ \Carbon\Carbon::parse($remark['updated_at'])->format('d M, H:i') }}
                                                 </td>
-                                                <td class="border px-4 py-2 text-center font-bold">
-                                                    {{ $remark['ng'] ?? 0 }}
-                                                    <button 
-                                                        class="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
-                                                        onclick='showNgDetails(@json($remark["ng_details"]))'
-                                                    >
-                                                        Show
-                                                    </button>
-                                                    
-                                                </td>
-                                                <td class="border px-4 py-2 text-center">
-                                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $remark['is_achieve'] ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }}">
-                                                        {{ ucfirst($remark['status']) }}
+                                                <td class="px-4 py-3.5 text-center font-medium text-slate-700">{{ $remark['time_range'] }}</td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
+                                                        {{ $remark['shift'] }}
                                                     </span>
                                                 </td>
-                                                <td class="border px-4 py-2">{{ $remark['remark'] }}</td>
+                                                <td class="px-4 py-3.5 text-center font-mono text-slate-500">{{ $remark['target'] }}</td>
+                                                <td class="px-4 py-3.5 text-center font-bold font-mono text-slate-700">{{ $remark['actual'] }}</td>
+                                                <td class="px-4 py-3.5 text-center font-extrabold font-mono text-indigo-600">{{ $remark['actual_production'] ?? 0 }}</td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <div class="inline-flex items-center space-x-1.5">
+                                                        <span class="font-bold font-mono {{ ($remark['ng'] ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400' }}">
+                                                            {{ $remark['ng'] ?? 0 }}
+                                                        </span>
+                                                        @if(($remark['ng'] ?? 0) > 0)
+                                                            <button 
+                                                                class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5 rounded font-semibold border border-rose-200 transition"
+                                                                onclick='showNgDetails(@json($remark["ng_details"]))'
+                                                            >
+                                                                Details
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm {{ $badgeClass }}">
+                                                        {{ $statusText }}
+                                                    </span>
+
+                                                    <div class="text-[11px] font-bold mt-1.5 {{ $textClass }}">
+                                                        {{ $pct }}%
+                                                    </div>
+
+                                                    @if(!empty($remark['is_multi_item']))
+                                                    <div style="font-size:9px;" class="text-slate-400 mt-1">
+                                                        combined: {{ min(round($remark['combined_actual_seconds'] / 60, 1), 60) }}m / 60m
+                                                    </div>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3.5 text-slate-600 italic whitespace-normal break-words min-w-[200px]">{{ $remark['remark'] }}</td>
                                             </tr>
 
-
-                                            <div id="ngDetailModal" class="fixed inset-0 hidden bg-black bg-opacity-40 justify-center items-center">
-                                                <div class="bg-white p-6 rounded shadow-lg w-96">
-                                                    <h2 class="text-lg font-bold mb-3">NG Details</h2>
-
-                                                    <div id="ngDetailList" class="space-y-2 max-h-64 overflow-y-auto"></div>
-
-                                                    <div class="mt-4 text-right">
-                                                        <button onclick="closeNgDetailModal()" class="px-4 py-1 bg-gray-500 text-white rounded">
+                                            <div id="ngDetailModal" class="fixed inset-0 hidden bg-black/40 justify-center items-center z-[100]">
+                                                <div class="bg-white p-6 rounded-2xl shadow-xl w-96 max-w-full mx-4 border border-slate-100">
+                                                    <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                                                        <span class="text-rose-500">⚠️</span>
+                                                        <span>NG Details</span>
+                                                    </h2>
+                                                    <div id="ngDetailList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+                                                    <div class="mt-5 text-right">
+                                                        <button onclick="closeNgDetailModal()" class="px-5 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold transition">
                                                             Close
                                                         </button>
                                                     </div>
@@ -366,10 +532,10 @@
                                             @endphp
 
                                             @if ($isLastInShift)
-                                                <tr class="bg-blue-100 text-blue-900 font-semibold text-sm">
-                                                    <td colspan="8" class="border px-4 py-2 text-right">Total Actual (Shift {{ $currentShift }})</td>
-                                                    <td class="border px-4 py-2 text-center">{{ $totalActual }}</td>
-                                                    <td colspan="2" class="border px-4 py-2"></td>
+                                                <tr class="bg-indigo-50/50 text-indigo-950 font-bold text-sm">
+                                                    <td colspan="7" class="px-4 py-3 text-right">Total Actual (Shift {{ $currentShift }})</td>
+                                                    <td class="px-4 py-3 text-center text-indigo-700 font-extrabold font-mono">{{ $totalActual }}</td>
+                                                    <td colspan="3" class="px-4 py-3"></td>
                                                 </tr>
                                             @endif
                                         @endforeach
@@ -465,8 +631,10 @@
                                                 <th class="border px-4 py-2">Planned Quantity</th>
                                                 <th class="border px-4 py-2">Quantity Produksi</th>
                                                 <th class="border px-4 py-2">Cycle Time</th>
+                                                <th class="border px-4 py-2">SAP Cycle Time</th>
                                                 <th class="border px-4 py-2">Start Time</th>
                                                 <th class="border px-4 py-2">End Time</th>
+                                                <th class="border px-4 py-2">Berat Purging</th>
                                                 <th class="border px-4 py-2">Delivery Schedule</th>
                                             </tr>
                                         </thead>
@@ -484,11 +652,15 @@
                                                     <td class="border px-4 py-2">{{ $dailyItem['quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['total_scanned_quantity'] }}</td>
                                                     <td class="border px-4 py-2">{{ $dailyItem['cycle_time_seconds'] }} Detik </td>
+                                                    <td class="border px-4 py-2">{{ $dailyItem['sap_cycle_time'] }} Detik </td>
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['start_date'] }} {{ \Carbon\Carbon::parse($dailyItem['start_time'])->subHours(7)->format('H:i') }}
                                                     </td>
                                                     <td class="border px-4 py-2">
                                                     {{ $dailyItem['end_date'] }} {{ \Carbon\Carbon::parse($dailyItem['end_time'])->subHours(7)->format('H:i') }}
+                                                    </td>
+                                                    <td class="border px-4 py-2 text-center font-semibold text-orange-600">
+                                                        {{ !is_null($dailyItem['resin_usage']) ? $dailyItem['resin_usage'] . ' KG' : '-' }}
                                                     </td>
                                                    <td class="border px-4 py-2 text-center">
                                                         <button 
@@ -650,6 +822,173 @@
         </div>
     </div>
 
+    <!-- Modal for long mould changes (>20m) -->
+    <div id="longMouldModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+
+        <!-- Modal Box -->
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 max-h-[90vh] flex flex-col">
+
+            <!-- Header -->
+            <div class="p-6 border-b bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-t-lg">
+                <h2 class="text-lg font-bold flex items-center space-x-2">
+                    <span>⚠️ Mould Changes Exceeding 20 Minutes ({{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }})</span>
+                </h2>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="p-6 overflow-y-auto flex-1">
+                @if(isset($longMouldChanges) && count($longMouldChanges) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse border border-gray-300 text-sm">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="border px-4 py-2 text-left">Machine</th>
+                                    <th class="border px-4 py-2 text-left">Item Code</th>
+                                    <th class="border px-4 py-2 text-left">Start Time</th>
+                                    <th class="border px-4 py-2 text-left">End Time</th>
+                                    <th class="border px-4 py-2 text-center">Predicted (min)</th>
+                                    <th class="border px-4 py-2 text-center">Actual (min)</th>
+                                    <th class="border px-4 py-2 text-left">PIC</th>
+                                    <th class="border px-4 py-2 text-left">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($longMouldChanges as $log)
+                                    <tr class="bg-red-50 hover:bg-red-100 transition-colors">
+                                        <td class="border px-4 py-2 font-semibold text-slate-800">{{ $log['machine_name'] }}</td>
+                                        <td class="border px-4 py-2 font-mono text-xs">{{ $log['item_code'] }}</td>
+                                        <td class="border px-4 py-2 text-slate-600">
+                                            {{ \Carbon\Carbon::parse($log['start_time'])
+                                                ->setTimezone('Asia/Jakarta')
+                                                ->format('Y-m-d H:i') }}
+                                        </td>
+                                        <td class="border px-4 py-2 text-slate-600">
+                                            {{ \Carbon\Carbon::parse($log['end_time'])
+                                                ->setTimezone('Asia/Jakarta')
+                                                ->format('Y-m-d H:i') }}
+                                        </td>
+                                        <td class="border px-4 py-2 text-center text-slate-500">
+                                            {{ $log['predicted_time'] }} Min
+                                        </td>
+                                        <td class="border px-4 py-2 text-center font-bold text-red-600">
+                                            {{ $log['actual_time'] }} Min
+                                        </td>
+                                        <td class="border px-4 py-2">
+                                            <div class="flex items-center space-x-2">
+                                                <img src="{{ asset($log['pic_profile_path']) }}"
+                                                     alt="{{ $log['pic'] }}"
+                                                     class="w-6 h-6 rounded-full object-cover">
+                                                <span>{{ $log['pic'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="border px-4 py-2 text-slate-700 italic">{{ $log['remark'] ?: '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-center text-gray-500 py-8">No mould changes exceeding 20 minutes found for this day.</p>
+                @endif
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t flex justify-end">
+                <button id="closeLongMouldModal"
+                    class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal for Zero Actual Production Hourly Remarks -->
+    <div id="zeroActualModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+
+        <!-- Modal Box -->
+        <div class="bg-white rounded-2xl shadow-2xl w-11/12 md:w-3/4 max-h-[90vh] flex flex-col border border-gray-100 overflow-hidden transform transition-all duration-300 scale-100">
+
+            <!-- Header -->
+            <div class="p-6 border-b bg-gradient-to-r from-amber-500 to-orange-600 text-white flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <span>📉 Hourly Remarks (Actual Produksi = 0)</span>
+                    </h2>
+                    <p class="text-amber-100 text-xs mt-1">Jadwal Tanggal: {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}</p>
+                </div>
+                <button id="closeZeroActualBtnTop" class="text-white hover:text-amber-200 transition-colors text-2xl font-semibold">&times;</button>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
+                @if(isset($zeroActualRemarks) && count($zeroActualRemarks) > 0)
+                    <div class="overflow-hidden rounded-xl border border-gray-200 shadow-sm bg-white">
+                        <table class="w-full text-sm text-gray-700">
+                            <thead class="bg-slate-100 border-b border-gray-200 text-slate-700 font-semibold uppercase text-xs tracking-wider sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-5 py-3 text-center">Shift</th>
+                                    <th class="px-5 py-3 text-left">Machine</th>
+                                    <th class="px-5 py-3 text-left">Item Code</th>
+                                    <th class="px-5 py-3 text-left">Item Name</th>
+                                    <th class="px-5 py-3 text-center">Time Range</th>
+                                    <th class="px-5 py-3 text-center">Target</th>
+                                    <th class="px-5 py-3 text-center">Actual Production</th>
+                                    <th class="px-5 py-3 text-center">NG</th>
+                                    <th class="px-5 py-3 text-left">PIC</th>
+                                    <th class="px-5 py-3 text-left">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($zeroActualRemarks as $remark)
+                                    <tr class="hover:bg-amber-50/40 transition-colors">
+                                        <td class="px-5 py-4 text-center">
+                                            <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                                                Shift {{ $remark['shift'] }}
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4 font-semibold text-slate-800">{{ $remark['machine_name'] }}</td>
+                                        <td class="px-5 py-4 font-mono text-xs text-indigo-600 font-semibold">{{ $remark['item_code'] }}</td>
+                                        <td class="px-5 py-4 text-slate-600 max-w-xs truncate" title="{{ $remark['item_name'] }}">{{ $remark['item_name'] }}</td>
+                                        <td class="px-5 py-4 text-center font-medium text-slate-600 bg-slate-50/50">{{ $remark['time_range'] }}</td>
+                                        <td class="px-5 py-4 text-center text-slate-500 font-mono">{{ $remark['target'] }}</td>
+                                        <td class="px-5 py-4 text-center font-bold text-slate-700 font-mono">{{ $remark['actual_production'] }}</td>
+                                        <td class="px-5 py-4 text-center font-bold text-rose-600 font-mono">{{ $remark['ng'] }}</td>
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center space-x-2">
+                                                <img src="{{ asset($remark['pic_profile_path']) }}"
+                                                     alt="{{ $remark['pic'] }}"
+                                                     class="w-7 h-7 rounded-full object-cover border border-gray-200 shadow-sm">
+                                                <span class="font-medium text-slate-700">{{ $remark['pic'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4 text-slate-600 italic whitespace-normal break-words min-w-[200px]">{{ $remark['remark'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                        <span class="text-4xl">🎉</span>
+                        <p class="text-gray-500 font-medium mt-2">Tidak ada hourly remark dengan actual produksi 0 pada hari ini.</p>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t bg-slate-50 flex justify-end">
+                <button id="closeZeroActualModal"
+                    class="bg-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 
     <script type="module">
     $(document).ready(function() {
@@ -722,7 +1061,7 @@
 </script>
 
 
-    <script type=module>
+    <!-- <script type=module>
         $(document).ready(function() {
         $('#showDetails').click(function() {
             $('#detailModal').removeClass('hidden'); // Show modal
@@ -731,8 +1070,107 @@
         $('#closeModal').click(function() {
             $('#detailModal').addClass('hidden'); // Hide modal
         });
+    }); -->
+
+
+
+    <!-- JS -->
+<script>
+    const showBtn = document.getElementById('showDetails');
+    const modal = document.getElementById('detailModal');
+    const closeBtn = document.getElementById('closeModal');
+
+    if (showBtn) {
+        showBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden'); // lock background scroll
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        });
+    }
+
+    if (modal) {
+        // Click backdrop to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+    }
+
+    // Long Mould Changes Modal JS
+    const showLongMouldBtn = document.getElementById('showLongMouldModal');
+    const longMouldModal = document.getElementById('longMouldModal');
+    const closeLongMouldBtn = document.getElementById('closeLongMouldModal');
+
+    if (showLongMouldBtn && longMouldModal) {
+        showLongMouldBtn.addEventListener('click', () => {
+            longMouldModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        });
+
+        if (closeLongMouldBtn) {
+            closeLongMouldBtn.addEventListener('click', () => {
+                longMouldModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            });
+        }
+
+        longMouldModal.addEventListener('click', (e) => {
+            if (e.target === longMouldModal) {
+                longMouldModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+    }
+
+    // Zero Actual Production Modal JS
+    const showZeroActualBtn = document.getElementById('showZeroActualModal');
+    const zeroActualModal = document.getElementById('zeroActualModal');
+    const closeZeroActualBtn = document.getElementById('closeZeroActualModal');
+    const closeZeroActualBtnTop = document.getElementById('closeZeroActualBtnTop');
+
+    if (showZeroActualBtn && zeroActualModal) {
+        showZeroActualBtn.addEventListener('click', () => {
+            zeroActualModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        });
+
+        const closeZeroActual = () => {
+            zeroActualModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        if (closeZeroActualBtn) {
+            closeZeroActualBtn.addEventListener('click', closeZeroActual);
+        }
+        if (closeZeroActualBtnTop) {
+            closeZeroActualBtnTop.addEventListener('click', closeZeroActual);
+        }
+
+        zeroActualModal.addEventListener('click', (e) => {
+            if (e.target === zeroActualModal) {
+                closeZeroActual();
+            }
+        });
+    }
+
+    // ESC to close all modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (modal) modal.classList.add('hidden');
+            if (longMouldModal) longMouldModal.classList.add('hidden');
+            if (zeroActualModal) zeroActualModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
     });
-    </script>
+</script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {

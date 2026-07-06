@@ -12,6 +12,7 @@ class ScannedData extends Model
     protected $fillable = [
         'doc_num',
         'item_code',
+        'spk_code',
         'quantity',
         'warehouse',
         'label',

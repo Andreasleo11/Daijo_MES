@@ -29,6 +29,7 @@ class DailyItemCode extends Model
         'end_date',
         'remark',
         'temporal_cycletime',
+        'resin_usage',
     ];
 
     public function user()
@@ -72,5 +73,10 @@ class DailyItemCode extends Model
             'item_code',
             'item_code'
         );
+    }
+
+    public function outputLogs()
+    {
+        return $this->hasMany(ProductionOutputLog::class, 'dic_id', 'id');
     }
 }

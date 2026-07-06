@@ -16,5 +16,12 @@ class ProductionSummary extends Model
         'warehouse',
         'label',
         'created_date',
+        'sap_sent',
+        'sap_sent_at'
     ];
+
+    public function scannedData()
+    {
+        return $this->hasMany(ProductionScannedData::class, 'summary_id', 'id');
+    }
 }

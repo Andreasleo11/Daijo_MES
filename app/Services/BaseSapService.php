@@ -2,7 +2,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class BaseSapService
 {
@@ -12,12 +13,55 @@ class BaseSapService
     
     public function __construct()
     {
-        // Force clear session token untuk bypass cache issue
-        Session::forget('sap_token');
+        // Jangan authenticate di constructor - lazy load aja
+        $this->token = null;
+    }
+    
+    /**
+     * Get token - lazy load when needed
+     */
+    protected function getToken()
+    {
+        if ($this->token) {
+            return $this->token;
+        }
         
-        // Always fresh token
-        $this->token = $this->authenticate();
-        Session::put('sap_token', $this->token);
+        // Try cache dulu
+        $cachedToken = Cache::get('sap_token');
+        if ($cachedToken) {
+            $this->token = $cachedToken;
+            return $this->token;
+        }
+        
+        // Gunakan lock atomic untuk mencegah "cache stampede" / request auth tabrakan
+        $lock = Cache::lock('sap_token_lock', 40); // Lock bertahan maks 40 detik
+        
+        try {
+            // Blokir request lain selama max 30 detik untuk menunggu request pertama selesai
+            if ($lock->block(30)) {
+                // Check cache lagi setelah dapat lock (mungkin sudah dibuat oleh request lain)
+                $cachedToken = Cache::get('sap_token');
+                if ($cachedToken) {
+                    $this->token = $cachedToken;
+                    return $this->token;
+                }
+                
+                // Kalau memang belum ada, baru authenticate
+                $this->token = $this->authenticate();
+                Cache::put('sap_token', $this->token, now()->addMinutes(50));
+                return $this->token;
+            }
+        } catch (\Exception $e) {
+            Log::error('SAP Token Lock / Auth Error: ' . $e->getMessage());
+            // Fallback: coba authenticate langsung jika lock bermasalah
+            $this->token = $this->authenticate();
+            Cache::put('sap_token', $this->token, now()->addMinutes(50));
+            return $this->token;
+        } finally {
+            optional($lock)->release();
+        }
+        
+        return $this->token;
     }
     
     /**
@@ -25,33 +69,30 @@ class BaseSapService
      */
     protected function authenticate()
     {
-        $response = Http::withHeaders([
-                'Host' => 'localhost',
-                'Content-Type' => 'application/json',
-            ])
-            ->post($this->authUrl, [
-                'CompanyDB' => env('SAP_COMPANY_DB'),
-                'Username' => env('SAP_USERNAME'),
-                'Password' => env('SAP_PASSWORD'),
-            ]);
+        try {
+            $response = Http::withHeaders([
+                    'Host' => 'localhost',
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(30)
+                ->post($this->authUrl, [
+                    'CompanyDB' => env('SAP_COMPANY_DB'),
+                    'Username' => env('SAP_USERNAME'),
+                    'Password' => env('SAP_PASSWORD'),
+                ]);
+                
+            if ($response->successful()) {
+                Log::info('SAP Authentication successful');
+                return $response->json()['access_token'];
+            }
             
-        if ($response->successful()) {
-            return $response->json()['access_token'];
+            Log::error('SAP Auth failed: ' . $response->status() . ' - ' . $response->body());
+            throw new \Exception('Failed to authenticate to SAP: ' . $response->body());
+            
+        } catch (\Exception $e) {
+            Log::error('SAP Authentication error: ' . $e->getMessage());
+            throw $e;
         }
-        
-        throw new \Exception('Failed to authenticate to SAP: ' . $response->body());
-    }
-    
-    /**
-     * Fresh token setiap kali dipanggil
-     */
-    private function getFreshToken()
-    {
-        // Clear session dan get token baru
-        Session::forget('sap_token');
-        $this->token = $this->authenticate();
-        Session::put('sap_token', $this->token);
-        return $this->token;
     }
     
     /**
@@ -59,65 +100,102 @@ class BaseSapService
      */
     protected function get($endpoint, $params = [])
     {
-        // ALWAYS use fresh token - fuck cache
-        $token = $this->getFreshToken();
-        
-        $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $token,
-                'Accept' => 'application/json',
-                'Host' => 'localhost',
-            ])
-            ->get($this->baseUrl . $endpoint, $params);
+        try {
+            $token = $this->getToken();
             
-        // Kalau masih 401 setelah fresh token, something is wrong
-        if ($response->status() === 401) {
-            // Try one more time with brand new token
-            $token = $this->getFreshToken();
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept' => 'application/json',
                     'Host' => 'localhost',
                 ])
+                ->timeout(30)
                 ->get($this->baseUrl . $endpoint, $params);
+                
+            if ($response->successful()) {
+                return $response->json();
+            }
+            
+            // 401 = token expired
+            if ($response->status() === 401) {
+                Log::warning('SAP token expired, refreshing...');
+                Cache::forget('sap_token');
+                $this->token = null;
+                
+                // Retry once with fresh token
+                $token = $this->getToken();
+                $response = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . $token,
+                        'Accept' => 'application/json',
+                        'Host' => 'localhost',
+                    ])
+                    ->timeout(30)
+                    ->get($this->baseUrl . $endpoint, $params);
+                    
+                return $response->json();
+            }
+            
+            throw new \Exception('SAP API Error: ' . $response->status());
+            
+        } catch (\Exception $e) {
+            Log::error('SAP GET request error: ' . $e->getMessage());
+            throw $e;
         }
-        
-        return $response->json();
     }
     
+    /**
+     * Send a POST request to SAP API
+     */
     protected function post($endpoint, $payload = [])
     {
-        // ALWAYS use fresh token - fuck cache
-        $token = $this->getFreshToken();
-        
-        $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $token,
-                'Accept' => 'application/json',
-                'Host' => 'localhost',
-            ])
-            ->post($this->baseUrl . $endpoint, $payload);
+        try {
+            $token = $this->getToken();
             
-        // Kalau masih 401 setelah fresh token, something is wrong
-        if ($response->status() === 401) {
-            // Try one more time with brand new token
-            $token = $this->getFreshToken();
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
-                    'Accept' => 'application/json',
-                    'Host' => 'localhost',
+                    'Accept'        => 'application/json',
+                    'Content-Type'  => 'application/json',  // ← tambah ini
+                    'Host'          => 'localhost',
                 ])
+                ->timeout(600)
                 ->post($this->baseUrl . $endpoint, $payload);
+                
+            if ($response->successful()) {
+                return $response;
+            }
+            
+            if ($response->status() === 401) {
+                Log::warning('SAP token expired during POST, refreshing...');
+                Cache::forget('sap_token');
+                $this->token = null;
+                
+                $token = $this->getToken();
+                $response = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . $token,  // ← fix typo ini
+                        'Accept'        => 'application/json',
+                        'Content-Type'  => 'application/json',  // ← tambah ini
+                        'Host'          => 'localhost',
+                    ])
+                    ->timeout(600)
+                    ->post($this->baseUrl . $endpoint, $payload);
+                    
+                return $response;
+            }
+            
+            throw new \Exception('SAP API Error: ' . $response->status());
+            
+        } catch (\Exception $e) {
+            Log::error('SAP POST request error: ' . $e->getMessage());
+            throw $e;
         }
+    }
         
-        return $response;
-    }
-    
-    public function getToken()
-    {
-        return $this->token;
-    }
-    
     public function testGet($endpoint, $params = [])
     {
         return $this->get($endpoint, $params);
+    }
+
+    public function testPost()
+    {
+        return $this->post($this->endpoint, []);
     }
 }

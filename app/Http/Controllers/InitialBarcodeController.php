@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\MasterListItem;
+use App\Models\SpkItemHistory;
 use Illuminate\Http\Request;
 use Milon\Barcode\DNS1D;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Writer\PngWriter;
 
 class InitialBarcodeController extends Controller
 {
@@ -65,5 +69,88 @@ class InitialBarcodeController extends Controller
         }
 
         return view('barcode.barcode_result', compact('barcodes'));
+    }
+
+    public function customGenerateForm(Request $request)
+    {
+        $items = MasterListItem::orderBy('item_code')->get();
+        return view('barcode.custom_generate_form', compact('items'));
+    }
+
+    public function getSpksByItem(Request $request)
+    {
+        $itemCode = $request->input('item_code');
+        
+        $spks = SpkItemHistory::where('item_code', $itemCode)
+            ->whereNotNull('spk_number')
+            ->distinct()
+            ->pluck('spk_number')
+            ->toArray();
+
+        return response()->json($spks);
+    }
+
+    public function customGeneratePrint(Request $request)
+    {
+        $request->validate([
+            'item_code' => 'required|string',
+            'spk_number' => 'required|string',
+            'quantity' => 'required|integer|min:1',
+            'warehouse' => 'required|string',
+            'start_label' => 'required|integer|min:1',
+            'end_label' => 'required|integer|min:1|gte:start_label',
+            'shift' => 'required|string|in:I,II,III',
+            'prod_date' => 'nullable|date',
+            'operator' => 'nullable|string',
+            'customer' => 'nullable|string',
+        ]);
+
+        $itemCode = $request->input('item_code');
+        $spkNumber = $request->input('spk_number');
+        $quantity = $request->input('quantity');
+        $warehouse = $request->input('warehouse');
+        $startLabel = $request->input('start_label');
+        $endLabel = $request->input('end_label');
+        $shift = $request->input('shift');
+        $prodDate = $request->input('prod_date') ?: today()->toDateString();
+        $operator = $request->input('operator') ?: '-';
+        $customer = $request->input('customer') ?: '-';
+
+        $item = MasterListItem::where('item_code', $itemCode)->firstOrFail();
+        $itemName = $item->item_name;
+
+        $labels = [];
+        $writer = new PngWriter();
+
+        for ($i = $startLabel; $i <= $endLabel; $i++) {
+            // Format: spkno(tab)quantity(tab)warehouse(tab)nolabel
+            $qrData = "{$spkNumber}\t{$quantity}\t{$warehouse}\t{$i}";
+            
+            $qrCode = new QrCode(
+                data: $qrData,
+                errorCorrectionLevel: ErrorCorrectionLevel::High,
+                size: 150,
+                margin: 0
+            );
+
+            $qrResult = $writer->write($qrCode);
+            $qrBase64 = base64_encode($qrResult->getString());
+
+            $labels[] = [
+                'label_no' => $i,
+                'item_code' => $itemCode,
+                'item_name' => $itemName,
+                'spk_number' => $spkNumber,
+                'warehouse' => $warehouse,
+                'prod_date' => $prodDate,
+                'operator' => $operator,
+                'quantity' => $quantity,
+                'shift' => $shift,
+                'customer' => $customer,
+                'qr_code_base64' => $qrBase64,
+            ];
+        }
+
+        return view('barcode.custom_generate_print', compact('labels'));
     }
 }

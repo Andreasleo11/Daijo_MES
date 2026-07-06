@@ -24,5 +24,8 @@ class RolesTableSeeder extends Seeder
         Role::create(['name' => 'MAINTENANCE']);
         Role::create(['name' => 'SECONDPROCESS']);
         Role::create(['name' => 'ASSEMBLYPROCESS']);
+        Role::create(['name' => 'BUSINESS']);
+        Role::create(['name' => 'PRODUCTION']);
+
     }
 }

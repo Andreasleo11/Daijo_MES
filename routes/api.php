@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Store\SOController;
 
+use App\Http\Controllers\ProductionDashboardController;
+use App\Http\Controllers\MasterListItemController;
+use App\Http\Controllers\Api\CustomerProductionController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -20,6 +24,20 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 
-Route::middleware(['ip.and.apikey'])->group(function () {
-    Route::post('/sap/so', [SOController::class, 'storeFromSap']);
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
+    Route::post('/sap/do', [SOController::class, 'storeFromSap']);
 });
+
+
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
+    Route::post('/sap/spk', [SOController::class, 'storeSpkNew']);
+});
+
+Route::middleware(['ip.and.apikey', 'throttle:sap-api'])->group(function () {
+    Route::post('/sap/master-list-item', [MasterListItemController::class, 'storeFromSap']);
+});
+
+Route::get(
+    '/production-status-range',
+    [CustomerProductionController::class, 'range']
+);

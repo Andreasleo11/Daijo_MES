@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class DelSchedService extends BaseSapService
 {
   
-   public function getDelSched($startDate = '2025-10-01')
+   public function getDelSched($startDate = '2026-01-01')
     {
         $response = $this->get('/api/sap_del_sched/list', [
             'startDate' => $startDate,
@@ -43,7 +43,7 @@ class DelSchedService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2026-01-01';
 
         $delSched = $this->getDelSched($startDate); // udah array
 

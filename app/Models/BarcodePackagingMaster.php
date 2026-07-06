@@ -10,6 +10,8 @@ class BarcodePackagingMaster extends Model
 
     protected $fillable = [
         'noDokumen',
+        'so_number',
+        'customer',
         'dateScan',
         'tipeBarcode',
         'location',

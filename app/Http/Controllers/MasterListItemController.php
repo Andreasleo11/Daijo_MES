@@ -11,7 +11,13 @@ use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 
+use App\Models\MasterListItem;
 use App\Models\Delivery\sapLineProduction;
+
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
+
 
 class MasterListItemController extends Controller
 {
@@ -60,6 +66,94 @@ class MasterListItemController extends Controller
 
         return view('master-list-item.machine-list', compact('machines', 'qrcodes', 'machineName', 'images'));
     }
+
+    public function storeFromSap(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'item_code' => 'required|string',
+            'item_name' => 'required|string',
+            'tipe_mesin' => 'required|string',
+            'standart_packaging_list' => 'required|integer',
+            'setup_time_minute' => 'nullable|string',
+            'pair' => 'nullable|string',
+            'cavity' => 'required|integer',
+            'customer_code' => 'nullable|string',
+            'cycle_time' => 'nullable|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'error' => $validator->errors()->first()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            $existing = MasterListItem::where('item_code', $request->item_code)->first();
+
+            if ($existing) {
+
+                // Cek apakah ada perubahan
+                $isChanged =
+                    $existing->item_name != $request->item_name ||
+                    $existing->tipe_mesin != $request->tipe_mesin ||
+                    $existing->standart_packaging_list != $request->standart_packaging_list ||
+                    $existing->setup_time_minute != $request->setup_time_minute ||
+                    $existing->pair != $request->pair ||
+                    $existing->cavity != $request->cavity ||
+                    $existing->customer_code != $request->customer_code ||
+                    $existing->cycle_time != $request->cycle_time;
+
+                if ($isChanged) {
+                    $existing->update($request->only([
+                        'item_name',
+                        'tipe_mesin',
+                        'standart_packaging_list',
+                        'setup_time_minute',
+                        'pair',
+                        'cavity',
+                        'customer_code',
+                        'cycle_time'
+                    ]));
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'Item updated',
+                    ], 200);
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'No changes detected',
+                ], 200);
+
+            } else {
+
+                MasterListItem::create($request->all());
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Item inserted',
+                ], 201);
+            }
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to process data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function manage()
     {
         return view('master_list_manager.index');

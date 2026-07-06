@@ -17,8 +17,7 @@
         </div>
 
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // Initialize Fancybox
+            document.addEventListener('DOMContentLoaded', function () {
                 Fancybox.bind('[data-fancybox="gallery"]', {
                     Thumbs: {
                         autoStart: true,
@@ -27,14 +26,26 @@
                         zoom: true,
                     },
                     transitionEffect: "fade",
+
                     on: {
                         reveal: (fancybox, slide) => {
-                            // Optional: custom behavior when image is revealed
+                            // Auto close after 1 second
+                            setTimeout(() => {
+                                fancybox.close();
+                            }, 1000);
+                        },
+
+                        destroy: () => {
+                            // Focus back to SPK input after modal closed
+                            const spkInput = document.getElementById('spk_code');
+                            if (spkInput) {
+                                spkInput.focus();
+                            }
                         }
                     }
                 });
 
-                // Trigger the modal automatically on page load
+                // Auto-open modal on page load
                 const photoLink = document.querySelector('[data-fancybox="gallery"]');
                 if (photoLink) {
                     setTimeout(() => {
@@ -43,6 +54,7 @@
                 }
             });
         </script>
+
     @endif
 
 
@@ -61,7 +73,7 @@
                 </h2>
 
                 {{-- Error Alert --}}
-                @if ($errors->any())
+                <!-- @if ($errors->any())
                     <div
                         class="bg-red-100 text-red-800 border border-red-300 rounded-md p-3 sm:p-4 mb-4 relative flex items-start sm:items-center justify-between alert-container text-sm sm:text-base"
                     >
@@ -78,7 +90,7 @@
                             &times;
                         </button>
                     </div>
-                @endif
+                @endif -->
 
                 <a href="{{ route('pegawai.scan') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
@@ -109,7 +121,7 @@
                         <table class="min-w-full bg-white border-collapse border border-gray-200 text-sm">
                             <thead class="bg-gray-100">
                                 <tr>
-                                    <th class="border border-gray-300 px-4 py-2 text-left">ID</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">No</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Model</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Description</th>
                                     <th class="border border-gray-300 px-4 py-2 text-left">Delivery Qty</th>
@@ -122,27 +134,48 @@
                             </thead>
 
                             <tbody>
+                                @php
+                                    $totalCtn = 0;
+                                @endphp
+
                                 @foreach ($data as $item)
                                     @php
-                                        $scannedTotalQuantity = $item->scannedData->where('item_code', $item->item_code)->sum('quantity');
+                                        $scannedTotalQuantity = $item->scannedTotalQuantity;
                                         $ctn = ceil($item->quantity / $item->packaging_quantity);
+                                        $totalCtn += $ctn;
                                         $rowClass = $item->scannedCount > $ctn ? 'bg-red-100' : '';
                                     @endphp
 
-                                    <tr class="hover:bg-green-50 {{ $rowClass }}">
-                                        <td class="border border-gray-300 px-4 py-2">{{ $item->id }}</td>
+                                    <tr id="row-desktop-{{ $item->item_code }}" class="hover:bg-green-50 {{ $rowClass }} transition-colors duration-500">
+                                        <td class="border border-gray-300 px-4 py-2">{{ $loop->iteration }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_code }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->item_name }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->quantity }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ $item->packaging_quantity }}</td>
                                         <td class="border border-gray-300 px-4 py-2">{{ number_format($ctn) }}</td>
                                         <td class="border border-gray-300 px-4 py-2"></td>
-                                        <td class="border border-gray-300 px-4 py-2">
+                                        <td id="scanned-box-desktop-{{ $item->item_code }}" class="border border-gray-300 px-4 py-2">
                                             {{ $item->scannedCount }} / {{ number_format($ctn) }}
                                         </td>
-                                        <td class="border border-gray-300 px-4 py-2">{{ $scannedTotalQuantity }}</td>
+                                        <td id="scanned-qty-desktop-{{ $item->item_code }}" class="border border-gray-300 px-4 py-2">{{ $scannedTotalQuantity }}</td>
                                     </tr>
                                 @endforeach
+
+                                <tr class="bg-gray-200 font-semibold">
+                                    <td class="border border-gray-300 px-4 py-2" colspan="4"></td>
+
+                                    <!-- Qty/Pack column -->
+                                    <td class="border border-gray-300 px-4 py-2 text-right">
+                                        Total Box
+                                    </td>
+
+                                    <!-- CTN column -->
+                                    <td class="border border-gray-300 px-4 py-2">
+                                        {{ number_format($totalCtn) }}
+                                    </td>
+
+                                    <td class="border border-gray-300 px-4 py-2" colspan="3"></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -152,12 +185,12 @@
                     <div class="space-y-4 sm:hidden">
                         @foreach ($data as $item)
                             @php
-                                $scannedTotalQuantity = $item->scannedData->where('item_code', $item->item_code)->sum('quantity');
+                                $scannedTotalQuantity = $item->scannedTotalQuantity;
                                 $ctn = ceil($item->quantity / $item->packaging_quantity);
                                 $isWarning = $item->scannedCount > $ctn;
                             @endphp
 
-                            <div class="p-4 rounded-lg shadow border 
+                            <div id="row-mobile-{{ $item->item_code }}" class="p-4 rounded-lg shadow border transition-colors duration-500
                                 {{ $isWarning ? 'bg-red-100 border-red-300' : 'bg-white border-gray-200' }}">
                                 
                                 {{-- Header --}}
@@ -193,15 +226,14 @@
                                     </div>
 
                                     <div>
-                                        <p class="text-xs text-gray-500">Scanned Box</p>
-                                        <p class="font-semibold">
+                                        <p id="scanned-box-mobile-{{ $item->item_code }}" class="font-semibold">
                                             {{ $item->scannedCount }} / {{ $ctn }}
                                         </p>
                                     </div>
 
                                     <div>
                                         <p class="text-xs text-gray-500">Scanned Qty</p>
-                                        <p class="font-semibold">{{ $scannedTotalQuantity }}</p>
+                                        <p id="scanned-qty-mobile-{{ $item->item_code }}" class="font-semibold">{{ $scannedTotalQuantity }}</p>
                                     </div>
 
                                 </div>
@@ -211,7 +243,7 @@
                 @endif
 
                 {{-- Tombol Update All / Info --}}
-                <div class="mt-6">
+                <div id="update-all-container" class="mt-6">
                     @if ($allFinished && ! $allDone)
                         <a
                             href="{{ route('update.so.data', ['docNum' => $docNum]) }}"
@@ -226,6 +258,42 @@
                     @endif
                 </div>
 
+
+                 @if ($errors->any())
+                    <div
+                        class="bg-red-100 text-red-800 border border-red-300 rounded-md p-3 sm:p-4 mb-4 relative flex items-start sm:items-center justify-between alert-container text-sm sm:text-base"
+                    >
+                        <ul class="list-disc pl-5 space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        <button
+                            type="button"
+                            class="text-red-800 hover:text-red-900 ml-2 text-xl sm:text-2xl"
+                            onclick="this.parentElement.style.display='none';"
+                        >
+                            &times;
+                        </button>
+                    </div>
+                @endif
+
+
+                {{-- Mode Toggles --}}
+                <div class="mt-8 flex justify-end space-x-6">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="bulkScanToggle" class="sr-only peer" onchange="toggleBulkScanMode()">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Bulk Scan Mode</span>
+                    </label>
+
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="packagingToggle" class="sr-only peer" onchange="togglePackagingMode()">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Scan Packaging Barcode</span>
+                    </label>
+                </div>
+
                 {{-- Form Scan Barcode --}}
                 @if (! $allDone)
                     <form
@@ -236,6 +304,7 @@
                     >
                         @csrf
                         <input type="hidden" name="so_number" value="{{ $docNum }}" />
+                        <input type="hidden" name="scan_mode" id="scan_mode_input" value="OFF" />
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -277,17 +346,49 @@
                                 />
                             </div>
 
-                            <div>
+                            <div id="label_single_container">
                                 <label for="label" class="block text-sm font-medium text-gray-700">
                                     Label:
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     id="label"
                                     name="label"
                                     required
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 />
+                            </div>
+
+                            <div id="label_bulk_container" class="hidden sm:col-span-2">
+                                <label for="labels_bulk" class="block text-sm font-medium text-gray-700">
+                                    Labels (Bulk - One per line):
+                                </label>
+                                <textarea
+                                    id="labels_bulk"
+                                    name="labels_bulk"
+                                    rows="4"
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    placeholder="Scan or paste multiple labels here (one per line)..."
+                                ></textarea>
+                            </div>
+
+                            {{-- NEW PACKAGING SECTION (Additive) --}}
+                            <div id="packaging_barcode_section" class="hidden col-span-full border-t pt-4 mt-2">
+                                <h4 class="text-xs font-bold text-blue-600 mb-2 uppercase">Packaging Details</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label for="packaging_name" class="block text-sm font-medium text-gray-700">Packaging Name / Code:</label>
+                                        <input type="text" id="packaging_name" name="packaging_name" class="mt-1 block w-full px-3 py-2 border-2 border-blue-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Scan kemasan...">
+                                    </div>
+                                    <div>
+                                        <label for="packaging_label" class="block text-sm font-medium text-gray-700">Packaging Label:</label>
+                                        <input type="text" id="packaging_label" name="packaging_label" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="packaging_warehouse" class="block text-sm font-medium text-gray-700">Warehouse (Out):</label>
+                                        <input type="text" id="packaging_warehouse" name="packaging_warehouse" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -309,7 +410,8 @@
                     Scanned Data
                 </h2>
 
-                @forelse ($scandatas as $itemCode => $scans)
+                <div id="history-container" class="mt-8">
+                    @forelse ($scandatas as $itemCode => $scans)
                     <h3 class="text-base sm:text-lg font-semibold text-gray-700 mt-4">
                         Item Code: {{ $itemCode }}
                     </h3>
@@ -323,9 +425,10 @@
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Warehouse</th>
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Label</th>
                                     <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Created At</th>
+                                    <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="scandata-body-{{ $itemCode }}">
                                 @foreach ($scans as $scan)
                                     <tr class="hover:bg-gray-50">
                                         <td class="border border-gray-300 px-2 sm:px-4 py-2">
@@ -343,17 +446,73 @@
                                         <td class="border border-gray-300 px-2 sm:px-4 py-2">
                                             {{ $scan->created_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') }}
                                         </td>
+                                        <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
+                                            <!-- Edit -->
+                                            <button
+                                                onclick="openEditModal({{ $scan->id }}, {{ $scan->quantity }})"
+                                                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                                                Edit
+                                            </button>
+
+                                            <!-- Delete -->
+                                            <form action="{{ route('scan.delete', $scan->id) }}"
+                                                method="POST"
+                                                class="inline"
+                                                onsubmit="return confirm('Yakin mau hapus data ini?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
-                @empty
-                    <p class="text-red-500 text-base sm:text-lg mt-2">
-                        No scanned data yet for this SO Number.
-                    </p>
-                @endforelse
+                    @empty
+                        <p id="no-scandata-msg" class="text-red-500 text-base sm:text-lg mt-2">
+                            No scanned data yet for this SO Number.
+                        </p>
+                    @endforelse
+                </div>
             </div>
+
+            <div id="editModal"
+                class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-80">
+                    <h3 class="text-lg font-semibold mb-4">Edit Quantity</h3>
+
+                    <form id="editForm" method="POST">
+                        @csrf
+                        @method('PUT')
+
+                        <input type="number"
+                            name="quantity"
+                            id="editQuantity"
+                            class="w-full border rounded px-3 py-2 mb-4"
+                            required
+                            min="1">
+
+                        <div class="flex justify-end space-x-2">
+                            <button type="button"
+                                    onclick="closeEditModal()"
+                                    class="px-4 py-2 bg-gray-400 text-white rounded">
+                                Cancel
+                            </button>
+
+                            <button type="submit"
+                                    class="px-4 py-2 bg-green-600 text-white rounded">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
 
 
             {{-- Scan Mode Toggle for Mobile --}}
@@ -380,300 +539,561 @@
     <script src="https://unpkg.com/@zxing/browser@latest"></script>
 
     <script>
+    // --- KELOMPOK FUNGSI GLOBAL ---
+    
+    // Fungsi untuk update UI secara parsial (Tanpa Reload)
+    function updateUI(data) {
+        if (!data.item_code) return;
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const checkBtn = document.getElementById('check-finish-btn');
+        // 1. Update Tabel Desktop
+        const deskBox = document.getElementById(`scanned-box-desktop-${data.item_code}`);
+        const deskQty = document.getElementById(`scanned-qty-desktop-${data.item_code}`);
+        const deskRow = document.getElementById(`row-desktop-${data.item_code}`);
 
-            if (checkBtn) {
-                checkBtn.addEventListener('click', function () {
-                    location.reload(); // reload halaman
-                });
+        if (deskBox) {
+            const parts = deskBox.innerText.split('/');
+            const totalCtn = parts[1] ? parts[1].trim() : '?';
+            deskBox.innerText = `${data.scannedCount} / ${totalCtn}`;
+            deskBox.classList.add('bg-yellow-100');
+            setTimeout(() => deskBox.classList.remove('bg-yellow-100'), 1000);
+        }
+        if (deskQty) {
+            deskQty.innerText = data.scannedTotalQuantity;
+        }
+
+        // 2. Update Tampilan Mobile
+        const mobBox = document.getElementById(`scanned-box-mobile-${data.item_code}`);
+        const mobQty = document.getElementById(`scanned-qty-mobile-${data.item_code}`);
+        const mobRow = document.getElementById(`row-mobile-${data.item_code}`);
+
+        if (mobBox) {
+            const parts = mobBox.innerText.split('/');
+            const totalCtn = parts[1] ? parts[1].trim() : '?';
+            mobBox.innerText = `${data.scannedCount} / ${totalCtn}`;
+        }
+        if (mobQty) {
+            mobQty.innerText = data.scannedTotalQuantity;
+        }
+
+        // 3. Update Tabel Riwayat Scan di Bawah
+        let historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        const historyContainer = document.getElementById('history-container');
+        const noDataMsg = document.getElementById('no-scandata-msg');
+
+        // Jika tabel belum ada (scan pertama untuk item ini), buat tabelnya
+        if (!historyBody && historyContainer && (data.newScan || data.newScans)) {
+            if (noDataMsg) noDataMsg.remove(); // Hapus pesan "No data" jika ada
+
+            const newTableHtml = `
+                <h3 class="text-base sm:text-lg font-semibold text-gray-700 mt-4">
+                    Item Code: ${data.item_code}
+                </h3>
+                <div class="mt-2 overflow-x-auto -mx-4 sm:mx-0">
+                    <table class="min-w-full bg-white border-collapse border border-gray-200 text-xs sm:text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">No</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Quantity</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Warehouse</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Label</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Created At</th>
+                                <th class="border border-gray-300 px-2 sm:px-4 py-2 text-left">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scandata-body-${data.item_code}"></tbody>
+                    </table>
+                </div>
+            `;
+            historyContainer.insertAdjacentHTML('beforeend', newTableHtml);
+            historyBody = document.getElementById(`scandata-body-${data.item_code}`);
+        }
+
+        if (historyBody && (data.newScan || data.newScans)) {
+            const scansToInsert = data.newScans ? data.newScans : [data.newScan];
+            // Reverse so that we insert from last to first to maintain correct prepended order
+            [...scansToInsert].reverse().forEach(scanItem => {
+                if (!scanItem) return;
+                const rowCount = historyBody.rows.length + 1;
+                const newRow = historyBody.insertRow(0); // Prepend
+                newRow.classList.add('hover:bg-gray-50', 'bg-yellow-50', 'transition-colors', 'duration-1000');
+
+                const scanDeleteUrl = "{{ route('scan.delete', ':id') }}".replace(':id', scanItem.id);
+                newRow.innerHTML = `
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${rowCount}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.quantity}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.warehouse}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.label}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2">${scanItem.created_at}</td>
+                    <td class="border border-gray-300 px-2 sm:px-4 py-2 space-x-2">
+                        <button onclick="openEditModal(${scanItem.id}, ${scanItem.quantity})" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                            Edit
+                        </button>
+                        <form action="${scanDeleteUrl}" method="POST" class="inline" onsubmit="return confirm('Yakin mau hapus data ini?')">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                `;
+                setTimeout(() => newRow.classList.remove('bg-yellow-50'), 2000);
+            });
+        }
+
+        // 4. Efek Flash pada Row (Feedback visual)
+        [deskRow, mobRow].forEach(row => {
+            if (row) {
+                row.classList.add('bg-blue-100');
+                setTimeout(() => row.classList.remove('bg-blue-100'), 2000);
             }
         });
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('barcode-form');
-            const labelInput = document.getElementById('label');
+        // 5. Update Tombol "Update All" secara dinamis
+        const container = document.getElementById('update-all-container');
+        if (container && data.allFinished) {
+            const docNum = "{{ $docNum }}";
+            const updateUrl = "{{ route('update.so.data', ['docNum' => ':docNum']) }}".replace(':docNum', docNum);
+            container.innerHTML = `
+                <a href="${updateUrl}" class="inline-flex justify-center w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm sm:text-base font-semibold rounded-md shadow hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Update All
+                </a>
+            `;
+        }
+        
+        // 6. Vibrasi jika device mendukung
+        if (navigator.vibrate) navigator.vibrate(100);
+    }
 
-            if (form && labelInput) {
-                function submitForm() {
-                    form.submit();
+    function openEditModal(id, quantity) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+        const qtyInput = document.getElementById('editQuantity');
+        form.action = `/scan/${id}`;
+        qtyInput.value = quantity;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function playLoudBeep(type) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            // Set volume maksimal
+            gainNode.gain.value = 1.0;
+            
+            if (type === "success") {
+                // Suara "Tiiit" tinggi dan pendek untuk sukses
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(900, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } else {
+                // Suara "Teeet" rendah dan panjang untuk error
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.6);
+            }
+        } catch (e) {
+            console.error("Audio API not supported", e);
+        }
+    }
+
+    function showAlert(msg, type = "success") {
+        playLoudBeep(type);
+        
+        const alertBox = document.getElementById('scanAlert');
+        if (!alertBox) return;
+        alertBox.innerText = msg;
+        alertBox.classList.remove("hidden");
+        alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
+        setTimeout(() => alertBox.classList.add("hidden"), 3000);
+    }
+
+    // --- MAIN EVENT LISTENERS ---
+    
+    // --- ADDITIVE PACKAGING FUNCTIONS ---
+    function togglePackagingMode() {
+        const toggle = document.getElementById('packagingToggle');
+        const section = document.getElementById('packaging_barcode_section');
+        const modeInput = document.getElementById('scan_mode_input');
+
+        if (toggle.checked) {
+            section.classList.remove('hidden');
+            if (modeInput) modeInput.value = 'ON';
+            localStorage.setItem('packaging_mode', 'ON');
+            
+            // Turn off bulk scan if active
+            const bulkToggle = document.getElementById('bulkScanToggle');
+            if (bulkToggle && bulkToggle.checked) {
+                bulkToggle.checked = false;
+                toggleBulkScanMode();
+            }
+        } else {
+            section.classList.add('hidden');
+            if (modeInput) modeInput.value = 'OFF';
+            localStorage.setItem('packaging_mode', 'OFF');
+        }
+    }
+
+    function toggleBulkScanMode() {
+        const toggle = document.getElementById('bulkScanToggle');
+        const bulkContainer = document.getElementById('label_bulk_container');
+        const singleContainer = document.getElementById('label_single_container');
+        const labelInput = document.getElementById('label');
+        const labelsBulkInput = document.getElementById('labels_bulk');
+        const packagingToggle = document.getElementById('packagingToggle');
+
+        if (toggle.checked) {
+            bulkContainer.classList.remove('hidden');
+            singleContainer.classList.add('hidden');
+            
+            labelInput.removeAttribute('required');
+            labelsBulkInput.setAttribute('required', 'required');
+            
+            if (packagingToggle && packagingToggle.checked) {
+                packagingToggle.checked = false;
+                togglePackagingMode();
+            }
+            
+            // Auto focus textarea
+            setTimeout(() => labelsBulkInput.focus(), 100);
+        } else {
+            bulkContainer.classList.add('hidden');
+            singleContainer.classList.remove('hidden');
+            
+            labelInput.setAttribute('required', 'required');
+            labelsBulkInput.removeAttribute('required');
+            
+            setTimeout(() => labelInput.focus(), 100);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let autoSubmitTimer;
+        const spkInput = document.getElementById('spk_code');
+        const quantityInput = document.getElementById('quantity');
+        const warehouseInput = document.getElementById('warehouse');
+        const labelInput = document.getElementById('label');
+        const labelsBulkInput = document.getElementById('labels_bulk');
+        const pkgNameInput = document.getElementById('packaging_name');
+        const pkgLabelInput = document.getElementById('packaging_label');
+        const pkgWhseInput = document.getElementById('packaging_warehouse');
+        const barcodeForm = document.getElementById('barcode-form');
+        const toggle = document.getElementById('packagingToggle');
+        const modeInput = document.getElementById('scan_mode_input');
+
+        // Restore preference
+        if (localStorage.getItem('packaging_mode') === 'ON') {
+            toggle.checked = true;
+            if (modeInput) modeInput.value = 'ON';
+            togglePackagingMode();
+        }
+
+        // --- ADDITIVE FOCUS & PARSING LOGIC ---
+        if (spkInput) {
+            spkInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (quantityInput) quantityInput.focus();
+                    } else if (toggle.checked) {
+                        // Jika Mode ON, tetap biarkan submit untuk validasi SPK dulu
+                        console.log("Submitting SPK for validation...");
+                    }
+                }
+            });
+        }
+
+        if (quantityInput) {
+            quantityInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (warehouseInput) warehouseInput.focus();
+                    }
+                }
+            });
+        }
+
+        if (warehouseInput) {
+            warehouseInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        e.preventDefault();
+                        if (labelsBulkInput) labelsBulkInput.focus();
+                    }
+                }
+            });
+        }
+
+        if (pkgNameInput) {
+            pkgNameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const val = this.value.trim();
+                    if (val === '') return;
+
+                    const parts = val.split('\t');
+                    if (parts.length > 1) {
+                        e.preventDefault();
+                        this.value = parts[0]; // Set Packaging Name
+                        pkgLabelInput.value = parts[1]; // Set Packaging Label
+                        labelInput.value = parts[1]; // Sync with main Label field
+                        
+                        // Auto-focus next field after parsing
+                        if (pkgLabelInput) pkgLabelInput.focus();
+                    }
+                }
+            });
+        }
+
+        // --- ORIGINAL LOGIC REMAINS ---
+        const checkBtn = document.getElementById('check-finish-btn');
+        const scanBtn = document.getElementById('scanModeBtn');
+        const videoElem = document.getElementById('scannerVideo');
+
+        // Initial Focus
+        if (spkInput) spkInput.focus();
+
+        // Refresh Manual (Check Finish)
+        if (checkBtn) {
+            checkBtn.addEventListener('click', () => location.reload());
+        }
+
+        // --- AJAX SUBMIT FUNCTION (Reliable) ---
+        function submitScanForm(form) {
+            clearTimeout(autoSubmitTimer);
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Scanning...';
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Scan Barcode';
                 }
 
-                labelInput.addEventListener('input', function () {
-                    submitForm();
-                });
-            }
+                if (data.success) {
+                    showAlert(data.message || "Berhasil scan!", "success");
+                    updateUI(data);
 
-            const itemCodeInput = document.getElementById('item_code');
-            if (itemCodeInput) {
-                itemCodeInput.focus();
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-
-            const scanBtn = document.getElementById('scanModeBtn');
-            const scanView = document.getElementById('scanView');
-            const videoElem = document.getElementById('scannerVideo');
-            const alertBox = document.getElementById('scanAlert');
-
-            let scanMode = false;
-            let codeReader = null;
-            let lastScan = "";
-            let lastScanTime = 0;
-            const throttle = 1500;
-            let stream = null;
-
-            // Check if getUserMedia is supported
-            function isGetUserMediaSupported() {
-                return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-            }
-
-            // Polyfill for older browsers
-            if (!navigator.mediaDevices && navigator.getUserMedia) {
-                navigator.mediaDevices = {};
-                navigator.mediaDevices.getUserMedia = function(constraints) {
-                    const getUserMedia = navigator.getUserMedia || 
-                                    navigator.webkitGetUserMedia || 
-                                    navigator.mozGetUserMedia;
-                    
-                    if (!getUserMedia) {
-                        return Promise.reject(new Error('getUserMedia is not implemented'));
-                    }
-                    
-                    return new Promise((resolve, reject) => {
-                        getUserMedia.call(navigator, constraints, resolve, reject);
-                    });
-                };
-            }
-
-            function showAlert(msg, type = "success") {
-                alertBox.innerText = msg;
-                alertBox.classList.remove("hidden");
-                alertBox.style.backgroundColor = type === "success" ? "#16a34a" : "#dc2626";
-
-                setTimeout(() => alertBox.classList.add("hidden"), 3000);
-            }
-
-            async function startScanMode() {
-                try {
-                    // Debug 1
-                    alert("1. Mulai scan mode");
-                    
-                    // CHECK: Apakah navigator.mediaDevices ada?
-                    if (!navigator.mediaDevices) {
-                        alert("❌ navigator.mediaDevices tidak ada!\n\nKemungkinan:\n1. Browser terlalu lama\n2. Harus pakai HTTPS atau localhost\n3. Browser tidak support");
-                        showAlert("Browser tidak support kamera atau harus pakai HTTPS", "error");
-                        return;
-                    }
-
-                    // CHECK: Apakah getUserMedia ada?
-                    if (!navigator.mediaDevices.getUserMedia) {
-                        alert("❌ getUserMedia tidak ada!\n\nBrowser tidak support akses kamera.");
-                        showAlert("Browser tidak support akses kamera", "error");
-                        return;
-                    }
-
-                    // Debug 2
-                    alert("2. ✅ Browser support!\nProtocol: " + location.protocol + "\nHost: " + location.hostname);
-                    
-                    scanMode = true;
-                    scanBtn.innerText = "Stop Scan Mode";
-                    scanBtn.classList.remove("bg-green-600");
-                    scanBtn.classList.add("bg-red-600");
-                    scanView.classList.remove("hidden");
-
-                    // Request camera permission
-                    const constraints = {
-                        video: { 
-                            facingMode: { ideal: "environment" },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    };
-
-                    // Debug 3
-                    alert("3. Minta akses kamera...");
-                    
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    
-                    // Debug 4
-                    alert("4. ✅ Kamera berhasil diakses!");
-
-                    videoElem.srcObject = stream;
-                    videoElem.setAttribute("playsinline", "true");
-                    videoElem.setAttribute("autoplay", "true");
-                    videoElem.setAttribute("muted", "true");
-                    
-                    // Wait for video to be ready
-                    videoElem.onloadedmetadata = () => {
-                        videoElem.play().then(() => {
-                            alert("5. ✅ Video playing!");
-                            startDecoding();
-                        }).catch(err => {
-                            alert("❌ Play error:\n" + err.name + "\n" + err.message);
-                            showAlert("Gagal memulai video: " + err.message, "error");
-                        });
-                    };
-
-                } catch (err) {
-                    // Debug error dengan detail lengkap
-                    let debugMsg = "❌ ERROR CAMERA:\n\n";
-                    debugMsg += "Error Name: " + (err.name || "unknown") + "\n\n";
-                    debugMsg += "Error Message: " + (err.message || "unknown") + "\n\n";
-                    debugMsg += "Protocol: " + location.protocol + "\n";
-                    debugMsg += "Host: " + location.hostname;
-                    
-                    alert(debugMsg);
-                    
-                    // Alert user-friendly
-                    let errorMsg = "Gagal mengakses kamera: ";
-                    
-                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                        errorMsg += "Permission ditolak. Izinkan akses kamera di browser settings.";
-                    } else if (err.name === 'NotFoundError') {
-                        errorMsg += "Kamera tidak ditemukan.";
-                    } else if (err.name === 'NotReadableError') {
-                        errorMsg += "Kamera sedang digunakan aplikasi lain.";
-                    } else if (err.name === 'NotSupportedError' || err.name === 'SecurityError') {
-                        errorMsg += "Browser tidak support atau harus pakai HTTPS/localhost.";
+                    if (data.next_step === 'packaging') {
+                        // TAHAP 1: SPK Sukses, Pindah ke Packaging
+                        if (pkgNameInput) pkgNameInput.focus();
                     } else {
-                        errorMsg += err.message;
-                    }
-                    
-                    showAlert(errorMsg, "error");
-                    stopScanMode();
-                }
-            }
-
-            function startDecoding() {
-                try {
-                    // Initialize ZXing reader
-                    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-                    
-                    console.log("Starting barcode detection...");
-                    
-                    // Start decoding
-                    codeReader.decodeFromVideoDevice(
-                        undefined,
-                        videoElem,
-                        (result, err) => {
-                            if (result) {
-                                const now = Date.now();
-                                if (result.text === lastScan && (now - lastScanTime < throttle)) {
-                                    return;
-                                }
-
-                                lastScan = result.text;
-                                lastScanTime = now;
-
-                                console.log("Barcode detected:", result.text);
-                                
-                                // Visual feedback
-                                videoElem.style.border = "5px solid #16a34a";
-                                setTimeout(() => {
-                                    videoElem.style.border = "none";
-                                }, 500);
-
-                                sendScan(result.text);
+                        // TAHAP 2/ORIGINAL: Reset seluruh field agar kosong semua untuk scan berikutnya
+                        const bulkToggle = document.getElementById('bulkScanToggle');
+                        if (bulkToggle && bulkToggle.checked) {
+                            if (spkInput) spkInput.value = '';
+                            if (quantityInput) quantityInput.value = '';
+                            if (warehouseInput) warehouseInput.value = '';
+                            if (labelsBulkInput) {
+                                labelsBulkInput.value = '';
                             }
-                            if (err && err.name !== 'NotFoundException') {
-                                console.error("Decode error:", err);
+                            if (spkInput) {
+                                spkInput.focus();
+                            }
+                        } else {
+                            // Single scan: Reset seluruh field form scan (SPK, Quantity, Warehouse, Label, dan Packaging)
+                            if (spkInput) spkInput.value = '';
+                            if (quantityInput) quantityInput.value = '';
+                            if (warehouseInput) warehouseInput.value = '';
+                            if (labelInput) {
+                                labelInput.value = '';
+                            }
+                            if (pkgNameInput) pkgNameInput.value = '';
+                            if (pkgLabelInput) pkgLabelInput.value = '';
+                            if (pkgWhseInput) pkgWhseInput.value = '';
+                            
+                            if (spkInput) {
+                                spkInput.focus();
                             }
                         }
-                    );
-                } catch (err) {
-                    console.error("ZXing error:", err);
-                    showAlert("Error starting scanner: " + err.message, "error");
-                }
-            }
-
-            function stopScanMode() {
-                scanMode = false;
-                scanBtn.innerText = "Start Scan Mode";
-                scanBtn.classList.remove("bg-red-600");
-                scanBtn.classList.add("bg-green-600");
-                scanView.classList.add("hidden");
-
-                // Stop ZXing
-                if (codeReader) {
-                    try {
-                        codeReader.reset();
-                    } catch (e) {
-                        console.error("Error resetting reader:", e);
                     }
-                    codeReader = null;
-                }
-
-                // Stop all video tracks
-                if (stream) {
-                    stream.getTracks().forEach(track => {
-                        track.stop();
-                        console.log("Track stopped:", track.kind);
-                    });
-                    stream = null;
-                }
-
-                // Clear video source
-                if (videoElem.srcObject) {
-                    videoElem.srcObject = null;
-                }
-
-                console.log("Camera stopped");
-            }
-
-            function sendScan(code) {
-                let formData = new FormData();
-                formData.append("so_number", "{{ $docNum }}");
-                formData.append("item_code", code);
-                formData.append("quantity", 1);
-                formData.append("warehouse", "AUTO");
-                formData.append("label", 0);
-                formData.append("_token", "{{ csrf_token() }}");
-
-                fetch("{{ route('so.scanBarcode') }}", {
-                    method: "POST",
-                    body: formData
-                })
-                .then(r => r.json())
-                .then(data => {
-                    showAlert(data.message, data.success ? "success" : "error");
-                    if (data.success) {
-                        // Reload page after delay
-                        setTimeout(() => location.reload(), 1500);
-                    }
-                })
-                .catch(err => {
-                    console.error("Fetch error:", err);
-                    showAlert("Network error: " + err.message, "error");
-                });
-            }
-
-            // Button click handler
-            if (scanBtn) {
-                scanBtn.addEventListener("click", () => {
-                    if (!scanMode) {
-                        startScanMode();
+                } else {
+                    showAlert(data.message || "Unknown error", "error");
+                    const bulkToggle = document.getElementById('bulkScanToggle');
+                    if (bulkToggle && bulkToggle.checked) {
+                        if (labelsBulkInput) {
+                            labelsBulkInput.focus();
+                            labelsBulkInput.select();
+                        }
                     } else {
-                        stopScanMode();
+                        // Single scan: Jangan reset form, cukup focus & select input label biar gampang ditimpa / scan ulang
+                        if (labelInput) {
+                            labelInput.focus();
+                            labelInput.select();
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Scan Barcode';
+                }
+                console.error('Error:', error);
+                showAlert("Terjadi kesalahan koneksi ke server.", "error");
+            });
+        }
+
+        // --- INTERCEPT SCAN FORM ---
+        if (barcodeForm) {
+            // Timer untuk AJAX #1 (Label SPK)
+            if (labelInput) {
+                labelInput.addEventListener('input', () => {
+                    // Hanya AJAX #1 jika Mode ON dan packaging masih kosong
+                    // Atau selalu AJAX jika Mode OFF
+                    const mode = document.getElementById('scan_mode_input').value;
+                    const pkgIsVisible = !document.getElementById('packaging_barcode_section').classList.contains('hidden');
+                    
+                    if (mode === 'OFF' || (mode === 'ON' && pkgNameInput.value.trim() === '')) {
+                        clearTimeout(autoSubmitTimer);
+                        autoSubmitTimer = setTimeout(() => {
+                            if (labelInput.value.trim() !== '') {
+                                submitScanForm(barcodeForm);
+                            }
+                        }, 1000);
                     }
                 });
             }
 
-            // Show warning if not HTTPS on page load (except localhost)
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                console.warn("⚠️ Camera requires HTTPS to work properly");
+            // Timer untuk AJAX #2 (Warehouse Packaging)
+            if (pkgWhseInput) {
+                pkgWhseInput.addEventListener('input', () => {
+                    if (pkgNameInput.value.trim() !== '') {
+                        clearTimeout(autoSubmitTimer);
+                        autoSubmitTimer = setTimeout(() => {
+                            if (pkgWhseInput.value.trim() !== '') {
+                                submitScanForm(barcodeForm);
+                            }
+                        }, 1000);
+                    }
+                });
             }
 
-            labelInput.addEventListener('input', function () {
-                submitForm();
+            barcodeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitScanForm(this);
             });
-        });
+        }
 
-        document.addEventListener('DOMContentLoaded', (event) => {
-            document.getElementById('spk_code').focus();
-        });
+        // --- CAMERA SCAN MODE (AJAX) ---
+        let scanMode = false;
+        let codeReader = null;
+        let stream = null;
+        let lastScan = "";
+        let lastScanTime = 0;
+        const throttle = 2000;
+
+        if (scanBtn) {
+            scanBtn.addEventListener('click', () => {
+                if (!scanMode) startScanMode();
+                else stopScanMode();
+            });
+        }
+
+        async function startScanMode() {
+            try {
+                scanMode = true;
+                scanBtn.innerText = "Stop Scan Mode";
+                scanBtn.classList.replace("bg-green-600", "bg-red-600");
+                document.getElementById('scanView').classList.remove('hidden');
+
+                const constraints = { video: { facingMode: "environment" }, audio: false };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElem.srcObject = stream;
+
+                codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+                codeReader.decodeFromVideoDevice(undefined, videoElem, (result, err) => {
+                    if (result) {
+                        const now = Date.now();
+                        if (result.text === lastScan && (now - lastScanTime < throttle)) return;
+                        lastScan = result.text;
+                        lastScanTime = now;
+                        
+                        // Flash effect on video
+                        videoElem.style.border = "5px solid #16a34a";
+                        setTimeout(() => videoElem.style.border = "none", 500);
+
+                        sendScanAjax(result.text);
+                    }
+                });
+            } catch (err) {
+                showAlert("Camera error: " + err.message, "error");
+                stopScanMode();
+            }
+        }
+
+        function stopScanMode() {
+            scanMode = false;
+            scanBtn.innerText = "Start Scan Mode";
+            scanBtn.classList.replace("bg-red-600", "bg-green-600");
+            document.getElementById('scanView').classList.add('hidden');
+            if (codeReader) codeReader.reset();
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
+
+        function sendScanAjax(code) {
+            let fd = new FormData();
+            fd.append("so_number", "{{ $docNum }}");
+            fd.append("spk_code", code); // Gunakan spk_code sesuai controller
+            fd.append("quantity", 1);
+            fd.append("warehouse", "AUTO");
+            fd.append("label", 0);
+            fd.append("_token", "{{ csrf_token() }}");
+
+            fetch("{{ route('so.scanBarcode') }}", {
+                method: "POST",
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                showAlert(data.message, data.success ? "success" : "error");
+                if (data.success) {
+                    updateUI(data);
+                    /* Tampilkan Foto di-disable karena lambat
+                    if (data.photo) {
+                        Fancybox.show([{ src: data.photo, type: "image" }], {
+                            on: { reveal: (fb) => setTimeout(() => fb.close(), 1000) }
+                        });
+                    }
+                    */
+                }
+            })
+            .catch(err => showAlert("Network error: " + err.message, "error"));
+        }
+    });
+    </script>
     </script>
 </x-app-layout>

@@ -38,9 +38,9 @@
                             <div id="fileList" class="mt-4 text-sm text-gray-600"></div>
                         </div>
                         <div class="flex justify-center">
-                            <button type="submit"
+                            <button id="uploadBtn" type="button"
                                 class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-                                onclick="document.getElementById('formUploadFile').submit()">
+                                onclick="uploadFiles()">
                                 Upload
                             </button>
                             <button
@@ -72,6 +72,53 @@
                     fileList.appendChild(listItem);
                 }
             });
+
+            async function uploadFiles() {
+                const form = document.getElementById('formUploadFile');
+                const filesInput = document.getElementById('files');
+
+                if (filesInput.files.length === 0) {
+                    alert('Please select at least one file first.');
+                    return;
+                }
+
+                const uploadBtn = document.getElementById('uploadBtn');
+                const originalText = uploadBtn.innerHTML;
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = 'Uploading...';
+
+                const formData = new FormData(form);
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        form.reset();
+                        document.getElementById('fileList').innerHTML = '';
+                        closeModal();
+                        
+                        // Dispatch Livewire events to refresh components and show success alert
+                        Livewire.dispatch('refresh-items');
+                        Livewire.dispatch('showAlert', { message: data.message || 'Files uploaded successfully!', type: 'success' });
+                    } else {
+                        alert(data.message || 'Upload failed. Please check file formats and sizes.');
+                    }
+                } catch (error) {
+                    console.error('Error uploading:', error);
+                    alert('An error occurred during upload.');
+                } finally {
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = originalText;
+                }
+            }
         </script>
     </div>
 </x-app-layout>

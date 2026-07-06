@@ -6,11 +6,13 @@ new class extends Component {
     public string $label;
     public array $childRoutes;
     public bool $isParentActive;
+    public bool $initiallyOpen = true;
 
-    public function mount(string $label, array $childRoutes)
+    public function mount(string $label, array $childRoutes, bool $initiallyOpen = true)
     {
         $this->label = $label;
         $this->childRoutes = $childRoutes;
+        $this->initiallyOpen = $initiallyOpen;
         $this->isParentActive = $this->isDropdownActive($childRoutes);
     }
 
@@ -28,7 +30,7 @@ new class extends Component {
 
 <!-- Parent Dropdown -->
 <div
-    x-data="{ dropdownOpen: {{ $isParentActive ? 'true' : 'false' }} }"
+    x-data="{ dropdownOpen: {{ ($isParentActive && $initiallyOpen) ? 'true' : 'false' }} }"
     class="relative"
     x-cloak
 >

@@ -62,5 +62,13 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('view-assembly-process-links', function($user){
             return $user->hasRoleAccess('ASSEMBLYPROCESS');
         });
+
+        Gate::define('view-business-links', function($user){
+            return $user->hasRoleAccess('BUSINESS');
+        });
+
+        Gate::define('view-production-links', function($user){
+            return $user->hasRoleAccess('PRODUCTION');
+        });
     }
 }

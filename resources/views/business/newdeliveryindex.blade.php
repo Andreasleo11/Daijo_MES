@@ -14,7 +14,7 @@
                     <div>
                         <label for="year" class="block text-lg font-medium text-gray-700">Select Year:</label>
                         <select name="year" id="year" class="border-gray-300 rounded-md shadow-sm p-3 text-lg w-48" onchange="this.form.submit()">
-                            @for ($y = 2024; $y <= 2025; $y++)
+                            @for ($y = 2024; $y <= 2030; $y++)
                                 <option value="{{ $y }}" {{ $y == $selectedYear ? 'selected' : '' }}>{{ $y }}</option>
                             @endfor
                         </select>

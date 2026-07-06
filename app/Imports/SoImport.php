@@ -16,10 +16,10 @@ class SoImport implements ToModel
         
         // If record exists, skip it by returning null
         if ($existingRecord) {
-            \Log::info('Duplicate found for doc_num: ' . $row[0] . ' and item_code: ' . $row[3]);
+            // \Log::info('Duplicate found for doc_num: ' . $row[0] . ' and item_code: ' . $row[3]);
 
             if ($existingRecord->is_finish == 1 || $existingRecord->is_done == 1) {
-                \Log::info('Skipping record for doc_num: ' . $row[0] . ' and item_code: ' . $row[3] . ' because it is finished or done.');
+                // \Log::debug('Skipping record for doc_num: ' . $row[0] . ' and item_code: ' . $row[3] . ' because it is finished or done.');
                 return null; // Skip this record
             }
         }

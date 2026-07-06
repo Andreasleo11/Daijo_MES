@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class InventoryFgService extends BaseSapService
 {
   
-   public function getInventoryFg($startDate = '2025-03-01')
+   public function getInventoryFg($startDate = '2025-12-01')
     {
          $routes = [
             '/api/sap_inventory_fg/list',
@@ -75,7 +75,7 @@ class InventoryFgService extends BaseSapService
 
     public function SyncData()
     {
-        $startDate = '2025-03-01';
+        $startDate = '2025-12-01';
 
         $inventoryFg = $this->getInventoryFg($startDate); // udah array
         // dd($inventoryFg);

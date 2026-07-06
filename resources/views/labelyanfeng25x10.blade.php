@@ -10,7 +10,7 @@
         }
 
         body {
-            font-family: monospace;
+            font-family: Arial, Helvetica, sans-serif;
             margin: 0;
             padding: 0 1mm; /* margin kiri-kanan 1mm */
             display: flex;
@@ -32,7 +32,7 @@
             background: #fff;
             padding: 0.4mm;
             padding-left: 0.5mm;
-            padding-top: 1.3mm;
+            padding-top: 0.7mm; /* Dikurangi agar barcode 8.5mm pas di tengah 10mm */
         }
 
         /* 🔹 Label kanan (urutan genap) — geser isi lebih ke kanan */
@@ -43,12 +43,17 @@
 
         .barcode {
             flex-shrink: 0;
-            margin-right: 1mm;
+            margin-right: 1.5mm; /* Beri jarak sedikit lebih lebar sebagai quiet zone */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .barcode img {
-            width: 9mm;
-            height: 9mm;
+            width: 11mm;  /* Data Matrix HARUS kotak sempurna (Square) */
+            height: 9mm; /* Jangan buat lonjong agar scanner mudah baca */
+            image-rendering: pixelated; /* Jaga agar kotak-kotaknya tetap tajam/crisp */
+            image-rendering: crisp-edges;
         }
 
         .info {
@@ -56,11 +61,11 @@
             flex-direction: column;
             justify-content: center;
             line-height: 1.2;
-            font-weight: bold; 
+            /* font-weight: bold;  */
         }
 
         .info div {
-            font-size: 1.3mm;
+            font-size: 1.1mm;
             margin-bottom: 0.2mm;
             white-space: nowrap;
             overflow: hidden;
@@ -69,7 +74,7 @@
 
         .project-line {
             font-size: 1.1mm !important;
-            font-weight: bold;
+            /* font-weight: bold; */
             letter-spacing: 0.1mm;
         }
 
