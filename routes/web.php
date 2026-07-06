@@ -548,7 +548,9 @@ Route::middleware('auth')->group(function (){
     Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
     Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
     Route::resource('second-process-reports', SecondProcessReportController::class);
+    
     Route::get('/master-list-manager', [MasterListItemController::class, 'manage'])->name('admin.master-list-manager');
+    Route::get('/master-list-logs', [MasterListItemController::class, 'logs'])->name('admin.master-list-logs');
 });
 
 

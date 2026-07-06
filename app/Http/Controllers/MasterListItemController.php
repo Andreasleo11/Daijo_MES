@@ -64,4 +64,9 @@ class MasterListItemController extends Controller
     {
         return view('master_list_manager.index');
     }
+
+    public function logs()
+    {
+        return view('master_list_manager.logs');
+    }
 }

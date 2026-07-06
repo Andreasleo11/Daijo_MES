@@ -46,13 +46,18 @@
                 <input type="checkbox" wire:model="hardSync" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
                 Force Hard Sync (Overwrite MES fields from CSV)
             </label>
-            <div class="relative">
+            <div class="relative flex items-center space-x-2">
                 <input type="file" wire:model="file" id="csv-file-input" class="hidden" accept=".csv,.txt">
                 <button type="button" onclick="document.getElementById('csv-file-input').click()" 
                         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm shadow transition inline-flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     Sync SAP Master CSV
                 </button>
+                <a href="{{ route('admin.master-list-logs') }}" 
+                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded text-sm shadow transition inline-flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    View Logs
+                </a>
             </div>
         </div>
     </div>

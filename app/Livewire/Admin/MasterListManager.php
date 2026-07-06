@@ -40,7 +40,7 @@ class MasterListManager extends Component
 
     public function updatingSearch()
     {
-        $this->resetPage();
+        $this->resetPage('itemsPage');
     }
 
     public function startEdit($itemId, $field)
@@ -269,6 +269,10 @@ class MasterListManager extends Component
             }
             $this->tempFilePath = '';
             $this->importing = false;
+            $this->file = null;
+            $this->totalRows = 0;
+            $this->previewRows = [];
+            $this->importedRowsCount = 0;
             session()->flash('message', "Successfully synced {$this->totalRows} records from SAP CSV.");
         }
     }
@@ -293,10 +297,15 @@ class MasterListManager extends Component
                     ->orWhere('item_name', 'like', '%'.$this->search.'%');
             })
             ->orderBy('id', 'desc')
-            ->paginate(15);
+            ->paginate(15, ['*'], 'itemsPage');
+
+        $logs = MasterItemLog::with('user')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10, ['*'], 'logsPage');
 
         return view('livewire.admin.master-list-manager', [
             'items' => $items,
+            'logs' => $logs,
         ]);
     }
 }
