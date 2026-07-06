@@ -182,24 +182,26 @@ class ReceiptProductionService extends BaseSapService
         }
     }
 
-    public function pushSingleRecord($summary, $scannedData)
+    public function pushSingleRecord($summary, $scannedData, $alreadyLocked = false)
     {
-        // === ATOMIC LOCK untuk manual push ===
-        // Boleh push jika status 0 (Pending) ATAU 3 (Failed - retry)
-        $locked = DB::table('production_summary')
-            ->where('id', $summary->id)
-            ->whereIn('sap_sent', [0, 3])
-            ->update(['sap_sent' => 2, 'updated_at' => now()]);
+        if (!$alreadyLocked) {
+            // === ATOMIC LOCK untuk manual push ===
+            // Boleh push jika status 0 (Pending) ATAU 3 (Failed - retry)
+            $locked = DB::table('production_summary')
+                ->where('id', $summary->id)
+                ->whereIn('sap_sent', [0, 3])
+                ->update(['sap_sent' => 2, 'updated_at' => now()]);
 
-        if (!$locked) {
-            $current = DB::table('production_summary')->where('id', $summary->id)->value('sap_sent');
-            $statusMap = [1 => 'sudah terkirim ke SAP', 2 => 'sedang diproses', 3 => 'gagal (sedang di-retry)', 99 => 'diabaikan'];
-            $reason = $statusMap[$current] ?? 'status tidak diketahui (code: ' . $current . ')';
-            Log::warning("[SAP Push Manual] SPK {$summary->spk_code} SKIPPED - {$reason}.");
-            return [
-                'success' => false,
-                'message' => "Tidak bisa dikirim: {$reason}.",
-            ];
+            if (!$locked) {
+                $current = DB::table('production_summary')->where('id', $summary->id)->value('sap_sent');
+                $statusMap = [1 => 'sudah terkirim ke SAP', 2 => 'sedang diproses', 3 => 'gagal (sedang di-retry)', 99 => 'diabaikan'];
+                $reason = $statusMap[$current] ?? 'status tidak diketahui (code: ' . $current . ')';
+                Log::warning("[SAP Push Manual] SPK {$summary->spk_code} SKIPPED - {$reason}.");
+                return [
+                    'success' => false,
+                    'message' => "Tidak bisa dikirim: {$reason}.",
+                ];
+            }
         }
 
         try {

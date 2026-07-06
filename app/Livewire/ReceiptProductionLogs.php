@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\ReceiptProductionService;
+use App\Jobs\PushSingleReceiptProductionJob;
 
 class ReceiptProductionLogs extends Component
 {
@@ -215,69 +216,52 @@ class ReceiptProductionLogs extends Component
     public function pushToSapManual(int $summaryId): void
     {
         try {
-            $this->pushingRows[$summaryId] = true;
-
+            // Cek apakah SPK ada dan bisa dikirim
             $summary = DB::table('production_summary')
                 ->where('id', $summaryId)
                 ->first();
 
             if (!$summary) {
-                $this->pushResults[$summaryId] = [
+                $this->dispatch('push-notification', [
                     'status' => 'error',
                     'message' => 'SPK tidak ditemukan'
-                ];
-                unset($this->pushingRows[$summaryId]);
+                ]);
                 return;
             }
 
-            // Cari scanned data
-            $scannedData = DB::table('production_scanned_data')
-                ->where('spk_code', $summary->spk_code)
-                ->first();
+            // Lock record di UI thread segera agar status berubah jadi "Processing" di UI
+            $locked = DB::table('production_summary')
+                ->where('id', $summaryId)
+                ->whereIn('sap_sent', [0, 3])
+                ->update(['sap_sent' => 2, 'updated_at' => now()]);
 
-            if (!$scannedData) {
-                $this->pushResults[$summaryId] = [
-                    'status' => 'error',
-                    'message' => 'Data scanning tidak ditemukan untuk SPK ini'
-                ];
-                unset($this->pushingRows[$summaryId]);
-                return;
-            }
-
-            // Gunakan ReceiptProductionService untuk push
-            $service = app(ReceiptProductionService::class);
-            $response = $service->pushSingleRecord($summary, $scannedData);
-
-            if ($response['success']) {
-                $this->pushResults[$summaryId] = [
-                    'status' => 'success',
-                    'message' => 'SPK berhasil dikirim ke SAP'
-                ];
+            if ($locked) {
+                // Dispatch job background
+                PushSingleReceiptProductionJob::dispatch($summaryId);
                 
-                // Refresh logs
-                $this->dispatch('sap-push-success');
-            } else {
-                $this->pushResults[$summaryId] = [
-                    'status' => 'error',
-                    'message' => $response['message'] ?? 'Gagal mengirim ke SAP'
-                ];
-            }
+                cache()->forget("receipt_stats_{$this->filterDate}");
 
-            unset($this->pushingRows[$summaryId]);
-            cache()->forget("receipt_stats_{$this->filterDate}");
+                $this->dispatch('push-notification', [
+                    'status' => 'success',
+                    'message' => 'SPK ' . $summary->spk_code . ' sedang dikirim ke SAP di background'
+                ]);
+            } else {
+                $this->dispatch('push-notification', [
+                    'status' => 'warning',
+                    'message' => 'SPK tidak dapat diproses (sedang dikirim atau sudah selesai)'
+                ]);
+            }
 
         } catch (\Throwable $e) {
-            Log::error('Manual push error', [
+            Log::error('Manual push dispatch error', [
                 'summary_id' => $summaryId,
                 'error' => $e->getMessage(),
             ]);
 
-            $this->pushResults[$summaryId] = [
+            $this->dispatch('push-notification', [
                 'status' => 'error',
-                'message' => 'Error: ' . $e->getMessage()
-            ];
-
-            unset($this->pushingRows[$summaryId]);
+                'message' => 'Gagal memulai proses: ' . $e->getMessage()
+            ]);
         }
     }
 
@@ -289,16 +273,14 @@ class ReceiptProductionLogs extends Component
         try {
             $this->dispatch('batch-push-start');
 
-            $service = app(ReceiptProductionService::class);
-            
             // Ambil semua pending records sesuai filter
-            // Exclude status 2 (sedang diproses worker lain) dari batch push
+            // Exclude status 2 (sedang diproses) dari batch push
             $summaries = DB::table('production_summary')
                 ->whereIn('warehouse', ['FFI', 'KRFFI'])
                 ->when($this->filterWarehouse, fn($q) =>
                     $q->where('warehouse', $this->filterWarehouse)
                 )
-                ->where('sap_sent', 0) // Hanya yang benar-benar pending, bukan yang lagi processing
+                ->whereIn('sap_sent', [0, 3]) // Hanya pending atau failed
                 ->when($this->filterDate, fn($q) =>
                     $q->whereDate('created_date', $this->filterDate)
                 )
@@ -315,24 +297,18 @@ class ReceiptProductionLogs extends Component
                 return;
             }
 
-            $successCount = 0;
-            $failCount = 0;
+            $dispatchedCount = 0;
 
             foreach ($summaries as $summary) {
-                $scannedData = DB::table('production_scanned_data')
-                    ->where('spk_code', $summary->spk_code)
-                    ->first();
+                // Lock record di UI thread segera
+                $locked = DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->whereIn('sap_sent', [0, 3])
+                    ->update(['sap_sent' => 2, 'updated_at' => now()]);
 
-                if (!$scannedData) {
-                    $failCount++;
-                    continue;
-                }
-
-                $response = $service->pushSingleRecord($summary, $scannedData);
-                if ($response['success']) {
-                    $successCount++;
-                } else {
-                    $failCount++;
+                if ($locked) {
+                    PushSingleReceiptProductionJob::dispatch($summary->id);
+                    $dispatchedCount++;
                 }
             }
 
@@ -340,7 +316,7 @@ class ReceiptProductionLogs extends Component
 
             $this->dispatch('push-notification', [
                 'status' => 'success',
-                'message' => "Batch push selesai: {$successCount} berhasil, {$failCount} gagal"
+                'message' => "Batch push dikirim ke background queue: {$dispatchedCount} SPK sedang diproses"
             ]);
 
             $this->dispatch('sap-push-success');

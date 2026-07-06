@@ -1,4 +1,5 @@
-<div style="font-family:'IBM Plex Sans',sans-serif; background:#F5F3EF; min-height:100vh; padding:24px;">
+<div style="font-family:'IBM Plex Sans',sans-serif; background:#F5F3EF; min-height:100vh; padding:24px;"
+     @if(DB::table('production_summary')->where('sap_sent', 2)->exists()) wire:poll.5s @endif>
 
     {{-- Header --}}
     <div style="margin-bottom:20px;">
