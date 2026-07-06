@@ -22,6 +22,11 @@ return new class extends Migration
             $table->integer('hour_5')->default(0);
             $table->integer('hour_6')->default(0);
             $table->integer('hour_7')->default(0);
+            $table->integer('hour_8')->default(0);
+            $table->integer('hour_9')->default(0);
+            $table->integer('hour_10')->default(0);
+            $table->integer('hour_11')->default(0);
+            $table->integer('hour_12')->default(0);
             $table->integer('total_ng')->default(0);
             $table->string('ng_input_item')->nullable();
             $table->integer('ng_input_qty')->nullable();

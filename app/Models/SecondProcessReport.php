@@ -34,6 +34,10 @@ class SecondProcessReport extends Model
         'acknowledged_by_name',
     ];
 
+    protected $casts = [
+        'next_production_schedule' => 'array',
+    ];
+
     public function materials()
     {
         return $this->hasMany(SecondProcessMaterial::class, 'report_id');

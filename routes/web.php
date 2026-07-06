@@ -545,6 +545,8 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
+    Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
+    Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
     Route::resource('second-process-reports', SecondProcessReportController::class);
 });
 

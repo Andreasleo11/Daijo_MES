@@ -88,7 +88,8 @@ class SecondProcessReportController extends Controller
             'ng_prosentase' => 'nullable|numeric',
             'jml_ng_lebur' => 'nullable|integer',
             // Footer
-            'next_production_schedule' => 'nullable|string',
+            'next_production_schedule' => 'nullable|array',
+            'next_production_schedule.*' => 'nullable|string',
             'absent_employees' => 'nullable|string',
             'production_notes' => 'nullable|string',
             'created_by_name' => 'nullable|string',
@@ -125,6 +126,11 @@ class SecondProcessReportController extends Controller
             'ngs.*.hour_5' => 'nullable|integer',
             'ngs.*.hour_6' => 'nullable|integer',
             'ngs.*.hour_7' => 'nullable|integer',
+            'ngs.*.hour_8' => 'nullable|integer',
+            'ngs.*.hour_9' => 'nullable|integer',
+            'ngs.*.hour_10' => 'nullable|integer',
+            'ngs.*.hour_11' => 'nullable|integer',
+            'ngs.*.hour_12' => 'nullable|integer',
             'ngs.*.total_ng' => 'nullable|integer',
             'ngs.*.ng_input_item' => 'nullable|string',
             'ngs.*.ng_input_qty' => 'nullable|integer',
@@ -135,6 +141,37 @@ class SecondProcessReportController extends Controller
             'troubles.*.penanganan' => 'nullable|string',
             'troubles.*.loss_time' => 'nullable|string',
         ]);
+
+        // Server-side calculation & validation of totals
+        $jumlah_ok = 0;
+        if (isset($validated['hourly'])) {
+            foreach ($validated['hourly'] as $hour) {
+                $jumlah_ok += (int)($hour['ok_qty'] ?? 0);
+            }
+        }
+
+        $jumlah_ng = 0;
+        if (isset($validated['ngs'])) {
+            foreach ($validated['ngs'] as $key => $ng) {
+                $rowTotal = 0;
+                for ($h = 1; $h <= 12; $h++) {
+                    $rowTotal += (int)($ng['hour_' . $h] ?? 0);
+                }
+                $validated['ngs'][$key]['total_ng'] = $rowTotal;
+                $jumlah_ng += $rowTotal;
+            }
+        }
+
+        $jumlah_output = $jumlah_ok + $jumlah_ng;
+        $ng_prosentase = 0;
+        if ($jumlah_output > 0) {
+            $ng_prosentase = round(($jumlah_ng / $jumlah_output) * 100, 2);
+        }
+
+        $validated['jumlah_ok'] = $jumlah_ok;
+        $validated['jumlah_ng'] = $jumlah_ng;
+        $validated['jumlah_output'] = $jumlah_output;
+        $validated['ng_prosentase'] = $ng_prosentase;
 
         DB::transaction(function () use ($validated) {
             // 1. Create Report
@@ -237,7 +274,8 @@ class SecondProcessReportController extends Controller
             'ng_prosentase' => 'nullable|numeric',
             'jml_ng_lebur' => 'nullable|integer',
             // Footer
-            'next_production_schedule' => 'nullable|string',
+            'next_production_schedule' => 'nullable|array',
+            'next_production_schedule.*' => 'nullable|string',
             'absent_employees' => 'nullable|string',
             'production_notes' => 'nullable|string',
             'created_by_name' => 'nullable|string',
@@ -274,6 +312,11 @@ class SecondProcessReportController extends Controller
             'ngs.*.hour_5' => 'nullable|integer',
             'ngs.*.hour_6' => 'nullable|integer',
             'ngs.*.hour_7' => 'nullable|integer',
+            'ngs.*.hour_8' => 'nullable|integer',
+            'ngs.*.hour_9' => 'nullable|integer',
+            'ngs.*.hour_10' => 'nullable|integer',
+            'ngs.*.hour_11' => 'nullable|integer',
+            'ngs.*.hour_12' => 'nullable|integer',
             'ngs.*.total_ng' => 'nullable|integer',
             'ngs.*.ng_input_item' => 'nullable|string',
             'ngs.*.ng_input_qty' => 'nullable|integer',
@@ -284,6 +327,37 @@ class SecondProcessReportController extends Controller
             'troubles.*.penanganan' => 'nullable|string',
             'troubles.*.loss_time' => 'nullable|string',
         ]);
+
+        // Server-side calculation & validation of totals
+        $jumlah_ok = 0;
+        if (isset($validated['hourly'])) {
+            foreach ($validated['hourly'] as $hour) {
+                $jumlah_ok += (int)($hour['ok_qty'] ?? 0);
+            }
+        }
+
+        $jumlah_ng = 0;
+        if (isset($validated['ngs'])) {
+            foreach ($validated['ngs'] as $key => $ng) {
+                $rowTotal = 0;
+                for ($h = 1; $h <= 12; $h++) {
+                    $rowTotal += (int)($ng['hour_' . $h] ?? 0);
+                }
+                $validated['ngs'][$key]['total_ng'] = $rowTotal;
+                $jumlah_ng += $rowTotal;
+            }
+        }
+
+        $jumlah_output = $jumlah_ok + $jumlah_ng;
+        $ng_prosentase = 0;
+        if ($jumlah_output > 0) {
+            $ng_prosentase = round(($jumlah_ng / $jumlah_output) * 100, 2);
+        }
+
+        $validated['jumlah_ok'] = $jumlah_ok;
+        $validated['jumlah_ng'] = $jumlah_ng;
+        $validated['jumlah_output'] = $jumlah_output;
+        $validated['ng_prosentase'] = $ng_prosentase;
 
         DB::transaction(function () use ($report, $validated) {
             // Update main report
@@ -349,5 +423,34 @@ class SecondProcessReportController extends Controller
 
         return redirect()->route('second-process-reports.index')
             ->with('success', 'Report deleted successfully.');
+    }
+
+    public function searchItems(Request $request)
+    {
+        $query = $request->get('query');
+        if (!$query) {
+            return response()->json([]);
+        }
+
+        $items = \App\Models\MasterAllItem::where('item_code', 'LIKE', "%{$query}%")
+            ->orWhere('item_description', 'LIKE', "%{$query}%")
+            ->limit(20)
+            ->get();
+
+        return response()->json($items);
+    }
+
+    public function searchCustomers(Request $request)
+    {
+        $query = $request->get('query');
+        if (!$query) {
+            return response()->json([]);
+        }
+
+        $customers = \App\Models\Customer::where('name', 'LIKE', "%{$query}%")
+            ->limit(20)
+            ->get();
+
+        return response()->json($customers);
     }
 }

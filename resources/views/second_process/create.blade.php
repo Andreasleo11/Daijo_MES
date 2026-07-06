@@ -57,20 +57,26 @@
                                 </div>
                                 
                                 <div>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part Number</label>
+                                    <div class="relative">
+                                        <input type="text" name="part_number" id="part_number" placeholder="Search Part Number..." class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required autocomplete="off">
+                                        <div id="part-number-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50 hidden"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part Name</label>
+                                    <input type="text" name="part_name" placeholder="Auto-filled from Part Number" class="w-full rounded border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 text-sm" required>
+                                </div>
+                                <div>
                                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Model</label>
                                     <input type="text" name="model" placeholder="Model" class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part Number</label>
-                                    <input type="text" name="part_number" placeholder="Part Number" class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part Name</label>
-                                    <input type="text" name="part_name" placeholder="Part Name" class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required>
-                                </div>
-                                <div>
                                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Customer</label>
-                                    <input type="text" name="customer" placeholder="Customer Name" class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required>
+                                    <div class="relative">
+                                        <input type="text" name="customer" id="customer" placeholder="Search Customer..." class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm" required autocomplete="off">
+                                        <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50 hidden"></div>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -193,9 +199,19 @@
 
                             <!-- Hasil Produksi Section -->
                             <div class="space-y-6">
-                                <h3 class="text-lg font-bold text-gray-800 border-b pb-2 flex items-center">
-                                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                    Hasil Produksi
+                                <h3 class="text-lg font-bold text-gray-800 border-b pb-2 flex items-center justify-between">
+                                    <span class="flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                        Hasil Produksi
+                                    </span>
+                                    <div class="flex space-x-1">
+                                        <button type="button" id="remove-hour-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-2 py-1 rounded shadow transition">
+                                            - Hour
+                                        </button>
+                                        <button type="button" id="add-hour-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-2 py-1 rounded shadow transition">
+                                            + Hour
+                                        </button>
+                                    </div>
                                 </h3>
 
                                 <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
@@ -207,9 +223,9 @@
                                                 <th class="px-4 py-2 text-center font-bold text-gray-600 w-1/3">Acumulasi</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-200">
-                                            @for($hour = 1; $hour <= 11; $hour++)
-                                                <tr>
+                                        <tbody class="divide-y divide-gray-200" id="hourly-ok-tbody">
+                                            @for($hour = 1; $hour <= 8; $hour++)
+                                                <tr class="hourly-ok-row" data-hour="{{ $hour }}">
                                                     <td class="px-4 py-2 text-center font-bold text-gray-700">{{ $hour }}</td>
                                                     <td class="px-4 py-2">
                                                         <input type="number" name="hourly[{{ $hour }}][hour_ke]" value="{{ $hour }}" class="hidden">
@@ -297,31 +313,27 @@
                                 <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                 NG Produksi / Jam
                             </h3>
-                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
                                 <table class="min-w-full divide-y divide-gray-200 text-xs text-center">
                                     <thead class="bg-gray-50 font-bold text-gray-600">
-                                        <tr>
+                                        <tr id="ng-header-row">
                                             <th class="px-2 py-2 text-left">ITEMS NG</th>
-                                            <th class="px-2 py-2 w-10">1</th>
-                                            <th class="px-2 py-2 w-10">2</th>
-                                            <th class="px-2 py-2 w-10">3</th>
-                                            <th class="px-2 py-2 w-10">4</th>
-                                            <th class="px-2 py-2 w-10">5</th>
-                                            <th class="px-2 py-2 w-10">6</th>
-                                            <th class="px-2 py-2 w-10">7</th>
+                                            @for($h = 1; $h <= 8; $h++)
+                                                <th class="px-2 py-2 w-10 ng-hour-header" data-hour="{{ $h }}">{{ $h }}</th>
+                                            @endfor
                                             <th class="px-2 py-2 w-20 font-extrabold text-red-600">Total NG</th>
                                             <th class="px-2 py-2 text-left w-1/4">NG Input (Item NG / Qty)</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-200">
+                                    <tbody class="divide-y divide-gray-200" id="ng-tbody">
                                         @foreach($defaultNgs as $index => $ng)
                                             <tr class="ng-row">
                                                 <td class="px-2 py-2 text-left font-semibold text-gray-700">
                                                     {{ $ng }}
                                                     <input type="hidden" name="ngs[{{ $index }}][ng_name]" value="{{ $ng }}">
                                                 </td>
-                                                @for($h = 1; $h <= 7; $h++)
-                                                    <td class="px-1 py-2">
+                                                @for($h = 1; $h <= 8; $h++)
+                                                    <td class="px-1 py-2 ng-hour-cell" data-hour="{{ $h }}">
                                                         <input type="number" name="ngs[{{ $index }}][hour_{{ $h }}]" class="w-full text-center rounded border-gray-300 p-1 text-xs ng-hourly-input" data-hour="{{ $h }}">
                                                     </td>
                                                 @endfor
@@ -391,22 +403,21 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div class="flex items-center space-x-2">
                                         <span class="text-xs font-bold text-gray-500 w-4">1.</span>
-                                        <input type="text" name="next_production_schedule_1" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
+                                        <input type="text" name="next_production_schedule[]" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <span class="text-xs font-bold text-gray-500 w-4">2.</span>
-                                        <input type="text" name="next_production_schedule_2" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
+                                        <input type="text" name="next_production_schedule[]" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <span class="text-xs font-bold text-gray-500 w-4">3.</span>
-                                        <input type="text" name="next_production_schedule_3" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
+                                        <input type="text" name="next_production_schedule[]" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <span class="text-xs font-bold text-gray-500 w-4">4.</span>
-                                        <input type="text" name="next_production_schedule_4" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
+                                        <input type="text" name="next_production_schedule[]" placeholder="Next schedule item" class="w-full text-xs rounded border-gray-300 py-1 schedule-input">
                                     </div>
                                 </div>
-                                <input type="hidden" name="next_production_schedule" id="next_production_schedule">
 
                                 <!-- Signature / Approvals Input -->
                                 <div class="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
@@ -431,7 +442,7 @@
                     <!-- Actions Footer -->
                     <div class="bg-gray-100 px-6 py-4 flex justify-between items-center border-t border-gray-200">
                         <a href="{{ route('second-process-reports.index') }}" class="text-gray-600 hover:text-gray-800 text-sm font-semibold transition">Cancel</a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-md transition">
+                        <button type="submit" id="submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-md transition">
                             Submit Production Report
                         </button>
                     </div>
@@ -441,16 +452,168 @@
         </div>
     </div>
 
-    <!-- Script calculations -->
+    <!-- Script calculations & interactions -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // Hourly Production Cumulative OK sum
-            const hourlyOkInputs = document.querySelectorAll('.hourly-ok-input');
-            const hourlyAccumInputs = document.querySelectorAll('.hourly-accum-input');
+            const form = document.getElementById('production-report-form');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // 1. Double Submission Protection
+            form.addEventListener('submit', function () {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg> Submitting...`;
+            });
+
+            // 2. Autocomplete helper
+            function setupAutocomplete(inputId, dropdownId, url, onSelect) {
+                const input = document.getElementById(inputId);
+                const dropdown = document.getElementById(dropdownId);
+                let debounceTimer;
+
+                input.addEventListener('input', function () {
+                    clearTimeout(debounceTimer);
+                    const query = input.value.trim();
+
+                    if (query.length < 2) {
+                        dropdown.innerHTML = '';
+                        dropdown.classList.add('hidden');
+                        return;
+                    }
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`${url}?query=${encodeURIComponent(query)}`)
+                            .then(res => res.json())
+                            .then(data => {
+                                dropdown.innerHTML = '';
+                                if (data.length === 0) {
+                                    dropdown.classList.add('hidden');
+                                    return;
+                                }
+
+                                data.forEach(item => {
+                                    const div = document.createElement('div');
+                                    div.className = 'px-4 py-2 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-b-0 text-gray-800 transition';
+                                    
+                                    if (item.item_code) {
+                                        div.innerHTML = `<span class="font-bold text-blue-700">${item.item_code}</span> - <span class="text-gray-500">${item.item_description || ''}</span>`;
+                                    } else if (item.name) {
+                                        div.textContent = item.name;
+                                    }
+
+                                    div.addEventListener('click', () => {
+                                        onSelect(item);
+                                        dropdown.classList.add('hidden');
+                                    });
+                                    dropdown.appendChild(div);
+                                });
+                                dropdown.classList.remove('hidden');
+                            })
+                            .catch(err => console.error(err));
+                    }, 300);
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (e.target !== input && e.target !== dropdown) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Initialize Autocompletes
+            setupAutocomplete('part_number', 'part-number-dropdown', '{{ route("second-process-reports.search-items") }}', function (item) {
+                document.getElementById('part_number').value = item.item_code;
+                document.querySelector('input[name="part_name"]').value = item.item_description || '';
+            });
+
+            setupAutocomplete('customer', 'customer-dropdown', '{{ route("second-process-reports.search-customers") }}', function (item) {
+                document.getElementById('customer').value = item.name;
+            });
+
+            // 3. Dynamic Hour Management (OK and NG Tables Sync)
+            const addHourBtn = document.getElementById('add-hour-btn');
+            const removeHourBtn = document.getElementById('remove-hour-btn');
+            const okTbody = document.getElementById('hourly-ok-tbody');
+            const ngHeaderRow = document.getElementById('ng-header-row');
+            const ngTbody = document.getElementById('ng-tbody');
+
+            addHourBtn.addEventListener('click', function () {
+                const currentHours = document.querySelectorAll('.hourly-ok-row').length;
+                if (currentHours >= 12) {
+                    alert('Maximum shift limit is 12 hours.');
+                    return;
+                }
+
+                const newHour = currentHours + 1;
+
+                // Add OK Row
+                const okRow = `
+                    <tr class="hourly-ok-row" data-hour="${newHour}">
+                        <td class="px-4 py-2 text-center font-bold text-gray-700">${newHour}</td>
+                        <td class="px-4 py-2">
+                            <input type="number" name="hourly[${newHour}][hour_ke]" value="${newHour}" class="hidden">
+                            <input type="number" name="hourly[${newHour}][ok_qty]" placeholder="Qty OK" class="w-full text-xs rounded border-gray-300 py-1 text-center hourly-ok-input">
+                        </td>
+                        <td class="px-4 py-2">
+                            <input type="number" name="hourly[${newHour}][acumulasi_qty]" placeholder="Acumulasi" class="w-full text-xs rounded border-gray-300 bg-gray-100 py-1 text-center font-semibold hourly-accum-input" readonly>
+                        </td>
+                    </tr>`;
+                okTbody.insertAdjacentHTML('beforeend', okRow);
+
+                // Add NG Header column
+                const totalNgHeader = ngHeaderRow.querySelector('th.text-red-600');
+                const th = `<th class="px-2 py-2 w-10 ng-hour-header" data-hour="${newHour}">${newHour}</th>`;
+                totalNgHeader.insertAdjacentHTML('beforebegin', th);
+
+                // Add NG Inputs to each row
+                const ngRows = document.querySelectorAll('.ng-row');
+                ngRows.forEach((row, index) => {
+                    const totalNgCell = row.querySelector('.ng-total-output').closest('td');
+                    const td = `
+                        <td class="px-1 py-2 ng-hour-cell" data-hour="${newHour}">
+                            <input type="number" name="ngs[${index}][hour_${newHour}]" class="w-full text-center rounded border-gray-300 p-1 text-xs ng-hourly-input" data-hour="${newHour}">
+                        </td>`;
+                    totalNgCell.insertAdjacentHTML('beforebegin', td);
+                });
+
+                calculateHourlyAccumulation();
+                calculateNgTotals();
+            });
+
+            removeHourBtn.addEventListener('click', function () {
+                const currentHours = document.querySelectorAll('.hourly-ok-row').length;
+                if (currentHours <= 1) {
+                    alert('At least 1 hour of production is required.');
+                    return;
+                }
+
+                // Remove OK Row
+                document.querySelector(`.hourly-ok-row[data-hour="${currentHours}"]`).remove();
+
+                // Remove NG Header Column
+                document.querySelector(`.ng-hour-header[data-hour="${currentHours}"]`).remove();
+
+                // Remove NG Cells
+                document.querySelectorAll(`.ng-hour-cell[data-hour="${currentHours}"]`).forEach(el => el.remove());
+
+                calculateHourlyAccumulation();
+                calculateNgTotals();
+            });
+
+            // 4. Calculations (using Event Delegation)
             const totalOkField = document.getElementById('jumlah_ok');
-            
+            const totalNgField = document.getElementById('jumlah_ng');
+            const totalOutputField = document.getElementById('jumlah_output');
+            const ngPercentageField = document.getElementById('ng_prosentase');
+
             function calculateHourlyAccumulation() {
+                const hourlyOkInputs = document.querySelectorAll('.hourly-ok-input');
+                const hourlyAccumInputs = document.querySelectorAll('.hourly-accum-input');
+                
                 let accumulated = 0;
                 hourlyOkInputs.forEach((input, index) => {
                     const val = parseInt(input.value) || 0;
@@ -463,17 +626,10 @@
                 calculateSummaryTotals();
             }
 
-            hourlyOkInputs.forEach(input => {
-                input.addEventListener('input', calculateHourlyAccumulation);
-            });
-
-            // NG Table Total row calculations
-            const ngHourlyInputs = document.querySelectorAll('.ng-hourly-input');
-            const ngRows = document.querySelectorAll('.ng-row');
-            const totalNgField = document.getElementById('jumlah_ng');
-
             function calculateNgTotals() {
+                const ngRows = document.querySelectorAll('.ng-row');
                 let overallNg = 0;
+
                 ngRows.forEach(row => {
                     const rowInputs = row.querySelectorAll('.ng-hourly-input');
                     const rowTotalField = row.querySelector('.ng-total-output');
@@ -487,14 +643,6 @@
                 totalNgField.value = overallNg;
                 calculateSummaryTotals();
             }
-
-            ngHourlyInputs.forEach(input => {
-                input.addEventListener('input', calculateNgTotals);
-            });
-
-            // Summary Totals (Output, NG %, rate)
-            const totalOutputField = document.getElementById('jumlah_output');
-            const ngPercentageField = document.getElementById('ng_prosentase');
 
             function calculateSummaryTotals() {
                 const totalOk = parseInt(totalOkField.value) || 0;
@@ -511,21 +659,19 @@
                 }
             }
 
-            // Combine next schedule textareas before submitting
-            const form = document.getElementById('production-report-form');
-            const scheduleInputs = document.querySelectorAll('.schedule-input');
-            const nextScheduleHidden = document.getElementById('next_production_schedule');
-
-            form.addEventListener('submit', function (e) {
-                const scheduleArray = [];
-                scheduleInputs.forEach((input, index) => {
-                    const val = input.value.trim();
-                    if (val) {
-                        scheduleArray.push(`${index+1}: ${val}`);
-                    }
-                });
-                nextScheduleHidden.value = scheduleArray.join('\n');
+            // Event delegation on document level to auto-capture inputs
+            document.addEventListener('input', function (e) {
+                if (e.target.classList.contains('hourly-ok-input')) {
+                    calculateHourlyAccumulation();
+                }
+                if (e.target.classList.contains('ng-hourly-input')) {
+                    calculateNgTotals();
+                }
             });
+
+            // Initial Calculations
+            calculateHourlyAccumulation();
+            calculateNgTotals();
         });
     </script>
 </x-app-layout>

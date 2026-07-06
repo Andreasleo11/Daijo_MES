@@ -16,6 +16,9 @@
     </div>
 
     <!-- Printable Area -->
+    @php
+        $currentHoursCount = max(8, $report->hourlyProductions->count());
+    @endphp
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 pb-12 print-area">
         <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 p-6 space-y-6">
             
@@ -155,13 +158,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($report->hourlyProductions->sortBy('hour_ke') as $hour)
+                            @for($hour = 1; $hour <= $currentHoursCount; $hour++)
+                                @php
+                                    $hData = $report->hourlyProductions->where('hour_ke', $hour)->first();
+                                @endphp
                                 <tr>
-                                    <td class="border border-black p-1 font-bold">{{ $hour->hour_ke }}</td>
-                                    <td class="border border-black p-1">{{ $hour->ok_qty ?: '-' }}</td>
-                                    <td class="border border-black p-1 font-semibold">{{ $hour->acumulasi_qty ?: '-' }}</td>
+                                    <td class="border border-black p-1 font-bold">{{ $hour }}</td>
+                                    <td class="border border-black p-1">{{ $hData && $hData->ok_qty !== null ? $hData->ok_qty : '-' }}</td>
+                                    <td class="border border-black p-1 font-semibold">{{ $hData && $hData->acumulasi_qty !== null ? $hData->acumulasi_qty : '-' }}</td>
                                 </tr>
-                            @endforeach
+                            @endfor
                         </tbody>
                     </table>
                 </div>
@@ -202,44 +208,45 @@
             <!-- NG Produksi table -->
             <div>
                 <h3 class="text-sm font-bold border-b border-black pb-1 mb-2">NG Produksi / Jam</h3>
-                <table class="w-full border-collapse border border-black text-[11px] text-center">
-                    <thead class="bg-gray-100 font-bold">
-                        <tr>
-                            <th class="border border-black p-1 text-left">ITEMS NG</th>
-                            <th class="border border-black p-1 w-8">1</th>
-                            <th class="border border-black p-1 w-8">2</th>
-                            <th class="border border-black p-1 w-8">3</th>
-                            <th class="border border-black p-1 w-8">4</th>
-                            <th class="border border-black p-1 w-8">5</th>
-                            <th class="border border-black p-1 w-8">6</th>
-                            <th class="border border-black p-1 w-8">7</th>
-                            <th class="border border-black p-1 w-16 font-bold text-red-600">Total NG</th>
-                            <th class="border border-black p-1 text-left">NG Input (Item NG / Qty)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($report->ngRecords as $ng)
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-black text-[11px] text-center">
+                        <thead class="bg-gray-100 font-bold">
                             <tr>
-                                <td class="border border-black p-1 text-left font-bold">{{ $ng->ng_name }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_1 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_2 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_3 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_4 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_5 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_6 ?: '-' }}</td>
-                                <td class="border border-black p-1">{{ $ng->hour_7 ?: '-' }}</td>
-                                <td class="border border-black p-1 font-bold text-red-600">{{ $ng->total_ng ?: '-' }}</td>
-                                <td class="border border-black p-1 text-left px-2">
-                                    @if($ng->ng_input_item)
-                                        {{ $ng->ng_input_item }} ({{ $ng->ng_input_qty }})
-                                    @else
-                                        -
-                                    @endif
-                                </td>
+                                <th class="border border-black p-1 text-left">ITEMS NG</th>
+                                @for($h = 1; $h <= $currentHoursCount; $h++)
+                                    <th class="border border-black p-1 w-8">{{ $h }}</th>
+                                @endfor
+                                <th class="border border-black p-1 w-16 font-bold text-red-600">Total NG</th>
+                                <th class="border border-black p-1 text-left">NG Input (Item NG / Qty)</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @php
+                                $defaultNgs = ['SCRATCH', 'DIRTY', 'HAIR MARK', 'DENTED', 'OVER CUT'];
+                            @endphp
+                            @foreach($defaultNgs as $ngName)
+                                @php
+                                    $ng = $report->ngRecords->where('ng_name', $ngName)->first();
+                                @endphp
+                                <tr>
+                                    <td class="border border-black p-1 text-left font-bold">{{ $ngName }}</td>
+                                    @for($h = 1; $h <= $currentHoursCount; $h++)
+                                        @php $hField = 'hour_'.$h; @endphp
+                                        <td class="border border-black p-1">{{ $ng && $ng->$hField ? $ng->$hField : '-' }}</td>
+                                    @endfor
+                                    <td class="border border-black p-1 font-bold text-red-600">{{ $ng && $ng->total_ng ? $ng->total_ng : '-' }}</td>
+                                    <td class="border border-black p-1 text-left px-2">
+                                        @if($ng && $ng->ng_input_item)
+                                            {{ $ng->ng_input_item }} ({{ $ng->ng_input_qty }})
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Troubles section -->
@@ -254,11 +261,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($report->troubles as $trouble)
+                        @php
+                            $defaultTroubles = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
+                        @endphp
+                        @foreach($defaultTroubles as $causes)
+                            @php
+                                $trouble = $report->troubles->where('penyebab', $causes)->first();
+                            @endphp
                             <tr>
-                                <td class="border border-black p-2 font-bold">{{ $trouble->penyebab }}</td>
-                                <td class="border border-black p-2">{{ $trouble->penanganan ?: '-' }}</td>
-                                <td class="border border-black p-2 text-center">{{ $trouble->loss_time ?: '-' }}</td>
+                                <td class="border border-black p-2 font-bold">{{ $causes }}</td>
+                                <td class="border border-black p-2">{{ $trouble && $trouble->penanganan ? $trouble->penanganan : '-' }}</td>
+                                <td class="border border-black p-2 text-center">{{ $trouble && $trouble->loss_time ? $trouble->loss_time : '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -280,7 +293,21 @@
                 <div class="flex flex-col justify-between border border-black p-3">
                     <div>
                         <span class="font-bold uppercase">Jadwal Produksi Selanjutnya:</span>
-                        <pre class="mt-1 font-sans text-xs whitespace-pre-wrap">{{ $report->next_production_schedule ?: '-' }}</pre>
+                        <div class="mt-1">
+                            @if(is_array($report->next_production_schedule))
+                                <ol class="list-decimal pl-4 space-y-1">
+                                    @foreach($report->next_production_schedule as $sch)
+                                        @if(!empty($sch))
+                                            <li>{{ $sch }}</li>
+                                        @endif
+                                    @endforeach
+                                </ol>
+                            @elseif(is_string($report->next_production_schedule))
+                                <pre class="font-sans text-xs whitespace-pre-wrap">{{ $report->next_production_schedule }}</pre>
+                            @else
+                                -
+                            @endif
+                        </div>
                     </div>
                     
                     <!-- Signatures display -->
