@@ -243,12 +243,7 @@ new class extends Component {
             @endif
 
             @if (auth()->user()->can('view-second-process-links'))
-                <livewire:sidebar-link
-                    href="{{ route('second.daily.process.create') }}"
-                    label="Plan Second Process"
-                    :active="request()->routeIs('second.daily.process.create')"
-                    wire:navigate
-                />
+                <!-- not implemented yet -->
             @endif
         </div>
     </div>

@@ -15,7 +15,6 @@ use App\Http\Controllers\MasterItemController;
 use App\Http\Controllers\DeliveryScheduleController;
 use App\Http\Controllers\UpdateDailyController;
 use App\Http\Controllers\NotificationRecepientController;
-use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Http\Controllers\WaitingPurchaseOrderController;
 use App\Http\Controllers\InvLineListController;
@@ -374,14 +373,9 @@ Route::middleware('auth')->group(function (){
     Route::post('/import-excel', [SOController::class, 'import'])->name('import.so.data');
 
     Route::get('/pegawai/scan', [SOController::class, 'indexpegawai'])->name('pegawai.scan');
-    //Route untuk Handle SO dari diss 
+    //Route untuk Handle SO dari diss
 
-
-    Route::get('/second-daily-process', [SecondDailyController::class, 'index'])->name('second.daily.process.index');
-    Route::get('/second-daily-process/create', [SecondDailyController::class, 'create'])->name('second.daily.process.create');
-    Route::post('/second-daily-process/store', [SecondDailyController::class, 'store'])->name('second.daily.process.store');
-    Route::get('/api/items', [SecondDailyController::class, 'searchItems'])->name('api.items');
-    Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
+    
 
     // belum dipake sepertinya
     Route::get('/assembly-daily-process', [AssemblyDailyController::class, 'index'])->name('assembly.daily.process.index');
