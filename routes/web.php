@@ -4,6 +4,7 @@ use App\Http\Controllers\AssemblyDailyController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SecondProcessReportController;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\Production\ForecastProductionController;
@@ -544,8 +545,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
-
-
+    Route::resource('second-process-reports', SecondProcessReportController::class);
 });
 
 
