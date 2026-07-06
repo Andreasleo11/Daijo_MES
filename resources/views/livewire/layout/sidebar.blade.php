@@ -177,10 +177,12 @@ new class extends Component {
 
                 <livewire:parent-dropdown label="Production" :childRoutes="[
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
+                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
                 ]" />
 
                 <livewire:parent-dropdown label="Setting" :childRoutes="[
                     ['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule'],
+                    ['name' => 'admin.master-list-manager', 'label' => 'Master List Manager'],
                 ]" />
             @endif
 
@@ -363,9 +365,9 @@ new class extends Component {
 
             @if (auth()->user()->can('view-second-process-links'))
                 <livewire:sidebar-link
-                    href="{{ route('second.daily.process.create') }}"
-                    label="Plan Second Process"
-                    :active="request()->routeIs('second.daily.process.create')"
+                    href="{{ route('second-process-reports.index') }}"
+                    label="Daily Production Report"
+                    :active="request()->routeIs('second-process-reports.*')"
                     wire:navigate
                 />
             @endif

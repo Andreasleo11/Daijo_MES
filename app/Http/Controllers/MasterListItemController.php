@@ -154,4 +154,13 @@ class MasterListItemController extends Controller
         }
     }
 
+    public function manage()
+    {
+        return view('master_list_manager.index');
+    }
+
+    public function logs()
+    {
+        return view('master_list_manager.logs');
+    }
 }

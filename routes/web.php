@@ -4,6 +4,7 @@ use App\Http\Controllers\AssemblyDailyController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SecondProcessReportController;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\Production\ForecastProductionController;
@@ -15,7 +16,6 @@ use App\Http\Controllers\MasterItemController;
 use App\Http\Controllers\DeliveryScheduleController;
 use App\Http\Controllers\UpdateDailyController;
 use App\Http\Controllers\NotificationRecepientController;
-use App\Http\Controllers\SecondDailyController;
 use App\Http\Controllers\Store\SOController;
 use App\Http\Controllers\WaitingPurchaseOrderController;
 use App\Http\Controllers\InvLineListController;
@@ -523,12 +523,9 @@ Route::middleware('auth')->group(function (){
     Route::delete('/scan/{id}', [SOController::class, 'destroy'])
         ->name('scan.delete');
 
+    //Route untuk Handle SO dari diss
 
-    Route::get('/second-daily-process', [SecondDailyController::class, 'index'])->name('second.daily.process.index');
-    Route::get('/second-daily-process/create', [SecondDailyController::class, 'create'])->name('second.daily.process.create');
-    Route::post('/second-daily-process/store', [SecondDailyController::class, 'store'])->name('second.daily.process.store');
-    Route::get('/api/items', [SecondDailyController::class, 'searchItems'])->name('api.items');
-    Route::get('/api/item/description', [SecondDailyController::class, 'getItemDescription'])->name('api.item.description');
+    
 
     // belum dipake sepertinya
     Route::get('/assembly-daily-process', [AssemblyDailyController::class, 'index'])->name('assembly.daily.process.index');
@@ -720,8 +717,12 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
-
-
+    Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
+    Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
+    Route::resource('second-process-reports', SecondProcessReportController::class);
+    
+    Route::get('/master-list-manager', [MasterListItemController::class, 'manage'])->name('admin.master-list-manager');
+    Route::get('/master-list-logs', [MasterListItemController::class, 'logs'])->name('admin.master-list-logs');
 });
 
 
