@@ -23,7 +23,7 @@
             <div class="ml-3">
                 <h3 class="text-sm font-bold text-amber-800">Master Data Authority Warning</h3>
                 <p class="text-xs text-amber-700 mt-1">
-                    Manual local adjustments to item parameters (cavities, cycle times, setup times) will take effect immediately. However, SAP remains the primary master data source of truth. Manual modifications will be preserved during regular syncs unless you explicitly choose to <strong>"Force Hard Sync"</strong> during CSV upload.
+                    Manual local adjustments to item parameters (cavities, cycle times, setup times, customer, project) will take effect immediately. However, SAP remains the primary master data source of truth. Manual modifications will be preserved during regular syncs unless you explicitly choose to <strong>"Force Hard Sync"</strong> during Excel upload.
                 </p>
             </div>
         </div>
@@ -44,14 +44,14 @@
         <div class="flex items-center space-x-3">
             <label class="inline-flex items-center text-xs font-semibold text-gray-700 cursor-pointer">
                 <input type="checkbox" wire:model="hardSync" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
-                Force Hard Sync (Overwrite MES fields from CSV)
+                Force Hard Sync (Overwrite MES fields from Excel)
             </label>
             <div class="relative flex items-center space-x-2">
-                <input type="file" wire:model="file" id="csv-file-input" class="hidden" accept=".csv,.txt">
-                <button type="button" onclick="document.getElementById('csv-file-input').click()" 
+                <input type="file" wire:model="file" id="excel-file-input" class="hidden" accept=".xls,.xlsx,.csv,.txt">
+                <button type="button" onclick="document.getElementById('excel-file-input').click()" 
                         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm shadow transition inline-flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    Sync SAP Master CSV
+                    Sync SAP Master Excel
                 </button>
                 <a href="{{ route('admin.master-list-logs') }}" 
                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded text-sm shadow transition inline-flex items-center">
@@ -66,7 +66,7 @@
     @if ($file && !$importing)
         <div class="bg-blue-50 border border-blue-200 p-5 rounded-lg shadow-sm space-y-4">
             <h3 class="font-bold text-blue-900 text-sm">Upload Sync Preview</h3>
-            <p class="text-xs text-blue-700">We parsed the CSV headers and sample data. Please confirm alignment below before executing the sync process.</p>
+            <p class="text-xs text-blue-700">We parsed the Excel headers and sample data. Please confirm alignment below before executing the sync process.</p>
             
             <div class="overflow-x-auto rounded border border-blue-200 bg-white">
                 <table class="min-w-full divide-y divide-blue-200 text-xs text-left">
@@ -74,12 +74,14 @@
                         <tr>
                             <th class="px-3 py-2">Item Code</th>
                             <th class="px-3 py-2">Item Name</th>
-                            <th class="px-3 py-2">Tipe Mesin</th>
-                            <th class="px-3 py-2">Pack List</th>
-                            <th class="px-3 py-2">Setup Time</th>
-                            <th class="px-3 py-2">Pair</th>
-                            <th class="px-3 py-2">Cavity</th>
-                            <th class="px-3 py-2">Cycle Time</th>
+                            <th class="px-3 py-2 text-center">Tipe Mesin</th>
+                            <th class="px-3 py-2 text-center">Pack List</th>
+                            <th class="px-3 py-2 text-center">Setup Time (m)</th>
+                            <th class="px-3 py-2 text-center">Pair</th>
+                            <th class="px-3 py-2 text-center">Cavity</th>
+                            <th class="px-3 py-2 text-center">Cycle Time (s)</th>
+                            <th class="px-3 py-2 text-center">Cust Code</th>
+                            <th class="px-3 py-2 text-center">Project Code</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-blue-100 text-gray-700">
@@ -87,12 +89,14 @@
                             <tr>
                                 <td class="px-3 py-2 font-bold">{{ $row['item_code'] ?? '-' }}</td>
                                 <td class="px-3 py-2">{{ $row['item_name'] ?? '-' }}</td>
-                                <td class="px-3 py-2">{{ $row['tipe_mesin'] ?? '0' }}</td>
-                                <td class="px-3 py-2">{{ $row['standart_packaging_list'] ?? '0' }}</td>
-                                <td class="px-3 py-2">{{ $row['setup_time_minute'] ?? '0' }}</td>
-                                <td class="px-3 py-2">{{ $row['pair'] ?? '0' }}</td>
-                                <td class="px-3 py-2">{{ $row['cavity'] ?? '0' }}</td>
-                                <td class="px-3 py-2">{{ $row['cycle_time'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['tipe_mesin'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['standart_packaging_list'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['setup_time_minute'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['pair'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['cavity'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['cycle_time'] ?? '0' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['customer_code'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center font-bold text-indigo-700">{{ $row['project_code'] ?? '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -141,13 +145,15 @@
                 <thead class="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider">
                     <tr>
                         <th class="px-4 py-3">Item Code</th>
-                        <th class="px-4 py-3 w-1/4">Item Name</th>
+                        <th class="px-4 py-3 w-1/5">Item Name</th>
                         <th class="px-4 py-3 text-center">Tipe Mesin</th>
                         <th class="px-4 py-3 text-center">Std Pack Qty</th>
                         <th class="px-4 py-3 text-center">Setup Time (m)</th>
                         <th class="px-4 py-3 text-center">Pair</th>
                         <th class="px-4 py-3 text-center">Cavity</th>
                         <th class="px-4 py-3 text-center">Cycle Time (s)</th>
+                        <th class="px-4 py-3 text-center">Cust Code</th>
+                        <th class="px-4 py-3 text-center">Project Code</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 text-gray-800">
@@ -239,10 +245,38 @@
                                     </span>
                                 @endif
                             </td>
+
+                            <!-- Customer Code -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'customer_code')">
+                                @if($editingItemId === $item->id && $editingField === 'customer_code')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-24 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600 text-gray-600" title="Double click to edit">
+                                        {{ $item->customer_code ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Project Code -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'project_code')">
+                                @if($editingItemId === $item->id && $editingField === 'project_code')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-24 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600 font-semibold text-indigo-700" title="Double click to edit">
+                                        {{ $item->project_code ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-6 text-gray-500 font-semibold">No master items found.</td>
+                            <td colspan="10" class="text-center py-6 text-gray-500 font-semibold">No master items found.</td>
                         </tr>
                     @endforelse
                 </tbody>

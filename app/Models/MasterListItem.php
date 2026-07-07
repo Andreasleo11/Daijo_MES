@@ -21,6 +21,7 @@ class MasterListItem extends Model
         'cavity',
         'customer_code',
         'cycle_time',
+        'project_code',
     ];
     
 
