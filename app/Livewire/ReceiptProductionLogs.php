@@ -331,6 +331,71 @@ class ReceiptProductionLogs extends Component
     }
 
     /**
+     * Push selected items to SAP (Background Queue)
+     */
+    public function pushSelectedToSap(): void
+    {
+        if (empty($this->selectedLogs)) {
+            $this->dispatch('push-notification', [
+                'status' => 'warning',
+                'message' => 'Tidak ada SPK terpilih untuk dikirim'
+            ]);
+            return;
+        }
+
+        try {
+            $this->dispatch('batch-push-start');
+
+            $summaries = DB::table('production_summary')
+                ->whereIn('id', $this->selectedLogs)
+                ->whereIn('sap_sent', [0, 3]) // Hanya pending atau failed
+                ->get();
+
+            if ($summaries->isEmpty()) {
+                $this->dispatch('push-notification', [
+                    'status' => 'warning',
+                    'message' => 'Tidak ada SPK pending/gagal terpilih yang bisa dikirim'
+                ]);
+                return;
+            }
+
+            $dispatchedCount = 0;
+
+            foreach ($summaries as $summary) {
+                // Lock record di UI thread segera agar status berubah jadi "Processing"
+                $locked = DB::table('production_summary')
+                    ->where('id', $summary->id)
+                    ->whereIn('sap_sent', [0, 3])
+                    ->update(['sap_sent' => 2, 'updated_at' => now()]);
+
+                if ($locked) {
+                    PushSingleReceiptProductionJob::dispatch($summary->id);
+                    $dispatchedCount++;
+                }
+            }
+
+            $this->selectedLogs = [];
+            $this->selectAll = false;
+
+            cache()->forget("receipt_stats_{$this->filterDate}");
+
+            $this->dispatch('push-notification', [
+                'status' => 'success',
+                'message' => "Bulk push terpilih: {$dispatchedCount} SPK dikirim ke background queue"
+            ]);
+
+            $this->dispatch('sap-push-success');
+
+        } catch (\Throwable $e) {
+            Log::error('Push selected error', ['error' => $e->getMessage()]);
+            $this->dispatch('push-notification', [
+                'status' => 'error',
+                'message' => 'Error: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Push single scanned detail item (jika perlu)
      */
     public function pushDetailToSap(int $detailId, int $summaryId): void
@@ -389,13 +454,7 @@ class ReceiptProductionLogs extends Component
 
     public function getLogsProperty()
     {
-        return $this->baseQuery()
-            ->leftJoin(
-                DB::raw('(SELECT spk_code, MIN(item_code) as item_code
-                          FROM production_scanned_data
-                          GROUP BY spk_code) as psd'),
-                'production_summary.spk_code', '=', 'psd.spk_code'
-            )
+        $paginatedLogs = $this->baseQuery()
             ->select(
                 'production_summary.id',
                 'production_summary.spk_code',
@@ -405,18 +464,22 @@ class ReceiptProductionLogs extends Component
                 'production_summary.sap_sent',
                 'production_summary.sap_sent_at',
                 'production_summary.created_date',
-                'production_summary.created_at',
-                'psd.item_code'
+                'production_summary.created_at'
             )
             ->when($this->filterDate, fn($q) =>
                 $q->whereDate('production_summary.created_date', $this->filterDate)
             )
-           ->when($this->filterSpk, fn($q) =>
+            ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
             )
-            ->when($this->filterItemCode, fn($q) =>
-                $q->where('psd.item_code', 'like', "%{$this->filterItemCode}%")
-            )
+            ->when($this->filterItemCode, function($q) {
+                $q->whereExists(function($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('production_scanned_data')
+                        ->whereColumn('production_scanned_data.spk_code', 'production_summary.spk_code')
+                        ->where('production_scanned_data.item_code', 'like', "%{$this->filterItemCode}%");
+                });
+            })
             ->when($this->filterStatus === 'sent', fn($q) =>
                 $q->where('production_summary.sap_sent', 1)
             )
@@ -431,26 +494,43 @@ class ReceiptProductionLogs extends Component
             ->orderBy('production_summary.created_date', 'desc')
             ->orderBy('production_summary.id', 'desc')
             ->paginate($this->perPage);
+
+        // Lazy load item_code untuk 50 baris yang sedang ditampilkan
+        $spkCodes = $paginatedLogs->pluck('spk_code')->unique()->toArray();
+        $itemCodesMap = [];
+        if (!empty($spkCodes)) {
+            $itemCodesMap = DB::table('production_scanned_data')
+                ->whereIn('spk_code', $spkCodes)
+                ->groupBy('spk_code')
+                ->select('spk_code', DB::raw('MIN(item_code) as item_code'))
+                ->pluck('item_code', 'spk_code')
+                ->toArray();
+        }
+
+        foreach ($paginatedLogs->items() as $item) {
+            $item->item_code = $itemCodesMap[$item->spk_code] ?? '—';
+        }
+
+        return $paginatedLogs;
     }
 
     public function getFilteredTotalQtyProperty()
     {
         return $this->baseQuery()
-            ->leftJoin(
-                DB::raw('(SELECT spk_code, MIN(item_code) as item_code
-                        FROM production_scanned_data
-                        GROUP BY spk_code) as psd'),
-                'production_summary.spk_code', '=', 'psd.spk_code'
-            )
             ->when($this->filterDate, fn($q) =>
                 $q->whereDate('production_summary.created_date', $this->filterDate)
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
             )
-            ->when($this->filterItemCode, fn($q) =>
-                $q->where('psd.item_code', 'like', "%{$this->filterItemCode}%")
-            )
+            ->when($this->filterItemCode, function($q) {
+                $q->whereExists(function($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('production_scanned_data')
+                        ->whereColumn('production_scanned_data.spk_code', 'production_summary.spk_code')
+                        ->where('production_scanned_data.item_code', 'like', "%{$this->filterItemCode}%");
+                });
+            })
             ->when($this->filterStatus === 'sent',    fn($q) => $q->where('production_summary.sap_sent', 1))
             ->when($this->filterStatus === 'pending', fn($q) => $q->whereIn('production_summary.sap_sent', [0, 2, 3]))
             ->when($this->filterStatus === 'ignored', fn($q) => $q->where('production_summary.sap_sent', 99))
