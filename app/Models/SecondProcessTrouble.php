@@ -14,6 +14,9 @@ class SecondProcessTrouble extends Model
         'penyebab',
         'penanganan',
         'loss_time',
+        'category',
+        'masalah',
+        'loss_time_minutes',
     ];
 
     public function report()
