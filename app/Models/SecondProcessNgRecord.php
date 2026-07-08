@@ -11,26 +11,21 @@ class SecondProcessNgRecord extends Model
 
     protected $fillable = [
         'report_id',
+        'ng_category',
         'ng_name',
-        'hour_1',
-        'hour_2',
-        'hour_3',
-        'hour_4',
-        'hour_5',
-        'hour_6',
-        'hour_7',
-        'hour_8',
-        'hour_9',
-        'hour_10',
-        'hour_11',
-        'hour_12',
         'total_ng',
         'ng_input_item',
         'ng_input_qty',
+        'remark',
     ];
 
     public function report()
     {
         return $this->belongsTo(SecondProcessReport::class, 'report_id');
+    }
+
+    public function hourlyDetails()
+    {
+        return $this->hasMany(SecondProcessNgHourlyDetail::class, 'ng_record_id');
     }
 }

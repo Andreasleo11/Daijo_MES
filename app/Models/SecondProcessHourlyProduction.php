@@ -13,7 +13,9 @@ class SecondProcessHourlyProduction extends Model
         'report_id',
         'hour_ke',
         'ok_qty',
+        'ng_qty',
         'acumulasi_qty',
+        'remark',
     ];
 
     public function report()

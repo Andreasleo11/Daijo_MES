@@ -14,6 +14,8 @@ class SecondProcessReport extends Model
         'unit_line',
         'shift',
         'process_prod',
+        'status',
+        'output_destination',
         'model',
         'part_number',
         'part_name',
@@ -29,9 +31,15 @@ class SecondProcessReport extends Model
         'next_production_schedule',
         'absent_employees',
         'production_notes',
+        'ng_remarks',
         'created_by_name',
+        'created_by_signed_at',
         'pqc_name',
+        'pqc_signed_at',
+        'leader_name',
+        'leader_signed_at',
         'acknowledged_by_name',
+        'acknowledged_signed_at',
     ];
 
     protected $casts = [

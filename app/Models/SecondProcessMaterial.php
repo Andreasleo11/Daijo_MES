@@ -16,6 +16,9 @@ class SecondProcessMaterial extends Model
         'lot_number',
         'visco',
         'qty',
+        'mixing_ratio',
+        'paint_type',
+        'sub_type',
     ];
 
     public function report()
