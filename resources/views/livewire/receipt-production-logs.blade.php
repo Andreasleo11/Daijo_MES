@@ -101,6 +101,14 @@
         {{-- Batch Push, Ignore & Selection Action Buttons --}}
         <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
             @if(count($selectedLogs) > 0)
+            <button wire:click="pushSelectedToSap()"
+                    wire:confirm="Yakin ingin mengirim {{ count($selectedLogs) }} SPK terpilih ke SAP?"
+                    style="background:#D97706; color:#fff; border:none; border-radius:2px; 
+                           padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; 
+                           font-family:'IBM Plex Sans',sans-serif; text-transform:uppercase; 
+                           letter-spacing:.08em; transition:all 0.2s; hover:background:#B45309;">
+                🚀 Kirim Terpilih ({{ count($selectedLogs) }})
+            </button>
             <button wire:click="ignoreSelected()"
                     wire:confirm="Yakin ingin mengabaikan {{ count($selectedLogs) }} SPK terpilih?"
                     style="background:#DC2626; color:#fff; border:none; border-radius:2px; 

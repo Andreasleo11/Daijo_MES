@@ -163,4 +163,14 @@ class MasterListItemController extends Controller
     {
         return view('master_list_manager.logs');
     }
+
+    public function customerDeliveryManage()
+    {
+        return view('master_customer_delivery.index');
+    }
+
+    public function customerDeliveryLogs()
+    {
+        return view('master_customer_delivery.logs');
+    }
 }

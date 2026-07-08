@@ -27,15 +27,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('master_list_items', function (Blueprint $table) {
-            $columns = [];
+            $columnsToDrop = [];
             if (Schema::hasColumn('master_list_items', 'customer_code')) {
-                $columns[] = 'customer_code';
+                $columnsToDrop[] = 'customer_code';
             }
             if (Schema::hasColumn('master_list_items', 'cycle_time')) {
-                $columns[] = 'cycle_time';
+                $columnsToDrop[] = 'cycle_time';
             }
-            if (!empty($columns)) {
-                $table->dropColumn($columns);
+            
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
             }
         });
     }

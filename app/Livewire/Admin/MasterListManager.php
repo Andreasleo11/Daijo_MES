@@ -9,6 +9,7 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MasterListManager extends Component
 {
@@ -17,7 +18,7 @@ class MasterListManager extends Component
     public $search = '';
     public $hardSync = false;
     
-    // CSV Import status
+    // Excel Import status
     public $tempFilePath = '';
     public $totalRows = 0;
     public $previewRows = [];
@@ -29,7 +30,7 @@ class MasterListManager extends Component
     public $editingField = null;
     public $editingValue = '';
 
-    // CSV File Upload binding
+    // File Upload binding
     public $file;
 
     protected $paginationTheme = 'tailwind';
@@ -70,6 +71,8 @@ class MasterListManager extends Component
             'pair' => 'nullable|integer|min:0',
             'cavity' => 'nullable|integer|min:0',
             'cycle_time' => 'nullable|integer|min:0',
+            'customer_code' => 'nullable|string|max:255',
+            'project_code' => 'nullable|string|max:255',
         ];
 
         $validated = $this->validate([
@@ -101,43 +104,76 @@ class MasterListManager extends Component
     public function updatedFile()
     {
         $this->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10240', // 10MB limit
+            'file' => 'required|file|mimes:xls,xlsx,csv,txt|max:20480', // 20MB limit
         ]);
 
-        $path = $this->file->store('temp');
-        $this->tempFilePath = Storage::path($path);
+        try {
+            $path = $this->file->store('temp');
+            $realPath = Storage::path($path);
 
-        // Read headers and count total rows
-        $file = fopen($this->tempFilePath, 'r');
-        if (!$file) {
-            session()->flash('error', 'Failed to open the uploaded file.');
-            return;
-        }
+            // Load spreadsheet using PhpSpreadsheet
+            $spreadsheet = IOFactory::load($realPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
 
-        // Detect separator (usually semicolon or comma)
-        $firstLine = fgets($file);
-        $separator = strpos($firstLine, ';') !== false ? ';' : ',';
-        rewind($file);
-
-        // Fetch headers
-        $headers = fgetcsv($file, 0, $separator);
-
-        $this->totalRows = 0;
-        $this->previewRows = [];
-        
-        while (($row = fgetcsv($file, 0, $separator)) !== false) {
-            $this->totalRows++;
-            if (count($this->previewRows) < 5) {
-                // Map columns safely
-                $mappedRow = [];
-                foreach ($headers as $index => $header) {
-                    $cleanHeader = trim(str_replace('"', '', $header));
-                    $mappedRow[$cleanHeader] = $row[$index] ?? '';
-                }
-                $this->previewRows[] = $mappedRow;
+            // Delete original uploaded file immediately to save disk space
+            if (file_exists($realPath)) {
+                unlink($realPath);
             }
+
+            // Skip header row if present
+            if (!empty($rows) && (
+                strpos(strtolower($rows[0][1] ?? ''), 'item') !== false || 
+                strpos(strtolower($rows[0][0] ?? ''), '#') !== false
+            )) {
+                array_shift($rows);
+            }
+
+            $mappedRows = [];
+            foreach ($rows as $row) {
+                // Ensure item_code is present (column index 1)
+                $itemCode = isset($row[1]) ? trim(strval($row[1])) : '';
+                if (empty($itemCode)) {
+                    continue;
+                }
+
+                // Cycle time calculation: Column 9 (Standard Time) * 60, rounded down
+                $cycleTimeRaw = isset($row[9]) ? $row[9] : 0;
+                $cycleTime = (int) floor(floatval($cycleTimeRaw) * 60);
+
+                $mappedRows[] = [
+                    'item_code' => $itemCode,
+                    'item_name' => isset($row[2]) ? trim(strval($row[2])) : '',
+                    'tipe_mesin' => isset($row[3]) ? trim(strval($row[3])) : '0',
+                    'standart_packaging_list' => isset($row[4]) ? (int)$row[4] : 0,
+                    'setup_time_minute' => isset($row[5]) ? (int)$row[5] : 0,
+                    'pair' => isset($row[6]) ? (int)$row[6] : 0,
+                    'cavity' => isset($row[7]) ? (int)$row[7] : 0,
+                    'customer_code' => isset($row[8]) ? trim(strval($row[8])) : '0',
+                    'cycle_time' => $cycleTime,
+                    'project_code' => isset($row[10]) ? trim(strval($row[10])) : '0',
+                ];
+            }
+
+            // Write mapped rows to a temporary JSON file to avoid keeping large arrays in session/state
+            $jsonFileName = 'mapped_import_' . time() . '_' . uniqid() . '.json';
+            $jsonDirectory = storage_path('app/temp');
+            if (!file_exists($jsonDirectory)) {
+                mkdir($jsonDirectory, 0755, true);
+            }
+            
+            $jsonPath = $jsonDirectory . '/' . $jsonFileName;
+            file_put_contents($jsonPath, json_encode($mappedRows));
+
+            $this->tempFilePath = $jsonPath;
+            $this->totalRows = count($mappedRows);
+            $this->previewRows = array_slice($mappedRows, 0, 5);
+            $this->importedRowsCount = 0;
+
+        } catch (\Throwable $e) {
+            \Log::error('Upload error', ['error' => $e->getMessage()]);
+            session()->flash('error', 'Error reading Excel/CSV file: ' . $e->getMessage());
         }
-        fclose($file);
     }
 
     public function startImport()
@@ -153,35 +189,19 @@ class MasterListManager extends Component
             return;
         }
 
-        $file = fopen($this->tempFilePath, 'r');
-        $firstLine = fgets($file);
-        $separator = strpos($firstLine, ';') !== false ? ';' : ',';
-        rewind($file);
-
-        // Headers
-        $headers = fgetcsv($file, 0, $separator);
-        // Clean headers
-        $headers = array_map(function($h) {
-            return trim(str_replace('"', '', $h));
-        }, $headers);
-
-        // Skip to offset
-        $offset = $this->importedRowsCount;
-        for ($i = 0; $i < $offset; $i++) {
-            fgetcsv($file, 0, $separator);
+        $allRows = json_decode(file_get_contents($this->tempFilePath), true);
+        if (!$allRows) {
+            $this->importing = false;
+            return;
         }
 
+        $offset = $this->importedRowsCount;
         $chunkSize = 500;
+        $chunk = array_slice($allRows, $offset, $chunkSize);
         $processed = 0;
 
-        DB::transaction(function () use ($file, $headers, $separator, $chunkSize, &$processed) {
-            while ($processed < $chunkSize && ($row = fgetcsv($file, 0, $separator)) !== false) {
-                $data = [];
-                foreach ($headers as $index => $header) {
-                    $val = isset($row[$index]) ? trim(str_replace('"', '', $row[$index])) : null;
-                    $data[$header] = $val;
-                }
-
+        DB::transaction(function () use ($chunk, &$processed) {
+            foreach ($chunk as $data) {
                 if (empty($data['item_code'])) {
                     $processed++;
                     continue;
@@ -191,11 +211,12 @@ class MasterListManager extends Component
 
                 if ($item) {
                     // Update item (Upsert)
-                    $oldValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time']);
+                    $oldValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']);
                     
                     // SAP Owned fields are always updated
                     $item->item_name = $data['item_name'] ?? $item->item_name;
                     $item->customer_code = $data['customer_code'] ?? $item->customer_code;
+                    $item->project_code = $data['project_code'] ?? $item->project_code;
 
                     // MES Owned fields are only updated if hardSync is enabled
                     if ($this->hardSync) {
@@ -208,7 +229,7 @@ class MasterListManager extends Component
                     }
 
                     if ($item->isDirty()) {
-                        $newValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time']);
+                        $newValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']);
                         $item->save();
 
                         // Log differences
@@ -225,7 +246,7 @@ class MasterListManager extends Component
                             MasterItemLog::create([
                                 'user_id' => auth()->id(),
                                 'item_code' => $item->item_code,
-                                'action' => 'csv_import_update',
+                                'action' => 'excel_import_update',
                                 'old_values' => $diffOld,
                                 'new_values' => $diffNew,
                             ]);
@@ -243,22 +264,21 @@ class MasterListManager extends Component
                     $item->cavity = (int)($data['cavity'] ?? 0);
                     $item->customer_code = $data['customer_code'] ?? '0';
                     $item->cycle_time = (int)($data['cycle_time'] ?? 0);
+                    $item->project_code = $data['project_code'] ?? '0';
                     $item->save();
 
                     MasterItemLog::create([
                         'user_id' => auth()->id(),
                         'item_code' => $item->item_code,
-                        'action' => 'csv_import_create',
+                        'action' => 'excel_import_create',
                         'old_values' => null,
-                        'new_values' => $item->only(['item_code', 'item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time']),
+                        'new_values' => $item->only(['item_code', 'item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']),
                     ]);
                 }
 
                 $processed++;
             }
         });
-
-        fclose($file);
 
         $this->importedRowsCount += $processed;
 
@@ -273,7 +293,7 @@ class MasterListManager extends Component
             $this->totalRows = 0;
             $this->previewRows = [];
             $this->importedRowsCount = 0;
-            session()->flash('message', "Successfully synced {$this->totalRows} records from SAP CSV.");
+            session()->flash('message', "Successfully synced records from SAP Excel.");
         }
     }
 
