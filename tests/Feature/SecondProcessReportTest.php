@@ -127,8 +127,10 @@ class SecondProcessReportTest extends TestCase
                     'ng_name' => 'SCRATCH',
                     'ng_category' => 'ng_proses',
                     'total_ng' => 5,
-                    'hour_1' => 2,
-                    'hour_2' => 3,
+                    'hours' => [
+                        1 => 2,
+                        2 => 3,
+                    ],
                     'ng_input_item' => 'Dust defect',
                     'ng_input_qty' => 5,
                 ]

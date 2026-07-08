@@ -146,18 +146,8 @@ class SecondProcessReportController extends Controller
             'ngs' => 'nullable|array',
             'ngs.*.ng_category' => 'nullable|string',
             'ngs.*.ng_name' => 'required|string',
-            'ngs.*.hour_1' => 'nullable|integer',
-            'ngs.*.hour_2' => 'nullable|integer',
-            'ngs.*.hour_3' => 'nullable|integer',
-            'ngs.*.hour_4' => 'nullable|integer',
-            'ngs.*.hour_5' => 'nullable|integer',
-            'ngs.*.hour_6' => 'nullable|integer',
-            'ngs.*.hour_7' => 'nullable|integer',
-            'ngs.*.hour_8' => 'nullable|integer',
-            'ngs.*.hour_9' => 'nullable|integer',
-            'ngs.*.hour_10' => 'nullable|integer',
-            'ngs.*.hour_11' => 'nullable|integer',
-            'ngs.*.hour_12' => 'nullable|integer',
+            'ngs.*.hours' => 'nullable|array',
+            'ngs.*.hours.*' => 'nullable|integer',
             'ngs.*.total_ng' => 'nullable|integer',
             'ngs.*.ng_input_item' => 'nullable|string',
             'ngs.*.ng_input_qty' => 'nullable|integer',
@@ -185,8 +175,8 @@ class SecondProcessReportController extends Controller
         if (isset($validated['ngs'])) {
             foreach ($validated['ngs'] as $key => $ng) {
                 $rowTotal = 0;
-                foreach ($ng as $k => $val) {
-                    if (str_starts_with($k, 'hour_')) {
+                if (isset($ng['hours'])) {
+                    foreach ($ng['hours'] as $val) {
                         $rowTotal += (int) $val;
                     }
                 }
@@ -287,13 +277,12 @@ class SecondProcessReportController extends Controller
                     if (! empty($ngData['ng_name'])) {
                         $ngRecord = $report->ngRecords()->create($ngData);
 
-                        foreach ($ngData as $key => $val) {
-                            if (str_starts_with($key, 'hour_')) {
-                                $hourKe = (int) str_replace('hour_', '', $key);
+                        if (isset($ngData['hours'])) {
+                            foreach ($ngData['hours'] as $hourKe => $val) {
                                 $qty = (int) $val;
                                 if ($qty > 0) {
                                     $ngRecord->hourlyDetails()->create([
-                                        'hour_ke' => $hourKe,
+                                        'hour_ke' => (int) $hourKe,
                                         'qty' => $qty,
                                     ]);
                                 }

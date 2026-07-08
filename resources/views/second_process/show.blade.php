@@ -338,10 +338,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @php
-                                $defaultNgs = ['SCRATCH', 'DIRTY', 'HAIR MARK', 'DENTED', 'OVER CUT'];
-                            @endphp
-                            @foreach($defaultNgs as $ngName)
+                             @php
+                                 $defaultNgs = $report->ngRecords->isNotEmpty()
+                                     ? $report->ngRecords->pluck('ng_name')->unique()->toArray()
+                                     : ['SCRATCH', 'DIRTY', 'HAIR MARK', 'DENTED', 'OVER CUT'];
+                             @endphp
+                             @foreach($defaultNgs as $ngName)
                                 @php
                                     $ng = $report->ngRecords->where('ng_name', $ngName)->first();
                                 @endphp
