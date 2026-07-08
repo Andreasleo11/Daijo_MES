@@ -332,7 +332,12 @@
                                     <div class="detail-label">SPK NO</div>
                                     <div class="detail-divider">:</div>
                                     <div class="detail-value" style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>{{ $label['spk_number'] }}</span>
+                                        <span style="display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;">
+                                            <span>{{ $label['spk_number'] }}</span>
+                                            @if(!empty($label['is_trial']))
+                                                <span style="color: #dc2626; border: 1px solid #dc2626; font-size: 5.5pt; font-weight: 900; padding: 0 3px; border-radius: 2px; line-height: 1.2;">TRIAL</span>
+                                            @endif
+                                        </span>
                                         <span style="font-weight: 900; margin-right: 1mm;">FROM : {{ $label['warehouse'] }}</span>
                                     </div>
                                 </div>

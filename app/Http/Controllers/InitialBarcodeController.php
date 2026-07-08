@@ -103,6 +103,7 @@ class InitialBarcodeController extends Controller
             'prod_date' => 'nullable|date',
             'operator' => 'nullable|string',
             'customer' => 'nullable|string',
+            'is_trial' => 'nullable|boolean',
         ]);
 
         $itemCode = $request->input('item_code');
@@ -115,6 +116,7 @@ class InitialBarcodeController extends Controller
         $prodDate = $request->input('prod_date') ?: today()->toDateString();
         $operator = $request->input('operator') ?: '-';
         $customer = $request->input('customer') ?: '-';
+        $isTrial = $request->boolean('is_trial');
 
         $item = MasterListItem::where('item_code', $itemCode)->firstOrFail();
         $itemName = $item->item_name;
@@ -125,6 +127,9 @@ class InitialBarcodeController extends Controller
         for ($i = $startLabel; $i <= $endLabel; $i++) {
             // Format: spkno(tab)quantity(tab)warehouse(tab)nolabel
             $qrData = "{$spkNumber}\t{$quantity}\t{$warehouse}\t{$i}";
+            if ($isTrial) {
+                $qrData .= "\tTRIAL";
+            }
             
             $qrCode = new QrCode(
                 data: $qrData,
@@ -148,6 +153,7 @@ class InitialBarcodeController extends Controller
                 'shift' => $shift,
                 'customer' => $customer,
                 'qr_code_base64' => $qrBase64,
+                'is_trial' => $isTrial,
             ];
         }
 
