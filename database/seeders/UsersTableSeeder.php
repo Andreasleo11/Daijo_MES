@@ -7,6 +7,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -18,7 +19,9 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         $timestamp = Carbon::now();
+        Schema::disableForeignKeyConstraints();
         DB::table('users')->truncate();
+        Schema::enableForeignKeyConstraints();
         DB::table('users')->insert([
             [
                 'name' => 'admin',
