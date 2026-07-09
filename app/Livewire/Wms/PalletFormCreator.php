@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class PalletFormCreator extends Component
 {
+    public bool $isDelivery = false;
+
     // ─── Header Form Fields ────────────────────────────────────────────────────
     public $prod_date;
     public $lot_no;
@@ -59,9 +61,10 @@ class PalletFormCreator extends Component
         'delivery_shift'=> 'required',
     ];
 
-    public function mount(): void
+    public function mount(bool $isDelivery = null): void
     {
         $this->prod_date = now()->format('Y-m-d');
+        $this->isDelivery = $isDelivery ?? request()->routeIs('wms.pallet-form.create-delivery');
     }
 
 
@@ -340,7 +343,7 @@ class PalletFormCreator extends Component
                     'model_name'      => $boxItem['model_name'],
                     'spk_no'          => $boxItem['spk_no'],
                     'qty'             => $boxItem['qty'],
-                    'warehouse'       => $boxItem['warehouse'],
+                    'warehouse'       => $this->isDelivery ? 'FG' : $boxItem['warehouse'],
                     'label'           => $boxItem['label'],
                     'is_no_label'     => $boxItem['is_no_label'],
                     'no_label_reason' => $boxItem['no_label_reason'],

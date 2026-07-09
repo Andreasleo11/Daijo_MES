@@ -22,7 +22,7 @@
         {{-- Header --}}
         <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Generate Pallet Form</h1>
+                <h1 class="text-2xl font-bold text-gray-800">{{ $isDelivery ? 'Generate Pallet Form (Delivery)' : 'Generate Pallet Form' }}</h1>
                 <p class="text-gray-500 text-sm">Scan box dan lengkapi detail palet. Mendukung multi-item per pallet.</p>
             </div>
             <div class="flex space-x-2">
