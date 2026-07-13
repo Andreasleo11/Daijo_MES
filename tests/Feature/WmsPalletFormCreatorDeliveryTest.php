@@ -344,10 +344,10 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         $sapSyncService = app(WmsSapSyncService::class);
 
         // Run sync for Normal pallet
-        $sapSyncService->syncPallet('PLT-NORMAL-001');
+        $sapSyncService->syncPalletNewTemplate('PLT-NORMAL-001');
 
         // Run sync for Delivery pallet
-        $sapSyncService->syncPallet('PLT-DELIV-002');
+        $sapSyncService->syncPalletNewTemplate('PLT-DELIV-002');
 
         // Assert HTTP requests
         Http::assertSent(function ($request) {
@@ -355,7 +355,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             if ($request->url() === 'http://192.168.6.149:9001/api/receipt_production/create') {
                 $payload = $request->data();
                 if ($payload[0]['quantity'] == 50) {
-                    return $payload[0]['warehouse'] === 'FFI';
+                    return $payload[0]['to_warehouse'] === 'FFI' && $payload[0]['from_warehouse'] === 'FFI';
                 }
             }
             return true;
@@ -366,7 +366,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             if ($request->url() === 'http://192.168.6.149:9001/api/receipt_production/create') {
                 $payload = $request->data();
                 if ($payload[0]['quantity'] == 100) {
-                    return $payload[0]['warehouse'] === 'FG';
+                    return $payload[0]['to_warehouse'] === 'FG' && $payload[0]['from_warehouse'] === 'FFI';
                 }
             }
             return true;
