@@ -201,6 +201,8 @@ class WmsSapSyncService extends ReceiptProductionService
                 $spkHistory = SpkItemHistory::where('spk_number', $item->spk_no)->first();
                 $actualItemCode = $spkHistory ? $spkHistory->item_code : '';
 
+                //ambil date dari SPK untuk di update ke tabel wms_pallet_form_details
+                //remark nanti diisi summary_id dari tabel 
                 $payload[] = [
                     'summary_id'     => (int)$item->id,
                     'item_code'      => $actualItemCode,

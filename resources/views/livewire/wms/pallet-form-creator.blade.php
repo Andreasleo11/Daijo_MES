@@ -378,7 +378,7 @@
                         </div>
                     </div>
 
-                    <div class="overflow-y-auto overflow-x-auto max-h-[350px] custom-scrollbar">
+                    <div class="hidden md:block overflow-y-auto overflow-x-auto max-h-[350px] custom-scrollbar">
                         <table class="w-full text-left text-sm border-collapse">
                             <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider sticky top-0 border-b border-gray-200 z-10">
                                 <tr>
@@ -459,11 +459,7 @@
                                                         <span class="text-orange-600 font-bold italic text-xs">🚫 No Label</span>
                                                     </template>
                                                     <template x-if="item.label !== null">
-                                                        <input type="text"
-                                                               :value="item.label"
-                                                               @change="updateLabel(item, $event.target.value)"
-                                                               :disabled="item.status === 'syncing'"
-                                                               class="w-full px-2 py-1 border border-gray-200 rounded-lg outline-none text-xs font-mono font-bold text-gray-700 bg-gray-50/30 focus:bg-white disabled:bg-gray-100/50 transition-all uppercase">
+                                                        <span class="font-mono font-bold text-gray-700" x-text="item.label"></span>
                                                     </template>
                                                 </div>
                                             </template>
@@ -472,12 +468,6 @@
                                         {{-- Status & Actions --}}
                                         <td class="px-3 py-2 text-right">
                                             <div class="flex items-center justify-end space-x-2">
-                                                {{-- Syncing --}}
-                                                <template x-if="item.status === 'syncing'">
-                                                    <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                                </template>
-
-                                                {{-- Success --}}
                                                 <template x-if="item.status === 'success'">
                                                     <span class="text-green-600 font-bold text-xs">✅ OK</span>
                                                 </template>
@@ -508,6 +498,86 @@
                                 </template>
                             </tbody>
                         </table>
+                    </div>
+
+                    {{-- Mobile View of Scanned Items --}}
+                    <div class="block md:hidden space-y-4 max-h-[400px] overflow-y-auto p-2 border-t border-gray-100">
+                        <template x-for="(item, idx) in localScans" :key="item.cid">
+                            <div class="p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-3 relative transition-all"
+                                :class="{
+                                    'border-blue-400 ring-2 ring-blue-100': item.status === 'syncing',
+                                    'border-green-400': item.status === 'success',
+                                    'border-red-400': item.status === 'error',
+                                    'border-amber-400 bg-amber-50/5': item.status === 'new'
+                                }">
+                                <div class="flex justify-between items-center">
+                                    <span class="px-2 py-0.5 bg-gray-100 rounded-lg text-xs font-black text-gray-500 font-mono" x-text="'No. ' + (idx + 1)"></span>
+                                    <div class="flex space-x-2">
+                                        <template x-if="item.status === 'new' || item.status === 'error'">
+                                            <button type="button" @click="removeLocalScan(item.cid)" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg transition-all">
+                                                HAPUS
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase">SPK Code</label>
+                                    <input type="text"
+                                           x-model="item.spk_no"
+                                           :disabled="item.status !== 'new'"
+                                           placeholder="SPK Code"
+                                           class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 disabled:bg-gray-100 transition-all uppercase">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase block">Part & Model</span>
+                                        <span class="font-black text-gray-800 block" x-text="item.part_no || '—'"></span>
+                                        <span class="text-[10px] text-gray-400 block truncate max-w-[150px]" x-text="item.model_name || '—'"></span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-400 uppercase block">Qty</span>
+                                            <input type="number"
+                                                   :value="item.qty"
+                                                   @change="updateQty(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   class="w-full px-2 py-1 border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700">
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-400 uppercase block">Whse</span>
+                                            <input type="text"
+                                                   x-model="item.warehouse"
+                                                   @change="updateWhse(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   class="w-full px-1 py-1 text-center border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700 uppercase">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase">Label Barcode</label>
+                                    <template x-if="item.status === 'new'">
+                                        <input type="text"
+                                               x-model="item.label"
+                                               @keydown.enter.prevent="commitScan(idx)"
+                                               placeholder="Scan barcode label..."
+                                               class="w-full px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-blue-500">
+                                    </template>
+                                    <template x-if="item.status !== 'new'">
+                                        <div class="flex items-center space-x-1.5">
+                                            <template x-if="item.label === null">
+                                                <span class="text-orange-600 font-bold italic text-xs">🚫 No Label</span>
+                                            </template>
+                                            <template x-if="item.label !== null">
+                                                <span class="font-mono font-bold text-xs text-gray-700" x-text="item.label"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
 

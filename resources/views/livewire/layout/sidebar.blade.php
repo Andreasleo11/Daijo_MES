@@ -102,6 +102,8 @@ new class extends Component {
                     ['name' => 'wms.pallet-form.create', 'label' => 'Program Warehouse'],
                     ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
                     ['name' => 'wms.pallet-form.index', 'label' => 'Pallet Form History'],
+                    ['name' => 'wms.pallet-form.sorting', 'label' => 'Pallet Sorting and Consolidation'],
+                    ['name' => 'wms.pallet-form.picking-guide', 'label' => 'Delivery Picking Guide (FIFO)'],
                     ['name' => 'wms.logs', 'label' => 'Audit Trail Logs'],
                     ['name' => 'updated.barcode.item.position', 'label' => 'Detailed Item List'],
                 ]" />
@@ -376,6 +378,20 @@ new class extends Component {
                         href="{{ route('wms.mapping') }}"
                         label="Warehouse Mapping"
                         :active="request()->routeIs('wms.mapping')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('wms.pallet-form.sorting') }}"
+                        label="Pallet Sorting and Consolidation"
+                        :active="request()->routeIs('wms.pallet-form.sorting')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('wms.pallet-form.picking-guide') }}"
+                        label="Delivery Picking Guide (FIFO)"
+                        :active="request()->routeIs('wms.pallet-form.picking-guide')"
                         wire:navigate
                     />
 
