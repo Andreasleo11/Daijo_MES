@@ -25,256 +25,14 @@ class SecondProcessReportController extends Controller
 
     public function create()
     {
-        // Pre-populate some standard materials, ng records, etc. if needed
-        $defaultPaints = [
-            'Paint Primer',
-            'Hardener',
-            'Paint Basecoat',
-            'Hardener',
-            'Paint Topcoat',
-            'Hardener',
-        ];
-
-        $defaultParts = [
-            'WIP 1',
-            'WIP 2',
-            'WIP 3',
-            'Repairan 1',
-            'Repairan 2',
-            'Repairan 3',
-        ];
-
-        $defaultNgs = [
-            'SCRATCH',
-            'DIRTY',
-            'HAIR MARK',
-            'DENTED',
-            'OVER CUT',
-        ];
-
-        $defaultTroubles = [
-            'Man',
-            'Mesin',
-            'Part',
-            'PPS',
-            'Lingkungan',
-        ];
-
-        return view('second_process.create', compact('defaultPaints', 'defaultParts', 'defaultNgs', 'defaultTroubles'));
+        $report = new SecondProcessReport();
+        return view('second_process.create', compact('report'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            // Header
-            'date' => 'required|date',
-            'unit_line' => 'required|string',
-            'shift' => 'required|string',
-            'process_prod' => 'required|string',
-            'status' => 'nullable|string',
-            'output_destination' => 'nullable|string',
-            'model' => 'required|string',
-            'part_number' => 'required|string',
-            'part_name' => 'required|string',
-            'customer' => 'required|string',
-            'target_per_hour' => 'nullable|integer',
-            'jml_input_wip' => 'nullable|integer',
-            'repairan' => 'nullable|integer',
-            'jumlah_output' => 'nullable|integer',
-            'jumlah_ok' => 'nullable|integer',
-            'jumlah_ng' => 'nullable|integer',
-            'ng_prosentase' => 'nullable|numeric',
-            'jml_ng_lebur' => 'nullable|integer',
-            // Footer
-            'next_production_schedule' => 'nullable|array',
-            'next_production_schedule.*' => 'nullable|string',
-            'absent_employees' => 'nullable|string',
-            'production_notes' => 'nullable|string',
-            'ng_remarks' => 'nullable|string',
-            'created_by_name' => 'nullable|string',
-            'pqc_name' => 'nullable|string',
-            'leader_name' => 'nullable|string',
-            'acknowledged_by_name' => 'nullable|string',
-
-            // Materials
-            'materials' => 'nullable|array',
-            'materials.*.type' => 'required|string',
-            'materials.*.item_name' => 'required|string',
-            'materials.*.lot_number' => 'nullable|string',
-            'materials.*.visco' => 'nullable|string',
-            'materials.*.qty' => 'nullable|integer',
-            'materials.*.mixing_ratio' => 'nullable|string',
-            'materials.*.paint_type' => 'nullable|string',
-            'materials.*.sub_type' => 'nullable|string',
-
-            // Hourly Productions
-            'hourly' => 'nullable|array',
-            'hourly.*.hour_ke' => 'required|integer',
-            'hourly.*.ok_qty' => 'nullable|integer',
-            'hourly.*.ng_qty' => 'nullable|integer',
-            'hourly.*.acumulasi_qty' => 'nullable|integer',
-            'hourly.*.remark' => 'nullable|string',
-
-            // Manpower
-            'manpower' => 'nullable|array',
-            'manpower.*.role' => 'required|string',
-            'manpower.*.no' => 'required|integer',
-            'manpower.*.name' => 'nullable|string',
-
-            // NG Records
-            'ngs' => 'nullable|array',
-            'ngs.*.ng_category' => 'nullable|string',
-            'ngs.*.ng_name' => 'required|string',
-            'ngs.*.hour_1' => 'nullable|integer',
-            'ngs.*.hour_2' => 'nullable|integer',
-            'ngs.*.hour_3' => 'nullable|integer',
-            'ngs.*.hour_4' => 'nullable|integer',
-            'ngs.*.hour_5' => 'nullable|integer',
-            'ngs.*.hour_6' => 'nullable|integer',
-            'ngs.*.hour_7' => 'nullable|integer',
-            'ngs.*.hour_8' => 'nullable|integer',
-            'ngs.*.hour_9' => 'nullable|integer',
-            'ngs.*.hour_10' => 'nullable|integer',
-            'ngs.*.hour_11' => 'nullable|integer',
-            'ngs.*.hour_12' => 'nullable|integer',
-            'ngs.*.total_ng' => 'nullable|integer',
-            'ngs.*.ng_input_item' => 'nullable|string',
-            'ngs.*.ng_input_qty' => 'nullable|integer',
-            'ngs.*.remark' => 'nullable|string',
-
-            // Troubles
-            'troubles' => 'nullable|array',
-            'troubles.*.penyebab' => 'required|string',
-            'troubles.*.penanganan' => 'nullable|string',
-            'troubles.*.loss_time' => 'nullable|string',
-            'troubles.*.category' => 'nullable|string',
-            'troubles.*.masalah' => 'nullable|string',
-            'troubles.*.loss_time_minutes' => 'nullable|integer',
-        ]);
-
-        // Server-side calculation of totals
-        $jumlah_ok = 0;
-        if (isset($validated['hourly'])) {
-            foreach ($validated['hourly'] as $hour) {
-                $jumlah_ok += (int) ($hour['ok_qty'] ?? 0);
-            }
-        }
-
-        $jumlah_ng = 0;
-        if (isset($validated['ngs'])) {
-            foreach ($validated['ngs'] as $key => $ng) {
-                $rowTotal = 0;
-                foreach ($ng as $k => $val) {
-                    if (str_starts_with($k, 'hour_')) {
-                        $rowTotal += (int) $val;
-                    }
-                }
-                $validated['ngs'][$key]['total_ng'] = $rowTotal;
-                $jumlah_ng += $rowTotal;
-            }
-        }
-
-        $jumlah_output = $jumlah_ok + $jumlah_ng;
-        $ng_prosentase = 0;
-        if ($jumlah_output > 0) {
-            $ng_prosentase = round(($jumlah_ng / $jumlah_output) * 100, 2);
-        }
-
-        $validated['jumlah_ok'] = $jumlah_ok;
-        $validated['jumlah_ng'] = $jumlah_ng;
-        $validated['jumlah_output'] = $jumlah_output;
-        $validated['ng_prosentase'] = $ng_prosentase;
-
-        // Auto-assign status, default to draft if not set
-        $validated['status'] = $validated['status'] ?? 'draft';
-
-        // Auto-assign creator and sign on submission
-        $validated['created_by_name'] = auth()->user()->name;
-        if ($validated['status'] === 'submitted') {
-            $validated['created_by_signed_at'] = now();
-        } else {
-            $validated['created_by_signed_at'] = null;
-        }
-
-        // Initialize other signatures to null
-        $validated['pqc_name'] = null;
-        $validated['pqc_signed_at'] = null;
-        $validated['leader_name'] = null;
-        $validated['leader_signed_at'] = null;
-        $validated['acknowledged_by_name'] = null;
-        $validated['acknowledged_signed_at'] = null;
-
-        DB::transaction(function () use ($validated) {
-            // 1. Create Report
-            $report = SecondProcessReport::create($validated);
-
-            // 2. Create Materials
-            if (isset($validated['materials'])) {
-                foreach ($validated['materials'] as $material) {
-                    if (! empty($material['item_name']) || ! empty($material['lot_number'])) {
-                        $report->materials()->create($material);
-                    }
-                }
-            }
-
-            // 3. Create Hourly Productions
-            if (isset($validated['hourly'])) {
-                foreach ($validated['hourly'] as $hour) {
-                    $hour['ok_qty'] = (int) ($hour['ok_qty'] ?? 0);
-                    $hour['ng_qty'] = (int) ($hour['ng_qty'] ?? 0);
-                    $hour['acumulasi_qty'] = (int) ($hour['acumulasi_qty'] ?? 0);
-                    $report->hourlyProductions()->create($hour);
-                }
-            }
-
-            // 4. Create Manpower
-            if (isset($validated['manpower'])) {
-                foreach ($validated['manpower'] as $mp) {
-                    if (! empty($mp['name'])) {
-                        $report->manpowers()->create($mp);
-                    }
-                }
-            }
-
-            // 5. Create NG Records and hourly details
-            if (isset($validated['ngs'])) {
-                foreach ($validated['ngs'] as $ngData) {
-                    if (! empty($ngData['ng_name'])) {
-                        $ngRecord = $report->ngRecords()->create($ngData);
-
-                        foreach ($ngData as $key => $val) {
-                            if (str_starts_with($key, 'hour_')) {
-                                $hourKe = (int) str_replace('hour_', '', $key);
-                                $qty = (int) $val;
-                                if ($qty > 0) {
-                                    $ngRecord->hourlyDetails()->create([
-                                        'hour_ke' => $hourKe,
-                                        'qty' => $qty,
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 6. Create Troubles
-            if (isset($validated['troubles'])) {
-                foreach ($validated['troubles'] as $trouble) {
-                    if (! empty($trouble['penyebab']) || ! empty($trouble['penanganan']) || ! empty($trouble['masalah'])) {
-                        if (empty($trouble['category']) && ! empty($trouble['penyebab'])) {
-                            $trouble['category'] = $trouble['penyebab'];
-                        }
-                        if (empty($trouble['loss_time_minutes']) && ! empty($trouble['loss_time'])) {
-                            preg_match('/\d+/', $trouble['loss_time'], $matches);
-                            $trouble['loss_time_minutes'] = isset($matches[0]) ? (int) $matches[0] : 0;
-                        }
-                        $trouble['loss_time_minutes'] = (int) ($trouble['loss_time_minutes'] ?? 0);
-                        $report->troubles()->create($trouble);
-                    }
-                }
-            }
-        });
+        $report = new SecondProcessReport();
+        $this->saveReport($request, $report);
 
         return redirect()->route('second-process-reports.index')
             ->with('success', 'Report created successfully.');
@@ -320,6 +78,14 @@ class SecondProcessReportController extends Controller
                 ->with('error', 'Only draft reports can be updated.');
         }
 
+        $this->saveReport($request, $report);
+
+        return redirect()->route('second-process-reports.index')
+            ->with('success', 'Report updated successfully.');
+    }
+
+    private function saveReport(Request $request, SecondProcessReport $report)
+    {
         $validated = $request->validate([
             // Header
             'date' => 'required|date',
@@ -380,18 +146,8 @@ class SecondProcessReportController extends Controller
             'ngs' => 'nullable|array',
             'ngs.*.ng_category' => 'nullable|string',
             'ngs.*.ng_name' => 'required|string',
-            'ngs.*.hour_1' => 'nullable|integer',
-            'ngs.*.hour_2' => 'nullable|integer',
-            'ngs.*.hour_3' => 'nullable|integer',
-            'ngs.*.hour_4' => 'nullable|integer',
-            'ngs.*.hour_5' => 'nullable|integer',
-            'ngs.*.hour_6' => 'nullable|integer',
-            'ngs.*.hour_7' => 'nullable|integer',
-            'ngs.*.hour_8' => 'nullable|integer',
-            'ngs.*.hour_9' => 'nullable|integer',
-            'ngs.*.hour_10' => 'nullable|integer',
-            'ngs.*.hour_11' => 'nullable|integer',
-            'ngs.*.hour_12' => 'nullable|integer',
+            'ngs.*.hours' => 'nullable|array',
+            'ngs.*.hours.*' => 'nullable|integer',
             'ngs.*.total_ng' => 'nullable|integer',
             'ngs.*.ng_input_item' => 'nullable|string',
             'ngs.*.ng_input_qty' => 'nullable|integer',
@@ -407,6 +163,12 @@ class SecondProcessReportController extends Controller
             'troubles.*.loss_time_minutes' => 'nullable|integer',
         ]);
 
+        // ponytail: Default nullable integer fields to 0 if not set, preventing DB non-null constraint violations
+        $validated['target_per_hour'] = $validated['target_per_hour'] ?? 0;
+        $validated['jml_input_wip'] = $validated['jml_input_wip'] ?? 0;
+        $validated['repairan'] = $validated['repairan'] ?? 0;
+        $validated['jml_ng_lebur'] = $validated['jml_ng_lebur'] ?? 0;
+
         // Server-side calculation of totals
         $jumlah_ok = 0;
         if (isset($validated['hourly'])) {
@@ -419,8 +181,8 @@ class SecondProcessReportController extends Controller
         if (isset($validated['ngs'])) {
             foreach ($validated['ngs'] as $key => $ng) {
                 $rowTotal = 0;
-                foreach ($ng as $k => $val) {
-                    if (str_starts_with($k, 'hour_')) {
+                if (isset($ng['hours'])) {
+                    foreach ($ng['hours'] as $val) {
                         $rowTotal += (int) $val;
                     }
                 }
@@ -441,28 +203,53 @@ class SecondProcessReportController extends Controller
         $validated['ng_prosentase'] = $ng_prosentase;
 
         // Auto-assign status, default to draft if not set
-        $validated['status'] = $validated['status'] ?? $report->status;
+        $validated['status'] = $validated['status'] ?? ($report->exists ? $report->status : 'draft');
 
-        // Ensure signatures cannot be modified via edit form requests
-        $validated['created_by_name'] = $report->created_by_name;
-        $validated['created_by_signed_at'] = $report->created_by_signed_at;
-        $validated['pqc_name'] = $report->pqc_name;
-        $validated['pqc_signed_at'] = $report->pqc_signed_at;
-        $validated['leader_name'] = $report->leader_name;
-        $validated['leader_signed_at'] = $report->leader_signed_at;
-        $validated['acknowledged_by_name'] = $report->acknowledged_by_name;
-        $validated['acknowledged_signed_at'] = $report->acknowledged_signed_at;
+        if (! $report->exists) {
+            $validated['created_by_name'] = auth()->user()->name;
+            if ($validated['status'] === 'submitted') {
+                $validated['created_by_signed_at'] = now();
+            } else {
+                $validated['created_by_signed_at'] = null;
+            }
+            $validated['pqc_name'] = null;
+            $validated['pqc_signed_at'] = null;
+            $validated['leader_name'] = null;
+            $validated['leader_signed_at'] = null;
+            $validated['acknowledged_by_name'] = null;
+            $validated['acknowledged_signed_at'] = null;
+        } else {
+            $validated['created_by_name'] = $report->created_by_name;
+            $validated['created_by_signed_at'] = $report->created_by_signed_at;
+            $validated['pqc_name'] = $report->pqc_name;
+            $validated['pqc_signed_at'] = $report->pqc_signed_at;
+            $validated['leader_name'] = $report->leader_name;
+            $validated['leader_signed_at'] = $report->leader_signed_at;
+            $validated['acknowledged_by_name'] = $report->acknowledged_by_name;
+            $validated['acknowledged_signed_at'] = $report->acknowledged_signed_at;
 
-        if ($validated['status'] === 'submitted' && empty($report->created_by_signed_at)) {
-            $validated['created_by_signed_at'] = now();
+            if ($validated['status'] === 'submitted' && empty($report->created_by_signed_at)) {
+                $validated['created_by_signed_at'] = now();
+            }
         }
 
         DB::transaction(function () use ($report, $validated) {
-            // Update main report
-            $report->update($validated);
+            if ($report->exists) {
+                // Delete old relations
+                $report->materials()->delete();
+                $report->hourlyProductions()->delete();
+                $report->manpowers()->delete();
+                $report->ngRecords()->delete();
+                $report->troubles()->delete();
+                
+                // Update report
+                $report->update($validated);
+            } else {
+                // Create report
+                $report->fill($validated)->save();
+            }
 
-            // Re-create materials
-            $report->materials()->delete();
+            // Create Materials
             if (isset($validated['materials'])) {
                 foreach ($validated['materials'] as $material) {
                     if (! empty($material['item_name']) || ! empty($material['lot_number'])) {
@@ -471,8 +258,7 @@ class SecondProcessReportController extends Controller
                 }
             }
 
-            // Re-create hourly productions
-            $report->hourlyProductions()->delete();
+            // Create Hourly Productions
             if (isset($validated['hourly'])) {
                 foreach ($validated['hourly'] as $hour) {
                     $hour['ok_qty'] = (int) ($hour['ok_qty'] ?? 0);
@@ -482,8 +268,7 @@ class SecondProcessReportController extends Controller
                 }
             }
 
-            // Re-create manpower
-            $report->manpowers()->delete();
+            // Create Manpower
             if (isset($validated['manpower'])) {
                 foreach ($validated['manpower'] as $mp) {
                     if (! empty($mp['name'])) {
@@ -492,20 +277,18 @@ class SecondProcessReportController extends Controller
                 }
             }
 
-            // Re-create NG records and their hourly details
-            $report->ngRecords()->delete();
+            // Create NG Records and hourly details
             if (isset($validated['ngs'])) {
                 foreach ($validated['ngs'] as $ngData) {
                     if (! empty($ngData['ng_name'])) {
                         $ngRecord = $report->ngRecords()->create($ngData);
 
-                        foreach ($ngData as $key => $val) {
-                            if (str_starts_with($key, 'hour_')) {
-                                $hourKe = (int) str_replace('hour_', '', $key);
+                        if (isset($ngData['hours'])) {
+                            foreach ($ngData['hours'] as $hourKe => $val) {
                                 $qty = (int) $val;
                                 if ($qty > 0) {
                                     $ngRecord->hourlyDetails()->create([
-                                        'hour_ke' => $hourKe,
+                                        'hour_ke' => (int) $hourKe,
                                         'qty' => $qty,
                                     ]);
                                 }
@@ -515,8 +298,7 @@ class SecondProcessReportController extends Controller
                 }
             }
 
-            // Re-create troubles
-            $report->troubles()->delete();
+            // Create Troubles
             if (isset($validated['troubles'])) {
                 foreach ($validated['troubles'] as $trouble) {
                     if (! empty($trouble['penyebab']) || ! empty($trouble['penanganan']) || ! empty($trouble['masalah'])) {
@@ -533,9 +315,6 @@ class SecondProcessReportController extends Controller
                 }
             }
         });
-
-        return redirect()->route('second-process-reports.index')
-            ->with('success', 'Report updated successfully.');
     }
 
     public function destroy($id)
