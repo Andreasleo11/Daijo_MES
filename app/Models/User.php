@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'zone_id',
         'api_token',
+        'role_id',
     ];
 
     /**
