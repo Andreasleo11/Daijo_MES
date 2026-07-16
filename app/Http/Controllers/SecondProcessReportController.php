@@ -163,6 +163,12 @@ class SecondProcessReportController extends Controller
             'troubles.*.loss_time_minutes' => 'nullable|integer',
         ]);
 
+        // ponytail: Default nullable integer fields to 0 if not set, preventing DB non-null constraint violations
+        $validated['target_per_hour'] = $validated['target_per_hour'] ?? 0;
+        $validated['jml_input_wip'] = $validated['jml_input_wip'] ?? 0;
+        $validated['repairan'] = $validated['repairan'] ?? 0;
+        $validated['jml_ng_lebur'] = $validated['jml_ng_lebur'] ?? 0;
+
         // Server-side calculation of totals
         $jumlah_ok = 0;
         if (isset($validated['hourly'])) {
