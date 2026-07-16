@@ -1,28 +1,235 @@
 <div class="p-6 bg-gray-50 min-h-screen" 
      x-data="{ 
-        pendingScans: [],
-        addPending(data) {
-            this.pendingScans.unshift({
-                label: data.label,
-                spk_no: data.spk,
-                qty: data.qty,
-                warehouse: data.whse,
-                is_no_label: false,
-                part_no: '---',
-                model_name: 'Syncing...'
+        localScans: [],
+        localScanError: '',
+        _scanTimer: null,
+        initScans(items) {
+            this.localScans = items.map(item => ({
+                cid: item.cid || 'c_' + Math.random().toString(36).substr(2, 5),
+                label: item.label,
+                spk_no: item.spk_no,
+                part_no: item.part_no,
+                model_name: item.model_name,
+                qty: item.qty,
+                warehouse: item.warehouse,
+                status: 'success',
+                error: null
+            }));
+            this._addEmptyRow();
+        },
+        _addEmptyRow() {
+            this.localScans.push({
+                cid: 'c_active_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                label: '',
+                spk_no: '',
+                qty: '',
+                warehouse: '',
+                part_no: '',
+                model_name: '',
+                status: 'new',
+                error: null
+            });
+            this.$nextTick(() => {
+                let el = document.getElementById('spk_input_' + (this.localScans.length - 1));
+                if (el) el.focus();
+            });
+        },
+        _resetActiveRow(idx) {
+            let row = this.localScans[idx];
+            if (row && row.status === 'new') {
+                row.label = '';
+                row.spk_no = '';
+                row.qty = '';
+                row.warehouse = '';
+            }
+            this.$nextTick(() => {
+                let el = document.getElementById('spk_input_' + idx);
+                if (el) { el.focus(); el.select(); }
+            });
+        },
+        onLabelInput(idx) {
+            clearTimeout(this._scanTimer);
+            let row = this.localScans[idx];
+            if (!row || row.status !== 'new') return;
+            let val = (row.label || '').trim();
+            if (val.length >= 1) {
+                this._scanTimer = setTimeout(() => {
+                    this.commitScan(idx);
+                }, 400);
+            }
+        },
+        commitScan(idx) {
+            clearTimeout(this._scanTimer);
+            let row = this.localScans[idx];
+            if (!row || row.status !== 'new') return;
+
+            let labelVal = (row.label || '').trim();
+            let spkVal = (row.spk_no || '').trim();
+            let qtyVal = parseFloat(row.qty) || 0;
+            let whseVal = (row.warehouse || '').trim();
+
+            if (!labelVal) return;
+
+            // Client-side duplicate check
+            let isDuplicate = this.localScans.some((r, i) => i !== idx && r.label === labelVal && r.spk_no === spkVal);
+            if (isDuplicate) {
+                this.localScanError = 'Label [' + labelVal + '] dengan SPK ini sudah terdaftar.';
+                if (typeof window.playTone === 'function') {
+                    window.playTone(100, 400, 'square', 0.6);
+                    setTimeout(() => window.playTone(100, 400, 'square', 0.6), 500);
+                }
+                // Reset row and focus back to SPK
+                this._resetActiveRow(idx);
+                return;
+            }
+
+            this.localScanError = '';
+            row.status = 'syncing';
+            row.label = labelVal;
+            row.spk_no = spkVal;
+            row.qty = qtyVal;
+            row.warehouse = whseVal;
+
+            // Add new empty row below
+            this._addEmptyRow();
+
+            // Fire Livewire in background
+            @this.addItem(labelVal, spkVal, qtyVal, whseVal, row.cid);
+        },
+        removeScan(item) {
+            this.localScans = this.localScans.filter(i => i.cid !== item.cid);
+            @this.removeItemByCid(item.cid);
+        },
+        updateQty(item, newQty) {
+            item.qty = parseFloat(newQty) || 0;
+            @this.updateQtyByCid(item.cid, newQty);
+        },
+        updateWhse(item, newWhse) {
+            item.warehouse = newWhse;
+            @this.updateWhseByCid(item.cid, newWhse);
+        },
+        updateLabel(item, newLabel) {
+            item.label = newLabel;
+            @this.updateLabelByCid(item.cid, newLabel);
+        },
+        addNoLabelRow() {
+            let lastRow = this.localScans[this.localScans.length - 1];
+            let spk = lastRow ? lastRow.spk_no : '';
+            let qty = lastRow ? lastRow.qty : 50;
+            let whse = lastRow ? lastRow.warehouse : 'FG';
+            
+            @this.set('label_mode', 'NO_LABEL');
+            @this.set('scan_qty', qty);
+            @this.set('scan_box_count', 1);
+            @this.set('no_label_reason', 'Box Lama');
+            
+            let cid = 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            
+            // Masukkan secara lokal sebelum index baris input baru
+            this.localScans.splice(this.localScans.length - 1, 0, {
+                cid: cid,
+                label: null,
+                spk_no: spk,
+                part_no: 'Loading...',
+                model_name: 'Syncing...',
+                qty: qty,
+                warehouse: whse,
+                status: 'syncing',
+                error: null
+            });
+            
+            @this.addItem('', '', qty, whse, cid);
+        },
+        getSummaryData() {
+            let groups = {};
+            this.localScans.forEach(row => {
+                if (row.status === 'new') return;
+                let key = (row.spk_no || '').trim() + '||' + (row.warehouse || '').trim();
+                if (!groups[key]) {
+                    groups[key] = {
+                        spk_no: row.spk_no,
+                        warehouse: row.warehouse,
+                        part_no: row.part_no,
+                        model_name: row.model_name,
+                        qty: 0,
+                        boxes: 0
+                    };
+                }
+                groups[key].qty += parseFloat(row.qty) || 0;
+                groups[key].boxes += 1;
+                if (row.part_no && row.part_no !== 'Loading...') {
+                    groups[key].part_no = row.part_no;
+                }
+                if (row.model_name && row.model_name !== 'Syncing...') {
+                    groups[key].model_name = row.model_name;
+                }
+            });
+            return Object.values(groups);
+        },
+        removeSummaryGroup(summary) {
+            let toRemove = this.localScans.filter(i => 
+                (i.spk_no || '').trim() === summary.spk_no && 
+                (i.warehouse || '').trim() === summary.warehouse && 
+                i.status !== 'new'
+            );
+            
+            // Filter localScans
+            this.localScans = this.localScans.filter(i => {
+                let match = (i.spk_no || '').trim() === summary.spk_no && 
+                            (i.warehouse || '').trim() === summary.warehouse && 
+                            i.status !== 'new';
+                return !match;
+            });
+            
+            // Remove from Livewire array
+            toRemove.forEach(i => {
+                @this.removeItemByCid(i.cid);
             });
         }
      }"
-     x-on:add-pending.window="addPending($event.detail)"
-     x-on:scan-success.window="pendingScans = []"
-     x-on:scan-error.window="pendingScans = []"
+     x-init="
+        initScans(@js($scanned_items));
+        $watch('$wire.scanned_items', value => {
+            if (value.length === 0) {
+                initScans([]);
+            }
+        });
+     "
+     x-on:scan-success.window="
+        let item = localScans.find(i => i.cid === $event.detail.cid);
+        if (item) {
+            item.status = 'success';
+            item.part_no = $event.detail.part_no;
+            item.model_name = $event.detail.model_name;
+        }
+     "
+     x-on:scan-error.window="
+        let errItem = localScans.find(i => i.cid === $event.detail.cid);
+        if (errItem) {
+            // Remove the failed syncing row entirely
+            localScans = localScans.filter(i => i.cid !== errItem.cid);
+            localScanError = $event.detail.message || 'Scan error';
+            if (typeof window.playTone === 'function') {
+                window.playTone(100, 400, 'square', 0.6);
+                setTimeout(() => window.playTone(100, 400, 'square', 0.6), 500);
+            }
+            // Find active row (status=new) and focus its SPK
+            let activeIdx = localScans.findIndex(r => r.status === 'new');
+            if (activeIdx >= 0) {
+                $nextTick(() => {
+                    let el = document.getElementById('spk_input_' + activeIdx);
+                    if (el) { el.focus(); el.select(); }
+                });
+            }
+        }
+     "
      @if($showSuccessModal && $sapSyncStatus === 'pending') wire:poll.2s="checkSapSyncStatus" @endif>
     <div class="max-w-7xl mx-auto space-y-6">
 
         {{-- Header --}}
         <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Generate Pallet Form</h1>
+                <h1 class="text-2xl font-bold text-gray-800">{{ $isDelivery ? 'Generate Pallet Form (Delivery)' : 'Generate Pallet Form' }}</h1>
                 <p class="text-gray-500 text-sm">Scan box dan lengkapi detail palet. Mendukung multi-item per pallet.</p>
             </div>
             <div class="flex space-x-2">
@@ -133,367 +340,313 @@
                                 <div class="text-xs text-amber-600">{{ $uniqueParts->implode(', ') }}</div>
                             </div>
                         @endif
+
+                        <div class="pt-4 border-t border-gray-100">
+                            <button wire:click="generateForm" type="button"
+                                wire:loading.attr="disabled"
+                                wire:target="generateForm"
+                                @if($isProcessing) disabled @endif
+                                class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center disabled:bg-gray-400 disabled:shadow-none text-sm uppercase">
+                                <span wire:loading.remove wire:target="generateForm">GENERATE PALLET FORM</span>
+                                <span wire:loading wire:target="generateForm">PROCESSING...</span>
+                                <svg wire:loading.remove wire:target="generateForm" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Right: Scan + List --}}
+            {{-- Right: Excel Scan Sheet --}}
             <div class="lg:col-span-2 space-y-6">
-
-                {{-- Scan Panel --}}
-                <div class="{{ $label_mode === 'NO_LABEL' ? 'bg-orange-500' : 'bg-blue-600' }} p-6 rounded-2xl shadow-lg transition-colors duration-300 relative overflow-hidden">
-                    {{-- Processing Overlay (Hanya untuk Generate Form, bukan scan) --}}
-                    <div wire:loading wire:target="generateForm" 
-                         class="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
-                        <div class="bg-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border-2 border-blue-600">
-                            <div class="w-5 h-5 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <span class="text-sm font-black text-gray-800 uppercase tracking-widest italic">PROCESSING...</span>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-white text-lg font-semibold flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                            @if($label_mode === 'NO_LABEL')
-                                📭 Mode: Tanpa Label
-                            @else
-                                Scanning Session (Per Box)
-                            @endif
-                        </h2>
-
-                        {{-- Toggle button --}}
-                        @if($label_mode === 'SCAN')
-                            <button wire:click="toggleNoLabel" type="button"
-                                class="px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/40 text-white text-sm font-bold rounded-xl transition-all flex items-center space-x-2">
-                                <span>📭</span>
-                                <span>TANPA LABEL</span>
-                            </button>
-                        @else
-                            <button wire:click="toggleNoLabel" type="button"
-                                class="px-4 py-2 bg-white text-orange-600 hover:bg-orange-50 text-sm font-bold rounded-xl transition-all flex items-center space-x-2">
-                                <span>🔙</span>
-                                <span>KEMBALI SCAN LABEL</span>
-                            </button>
-                        @endif
-                    </div>
-
-                    @if($label_mode === 'SCAN')
-                        {{-- Normal Scan Mode --}}
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {{-- SPK --}}
-                            <div class="col-span-2">
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">SPK Code</label>
-                                <input type="text" wire:model="scan_spk" id="scan_spk"
-                                    wire:loading.attr="disabled"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    placeholder="Scan SPK...">
-                            </div>
-                            {{-- Qty --}}
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Quantity</label>
-                                <input type="number" wire:model="scan_qty" id="scan_qty"
-                                    wire:loading.attr="disabled"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    placeholder="Qty">
-                            </div>
-                            {{-- Whse --}}
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Warehouse</label>
-                                <input type="text" wire:model="scan_whse" id="scan_whse"
-                                    wire:loading.attr="disabled"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    placeholder="Whse">
-                            </div>
-                        </div>
-
-                        {{-- Label row --}}
-                        <div class="mt-4 flex items-end gap-4">
-                            <div class="flex-1">
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Label Barcode</label>
-                                <input type="text" id="scan_label"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
-                                    placeholder="Scan label box..."
-                                    autocomplete="off">
-                            </div>
-                            <div class="flex space-x-2">
-                                <button wire:click="resetScanner" type="button"
-                                    class="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/40 text-white font-bold rounded-xl transition-all active:scale-95 whitespace-nowrap">
-                                    RESET
-                                </button>
-                                <button wire:click="addItem" type="button"
-                                    class="px-6 py-3 bg-white text-blue-700 font-black rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-lg whitespace-nowrap">
-                                    + ADD BOX
-                                </button>
-                            </div>
-                        </div>
-
-                    @else
-                        {{-- No-Label Mode --}}
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Jumlah Box <span class="text-red-300">*</span></label>
-                                <input type="number" wire:model="scan_box_count"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/40 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all"
-                                    placeholder="Berapa box?">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Qty per Box <span class="text-red-300">*</span></label>
-                                <input type="number" wire:model="scan_qty" id="scan_qty"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/40 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all"
-                                    placeholder="Pcs per box">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Warehouse</label>
-                                <input type="text" wire:model="scan_whse" id="scan_whse_nl"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all placeholder-white/50"
-                                    placeholder="Whse (opsional)">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-white/70 uppercase mb-1">Alasan</label>
-                                <select wire:model="no_label_reason"
-                                    class="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white font-bold focus:bg-white focus:text-gray-800 outline-none transition-all">
-                                    <option value="" class="text-gray-800">Pilih alasan...</option>
-                                    <option value="Box Lama" class="text-gray-800">Box Lama</option>
-                                    <option value="Relabel Pending" class="text-gray-800">Relabel Pending</option>
-                                    <option value="Box Rework" class="text-gray-800">Box Rework</option>
-                                    <option value="Lainnya" class="text-gray-800">Lainnya</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-white/10 rounded-xl border border-white/20 text-white/80 text-sm flex items-center space-x-2">
-                            <span>ℹ️</span>
-                            <span>Sistem akan menambahkan entry box sebanyak jumlah yang diinput dengan Qty masing-masing.</span>
-                        </div>
-
-                        <div class="mt-4 flex justify-end space-x-2">
-                            <button wire:click="resetScanner" type="button"
-                                class="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/40 text-white font-bold rounded-xl transition-all active:scale-95">
-                                RESET
-                            </button>
-                            <button wire:click="addItem" type="button"
-                                class="px-6 py-3 bg-white text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all active:scale-95 shadow-lg">
-                                + ADD BOX TANPA LABEL
-                            </button>
-                        </div>
-                    @endif
-
-                    @if (session()->has('scan_error'))
-                        <div class="mt-3 p-3 bg-red-500/30 border border-red-300/40 rounded-xl text-red-100 text-sm font-semibold flex items-center space-x-2">
-                            <span>⚠️</span>
-                            <span>{{ session('scan_error') }}</span>
-                        </div>
-                    @endif
-                </div>
-
-                {{-- Scanned List Table --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="p-5 border-b border-gray-100 flex justify-between items-center">
-                        <h2 class="text-lg font-semibold text-gray-800">List of Scanned Boxes</h2>
-                        <div class="text-2xl font-black text-blue-600">
-                            {{ $total_box }} <span class="text-sm text-gray-400 font-normal">Boxes</span>
+                    <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                                📊 Excel Scan Sheet
+                            </h2>
+                            <p class="text-xs text-gray-400">Scan label barcode pada baris aktif. Nilai SPK, Qty, dan Whse otomatis menurun ke baris baru.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="addNoLabelRow()" type="button"
+                                class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md">
+                                ➕ TANPA LABEL (MANUAL)
+                            </button>
+                            <button @click="initScans([])" type="button"
+                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all">
+                                🔄 RESET SHEET
+                            </button>
                         </div>
                     </div>
 
-                    <div class="max-h-[420px] overflow-y-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider sticky top-0">
+                    <div class="hidden md:block overflow-y-auto overflow-x-auto max-h-[350px] custom-scrollbar">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider sticky top-0 border-b border-gray-200 z-10">
                                 <tr>
-                                    <th class="px-4 py-3 w-10 text-center">No</th>
-                                    <th class="px-4 py-3 text-left">Production Details (SPK & Part)</th>
-                                    <th class="px-4 py-3 text-center">Total Box</th>
-                                    <th class="px-4 py-3 text-right">Total Quantity</th>
-                                    <th class="px-4 py-3 text-center">Whse</th>
-                                    <th class="px-4 py-3 text-right">Actions</th>
+                                    <th class="px-3 py-3 w-12 text-center border-r border-gray-200">No</th>
+                                    <th class="px-3 py-3 w-48 border-r border-gray-200">SPK Code</th>
+                                    <th class="px-3 py-3 w-56 border-r border-gray-200">Part No & Model</th>
+                                    <th class="px-3 py-3 w-28 text-right border-r border-gray-200">Qty</th>
+                                    <th class="px-3 py-3 w-28 text-center border-r border-gray-200">Whse</th>
+                                    <th class="px-3 py-3 w-64 border-r border-gray-200">Label Barcode (Scan Here)</th>
+                                    <th class="px-3 py-3 text-right">Status & Action</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200" x-data="{ expandedSpk: null }">
-                                {{-- Alpine Pending Scans (Instant UI) --}}
-                                <template x-for="(item, index) in pendingScans" :key="'pending-'+index">
-                                    <tr class="bg-blue-50/30 animate-pulse border-l-4 border-blue-400">
-                                        <td class="px-4 py-3 text-center text-blue-400 font-bold">NEW</td>
-                                        <td class="px-4 py-3">
-                                            <div class="flex items-center space-x-2">
-                                                <span class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-bold" x-text="item.spk_no"></span>
-                                                <span class="font-bold text-blue-500 text-xs" x-text="item.part_no"></span>
-                                            </div>
-                                            <div class="text-blue-300 text-[10px] italic" x-text="item.model_name"></div>
+                            <tbody class="divide-y divide-gray-200">
+                                <template x-for="(item, idx) in localScans" :key="item.cid">
+                                    <tr class="hover:bg-blue-50/10 transition-colors border-b border-gray-100"
+                                        :class="{
+                                            'bg-blue-50/20 animate-pulse border-l-4 border-blue-400': item.status === 'syncing',
+                                            'bg-green-50/10 border-l-4 border-green-500': item.status === 'success',
+                                            'bg-red-50/20 border-l-4 border-red-500': item.status === 'error',
+                                            'bg-yellow-50/20 border-l-4 border-amber-400': item.status === 'new'
+                                        }">
+                                        {{-- Row Number --}}
+                                        <td class="px-3 py-2 text-center text-gray-400 font-mono text-xs border-r border-gray-100 bg-gray-50/50" x-text="idx + 1"></td>
+
+                                        {{-- SPK Code --}}
+                                        <td class="px-3 py-2 border-r border-gray-100">
+                                            <input type="text"
+                                                   :id="'spk_input_' + idx"
+                                                   x-model="item.spk_no"
+                                                   :disabled="item.status !== 'new'"
+                                                   placeholder="SPK Code"
+                                                   class="w-full px-2 py-1 border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700 bg-gray-50/30 focus:bg-white disabled:bg-gray-100/50 disabled:border-transparent transition-all uppercase">
                                         </td>
-                                        <td class="px-4 py-3 text-center font-bold text-blue-400">1</td>
-                                        <td class="px-4 py-3 text-right font-black text-blue-500" x-text="item.qty"></td>
-                                        <td class="px-4 py-3 text-center text-blue-300 text-xs" x-text="item.warehouse"></td>
-                                        <td class="px-4 py-3 text-right">
-                                            <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ml-auto"></div>
+
+                                        {{-- Part No & Model --}}
+                                        <td class="px-3 py-2 border-r border-gray-100 text-xs">
+                                            <div class="flex flex-col justify-center min-h-[32px]">
+                                                <span class="font-black text-gray-700 leading-none" x-text="item.part_no || '—'"></span>
+                                                <span class="text-gray-400 text-[10px] truncate max-w-[200px] mt-0.5" x-text="item.model_name || '—'"></span>
+                                            </div>
+                                        </td>
+
+                                        {{-- Quantity --}}
+                                        <td class="px-3 py-2 border-r border-gray-100 text-right">
+                                            <input type="number"
+                                                   :id="'qty_input_' + idx"
+                                                   :value="item.qty"
+                                                   @change="updateQty(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   class="w-20 px-2 py-1 text-right border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700 bg-gray-50/30 focus:bg-white disabled:bg-gray-100/50 transition-all">
+                                        </td>
+
+                                        {{-- Warehouse --}}
+                                        <td class="px-3 py-2 border-r border-gray-100 text-center">
+                                            <input type="text"
+                                                   :id="'whse_input_' + idx"
+                                                   x-model="item.warehouse"
+                                                   @change="updateWhse(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   placeholder="Whse"
+                                                   class="w-16 px-1 py-1 text-center border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700 bg-gray-50/30 focus:bg-white disabled:bg-gray-100/50 disabled:border-transparent transition-all uppercase">
+                                        </td>
+
+                                        {{-- Label Barcode --}}
+                                        <td class="px-3 py-2 border-r border-gray-100">
+                                            <template x-if="item.status === 'new'">
+                                                <input type="text"
+                                                       :id="'label_input_' + idx"
+                                                       x-model="item.label"
+                                                       @input="onLabelInput(idx)"
+                                                       @keydown.enter.prevent="commitScan(idx)"
+                                                       placeholder="Scan barcode label..."
+                                                       class="w-full px-2 py-1.5 border border-blue-300 rounded-lg outline-none text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:bg-white bg-blue-50/30 transition-all uppercase">
+                                            </template>
+                                            <template x-if="item.status !== 'new'">
+                                                <div class="flex items-center space-x-1.5">
+                                                    <template x-if="item.label === null">
+                                                        <span class="text-orange-600 font-bold italic text-xs">🚫 No Label</span>
+                                                    </template>
+                                                    <template x-if="item.label !== null">
+                                                        <span class="font-mono font-bold text-gray-700" x-text="item.label"></span>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </td>
+
+                                        {{-- Status & Actions --}}
+                                        <td class="px-3 py-2 text-right">
+                                            <div class="flex items-center justify-end space-x-2">
+                                                <template x-if="item.status === 'success'">
+                                                    <span class="text-green-600 font-bold text-xs">✅ OK</span>
+                                                </template>
+
+                                                {{-- Error --}}
+                                                <template x-if="item.status === 'error'">
+                                                    <div class="flex flex-col items-end group relative cursor-help">
+                                                        <span class="text-red-600 font-black text-xs">⚠️ ERR</span>
+                                                        <span class="text-red-500 text-[9px] italic leading-none max-w-[120px] truncate" x-text="item.error"></span>
+                                                    </div>
+                                                </template>
+
+                                                {{-- New Row Indicator --}}
+                                                <template x-if="item.status === 'new'">
+                                                    <span class="text-amber-500 font-bold text-xs animate-pulse">📝 EDITING</span>
+                                                </template>
+
+                                                {{-- Delete --}}
+                                                <template x-if="item.status !== 'new'">
+                                                    <button @click="removeScan(item)" type="button"
+                                                            class="p-1.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-colors border border-transparent">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </template>
+                                            </div>
                                         </td>
                                     </tr>
                                 </template>
-
-                                @php
-                                    $groupedItems = collect($scanned_items)->map(function($item, $key) {
-                                        $item['original_index'] = $key;
-                                        return $item;
-                                    })->groupBy('spk_no');
-                                @endphp
-
-                                @forelse ($groupedItems as $spk_no => $items)
-                                    @php 
-                                        $first = $items->first();
-                                        $totalQty = $items->sum('qty');
-                                        $boxCount = $items->count();
-                                    @endphp
-                                    {{-- Group Header Row --}}
-                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-blue-600/20" 
-                                        @click="expandedSpk === '{{ $spk_no }}' ? expandedSpk = null : expandedSpk = '{{ $spk_no }}'">
-                                        <td class="px-4 py-4 text-center text-gray-400 font-mono text-xs">#{{ $loop->iteration }}</td>
-                                        <td class="px-4 py-4">
-                                            <div class="flex items-center space-x-3">
-                                                <div class="flex flex-col">
-                                                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold w-fit mb-1">{{ $spk_no }}</span>
-                                                    <span class="font-black text-gray-800 text-sm tracking-tight leading-none">{{ $first['part_no'] ?? '—' }}</span>
-                                                    <span class="text-gray-400 text-[10px] truncate max-w-[200px] mt-1">{{ $first['model_name'] ?? '—' }}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-4 text-center">
-                                            <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-bold text-xs border border-blue-100">
-                                                {{ $boxCount }} BOXES
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-4 text-right">
-                                            <div class="font-black text-blue-600 text-base leading-none">{{ number_format($totalQty, 0) }}</div>
-                                            <div class="text-gray-300 text-[10px] font-bold uppercase mt-1">TOTAL PCS</div>
-                                        </td>
-                                        <td class="px-4 py-4 text-center">
-                                            <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded font-bold text-[10px]">{{ $first['warehouse'] ?? '—' }}</span>
-                                        </td>
-                                        <td class="px-4 py-4 text-right">
-                                            <div class="flex items-center justify-end space-x-2">
-                                                <button type="button" class="p-2 bg-gray-50 text-gray-400 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
-                                                    <svg class="w-5 h-5 transform transition-transform duration-200" :class="expandedSpk === '{{ $spk_no }}' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    {{-- Group Detail Row (Accordion) --}}
-                                    <tr x-show="expandedSpk === '{{ $spk_no }}'" x-collapse x-cloak class="bg-gray-50/50">
-                                        <td colspan="6" class="p-0">
-                                            <div class="px-12 py-4 bg-white/50 border-y border-gray-100">
-                                                <table class="w-full text-xs">
-                                                    <thead>
-                                                        <tr class="text-gray-400 font-bold border-b border-gray-100">
-                                                            <th class="py-2 text-left">#</th>
-                                                            <th class="py-2 text-left">Label Barcode</th>
-                                                            <th class="py-2 text-right">Qty</th>
-                                                            <th class="py-2 text-center">Type</th>
-                                                            <th class="py-2 text-right">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-gray-50">
-                                                        @foreach($items as $subIndex => $subItem)
-                                                            <tr class="hover:bg-blue-50/30 transition-colors group">
-                                                                <td class="py-2 text-gray-300 font-mono">{{ $loop->iteration }}</td>
-                                                                <td class="py-2">
-                                                                    @if($subItem['is_no_label'])
-                                                                        <span class="text-orange-500 font-bold italic">🚫 No Label ({{ $subItem['no_label_reason'] ?? 'Manual' }})</span>
-                                                                    @else
-                                                                        <span class="font-mono text-gray-600 group-hover:text-blue-600 transition-colors">{{ $subItem['label'] }}</span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="py-2 text-right">
-                                                                    <input type="number" 
-                                                                           wire:model.live.debounce.500ms="scanned_items.{{ $subItem['original_index'] }}.qty"
-                                                                           class="w-20 px-2 py-1 text-right border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-xs font-bold text-gray-700 bg-gray-50/50 hover:bg-white focus:bg-white transition-all">
-                                                                </td>
-                                                                <td class="py-2 text-center">
-                                                                    <span class="px-2 py-0.5 {{ $subItem['is_no_label'] ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600' }} rounded-full text-[9px] font-bold uppercase">
-                                                                        {{ $subItem['is_no_label'] ? 'Manual' : 'Scanned' }}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="py-2 text-right">
-                                                                    <button wire:click="removeItem({{ $subItem['original_index'] }})" type="button"
-                                                                        class="text-red-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="px-6 py-12 text-center text-gray-400 italic bg-white">
-                                            <div class="flex flex-col items-center justify-center">
-                                                <svg class="w-12 h-12 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 00-2 2H6a2 2 0 00-2 2V13m16 0h-1v-4a1 1 0 00-1-1h-2a1 1 0 00-1 1v4h-1m-6 0h-1v-4a1 1 0 00-1-1H6a1 1 0 00-1 1v4h-1"></path></svg>
-                                                <span>Belum ada box yang di-scan. Gunakan panel scan di atas.</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
                             </tbody>
                         </table>
                     </div>
 
-                    <div class="p-5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
-                            @php $noLabelCount = collect($scanned_items)->where('is_no_label', true)->count(); @endphp
-                            @if($noLabelCount > 0)
-                                <span class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-lg">
-                                    📭 {{ $noLabelCount }} box tanpa label
-                                </span>
-                            @endif
-                        </div>
-                        <button wire:click="generateForm" type="button"
-                            wire:loading.attr="disabled"
-                            wire:target="generateForm"
-                            @if($isProcessing) disabled @endif
-                            class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center disabled:bg-gray-400 disabled:shadow-none">
-                            <span wire:loading.remove wire:target="generateForm">GENERATE PALLET FORM</span>
-                            <span wire:loading wire:target="generateForm">PROCESSING...</span>
-                            <svg wire:loading.remove wire:target="generateForm" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                        </button>
+                    {{-- Mobile View of Scanned Items --}}
+                    <div class="block md:hidden space-y-4 max-h-[400px] overflow-y-auto p-2 border-t border-gray-100">
+                        <template x-for="(item, idx) in localScans" :key="item.cid">
+                            <div class="p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-3 relative transition-all"
+                                :class="{
+                                    'border-blue-400 ring-2 ring-blue-100': item.status === 'syncing',
+                                    'border-green-400': item.status === 'success',
+                                    'border-red-400': item.status === 'error',
+                                    'border-amber-400 bg-amber-50/5': item.status === 'new'
+                                }">
+                                <div class="flex justify-between items-center">
+                                    <span class="px-2 py-0.5 bg-gray-100 rounded-lg text-xs font-black text-gray-500 font-mono" x-text="'No. ' + (idx + 1)"></span>
+                                    <div class="flex space-x-2">
+                                        <template x-if="item.status === 'new' || item.status === 'error'">
+                                            <button type="button" @click="removeLocalScan(item.cid)" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg transition-all">
+                                                HAPUS
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase">SPK Code</label>
+                                    <input type="text"
+                                           x-model="item.spk_no"
+                                           :disabled="item.status !== 'new'"
+                                           placeholder="SPK Code"
+                                           class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 disabled:bg-gray-100 transition-all uppercase">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase block">Part & Model</span>
+                                        <span class="font-black text-gray-800 block" x-text="item.part_no || '—'"></span>
+                                        <span class="text-[10px] text-gray-400 block truncate max-w-[150px]" x-text="item.model_name || '—'"></span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-400 uppercase block">Qty</span>
+                                            <input type="number"
+                                                   :value="item.qty"
+                                                   @change="updateQty(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   class="w-full px-2 py-1 border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700">
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-400 uppercase block">Whse</span>
+                                            <input type="text"
+                                                   x-model="item.warehouse"
+                                                   @change="updateWhse(item, $event.target.value)"
+                                                   :disabled="item.status === 'syncing'"
+                                                   class="w-full px-1 py-1 text-center border border-gray-200 rounded-lg outline-none text-xs font-bold text-gray-700 uppercase">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase">Label Barcode</label>
+                                    <template x-if="item.status === 'new'">
+                                        <input type="text"
+                                               x-model="item.label"
+                                               @keydown.enter.prevent="commitScan(idx)"
+                                               placeholder="Scan barcode label..."
+                                               class="w-full px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-blue-500">
+                                    </template>
+                                    <template x-if="item.status !== 'new'">
+                                        <div class="flex items-center space-x-1.5">
+                                            <template x-if="item.label === null">
+                                                <span class="text-orange-600 font-bold italic text-xs">🚫 No Label</span>
+                                            </template>
+                                            <template x-if="item.label !== null">
+                                                <span class="font-mono font-bold text-xs text-gray-700" x-text="item.label"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
-            </div>
-        </div>
+                {{-- Summary Table Card --}}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                                📊 Scan Summary
+                            </h2>
+                            <p class="text-xs text-gray-400">Total akumulasi scan per SPK dan Gudang.</p>
+                        </div>
+                        <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-wider rounded-xl border border-blue-100">
+                            Grouped by SPK
+                        </span>
+                    </div>
 
-    </div>
+                    <div class="overflow-y-auto overflow-x-auto max-h-[300px] custom-scrollbar">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider sticky top-0 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 border-r border-gray-200">SPK Code</th>
+                                    <th class="px-4 py-3 border-r border-gray-200">Part No & Model</th>
+                                    <th class="px-4 py-3 text-right border-r border-gray-200">Total Qty</th>
+                                    <th class="px-4 py-3 text-center border-r border-gray-200">Whse</th>
+                                    <th class="px-4 py-3 text-center border-r border-gray-200">Total Boxes</th>
+                                    <th class="px-4 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <template x-for="summary in getSummaryData()" :key="summary.spk_no + '_' + summary.warehouse">
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3 font-mono font-bold text-gray-800 border-r border-gray-100" x-text="summary.spk_no"></td>
+                                        <td class="px-4 py-3 border-r border-gray-100">
+                                            <div class="flex flex-col justify-center">
+                                                <span class="font-black text-gray-700 text-xs" x-text="summary.part_no || '—'"></span>
+                                                <span class="text-gray-400 text-[10px] mt-0.5 truncate max-w-[200px]" x-text="summary.model_name || '—'"></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 font-black text-blue-600 text-right border-r border-gray-100" x-text="summary.qty"></td>
+                                        <td class="px-4 py-3 text-center font-bold text-gray-600 border-r border-gray-100" x-text="summary.warehouse"></td>
+                                        <td class="px-4 py-3 text-center font-bold text-gray-600 border-r border-gray-100" x-text="summary.boxes"></td>
+                                        <td class="px-4 py-3 text-right">
+                                            <button @click="removeSummaryGroup(summary)" type="button"
+                                                class="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 text-xs font-bold rounded-xl transition-all border border-red-100 flex items-center justify-center space-x-1 ml-auto shadow-sm active:scale-95">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                <span>Hapus Grup</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="getSummaryData().length === 0">
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-8 text-center text-gray-400 italic text-xs bg-gray-50/50">
+                                            Belum ada data scan yang terdaftar.
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
     <script>
         document.addEventListener('livewire:init', () => {
-            Livewire.on('focus-spk', () => {
-                setTimeout(() => {
-                    const el = document.getElementById('scan_spk');
-                    if (el) { el.focus(); el.select(); }
-                }, 60);
-            });
-            Livewire.on('focus-qty', () => {
-                setTimeout(() => {
-                    const el = document.getElementById('scan_qty');
-                    if (el) el.focus();
-                }, 60);
-            });
-            Livewire.on('focus-whse', () => {
-                setTimeout(() => {
-                    const el = document.getElementById('scan_whse');
-                    if (el) el.focus();
-                }, 60);
-            });
-            Livewire.on('focus-label', () => {
-                setTimeout(() => {
-                    const el = document.getElementById('scan_label');
-                    if (el) el.focus();
-                }, 60);
-            });
-
             // Audio Feedback Logic
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+            window.playTone = function(frequency, duration, type = 'sine', volume = 0.1) {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
@@ -512,111 +665,40 @@
             }
 
             Livewire.on('scan-success', () => {
-                window.isScanningInternal = false;
-                playTone(1200, 200, 'sawtooth', 0.4); 
-                setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); 
+                window.playTone(1200, 200, 'sawtooth', 0.4); 
+                setTimeout(() => window.playTone(1500, 100, 'sawtooth', 0.3), 50); 
             });
 
             Livewire.on('scan-error', () => {
-                window.isScanningInternal = false;
-                playTone(100, 400, 'square', 0.6); // Louder low buzz
-                setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
-
-                // Balikin fokus ke SPK Code
-                setTimeout(() => {
-                    const el = document.getElementById('scan_spk');
-                    if (el) { el.focus(); el.select(); }
-                }, 100);
+                window.playTone(100, 400, 'square', 0.6); 
+                setTimeout(() => window.playTone(100, 400, 'square', 0.6), 500);
             });
+        });
 
-        // Enter key navigation: SPK → Qty → Whse → Label
+        // Enter key navigation in the grid: SPK -> Qty -> Whse -> Label
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;
 
-            const spk   = document.getElementById('scan_spk');
-            const qty   = document.getElementById('scan_qty');
-            const whse  = document.getElementById('scan_whse');
-            const label = document.getElementById('scan_label');
             const active = document.activeElement;
+            if (!active || !active.id) return;
 
-            if (active === spk)   { e.preventDefault(); qty?.focus(); }
-            else if (active === qty)  { e.preventDefault(); whse?.focus(); }
-            else if (active === whse) { e.preventDefault(); label ? label.focus() : null; }
+            if (active.id.startsWith('spk_input_')) {
+                e.preventDefault();
+                let idx = active.id.replace('spk_input_', '');
+                let next = document.getElementById('qty_input_' + idx);
+                if (next) next.focus();
+            } else if (active.id.startsWith('qty_input_')) {
+                e.preventDefault();
+                let idx = active.id.replace('qty_input_', '');
+                let next = document.getElementById('whse_input_' + idx);
+                if (next) next.focus();
+            } else if (active.id.startsWith('whse_input_')) {
+                e.preventDefault();
+                let idx = active.id.replace('whse_input_', '');
+                let next = document.getElementById('label_input_' + idx);
+                if (next) next.focus();
+            }
         });
-
-        // Turbo Scan Handler for Label
-        const labelInput = document.getElementById('scan_label');
-        let autoTimer;
-        let lastScannedVal = '';
-        let lastScanTime = 0;
-
-        if (labelInput) {
-            const processScan = (val) => {
-                const now = Date.now();
-                // Anti-Double: Jangan kirim kalau nilainya sama dan jaraknya kurang dari 1 detik
-                if (val === lastScannedVal && (now - lastScanTime) < 1000) return;
-                
-                lastScannedVal = val;
-                lastScanTime = now;
-
-                // Instant UI Update
-                const currentSpk = document.getElementById('scan_spk')?.value;
-                const currentQty = document.getElementById('scan_qty')?.value;
-                const currentWhse = document.getElementById('scan_whse')?.value;
-                
-                window.dispatchEvent(new CustomEvent('add-pending', { 
-                    detail: { label: val, spk: currentSpk, qty: currentQty, whse: currentWhse } 
-                }));
-
-                @this.addItem(val, currentSpk, currentQty, currentWhse);
-            };
-
-            // Jalur Cepat (Tombol Enter)
-            labelInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    clearTimeout(autoTimer);
-                    const val = this.value.trim();
-                    if (val) {
-                        this.value = ''; 
-                        processScan(val);
-                    }
-                }
-            });
-
-            // Jalur Cadangan (Timer)
-            labelInput.addEventListener('input', function(e) {
-                clearTimeout(autoTimer);
-                if (this.value.trim() !== '') {
-                    autoTimer = setTimeout(() => {
-                        const val = this.value.trim();
-                        if (val) {
-                            this.value = ''; 
-                            processScan(val);
-                        }
-                    }, 450); 
-                }
-            });
-        }
-
-        Livewire.on('scan-success', () => {
-            window.isScanningInternal = false;
-            playTone(1200, 200, 'sawtooth', 0.4); 
-            setTimeout(() => playTone(1500, 100, 'sawtooth', 0.3), 50); 
-        });
-
-        Livewire.on('scan-error', () => {
-            window.isScanningInternal = false;
-            playTone(100, 400, 'square', 0.6); 
-            setTimeout(() => playTone(100, 400, 'square', 0.6), 500);
-
-            // Balikin fokus ke SPK Code
-            setTimeout(() => {
-                const el = document.getElementById('scan_spk');
-                if (el) { el.focus(); el.select(); }
-            }, 100);
-        });
-    });
     </script>
 
     <style>

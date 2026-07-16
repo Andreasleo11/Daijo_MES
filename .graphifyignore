@@ -1,3 +1,4 @@
+# Ignore Git-ignored files
 /.phpunit.cache
 /node_modules
 /public/build
@@ -17,8 +18,8 @@ yarn-error.log
 /.idea
 /.vscode
 
-# Graphify
-/.graphify/
-/graphify-manual.md
-/wiki/
-
+# Additional UI/Library Assets to ignore for a cleaner code graph
+/public/vendor/
+/public/js/
+*.min.js
+*.esm.js

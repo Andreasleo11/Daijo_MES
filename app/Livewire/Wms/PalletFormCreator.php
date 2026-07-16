@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class PalletFormCreator extends Component
 {
+    public bool $isDelivery = false;
+
     // ─── Header Form Fields ────────────────────────────────────────────────────
     public $prod_date;
     public $lot_no;
@@ -59,9 +61,10 @@ class PalletFormCreator extends Component
         'delivery_shift'=> 'required',
     ];
 
-    public function mount(): void
+    public function mount(bool $isDelivery = null): void
     {
         $this->prod_date = now()->format('Y-m-d');
+        $this->isDelivery = $isDelivery ?? request()->routeIs('wms.pallet-form.create-delivery');
     }
 
 
@@ -123,16 +126,18 @@ class PalletFormCreator extends Component
      * Add a box to the scanned list.
      * Handles both normal (with SPK+label) and no-label boxes.
      */
-    public function addItem($directLabel = null, $directSpk = null, $directQty = null, $directWhse = null): void
+    public function addItem($directLabel = null, $directSpk = null, $directQty = null, $directWhse = null, $cid = null): void
     {
         if ($directLabel) $this->scan_label = trim($directLabel);
         if ($directSpk)   $this->scan_spk   = trim($directSpk);
         if ($directQty)   $this->scan_qty   = $directQty;
         if ($directWhse)  $this->scan_whse  = trim($directWhse);
+
         // ─── Case 2: No-Label Mode ─────────────────────────────────────────────
         if ($this->label_mode === 'NO_LABEL') {
             if (empty(trim($this->scan_qty))) {
                 session()->flash('scan_error', 'Qty per box harus diisi.');
+                $this->dispatch('scan-error', ['cid' => $cid, 'message' => 'Qty kosong']);
                 return;
             }
 
@@ -140,6 +145,7 @@ class PalletFormCreator extends Component
 
             for ($i = 0; $i < $count; $i++) {
                 $this->scanned_items[] = [
+                    'cid'             => $cid ? $cid . '_' . $i : uniqid(),
                     'part_no'         => null,
                     'model_name'      => null,
                     'customer_code'   => null,
@@ -155,7 +161,11 @@ class PalletFormCreator extends Component
             $this->label_mode = 'SCAN';
             $this->resetScanner();
             $this->calculateTotals();
-            $this->dispatch('scan-success');
+            $this->dispatch('scan-success', [
+                'cid'        => $cid,
+                'part_no'    => null,
+                'model_name' => 'No Label Box',
+            ]);
             return;
         }
 
@@ -165,69 +175,53 @@ class PalletFormCreator extends Component
         if (empty(trim($this->scan_spk))) {
             $this->resetScanner();
             session()->flash('scan_error', 'SPK harus di-scan terlebih dahulu.');
-            $this->dispatch('scan-error');
+            $this->dispatch('scan-error', ['cid' => $cid, 'message' => 'SPK kosong']);
             return;
         }
 
         // Pastikan SPK valid (ada di database)
-        if (empty($this->scan_part_no)) {
-            $spkHistory = SpkItemHistory::where('spk_number', trim($this->scan_spk))->first();
-            if (! $spkHistory) {
-                $failedSpk = $this->scan_spk;
-                $this->resetScanner();
-                session()->flash('scan_error', 'SPK "' . $failedSpk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
-                $this->dispatch('scan-error');
-                return;
-            }
-            // Auto-fill jika belum terisi (misalnya debounce belum trigger)
-            $item = MasterListItem::where('item_code', $spkHistory->item_code)->first();
-            $this->scan_part_no       = $spkHistory->item_code;
-            $this->scan_model_name    = $item?->item_name ?? '-';
-            $this->scan_customer_code = $item?->customer_code ?? '';
+        $spkHistory = SpkItemHistory::where('spk_number', trim($this->scan_spk))->first();
+        if (! $spkHistory) {
+            $failedSpk = $this->scan_spk;
+            $this->resetScanner();
+            session()->flash('scan_error', 'SPK "' . $failedSpk . '" tidak ditemukan di sistem. Pastikan SPK sudah terdaftar.');
+            $this->dispatch('scan-error', ['cid' => $cid, 'message' => 'SPK tidak valid']);
+            return;
         }
+
+        $item = MasterListItem::where('item_code', $spkHistory->item_code)->first();
+        $partNo = $spkHistory->item_code;
+        $modelName = $item?->item_name ?? '-';
+        $customerCode = $item?->customer_code ?? '';
 
         // Wajib ada label
         if (empty(trim($this->scan_label))) {
             session()->flash('scan_error', 'Label harus di-scan, atau tekan "Tanpa Label" jika box tidak memiliki label.');
-            $this->dispatch('scan-error');
+            $this->dispatch('scan-error', ['cid' => $cid, 'message' => 'Label kosong']);
             return;
         }
 
         // Cek duplikat di session yang sedang berjalan
-        foreach ($this->scanned_items as $item) {
+        foreach ($this->scanned_items as $scanned) {
             if (
-                ! empty($item['label']) &&
-                $item['label'] === trim($this->scan_label) &&
-                $item['spk_no'] === trim($this->scan_spk)
+                ! empty($scanned['label']) &&
+                $scanned['label'] === trim($this->scan_label) &&
+                $scanned['spk_no'] === trim($this->scan_spk)
             ) {
                 $failedLabel = $this->scan_label;
                 $this->resetScanner();
                 session()->flash('scan_error', 'Label "' . $failedLabel . '" dengan SPK ini sudah ada di daftar scan saat ini.');
-                $this->dispatch('scan-error');
+                $this->dispatch('scan-error', ['cid' => $cid, 'message' => 'Label duplikat']);
                 return;
             }
         }
 
-        // Cek duplikat di database (global) - DISABLED per user request
-        // User ingin label yang sama bisa di-scan lagi di palet yang berbeda
-        /*
-        $exists = WmsPalletFormDetail::where('spk_no', trim($this->scan_spk))
-            ->where('label', trim($this->scan_label))
-            ->exists();
-
-        if ($exists) {
-            session()->flash('scan_error', 'Label "' . $this->scan_label . '" dengan SPK ini sudah pernah tersimpan di database sebelumnya.');
-            $this->resetScanner();
-            $this->dispatch('scan-error');
-            return;
-        }
-        */
-
         // Tambahkan ke list
         $this->scanned_items[] = [
-            'part_no'         => $this->scan_part_no,
-            'model_name'      => $this->scan_model_name,
-            'customer_code'   => $this->scan_customer_code,
+            'cid'             => $cid ?: uniqid(),
+            'part_no'         => $partNo,
+            'model_name'      => $modelName,
+            'customer_code'   => $customerCode,
             'spk_no'          => trim($this->scan_spk),
             'qty'             => (float) ($this->scan_qty ?: 0),
             'warehouse'       => $this->scan_whse ?: null,
@@ -236,9 +230,18 @@ class PalletFormCreator extends Component
             'no_label_reason' => null,
         ];
 
+        // Update local helper states agar UI Livewire sinkron
+        $this->scan_part_no       = $partNo;
+        $this->scan_model_name    = $modelName;
+        $this->scan_customer_code = $customerCode;
+
         $this->resetScanner();
         $this->calculateTotals();
-        $this->dispatch('scan-success');
+        $this->dispatch('scan-success', [
+            'cid'        => $cid,
+            'part_no'    => $partNo,
+            'model_name' => $modelName,
+        ]);
     }
 
     public function updatedScannedItems(): void
@@ -250,6 +253,50 @@ class PalletFormCreator extends Component
     {
         unset($this->scanned_items[$index]);
         $this->scanned_items = array_values($this->scanned_items);
+        $this->calculateTotals();
+    }
+
+    public function removeItemByCid($cid): void
+    {
+        $this->scanned_items = array_values(array_filter($this->scanned_items, function($item) use ($cid) {
+            return ($item['cid'] ?? null) !== $cid;
+        }));
+        $this->calculateTotals();
+    }
+
+    public function updateQtyByCid($cid, $qty): void
+    {
+        foreach ($this->scanned_items as &$item) {
+            if (($item['cid'] ?? null) === $cid) {
+                $item['qty'] = (float) $qty;
+                break;
+            }
+        }
+        unset($item); // break the reference
+        $this->calculateTotals();
+    }
+
+    public function updateWhseByCid($cid, $whse): void
+    {
+        foreach ($this->scanned_items as &$item) {
+            if (($item['cid'] ?? null) === $cid) {
+                $item['warehouse'] = trim($whse);
+                break;
+            }
+        }
+        unset($item);
+        $this->calculateTotals();
+    }
+
+    public function updateLabelByCid($cid, $label): void
+    {
+        foreach ($this->scanned_items as &$item) {
+            if (($item['cid'] ?? null) === $cid) {
+                $item['label'] = trim($label);
+                break;
+            }
+        }
+        unset($item);
         $this->calculateTotals();
     }
 
@@ -340,7 +387,7 @@ class PalletFormCreator extends Component
                     'model_name'      => $boxItem['model_name'],
                     'spk_no'          => $boxItem['spk_no'],
                     'qty'             => $boxItem['qty'],
-                    'warehouse'       => $boxItem['warehouse'],
+                    'warehouse'       => $this->isDelivery ? 'FG' : $boxItem['warehouse'],
                     'label'           => $boxItem['label'],
                     'is_no_label'     => $boxItem['is_no_label'],
                     'no_label_reason' => $boxItem['no_label_reason'],

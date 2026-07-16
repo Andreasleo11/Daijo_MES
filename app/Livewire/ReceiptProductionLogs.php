@@ -36,10 +36,18 @@ class ReceiptProductionLogs extends Component
         $this->filterDate = now()->timezone('Asia/Jakarta')->format('Y-m-d');
     }
 
+    private function clearStatsCache(): void
+    {
+        cache()->forget("receipt_stats_{$this->filterDate}_all");
+        cache()->forget("receipt_stats_{$this->filterDate}_FFI");
+        cache()->forget("receipt_stats_{$this->filterDate}_KRFFI");
+        cache()->forget("receipt_stats_{$this->filterDate}");
+    }
+
     public function updatingFilterItemCode() 
     { 
         $this->resetPage(); 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->selectedLogs = [];
         $this->selectAll = false;
     }
@@ -61,7 +69,7 @@ class ReceiptProductionLogs extends Component
     public function updatingFilterDate() 
     { 
         $this->resetPage(); 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->selectedLogs = [];
         $this->selectAll = false;
     }
@@ -69,7 +77,7 @@ class ReceiptProductionLogs extends Component
     public function updatingFilterStatus() 
     { 
         $this->resetPage(); 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->selectedLogs = [];
         $this->selectAll = false;
     }
@@ -102,7 +110,7 @@ class ReceiptProductionLogs extends Component
                 'updated_at'  => now(),
             ]);
 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK berhasil diabaikan']);
     }
 
@@ -116,7 +124,7 @@ class ReceiptProductionLogs extends Component
                 'updated_at'  => now(),
             ]);
 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK direset ke pending']);
     }
 
@@ -130,7 +138,7 @@ class ReceiptProductionLogs extends Component
                 'updated_at'  => now(),
             ]);
 
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
         $this->dispatch('push-notification', ['status' => 'success', 'message' => 'SPK berhasil ditandai sebagai sukses']);
     }
 
@@ -154,7 +162,7 @@ class ReceiptProductionLogs extends Component
                 'production_summary.spk_code', '=', 'psd.spk_code'
             )
             ->when($this->filterDate, fn($q) =>
-                $q->whereDate('production_summary.created_date', $this->filterDate)
+                $q->where('production_summary.created_date', $this->filterDate)
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -177,9 +185,7 @@ class ReceiptProductionLogs extends Component
                 'updated_at' => now(),
             ]);
 
-        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
-        cache()->forget($cacheKey);
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
 
         $this->dispatch('push-notification', ['status' => 'success', 'message' => count($ids) . ' SPK berhasil diabaikan']);
     }
@@ -203,9 +209,7 @@ class ReceiptProductionLogs extends Component
         $this->selectedLogs = [];
         $this->selectAll = false;
 
-        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
-        cache()->forget($cacheKey);
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $this->clearStatsCache();
 
         $this->dispatch('push-notification', ['status' => 'success', 'message' => "{$count} SPK berhasil diabaikan"]);
     }
@@ -239,7 +243,7 @@ class ReceiptProductionLogs extends Component
                 // Dispatch job background
                 PushSingleReceiptProductionJob::dispatch($summaryId);
                 
-                cache()->forget("receipt_stats_{$this->filterDate}");
+                $this->clearStatsCache();
 
                 $this->dispatch('push-notification', [
                     'status' => 'success',
@@ -282,7 +286,7 @@ class ReceiptProductionLogs extends Component
                 )
                 ->whereIn('sap_sent', [0, 3]) // Hanya pending atau failed
                 ->when($this->filterDate, fn($q) =>
-                    $q->whereDate('created_date', $this->filterDate)
+                    $q->where('created_date', $this->filterDate)
                 )
                 ->when($this->filterSpk, fn($q) =>
                     $q->where('spk_code', 'like', "%{$this->filterSpk}%")
@@ -312,7 +316,7 @@ class ReceiptProductionLogs extends Component
                 }
             }
 
-            cache()->forget("receipt_stats_{$this->filterDate}");
+            $this->clearStatsCache();
 
             $this->dispatch('push-notification', [
                 'status' => 'success',
@@ -377,7 +381,7 @@ class ReceiptProductionLogs extends Component
             $this->selectedLogs = [];
             $this->selectAll = false;
 
-            cache()->forget("receipt_stats_{$this->filterDate}");
+            $this->clearStatsCache();
 
             $this->dispatch('push-notification', [
                 'status' => 'success',
@@ -467,7 +471,7 @@ class ReceiptProductionLogs extends Component
                 'production_summary.created_at'
             )
             ->when($this->filterDate, fn($q) =>
-                $q->whereDate('production_summary.created_date', $this->filterDate)
+                $q->where('production_summary.created_date', $this->filterDate)
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -518,7 +522,7 @@ class ReceiptProductionLogs extends Component
     {
         return $this->baseQuery()
             ->when($this->filterDate, fn($q) =>
-                $q->whereDate('production_summary.created_date', $this->filterDate)
+                $q->where('production_summary.created_date', $this->filterDate)
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -539,7 +543,7 @@ class ReceiptProductionLogs extends Component
 
     public function getStatsProperty()
     {
-        $cacheKey = "receipt_stats_{$this->filterDate}_{$this->filterStatus}_{$this->filterSpk}_{$this->filterItemCode}_{$this->filterWarehouse}";
+        $cacheKey = "receipt_stats_{$this->filterDate}_" . ($this->filterWarehouse ?: 'all');
     
         return cache()->remember(
             $cacheKey,
@@ -551,7 +555,7 @@ class ReceiptProductionLogs extends Component
                         $q->where('warehouse', $this->filterWarehouse)
                     )
                     ->when($this->filterDate, fn($q) =>
-                        $q->whereDate('created_date', $this->filterDate)
+                        $q->where('created_date', $this->filterDate)
                     );
 
                 $result = (clone $base)

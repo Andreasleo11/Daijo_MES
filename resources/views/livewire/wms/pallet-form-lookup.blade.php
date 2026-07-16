@@ -137,7 +137,7 @@
                                 {{ $palletForm->details->whereNull('deleted_at')->count() }} ACTIVE / {{ $palletForm->details->whereNotNull('deleted_at')->count() }} OUT
                             </span>
                         </div>
-                        <div class="overflow-x-auto">
+                        <div class="hidden md:block overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-gray-50 text-gray-900 font-black">
                                     <tr>
@@ -180,6 +180,44 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                        </div>
+
+                        {{-- Mobile view for lookup --}}
+                        <div class="block md:hidden space-y-4">
+                            @foreach($palletForm->details as $item)
+                                @php
+                                    $isOut = $item->deleted_at !== null;
+                                @endphp
+                                <div class="p-4 bg-white rounded-xl border {{ $isOut ? 'border-gray-200 opacity-50 bg-gray-50 line-through' : 'border-gray-200 shadow-sm' }} space-y-2">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Part & Model</span>
+                                            <span class="font-black text-gray-800 text-sm block">{{ $item->part_no }}</span>
+                                            <span class="text-[10px] text-gray-500 block leading-tight">{{ $item->model_name }}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Kuantitas</span>
+                                            <span class="text-blue-600 font-black text-base block">{{ number_format($item->qty) }} PCS</span>
+                                        </div>
+                                    </div>
+                                    <hr class="border-gray-100">
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase block">SPK / Label</span>
+                                            @if($item->is_no_label)
+                                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-black rounded uppercase">No Label</span>
+                                            @else
+                                                <span class="font-bold text-gray-700 block font-mono">SPK: {{ $item->spk_no }}</span>
+                                                <span class="text-[9px] text-gray-500 block font-mono">LBL: {{ $item->label }}</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase block">Warehouse</span>
+                                            <span class="px-2 py-0.5 bg-slate-100 text-slate-800 font-bold rounded uppercase inline-block border border-slate-200 mt-1">{{ $item->warehouse }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>

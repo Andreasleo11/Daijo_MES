@@ -44,7 +44,7 @@ class SyncPalletToSapJob implements ShouldQueue, ShouldBeUnique
     public function handle(WmsSapSyncService $service): void
     {
         Log::info("Job Started: Syncing Pallet {$this->palletId} to SAP");
-        $service->syncPallet($this->palletId);
+        $service->syncPalletNewTemplate($this->palletId);
         Log::info("Job Finished: Syncing Pallet {$this->palletId} to SAP");
     }
 }
