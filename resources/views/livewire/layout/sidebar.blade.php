@@ -53,7 +53,7 @@ new class extends Component {
 
         <!-- Navigation Links -->
         <div class="space-y-2 mt-4">
-            @if (auth()->user()->role->name === 'ADMIN')
+            @if (auth()->user()->can('view-admin-links'))
                 <!-- Admin Dashboard Link -->
                 <livewire:sidebar-link
                     href="{{ route('dashboard') }}"
@@ -61,6 +61,15 @@ new class extends Component {
                     :active="request()->routeIs('dashboard')"
                     wire:navigate
                 />
+
+                @if (auth()->user()->can('manage-users-roles'))
+                    <livewire:sidebar-link
+                        href="{{ route('admin.user-role-manager') }}"
+                        label="User Role Management"
+                        :active="request()->routeIs('admin.user-role-manager')"
+                        wire:navigate
+                    />
+                @endif
 
                 <!-- 1. Dropdown: Dashboard All -->
                 <livewire:parent-dropdown label="Dashboard All" :initiallyOpen="false" :childRoutes="[
@@ -452,7 +461,7 @@ new class extends Component {
                 x-transition
                 class="absolute right-0 bottom-full mb-2 w-48 bg-white shadow-lg z-10 rounded-md ring-1 ring-black ring-opacity-5">
                 <div class="py-1">
-                    @if (auth()->user() && auth()->user()->role && auth()->user()->role->name === 'Admin')
+                    @if (auth()->user() && auth()->user()->can('view-admin-links'))
                         <a href="{{ route('profile') }}"
                             class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">
                             {{ __('Profile') }}
