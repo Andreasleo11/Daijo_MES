@@ -39,7 +39,7 @@ new class extends Component {
                         {{ __('Dashboard') }}
                     </x-nav-link>
                 </div>
-                @if (auth()->user()->role->name === 'ADMIN' || auth()->user()->role->name === 'WAREHOUSE')
+                @if (auth()->user()->can('view-warehouse-links'))
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                         <x-nav-link :href="route('production.bom.index')" :active="request()->routeIs('production.bom.index')" wire:navigate>
                             {{ __('Production BOM') }}

@@ -26,7 +26,7 @@ new #[Layout('layouts.guest')] class extends Component
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
-        $validated['role_id'] = \App\Models\Role::where('name', 'OPERATOR')->value('id');
+        $validated['role_id'] = \App\Models\Role::firstOrCreate(['name' => 'OPERATOR'])->id;
         $validated['password'] = Hash::make($validated['password']);
 
         event(new Registered($user = User::create($validated)));

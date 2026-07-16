@@ -611,13 +611,13 @@ class DashboardController extends Controller
         $user = auth()->user();
 
         // ── Early returns untuk role non-OPERATOR ────────────────────────────
-        if ($user->role->name === 'ADMIN') {
+        if ($user->hasRole('ADMIN') || $user->hasRole('SUPER-ADMIN')) {
             return view('dashboards.dashboard-admin');
         }
-        if ($user->role->name === 'WORKSHOP') {
+        if ($user->hasRole('WORKSHOP')) {
             return view('dashboards.dashboard-workshop', compact('user'));
         }
-        if ($user->role->name !== 'OPERATOR') {
+        if (!$user->hasRole('OPERATOR')) {
             return view('dashboard', compact('user'));
         }
 
@@ -2435,7 +2435,7 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->role->name !== 'OPERATOR') {
+        if (!$user->hasRole('OPERATOR')) {
             return redirect()->back()->with('error', 'Akses ditolak: hanya operator yang bisa membuka halaman ini.');
         }
 

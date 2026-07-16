@@ -4,13 +4,14 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -25,6 +26,7 @@ class User extends Authenticatable
         'zone_id',
         'api_token',
         'role_id',
+        'is_active',
     ];
 
     /**
@@ -44,6 +46,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     public function role()
@@ -66,13 +69,26 @@ class User extends Authenticatable
         return $this->belongsTo(Specification::class);
     }
 
+    public function hasRole($role)
+    {
+        return $this->role && strcasecmp($this->role->name, $role) === 0;
+    }
+
     public function hasRoleAccess($requiredRole)
     {
+        if (!$this->role) {
+            return false;
+        }
+
         // Get the role hierarchy from config
         $roleHierarchy = config('roles.hierarchy');
 
         // Get the current user's role
         $userRole = $this->role->name;
+
+        if (!isset($roleHierarchy[$userRole])) {
+            return false;
+        }
 
         // Check if the user's role is allowed to access the required role
         return in_array($requiredRole, $roleHierarchy[$userRole]);

@@ -329,16 +329,23 @@ use App\Livewire\ManualSync;
         // dd($user_id);
         $user = User::where('name', $user_id)->first();
 
-        if ($user) {
+        if ($user && $user->is_active) {
             Auth::login($user);
             return redirect()->route('dashboard');
         }
 
-        return redirect('/login')->withErrors(['error' => 'User not found']);
+        return redirect('/login')->withErrors(['error' => 'User not found or account is deactivated.']);
     })->where('user_id', '[0-9A-Za-z]+'); // Ensure only valid user IDs
     // Route untuk auto login
 
 Route::middleware('auth')->group(function (){
+
+    Route::get('/user-role-manager', function () {
+        if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
+            abort(403);
+        }
+        return view('admin.user_role_manager.index');
+    })->name('admin.user-role-manager');
 
     // untuk update spk secara manual 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
