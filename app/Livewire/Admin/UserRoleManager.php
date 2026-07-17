@@ -39,7 +39,7 @@ class UserRoleManager extends Component
     ];
 
     protected $rules = [
-        'username' => 'required|string|max:255|unique:users,username',
+        'username' => 'nullable|string|max:255|unique:users,username',
         'name' => 'required|string|max:255',
         'email' => 'required|email|max:255|unique:users,email',
         'password' => 'required|string|min:6',
@@ -69,7 +69,7 @@ class UserRoleManager extends Component
         $this->validate();
 
         User::create([
-            'username' => trim($this->username),
+            'username' => empty(trim($this->username)) ? null : trim($this->username),
             'name' => trim($this->name),
             'email' => trim($this->email),
             'password' => Hash::make($this->password),

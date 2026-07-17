@@ -140,7 +140,7 @@
 
             <form wire:submit="createUser" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username</label>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username (Optional)</label>
                     <input wire:model="username" type="text"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none" />
                     @error('username')
