@@ -148,6 +148,7 @@ new class extends Component {
                     ['name' => 'receipt-production-logs', 'label' => 'Cek Data masuk ke SAP'],
                     ['name' => 'production-summary-monitor', 'label' => 'Cek Stock Program ke SAP'],
                     ['name' => 'wms.sap-sync-monitor', 'label' => 'SAP Sync Monitor'],
+                    ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor Delivery'],
                 ]" />
 
             @else

@@ -28,9 +28,12 @@ class GenerateProductionSummary extends Command
                 return;
             }
 
-            // Group per SPK + Warehouse + Date (biar rapi per baris)
+            // Group per SPK + Warehouse + Date + 10-Minute interval block
             $summaries = $unprocessedData->groupBy(function ($item) {
-                return $item->spk_code . '||' . $item->warehouse . '||' . $item->created_at->toDateString();
+                $createdAt = Carbon::parse($item->created_at);
+                $minuteBlock = floor($createdAt->minute / 10) * 10;
+                $timeWindow = $createdAt->copy()->minute($minuteBlock)->second(0)->format('H:i');
+                return $item->spk_code . '||' . $item->warehouse . '||' . $createdAt->toDateString() . '||' . $timeWindow;
             });
 
             $processedIds = [];
