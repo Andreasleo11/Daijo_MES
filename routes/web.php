@@ -364,6 +364,7 @@ Route::middleware('auth')->group(function (){
         Route::get('/pallet-form/sorting', \App\Livewire\Wms\PalletSorting::class)->name('pallet-form.sorting');
         Route::get('/pallet-form/picking-guide', \App\Livewire\Wms\PickingGuide::class)->name('pallet-form.picking-guide');
         Route::get('/sap-sync-monitor', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor');
+        Route::get('/sap-sync-monitor-delivery', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor-delivery');
         Route::get('/pallet-form/print/{id}', function ($id) {
             $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
             return view('wms.pallet_form_print', compact('palletForm'));

@@ -123,6 +123,7 @@ class WmsSapSyncService extends ReceiptProductionService
                         'sap_sync_at'     => now(),
                     ]);
                 Log::error("[WMS-SAP] Pallet {$palletId} | EXCEPTION: " . $e->getMessage());
+                $this->saveApiLog('DeliveryReceiptFromProduction', 'POST', $this->endpoint, $payload, [], 500, 'failed', 'Exception: ' . $e->getMessage());
             }
         }
 
@@ -151,10 +152,12 @@ class WmsSapSyncService extends ReceiptProductionService
     }
 
     /**
-     * Sync an entire pallet (Header + All Details) to SAP using the New JSON Template
+     * Sync an entire pallet (Header + All Details) to SAP for Inventory Transfer
      */
-    public function syncPalletNewTemplate($palletId)
+    public function syncPalletInventoryTransfer($palletId)
     {
+        $endpoint = '/api/inventory_transfer/create';
+
         // 1. ATOMIC LOCK: Tandai pallet sebagai PROCESSING (3) hanya jika status saat ini PENDING (0) atau FAILED (2)
         $locked = WmsPalletForm::where('pallet_id', $palletId)
             ->whereIn('sap_sync_status', [0, 2])
@@ -177,96 +180,90 @@ class WmsSapSyncService extends ReceiptProductionService
             return ['status' => false, 'message' => 'Pallet has no items to sync'];
         }
 
-        // Group items by SPK No
-        $groupedItems = $pallet->details->groupBy('spk_no');
-        $anyError = false;
-        $allSuccess = true;
+        // 2. PARANOID CHECK: Selalu ambil data SEGAR dari DB tepat sebelum nembak
+        $freshItemsToSync = WmsPalletFormDetail::where('pallet_form_id', $palletId)
+            ->whereNotIn('sap_sync_status', [1, 4]) // Skip yang sudah Sukses (1) atau Abaikan (4)
+            ->get();
 
-        foreach ($groupedItems as $spkNo => $items) {
-            // 2. PARANOID CHECK: Selalu ambil data SEGAR dari DB tepat sebelum nembak
-            $itemIds = $items->pluck('id')->toArray();
-            $freshItemsToSync = WmsPalletFormDetail::whereIn('id', $itemIds)
-                ->whereNotIn('sap_sync_status', [1, 4]) // Skip yang sudah Sukses (1) atau Abaikan (4)
-                ->get();
+        if ($freshItemsToSync->isEmpty()) {
+            Log::info("Pallet {$palletId} skipped: All items are already synced or ignored.");
+            return ['status' => true, 'message' => 'Already synced or ignored'];
+        }
 
-            if ($freshItemsToSync->isEmpty()) {
-                Log::info("SPK {$spkNo} in Pallet {$palletId} skipped: All items are already synced or ignored.");
-                continue;
-            }
+        // Prepare payload
+        $lines = [];
+        $currentItemIds = $freshItemsToSync->pluck('id')->toArray();
+        $groupedBySpk = $freshItemsToSync->groupBy('spk_no');
 
-            // Prepare payload
-            $payload = [];
-            $currentItemIds = $freshItemsToSync->pluck('id')->toArray();
-            foreach ($freshItemsToSync as $item) {
-                $spkHistory = SpkItemHistory::where('spk_number', $item->spk_no)->first();
-                $actualItemCode = $spkHistory ? $spkHistory->item_code : '';
+        foreach ($groupedBySpk as $spkNo => $items) {
+            $firstItem = $items->first();
+            $spkHistory = SpkItemHistory::where('spk_number', $spkNo)->first();
+            $actualItemCode = $spkHistory ? $spkHistory->item_code : '';
 
-                //ambil date dari SPK untuk di update ke tabel wms_pallet_form_details
-                //remark nanti diisi summary_id dari tabel 
-                $payload[] = [
-                    'summary_id'     => (int)$item->id,
-                    'item_code'      => $actualItemCode,
-                    'from_warehouse' => 'FFI',
-                    'to_warehouse'   => trim($item->warehouse ?: 'FG'), 
-                    'quantity'       => (float)$item->qty,
-                    'label'          => (int)$item->label,
-                ];
-            }
+            $lines[] = [
+                'itemCode'      => $actualItemCode,
+                'quantity'      => (float)$items->sum('qty'),
+                'fromWarehouse' => 'FFI',
+                'toWarehouse'   => 'FG', 
+                'u_NUMPR'       => (string)$spkNo,
+            ];
+        }
 
-            try {
-                Log::info("SAP Sync (New Template) Payload for SPK {$spkNo} in Pallet {$palletId}: " . json_encode($payload));
+        $payload = [
+            'docDate' => $pallet->prod_date ? date('Y-m-d', strtotime($pallet->prod_date)) : now()->format('Y-m-d'),
+            'remarks' => "Inventory Transfer created from {$pallet->pallet_id}",
+            'lines'   => $lines,
+        ];
+
+        try {
+            Log::info("SAP Sync (Inventory Transfer) Payload for Pallet {$palletId}: " . json_encode($payload));
+            
+            $response = $this->post($endpoint, $payload);
+            $rawBody = $response->body();
+            $json = $response->json();
+            
+            Log::info("SAP Sync (Inventory Transfer) Response for Pallet {$palletId}: " . $rawBody);
+
+            $success = $response->successful() && isset($json['status']) && $json['status'] === true;
+
+            // Handle SAP Idempotency: Jika SAP bilang sudah ada/duplicate, anggap SUKSES
+            $errorMsg = $json['message'] ?? $rawBody ?: "SAP rejected Pallet {$palletId}";
+            $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false);
+
+            if ($success || $isDuplicate) {
+                WmsPalletFormDetail::whereIn('id', $currentItemIds)
+                    ->whereNotIn('sap_sync_status', [1, 4])
+                    ->update([
+                        'sap_sync_status' => 1,
+                        'sap_error_msg'   => $isDuplicate ? "SAP: " . $errorMsg : null,
+                        'sap_sync_at'     => now(),
+                    ]);
                 
-                $response = $this->post($this->endpoint, $payload);
-                $rawBody = $response->body();
-                $json = $response->json();
-                
-                Log::info("SAP Sync (New Template) Response for SPK {$spkNo}: " . $rawBody);
-
-                $success = $response->successful() && isset($json['status']) && $json['status'] === true;
-
-                // Handle SAP Idempotency: Jika SAP bilang sudah ada/duplicate, anggap SUKSES
-                $errorMsg = $json['message'] ?? $rawBody ?: "SAP rejected SPK {$spkNo}";
-                $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false);
-
-                if ($success || $isDuplicate) {
-                    WmsPalletFormDetail::whereIn('id', $currentItemIds)
-                        ->whereNotIn('sap_sync_status', [1, 4])
-                        ->update([
-                            'sap_sync_status' => 1,
-                            'sap_error_msg'   => $isDuplicate ? "SAP: " . $errorMsg : null,
-                            'sap_sync_at'     => now(),
-                        ]);
-                    
-                    $logMsg = $isDuplicate ? "SPK {$spkNo} marked as success (Duplicate/Already Exists)" : "SPK {$spkNo} synced successfully";
-                    Log::info("[WMS-SAP-NEW] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | " . $logMsg);
-                    $this->saveApiLog('DeliveryReceiptFromProduction', 'POST', $this->endpoint, $payload, $json, 200, 'success', $logMsg);
-                } else {
-                    $anyError = true;
-                    $allSuccess = false;
-                    
-                    WmsPalletFormDetail::whereIn('id', $currentItemIds)
-                        ->whereNotIn('sap_sync_status', [1, 4])
-                        ->update([
-                            'sap_sync_status' => 2,
-                            'sap_error_msg'   => $errorMsg,
-                            'sap_sync_at'     => now(),
-                        ]);
-
-                    Log::warning("[WMS-SAP-NEW] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | FAILED: " . $errorMsg);
-                    $this->saveApiLog('DeliveryReceiptFromProduction', 'POST', $this->endpoint, $payload, $json, 400, 'failed', $errorMsg);
-                }
-            } catch (\Exception $e) {
-                $anyError = true;
-                $allSuccess = false;
+                $logMsg = $isDuplicate ? "Pallet {$palletId} marked as success (Duplicate/Already Exists)" : "Pallet {$palletId} synced successfully";
+                Log::info("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | " . $logMsg);
+                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json, 200, 'success', $logMsg);
+            } else {
                 WmsPalletFormDetail::whereIn('id', $currentItemIds)
                     ->whereNotIn('sap_sync_status', [1, 4])
                     ->update([
                         'sap_sync_status' => 2,
-                        'sap_error_msg'   => $e->getMessage(),
+                        'sap_error_msg'   => $errorMsg,
                         'sap_sync_at'     => now(),
                     ]);
-                Log::error("[WMS-SAP-NEW] Pallet {$palletId} | EXCEPTION: " . $e->getMessage());
+
+                Log::warning("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | FAILED: " . $errorMsg);
+                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json, 400, 'failed', $errorMsg);
             }
+        } catch (\Exception $e) {
+            WmsPalletFormDetail::whereIn('id', $currentItemIds)
+                ->whereNotIn('sap_sync_status', [1, 4])
+                ->update([
+                    'sap_sync_status' => 2,
+                    'sap_error_msg'   => $e->getMessage(),
+                    'sap_sync_at'     => now(),
+                ]);
+            Log::error("[WMS-SAP-TRANSFER] Pallet {$palletId} | EXCEPTION: " . $e->getMessage());
+            $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, [], 500, 'failed', 'Exception: ' . $e->getMessage());
         }
 
         // 3. GROUND TRUTH CHECK

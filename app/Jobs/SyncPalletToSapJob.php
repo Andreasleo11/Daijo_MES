@@ -43,8 +43,16 @@ class SyncPalletToSapJob implements ShouldQueue, ShouldBeUnique
      */
     public function handle(WmsSapSyncService $service): void
     {
-        Log::info("Job Started: Syncing Pallet {$this->palletId} to SAP");
-        $service->syncPalletNewTemplate($this->palletId);
-        Log::info("Job Finished: Syncing Pallet {$this->palletId} to SAP");
+        $isDelivery = \App\Models\WmsPalletFormDetail::where('pallet_form_id', $this->palletId)
+            ->where('warehouse', 'FG')
+            ->exists();
+
+        if ($isDelivery) {
+            Log::info("Pallet {$this->palletId} is a delivery pallet. Syncing via Inventory Transfer.");
+            $service->syncPalletInventoryTransfer($this->palletId);
+        } else {
+            Log::info("Pallet {$this->palletId} is a normal production pallet. Syncing via Receipt Production.");
+            $service->syncPallet($this->palletId);
+        }
     }
 }

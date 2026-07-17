@@ -288,7 +288,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         // Fake SAP API calls
         Http::fake([
             '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
-            '*/api/receipt_production/create' => Http::response(['status' => true, 'message' => 'Success'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => true, 'message' => 'Success'], 200),
         ]);
 
         // 1. Create a Normal Pallet Form Detail (warehouse = FFI)
@@ -344,18 +344,21 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         $sapSyncService = app(WmsSapSyncService::class);
 
         // Run sync for Normal pallet
-        $sapSyncService->syncPalletNewTemplate('PLT-NORMAL-001');
+        $sapSyncService->syncPalletInventoryTransfer('PLT-NORMAL-001');
 
         // Run sync for Delivery pallet
-        $sapSyncService->syncPalletNewTemplate('PLT-DELIV-002');
+        $sapSyncService->syncPalletInventoryTransfer('PLT-DELIV-002');
 
         // Assert HTTP requests
         Http::assertSent(function ($request) {
             // Check Normal payload
-            if ($request->url() === 'http://192.168.6.149:9001/api/receipt_production/create') {
+            if ($request->url() === 'http://192.168.6.149:9001/api/inventory_transfer/create') {
                 $payload = $request->data();
-                if ($payload[0]['quantity'] == 50) {
-                    return $payload[0]['to_warehouse'] === 'FFI' && $payload[0]['from_warehouse'] === 'FFI';
+                if (isset($payload['lines'][0]['quantity']) && $payload['lines'][0]['quantity'] == 50) {
+                    return $payload['lines'][0]['toWarehouse'] === 'FFI' 
+                        && $payload['lines'][0]['fromWarehouse'] === 'FFI'
+                        && $payload['lines'][0]['u_NUMPR'] === 'SPK-1234'
+                        && $payload['remarks'] === 'Inventory Transfer created from PLT-NORMAL-001';
                 }
             }
             return true;
@@ -363,13 +366,192 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
 
         Http::assertSent(function ($request) {
             // Check Delivery payload
-            if ($request->url() === 'http://192.168.6.149:9001/api/receipt_production/create') {
+            if ($request->url() === 'http://192.168.6.149:9001/api/inventory_transfer/create') {
                 $payload = $request->data();
-                if ($payload[0]['quantity'] == 100) {
-                    return $payload[0]['to_warehouse'] === 'FG' && $payload[0]['from_warehouse'] === 'FFI';
+                if (isset($payload['lines'][0]['quantity']) && $payload['lines'][0]['quantity'] == 100) {
+                    return $payload['lines'][0]['toWarehouse'] === 'FG' 
+                        && $payload['lines'][0]['fromWarehouse'] === 'FFI'
+                        && $payload['lines'][0]['u_NUMPR'] === 'SPK-1234'
+                        && $payload['remarks'] === 'Inventory Transfer created from PLT-DELIV-002';
                 }
             }
             return true;
         });
+    }
+
+    /**
+     * Test SapSyncMonitor routes and correct filtering.
+     */
+    public function test_sap_sync_monitor_routes_and_filtering(): void
+    {
+        // 1. Create a Normal Pallet Detail (warehouse = FFI)
+        WmsPalletForm::create([
+            'pallet_id' => 'PLT-NORMAL-001',
+            'position_id' => $this->position->id,
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'prod_date' => '2026-07-09',
+            'delivery_name' => 'Operator A',
+            'delivery_shift' => '1',
+            'box_qty' => 1,
+            'total_pallet_qty' => 50,
+            'sap_sync_status' => 0,
+        ]);
+
+        WmsPalletFormDetail::create([
+            'pallet_form_id' => 'PLT-NORMAL-001',
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'spk_no' => 'SPK-1234',
+            'qty' => 50,
+            'warehouse' => 'FFI',
+            'label' => 'LBL-101',
+            'sap_sync_status' => 0,
+        ]);
+
+        // 2. Create a Delivery Pallet Detail (warehouse = FG)
+        WmsPalletForm::create([
+            'pallet_id' => 'PLT-DELIV-002',
+            'position_id' => $this->position->id,
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'prod_date' => '2026-07-09',
+            'delivery_name' => 'Operator B',
+            'delivery_shift' => '2',
+            'box_qty' => 1,
+            'total_pallet_qty' => 100,
+            'sap_sync_status' => 0,
+        ]);
+
+        WmsPalletFormDetail::create([
+            'pallet_form_id' => 'PLT-DELIV-002',
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'spk_no' => 'SPK-1234',
+            'qty' => 100,
+            'warehouse' => 'FG',
+            'label' => 'LBL-202',
+            'sap_sync_status' => 0,
+        ]);
+
+        // Test normal route
+        $this->actingAs($this->adminUser);
+        
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => false])
+            ->assertSee('PLT-NORMAL-001')
+            ->assertDontSee('PLT-DELIV-002');
+
+        // Test delivery route
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => true])
+            ->assertSee('PLT-DELIV-002')
+            ->assertDontSee('PLT-NORMAL-001');
+    }
+
+    /**
+     * Test case with 20 details in 1 header to see how the JSON is generated.
+     */
+    public function test_large_payload_generation(): void
+    {
+        // Fake SAP API calls
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => true, 'message' => 'Success'], 200),
+        ]);
+
+        $pallet = WmsPalletForm::create([
+            'pallet_id' => 'PLT-LARGE-001',
+            'position_id' => $this->position->id,
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'prod_date' => '2026-07-09',
+            'delivery_name' => 'Operator A',
+            'delivery_shift' => '1',
+            'box_qty' => 20,
+            'total_pallet_qty' => 1000,
+            'sap_sync_status' => 0,
+        ]);
+
+        // Create 20 details.
+        // We will use 4 different SPK Nos (SPK-0001 to SPK-0004) to test distinct/sum logic.
+        // Each SPK will have 5 details (5 * 4 = 20 details total)
+        for ($spkIndex = 1; $spkIndex <= 4; $spkIndex++) {
+            $spkNo = "SPK-000{$spkIndex}";
+            SpkItemHistory::create([
+                'spk_number' => $spkNo,
+                'item_code' => "ITM-00{$spkIndex}",
+            ]);
+
+            for ($detailIndex = 1; $detailIndex <= 5; $detailIndex++) {
+                WmsPalletFormDetail::create([
+                    'pallet_form_id' => 'PLT-LARGE-001',
+                    'part_no' => "ITM-00{$spkIndex}",
+                    'model_name' => "Model {$spkIndex}",
+                    'spk_no' => $spkNo,
+                    'qty' => 50, // 50 * 5 = 250 per SPK
+                    'warehouse' => 'FG',
+                    'label' => "LBL-SPK{$spkIndex}-BOX{$detailIndex}",
+                    'sap_sync_status' => 0,
+                ]);
+            }
+        }
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $sapSyncService->syncPalletInventoryTransfer('PLT-LARGE-001');
+
+        // Capture sent request payloads and print them
+        Http::assertSent(function ($request) {
+            if ($request->url() === 'http://192.168.6.149:9001/api/inventory_transfer/create') {
+                $payload = $request->data();
+                dump("--- GENERATED SAP PAYLOAD ---", $payload);
+                return true;
+            }
+            return true;
+        });
+    }
+
+    /**
+     * Test retrySpk method on SapSyncMonitor Livewire component.
+     */
+    public function test_retry_spk_in_monitor(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        // 1. Create a Pallet Form with failed detail
+        WmsPalletForm::create([
+            'pallet_id' => 'PLT-RETRY-001',
+            'position_id' => $this->position->id,
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'prod_date' => '2026-07-09',
+            'sap_sync_status' => 2, // FAILED
+        ]);
+
+        WmsPalletFormDetail::create([
+            'pallet_form_id' => 'PLT-RETRY-001',
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'spk_no' => 'SPK-7777',
+            'qty' => 100,
+            'warehouse' => 'FG',
+            'label' => 'LBL-7777',
+            'sap_sync_status' => 2, // FAILED
+            'sap_error_msg' => 'Bad gateway',
+        ]);
+
+        // Run retrySpk
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => true])
+            ->call('retrySpk', 'PLT-RETRY-001', 'SPK-7777')
+            ->assertHasNoErrors();
+
+        // Assert database was reset
+        $pallet = WmsPalletForm::where('pallet_id', 'PLT-RETRY-001')->first();
+        $this->assertEquals(0, $pallet->sap_sync_status);
+
+        $detail = WmsPalletFormDetail::where('pallet_form_id', 'PLT-RETRY-001')->first();
+        $this->assertEquals(0, $detail->sap_sync_status);
+        $this->assertNull($detail->sap_error_msg);
+
+        // Assert job was dispatched
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncPalletToSapJob::class);
     }
 }

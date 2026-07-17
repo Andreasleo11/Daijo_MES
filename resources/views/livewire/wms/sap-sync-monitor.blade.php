@@ -4,10 +4,10 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-black text-gray-900 tracking-tighter uppercase italic">
-                    WMS <span class="text-blue-600">SAP</span> Sync Monitor
+                    WMS <span class="text-blue-600">SAP</span> Sync Monitor @if($isDelivery) (Delivery) @endif
                 </h1>
                 <p class="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
-                    Batch Header Processing System
+                    Batch Header Processing System @if($isDelivery) - Inventory Transfer @else - Receipt Production @endif
                 </p>
             </div>
             
@@ -184,7 +184,7 @@
                                     $first = $details->first();
                                     $successCount = $details->where('sap_sync_status', 1)->count();
                                     $failedCount = $details->where('sap_sync_status', 2)->count();
-                                    $pendingCount = $details->where('sap_sync_status', 0)->count();
+                                    $pendingCount = $details->whereIn('sap_sync_status', [0, 3])->count();
                                     $totalQty = $details->sum('qty');
                                 @endphp
                                 {{-- SPK Header Row --}}
@@ -205,14 +205,24 @@
                                         <div class="flex items-center justify-center gap-1">
                                             @if($successCount > 0) <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black">{{ $successCount }} OK</span> @endif
                                             @if($failedCount > 0) <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-black">{{ $failedCount }} FAIL</span> @endif
+                                            @if($pendingCount > 0) <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-black">{{ $pendingCount }} PEND</span> @endif
                                         </div>
                                     </td>
                                     <td class="py-4 px-4 text-right">
-                                        @if($failedCount > 0)
-                                            <span class="text-[9px] text-red-500 font-bold italic animate-pulse">Needs Attention</span>
-                                        @else
-                                            <span class="text-[9px] text-green-500 font-bold">All Good</span>
-                                        @endif
+                                        <div class="flex items-center justify-end gap-3">
+                                            @if($failedCount > 0)
+                                                <button wire:click.stop="retrySpk('{{ $selectedPalletId }}', '{{ $spk_no }}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95">
+                                                    Retry SPK
+                                                </button>
+                                            @endif
+                                            @if($failedCount > 0)
+                                                <span class="text-[9px] text-red-500 font-bold italic animate-pulse">Needs Attention</span>
+                                            @elseif($pendingCount > 0)
+                                                <span class="text-[9px] text-orange-500 font-bold italic animate-pulse">Pending Sync</span>
+                                            @else
+                                                <span class="text-[9px] text-green-500 font-bold">All Good</span>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
 

@@ -23,6 +23,15 @@ class SapSyncMonitor extends Component
 
     protected $queryString = ['search', 'statusFilter'];
 
+    public bool $isDelivery = false;
+
+    public function mount()
+    {
+        if (!$this->isDelivery) {
+            $this->isDelivery = request()->routeIs('wms.sap-sync-monitor-delivery');
+        }
+    }
+
     public function updatedSearch()
     {
         $this->resetPage();
@@ -75,6 +84,34 @@ class SapSyncMonitor extends Component
         SyncPalletToSapJob::dispatch($palletId);
         
         session()->flash('message', "Pallet {$palletId} re-queued for synchronization.");
+    }
+
+    /**
+     * Retry syncing a specific SPK in a pallet
+     */
+    public function retrySpk($palletId, $spkNo)
+    {
+        // Reset status header ke pending (0)
+        WmsPalletForm::where('pallet_id', $palletId)->update([
+            'sap_sync_status' => 0,
+            'updated_at'      => now()
+        ]);
+
+        // Reset detail yang bermasalah pada SPK ini ke pending (0)
+        WmsPalletFormDetail::where('pallet_form_id', $palletId)
+            ->where('spk_no', $spkNo)
+            ->whereNotIn('sap_sync_status', [1, 4])
+            ->update([
+                'sap_sync_status' => 0,
+                'sap_error_msg'   => null
+            ]);
+
+        SyncPalletToSapJob::dispatch($palletId);
+
+        // Refresh detail list di modal
+        $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $palletId)->get();
+
+        session()->flash('message', "SPK {$spkNo} in Pallet {$palletId} re-queued for synchronization.");
     }
 
     /**
@@ -144,9 +181,21 @@ class SapSyncMonitor extends Component
     {
         $query = WmsPalletForm::query()->withCount('details');
 
+        if ($this->isDelivery) {
+            $query->whereHas('details', function ($q) {
+                $q->where('warehouse', 'FG');
+            });
+        } else {
+            $query->whereHas('details', function ($q) {
+                $q->where('warehouse', '!=', 'FG');
+            });
+        }
+
         if ($this->search) {
-            $query->where('pallet_id', 'like', '%' . $this->search . '%')
+            $query->where(function ($q) {
+                $q->where('pallet_id', 'like', '%' . $this->search . '%')
                   ->orWhere('part_no', 'like', '%' . $this->search . '%');
+            });
         }
 
         if ($this->statusFilter !== '') {
@@ -156,11 +205,17 @@ class SapSyncMonitor extends Component
         $pallets = $query->orderBy('created_at', 'desc')->paginate(10);
 
         // Stats
+        if ($this->isDelivery) {
+            $baseQuery = WmsPalletForm::whereHas('details', fn($q) => $q->where('warehouse', 'FG'));
+        } else {
+            $baseQuery = WmsPalletForm::whereHas('details', fn($q) => $q->where('warehouse', '!=', 'FG'));
+        }
+
         $stats = [
-            'total'   => WmsPalletForm::count(),
-            'success' => WmsPalletForm::where('sap_sync_status', 1)->count(),
-            'failed'  => WmsPalletForm::where('sap_sync_status', 2)->count(),
-            'pending' => WmsPalletForm::where('sap_sync_status', 0)->count(),
+            'total'   => (clone $baseQuery)->count(),
+            'success' => (clone $baseQuery)->where('sap_sync_status', 1)->count(),
+            'failed'  => (clone $baseQuery)->where('sap_sync_status', 2)->count(),
+            'pending' => (clone $baseQuery)->where('sap_sync_status', 0)->count(),
         ];
 
         return view('livewire.wms.sap-sync-monitor', [
