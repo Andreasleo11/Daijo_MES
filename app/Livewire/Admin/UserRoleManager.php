@@ -31,6 +31,12 @@ class UserRoleManager extends Component
 
     public $zone_id = null;
 
+    public $selectedUserId = null;
+
+    public $selectedUserName = '';
+
+    public $newPassword = '';
+
     protected $paginationTheme = 'tailwind';
 
     protected $queryString = [
@@ -135,6 +141,41 @@ class UserRoleManager extends Component
         $user = User::onlyTrashed()->findOrFail($userId);
         $user->restore();
         session()->flash('message', 'User has been restored.');
+    }
+
+    public function selectUserForPasswordChange($userId)
+    {
+        if (Gate::denies('manage-users-roles')) {
+            abort(403, 'Unauthorized Action.');
+        }
+
+        $user = User::withTrashed()->findOrFail($userId);
+        $this->selectedUserId = $user->id;
+        $this->selectedUserName = $user->name;
+        $this->newPassword = '';
+        $this->resetErrorBag();
+
+        $this->dispatch('open-modal', 'force-change-password-modal');
+    }
+
+    public function forceChangePassword()
+    {
+        if (Gate::denies('manage-users-roles')) {
+            abort(403, 'Unauthorized Action.');
+        }
+
+        $this->validate([
+            'newPassword' => 'required|string|min:8',
+        ]);
+
+        $user = User::withTrashed()->findOrFail($this->selectedUserId);
+        $user->password = Hash::make($this->newPassword);
+        $user->save();
+
+        session()->flash('message', "Password for user {$user->name} has been updated successfully.");
+
+        $this->reset(['selectedUserId', 'selectedUserName', 'newPassword']);
+        $this->dispatch('close-modal', 'force-change-password-modal');
     }
 
     public function render()
