@@ -107,6 +107,10 @@
                                                 Restore
                                             </button>
                                         @else
+                                            <button wire:click="selectUserForPasswordChange({{ $user->id }})"
+                                                class="text-xs font-semibold text-slate-600 hover:text-slate-950 hover:bg-slate-50 px-3 py-1.5 rounded transition border border-slate-200">
+                                                Change PW
+                                            </button>
                                             @if ($user->id !== auth()->id())
                                                 <button wire:click="deprecateUser({{ $user->id }})"
                                                     onclick="confirm('Are you sure you want to deprecate this user? This will soft-delete their profile.') || event.stopImmediatePropagation()"
@@ -140,7 +144,8 @@
 
             <form wire:submit="createUser" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username (Optional)</label>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username
+                        (Optional)</label>
                     <input wire:model="username" type="text"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none" />
                     @error('username')
@@ -214,4 +219,39 @@
             </form>
         </div>
     </div>
+
+    <!-- Force Change Password Modal -->
+    <x-modal name="force-change-password-modal" :show="$errors->has('newPassword')" focusable>
+        <form wire:submit="forceChangePassword" class="p-6">
+            <h2 class="text-lg font-bold text-slate-800">
+                Force Change Password
+            </h2>
+
+            <p class="mt-1 text-xs text-slate-500 font-medium">
+                Change password for user: <span class="font-bold text-slate-700">{{ $selectedUserName }}</span>
+            </p>
+
+            <div class="mt-6">
+                <label for="newPassword"
+                    class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">New Password</label>
+
+                <x-text-input wire:model="newPassword" id="newPassword" name="newPassword" type="password"
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none"
+                    placeholder="Enter new password" />
+
+                <x-input-error :messages="$errors->get('newPassword')" class="mt-2" />
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <x-secondary-button x-on:click="$dispatch('close')">
+                    Cancel
+                </x-secondary-button>
+
+                <button type="submit"
+                    class="bg-slate-950 hover:bg-slate-900 text-white font-semibold text-xs py-2 px-4 rounded-lg transition-colors shadow-sm">
+                    Save Password
+                </button>
+            </div>
+        </form>
+    </x-modal>
 </div>
