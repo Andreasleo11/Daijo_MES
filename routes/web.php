@@ -375,6 +375,10 @@ Route::middleware('auth')->group(function (){
         })->name('pallet-form.print');
     });
 
+    Route::prefix('material-warehouse')->name('mwh.')->group(function () {
+        Route::get('/mapping', \App\Livewire\MaterialWarehouse\RackMapping::class)->name('mapping');
+    });
+
 
     Route::prefix('production-payables')->group(function () {
 

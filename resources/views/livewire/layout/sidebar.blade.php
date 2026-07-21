@@ -91,6 +91,7 @@ new class extends Component {
                     ['name' => 'barcode.box_master.index', 'label' => 'Master Box Data'],
                     ['name' => 'barcode.box_detail.index', 'label' => 'Master Box Detail'],
                     ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping'],
+                    ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
                     ['name' => 'customer.add', 'label' => 'Manage Barcode Customer'],
                 ]" />
 
@@ -402,6 +403,13 @@ new class extends Component {
                         href="{{ route('wms.mapping') }}"
                         label="Warehouse Mapping"
                         :active="request()->routeIs('wms.mapping')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('mwh.mapping') }}"
+                        label="Material Warehouse Mapping"
+                        :active="request()->routeIs('mwh.mapping')"
                         wire:navigate
                     />
 
