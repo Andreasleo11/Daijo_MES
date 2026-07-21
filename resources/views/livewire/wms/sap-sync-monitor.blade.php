@@ -73,7 +73,7 @@
                             </td>
                             <td class="py-4 px-6 text-center">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[10px] font-black">
-                                    {{ $pallet->details_count }} BOXES
+                                    {{ $pallet->details_count ?: ($pallet->box_qty ?: 0) }} BOXES
                                 </span>
                             </td>
                             <td class="py-4 px-6 text-center">

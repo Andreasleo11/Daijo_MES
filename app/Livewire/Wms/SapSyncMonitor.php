@@ -186,12 +186,8 @@ class SapSyncMonitor extends Component
                 $q->where('warehouse', 'FG');
             });
         } else {
-            $query->where(function ($q) {
-                $q->whereHas('details', function ($sub) {
-                    $sub->where('warehouse', '!=', 'FG')
-                        ->orWhereNull('warehouse')
-                        ->orWhere('warehouse', '');
-                })->orDoesntHave('details');
+            $query->whereDoesntHave('details', function ($q) {
+                $q->where('warehouse', 'FG');
             });
         }
 
@@ -212,13 +208,7 @@ class SapSyncMonitor extends Component
         if ($this->isDelivery) {
             $baseQuery = WmsPalletForm::whereHas('details', fn($q) => $q->where('warehouse', 'FG'));
         } else {
-            $baseQuery = WmsPalletForm::where(function ($q) {
-                $q->whereHas('details', function ($sub) {
-                    $sub->where('warehouse', '!=', 'FG')
-                        ->orWhereNull('warehouse')
-                        ->orWhere('warehouse', '');
-                })->orDoesntHave('details');
-            });
+            $baseQuery = WmsPalletForm::whereDoesntHave('details', fn($q) => $q->where('warehouse', 'FG'));
         }
 
         $stats = [
