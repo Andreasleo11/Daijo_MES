@@ -149,8 +149,7 @@ new class extends Component {
                 <livewire:parent-dropdown label="SAP Monitor" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'receipt-production-logs', 'label' => 'Cek Data masuk ke SAP'],
                     ['name' => 'production-summary-monitor', 'label' => 'Cek Stock Program ke SAP'],
-                    ['name' => 'wms.sap-sync-monitor', 'label' => 'SAP Sync Monitor'],
-                    ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor Delivery'],
+                    ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor'],
                 ]" />
 
             @else
@@ -271,9 +270,9 @@ new class extends Component {
                     />
 
                     <livewire:sidebar-link
-                        href="{{ route('wms.sap-sync-monitor') }}"
+                        href="{{ route('wms.sap-sync-monitor-delivery') }}"
                         label="SAP Sync Monitor"
-                        :active="request()->routeIs('wms.sap-sync-monitor')"
+                        :active="request()->routeIs('wms.sap-sync-monitor*')"
                         wire:navigate
                     />
                 @endif
@@ -428,9 +427,9 @@ new class extends Component {
                     />
 
                     <livewire:sidebar-link
-                        href="{{ route('wms.sap-sync-monitor') }}"
+                        href="{{ route('wms.sap-sync-monitor-delivery') }}"
                         label="SAP Sync Monitor"
-                        :active="request()->routeIs('wms.sap-sync-monitor')"
+                        :active="request()->routeIs('wms.sap-sync-monitor*')"
                         wire:navigate
                     />
                 @endif

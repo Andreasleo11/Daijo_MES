@@ -23,13 +23,19 @@ class SapSyncMonitor extends Component
 
     protected $queryString = ['search', 'statusFilter'];
 
-    public bool $isDelivery = false;
+    public bool $isDelivery = true;
 
     public function mount()
     {
-        if (!$this->isDelivery) {
-            $this->isDelivery = request()->routeIs('wms.sap-sync-monitor-delivery');
+        if (request()->routeIs('wms.sap-sync-monitor-delivery')) {
+            $this->isDelivery = true;
         }
+    }
+
+    public function setDeliveryType(bool $isDelivery)
+    {
+        $this->isDelivery = $isDelivery;
+        $this->resetPage();
     }
 
     public function updatedSearch()
