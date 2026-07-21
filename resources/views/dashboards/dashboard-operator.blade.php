@@ -1916,6 +1916,12 @@
                     type: 'POST',
                     data: formData,
                     success: function (response) {
+                        // Reset submit flag di AlpineJS
+                        const alpineElement = document.querySelector('[x-data="autoSubmitForm()"]');
+                        if (alpineElement && window.Alpine) {
+                            Alpine.$data(alpineElement).isSubmitting = false;
+                        }
+
                         // Display success message in alert
                         $alert.text(response.message)
                             .removeClass('hidden')
@@ -1955,6 +1961,12 @@
                         }, 5000);
                     },
                     error: function (xhr) {
+                        // Reset submit flag di AlpineJS
+                        const alpineElement = document.querySelector('[x-data="autoSubmitForm()"]');
+                        if (alpineElement && window.Alpine) {
+                            Alpine.$data(alpineElement).isSubmitting = false;
+                        }
+
                         let errMsg = 'Terjadi kesalahan saat menscan barcode.';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errMsg = xhr.responseJSON.message;
@@ -2518,6 +2530,7 @@
             return {
                 nikInput: localStorage.getItem('nik') || '',
                 _submitTimer: null,
+                isSubmitting: false,
 
                 debouncedSubmit() {
                     // Cancel any pending submit timer
@@ -2531,6 +2544,8 @@
                 },
 
                 checkAndSubmitForm() {
+                    if (this.isSubmitting) return;
+
                     if (!this.nikInput) {
                         this.nikInput = localStorage.getItem('nik') || '';
                     }
@@ -2552,6 +2567,7 @@
 
                     if (allFilled && this.nikInput) {
                         console.log("✅ Form is valid. Submitting...");
+                        this.isSubmitting = true;
                         $('#scanForm').submit();
                     } else {
                         console.warn("❌ Form not submitted. Missing required fields or NIK.");

@@ -98,6 +98,7 @@ new class extends Component {
                 <livewire:parent-dropdown label="Production & Moulding" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'production.bom.index', 'label' => 'Production BOM'],
                     ['name' => 'daily-item-code.index', 'label' => 'Daily Production Plan'],
+                    ['name' => 'ppic.machine-daily-report', 'label' => 'Laporan Produksi Mesin'],
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
                     ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
                     ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
@@ -161,6 +162,13 @@ new class extends Component {
                         href="{{ route('dashboard') }}"
                         label="Dashboard"
                         :active="request()->routeIs('dashboard')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('operator.daily-report') }}"
+                        label="Laporan Harian Mesin"
+                        :active="request()->routeIs('operator.daily-report')"
                         wire:navigate
                     />
 
@@ -276,6 +284,12 @@ new class extends Component {
                         href="{{ route('daily-item-code.index') }}"
                         label="Daily Production Plan"
                         :active="request()->routeIs('daily-item-code.index')"
+                        wire:navigate
+                    />
+                    <livewire:sidebar-link
+                        href="{{ route('ppic.machine-daily-report') }}"
+                        label="Laporan Produksi Mesin"
+                        :active="request()->routeIs('ppic.machine-daily-report')"
                         wire:navigate
                     />
                     <livewire:sidebar-link

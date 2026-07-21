@@ -31,7 +31,7 @@ class MasterListItemController extends Controller
     public function generateMachineList(Request $request)
     {
         $machineName = $request->machine_name;
-        $machines = SapLineProduction::where('line_production', $machineName)->get();
+        $machines = sapLineProduction::where('line_production', $machineName)->get();
 
         $qrcodes = [];
         $images = [];

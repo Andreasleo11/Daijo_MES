@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Delivery\SapInventoryMtr;
-use App\Models\Delivery\SapInventoryFg;
+use App\Models\Delivery\sapInventoryMtr;
+use App\Models\Delivery\sapInventoryFg;
 
 class InventoryController extends Controller
 {
     public function showFgInventory(Request $request)
     {
-        $query = SapInventoryFg::query();
+        $query = sapInventoryFg::query();
 
         // Filter by Item Code
         if ($request->has('item_code') && $request->item_code) {
@@ -34,7 +34,7 @@ class InventoryController extends Controller
 
     public function showMtrInventory(Request $request)
     {
-        $query = SapInventoryMtr::query();
+        $query = sapInventoryMtr::query();
 
         // Filter by FG Code
         if ($request->has('fg_code') && $request->fg_code) {

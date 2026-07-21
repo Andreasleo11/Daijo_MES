@@ -28,8 +28,8 @@ use App\Models\Delivery\delsched_solist;
 use App\Models\Delivery\delsched_stock;
 use App\Models\Delivery\delsched_stockwip;
 use App\Models\Delivery\SapDelsched;
-use App\Models\Delivery\SapInventoryMtr;
-use App\Models\Delivery\SapInventoryFg;
+use App\Models\Delivery\sapInventoryMtr;
+use App\Models\Delivery\sapInventoryFg;
 use App\Models\Delivery\SapReject;
 use App\Models\Delivery\DeliveryScheduleNew;
 use App\Models\MasterListItem;
@@ -106,7 +106,7 @@ class DeliveryScheduleController extends Controller
 			});
 
 			// Fetch the SapInventoryMtr data
-			$inventoryData = SapInventoryFg::all();
+			$inventoryData = sapInventoryFg::all();
 
 			// Map the inventory data based on fg_code
 			$inventoryMap = $inventoryData->keyBy('item_code');
