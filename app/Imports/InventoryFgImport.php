@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\Delivery\SapInventoryFg;
+use App\Models\Delivery\sapInventoryFg;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithUpserts;
 
@@ -15,7 +15,7 @@ class InventoryFgImport implements ToModel, WithUpserts
             * @param array $row
             * @return \Illuminate\Database\Eloquent\Model|null
             */
-            return new SapInventoryFg([
+            return new sapInventoryFg([
                 'item_code'=> $row[0],
                 'item_name'=> $row[1] ?? '',
                 'item_group'=> $row[2] ?? 0,

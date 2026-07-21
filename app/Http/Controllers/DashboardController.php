@@ -16,7 +16,7 @@ use App\Models\Production\PRD_MouldingJob;
 use App\Models\Production\PRD_MouldingUserLog;
 use App\Models\ProductionReport;
 use App\Models\ProductionScannedData;
-use App\Models\Delivery\SapInventoryFg;
+use App\Models\Delivery\sapInventoryFg;
 use App\Models\MouldChangeLog;
 use App\Models\AdjustMachineLog;
 use App\Models\RepairMachineLog;
@@ -1486,11 +1486,6 @@ class DashboardController extends Controller
             ->where('end_time', $endTime)
             ->first();
 
-        $existingScan = ProductionScannedData::where('spk_code', $spk_code)
-            ->where('label', $label)
-            ->first();
-
-
         $existingSpk = SpkMaster::where('spk_number', $spk_code)->first();
 
         if (!$existingSpk) {
@@ -1502,27 +1497,49 @@ class DashboardController extends Controller
             }
             return redirect()->back()->withErrors(['error' => 'SPK code tidak ditemukan.']);
         }
-        if ($existingScan) {
+
+        try {
+            DB::beginTransaction();
+
+            $existingScan = ProductionScannedData::where('spk_code', $spk_code)
+                ->where('label', $label)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingScan) {
+                DB::rollBack();
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Label ini sudah pernah discan sebelumnya.'
+                    ], 422);
+                }
+                return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
+            }
+
+            $trueItemcode = SpkMaster::where('spk_number', $spk_code)->first()?->item_code ?? $activeDIC->item_code;
+
+            ProductionScannedData::create([
+                'spk_code' => $spk_code,
+                'dic_id' => $dicId,
+                'item_code' => $trueItemcode,
+                'quantity' => $quantity,
+                'warehouse' => $warehouse,
+                'label' => $label,
+                'user' => $user,
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Label ini sudah pernah discan sebelumnya.'
-                ], 422);
+                    'message' => 'Gagal memproses scan barcode: ' . $e->getMessage()
+                ], 500);
             }
-            return redirect()->back()->withErrors(['error' => 'Label ini sudah pernah discan sebelumnya.']);
+            return redirect()->back()->withErrors(['error' => 'Gagal memproses scan barcode: ' . $e->getMessage()]);
         }
-
-        $trueItemcode = SpkMaster::where('spk_number', $spk_code)->first()?->item_code ?? $activeDIC->item_code;
-
-        ProductionScannedData::create([
-            'spk_code' => $spk_code,
-            'dic_id' => $dicId,
-            'item_code' => $trueItemcode,
-            'quantity' => $quantity,
-            'warehouse' => $warehouse,
-            'label' => $label,
-            'user' => $user,
-        ]);
 
         // ✅ PERBAIKAN: Hitung total actual dengan datetime range yang tepat
         $slotStart = $base->copy()->addMinutes($slotIndex * 60);
@@ -2378,7 +2395,7 @@ class DashboardController extends Controller
             $target = floor(3600 / $temporal);
         } else {
             // Priority 2: Get from sap_inventory_fg
-            $sap = SapInventoryFg::where('item_code', $itemCode)->first();
+            $sap = sapInventoryFg::where('item_code', $itemCode)->first();
             $cycle = $sap?->cycle_time;
     
             if ($cycle && is_numeric($cycle) && $cycle > 0) {

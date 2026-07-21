@@ -20,6 +20,7 @@ class GenerateProductionSummary extends Command
             // Ambil data scanned yang belum diproses dengan LOCK agar tidak diambil proses lain
             $unprocessedData = ProductionScannedData::where('processed', false)
                 ->whereIn('warehouse', ['FFI', 'KRFFI'])
+                ->whereNull('summary_id')
                 ->lockForUpdate() // <--- Lock baris ini sampai transaksi selesai
                 ->get();
 
@@ -27,6 +28,11 @@ class GenerateProductionSummary extends Command
                 $this->info('No new data to process.');
                 return;
             }
+
+            // Deduplicate: jika ada record dengan spk_code + label yang sama, ambil yang pertama (ID terkecil), sisanya di-skip
+            $unprocessedData = $unprocessedData->unique(function ($item) {
+                return $item->spk_code . '||' . $item->label;
+            });
 
             // Group per SPK + Warehouse + Date + 10-Minute interval block
             $summaries = $unprocessedData->groupBy(function ($item) {

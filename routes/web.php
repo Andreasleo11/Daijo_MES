@@ -340,6 +340,10 @@ use App\Livewire\ManualSync;
 
 Route::middleware('auth')->group(function (){
 
+    // Machine Daily Production Report
+    Route::get('/operator/daily-report', \App\Livewire\Report\MachineDailyReport::class)->name('operator.daily-report');
+    Route::get('/ppic/machine-daily-report', \App\Livewire\Report\MachineDailyReport::class)->name('ppic.machine-daily-report');
+
     Route::get('/user-role-manager', function () {
         if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
             abort(403);
