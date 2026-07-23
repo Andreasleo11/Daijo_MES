@@ -92,6 +92,7 @@ new class extends Component {
                     ['name' => 'barcode.box_detail.index', 'label' => 'Master Box Detail'],
                     ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping'],
                     ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
+                    ['name' => 'mwh.master-list.index', 'label' => 'Master List Material'],
                     ['name' => 'customer.add', 'label' => 'Manage Barcode Customer'],
                 ]" />
 
@@ -117,6 +118,16 @@ new class extends Component {
                     ['name' => 'wms.pallet-form.picking-guide', 'label' => 'Delivery Picking Guide (FIFO)'],
                     ['name' => 'wms.logs', 'label' => 'Audit Trail Logs'],
                     ['name' => 'updated.barcode.item.position', 'label' => 'Detailed Item List'],
+                ]" />
+
+                <!-- 5. Dropdown: Material Warehouse -->
+                <livewire:parent-dropdown label="Material Warehouse" :initiallyOpen="false" :childRoutes="[
+                    ['name' => 'mwh.incoming.create', 'label' => 'Penerimaan Material (Incoming)'],
+                    ['name' => 'mwh.pallets.index', 'label' => 'Stock Pallet Material'],
+                    ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
+                    ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],
+                    ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
+                    ['name' => 'mwh.master-list.index', 'label' => 'Master List Material'],
                 ]" />
 
                 <!-- 5. Dropdown: Delivery & Business -->
@@ -406,9 +417,44 @@ new class extends Component {
                     />
 
                     <livewire:sidebar-link
+                        href="{{ route('mwh.incoming.create') }}"
+                        label="Penerimaan Material (Incoming)"
+                        :active="request()->routeIs('mwh.incoming.create')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('mwh.pallets.index') }}"
+                        label="Stock & Pallet Material"
+                        :active="request()->routeIs('mwh.pallets.index')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('mwh.outgoing.create') }}"
+                        label="Pengambilan Material (Outgoing)"
+                        :active="request()->routeIs('mwh.outgoing.create')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('mwh.qr-lookup') }}"
+                        label="Scan QR Material"
+                        :active="request()->routeIs('mwh.qr-lookup')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
                         href="{{ route('mwh.mapping') }}"
                         label="Material Warehouse Mapping"
                         :active="request()->routeIs('mwh.mapping')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('mwh.master-list.index') }}"
+                        label="Master List Material"
+                        :active="request()->routeIs('mwh.master-list.index')"
                         wire:navigate
                     />
 
