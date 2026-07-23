@@ -73,7 +73,7 @@
                             <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Process</label>
                             <select name="process_prod" class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">All Process</option>
-                                @foreach(['Painting','Buffing','Amplas','Treatment','Packing','Rework'] as $proc)
+                                @foreach(['Painting','Buffing','Amplas','Treatment','Packing','Rework','Repair'] as $proc)
                                     <option value="{{ $proc }}" {{ request('process_prod') == $proc ? 'selected' : '' }}>{{ $proc }}</option>
                                 @endforeach
                             </select>

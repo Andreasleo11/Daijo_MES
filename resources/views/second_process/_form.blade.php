@@ -135,6 +135,9 @@
                             <option value="Rework"
                                 {{ old('process_prod', $report->process_prod) == 'Rework' ? 'selected' : '' }}>
                                 Rework</option>
+                            <option value="Repair"
+                                {{ old('process_prod', $report->process_prod) == 'Repair' ? 'selected' : '' }}>
+                                Repair</option>
                         </select>
                     </div>
                     <input type="hidden" name="status" id="status-field"
@@ -216,92 +219,91 @@
 
             <!-- Manpower Section -->
             <div class="space-y-4">
-                <h3 class="text-lg font-bold text-gray-800 border-b pb-2 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-teal-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                        </path>
-                    </svg>
-                    Manpower (MP)
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- MP Loading -->
-                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                            <h4 class="text-sm font-bold text-gray-700">MP Loading / Input / Blow /
-                                Packing</h4>
-                        </div>
-                        <div class="p-3 space-y-2">
-                            @for ($i = 1; $i <= 4; $i++)
-                                @php
-                                    $match = $report->manpowers->where('role', 'loading')->where('no', $i)->first();
-                                @endphp
-                                <div class="flex items-center space-x-2">
-                                    <span
-                                        class="text-xs font-bold text-gray-500 w-6 text-right">{{ $i }}</span>
-                                    <input type="hidden" name="manpower[{{ $i }}][role]"
-                                        value="loading">
-                                    <input type="hidden" name="manpower[{{ $i }}][no]"
-                                        value="{{ $i }}">
-                                    <input type="text" name="manpower[{{ $i }}][name]"
-                                        value="{{ $match ? $match->name : '' }}" placeholder="Operator Name"
-                                        class="w-full text-xs rounded border-gray-300 py-1">
-                                </div>
-                            @endfor
-                        </div>
-                    </div>
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-teal-600" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        Manpower (MP)
+                    </h3>
+                    <button type="button" onclick="addManpowerRow()"
+                        class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-1.5 px-4 rounded text-xs transition shadow-sm">
+                        + Add Manpower
+                    </button>
+                </div>
 
-                    <!-- MP Sprayer -->
-                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                            <h4 class="text-sm font-bold text-gray-700">MP Sprayer</h4>
-                        </div>
-                        <div class="p-3 space-y-2">
-                            @for ($i = 1; $i <= 4; $i++)
-                                @php
-                                    $sprIndex = 4 + $i;
-                                    $match = $report->manpowers->where('role', 'sprayer')->where('no', $i)->first();
-                                @endphp
-                                <div class="flex items-center space-x-2">
-                                    <span
-                                        class="text-xs font-bold text-gray-500 w-6 text-right">{{ $i }}</span>
-                                    <input type="hidden" name="manpower[{{ $sprIndex }}][role]"
-                                        value="sprayer">
-                                    <input type="hidden" name="manpower[{{ $sprIndex }}][no]"
-                                        value="{{ $i }}">
-                                    <input type="text" name="manpower[{{ $sprIndex }}][name]"
-                                        value="{{ $match ? $match->name : '' }}" placeholder="Sprayer Name"
-                                        class="w-full text-xs rounded border-gray-300 py-1">
-                                </div>
-                            @endfor
-                        </div>
-                    </div>
-
-                    <!-- MP Checker -->
-                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                            <h4 class="text-sm font-bold text-gray-700">MP Checker</h4>
-                        </div>
-                        <div class="p-3 space-y-2">
-                            @for ($i = 1; $i <= 4; $i++)
-                                @php
-                                    $chkIndex = 8 + $i;
-                                    $match = $report->manpowers->where('role', 'checker')->where('no', $i)->first();
-                                @endphp
-                                <div class="flex items-center space-x-2">
-                                    <span
-                                        class="text-xs font-bold text-gray-500 w-6 text-right">{{ $i }}</span>
-                                    <input type="hidden" name="manpower[{{ $chkIndex }}][role]"
-                                        value="checker">
-                                    <input type="hidden" name="manpower[{{ $chkIndex }}][no]"
-                                        value="{{ $i }}">
-                                    <input type="text" name="manpower[{{ $chkIndex }}][name]"
-                                        value="{{ $match ? $match->name : '' }}" placeholder="Checker Name"
-                                        class="w-full text-xs rounded border-gray-300 py-1">
-                                </div>
-                            @endfor
-                        </div>
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200" id="manpower-table">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 w-12">No</th>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 w-1/3">Role</th>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-600">Name</th>
+                                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-600 w-16">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="manpower-tbody">
+                                @forelse($report->manpowers->sortBy('no') as $index => $mp)
+                                    <tr class="manpower-row">
+                                        <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">{{ $loop->iteration }}</td>
+                                        <td class="px-4 py-2">
+                                            <input type="hidden" name="manpower[{{ $index }}][no]" class="mp-no-input" value="{{ $loop->iteration }}">
+                                            @php
+                                                $isCustom = !in_array($mp->role, ['loading', 'sprayer', 'checker', 'qc', 'operator', 'leader']);
+                                            @endphp
+                                            <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, {{ $index }})">
+                                                <option value="loading" {{ $mp->role == 'loading' ? 'selected' : '' }}>Loading / Input / Packing</option>
+                                                <option value="sprayer" {{ $mp->role == 'sprayer' ? 'selected' : '' }}>Sprayer</option>
+                                                <option value="checker" {{ $mp->role == 'checker' ? 'selected' : '' }}>Checker</option>
+                                                <option value="qc" {{ $mp->role == 'qc' ? 'selected' : '' }}>QC</option>
+                                                <option value="operator" {{ $mp->role == 'operator' ? 'selected' : '' }}>Operator</option>
+                                                <option value="leader" {{ $mp->role == 'leader' ? 'selected' : '' }}>Leader</option>
+                                                <option value="__custom__" {{ $isCustom ? 'selected' : '' }}>Other (custom)...</option>
+                                            </select>
+                                            <input type="text" name="manpower[{{ $index }}][role]" value="{{ $mp->role }}" class="w-full text-xs rounded border-gray-300 py-1 role-input {{ $isCustom ? '' : 'hidden' }}" placeholder="Type custom role..." {{ $isCustom ? '' : 'readonly' }}>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="text" name="manpower[{{ $index }}][name]" value="{{ $mp->name }}" placeholder="Operator Name" class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-4 py-2 text-center">
+                                            <button type="button" onclick="removeManpowerRow(this)" class="text-red-500 hover:text-red-700 p-1">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <!-- Initial empty row if no data -->
+                                    <tr class="manpower-row">
+                                        <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">1</td>
+                                        <td class="px-4 py-2">
+                                            <input type="hidden" name="manpower[0][no]" class="mp-no-input" value="1">
+                                            <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, 0)">
+                                                <option value="loading">Loading / Input / Packing</option>
+                                                <option value="sprayer">Sprayer</option>
+                                                <option value="checker">Checker</option>
+                                                <option value="qc">QC</option>
+                                                <option value="operator">Operator</option>
+                                                <option value="leader">Leader</option>
+                                                <option value="__custom__">Other (custom)...</option>
+                                            </select>
+                                            <input type="text" name="manpower[0][role]" value="loading" class="w-full text-xs rounded border-gray-300 py-1 role-input hidden" placeholder="Type custom role..." readonly>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="text" name="manpower[0][name]" placeholder="Operator Name" class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-4 py-2 text-center">
+                                            <button type="button" onclick="removeManpowerRow(this)" class="text-red-500 hover:text-red-700 p-1">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1780,4 +1782,74 @@
         calculateHourlyAccumulation();
         calculateNgTotals();
     });
+</script>
+
+<!-- Manpower Script -->
+<script>
+    let manpowerIndex = document.querySelectorAll('.manpower-row').length;
+
+    function toggleCustomRole(select, index) {
+        const input = select.nextElementSibling;
+        if (select.value === '__custom__') {
+            input.classList.remove('hidden');
+            input.removeAttribute('readonly');
+            input.value = ''; // clear previous value
+            input.focus();
+        } else {
+            input.classList.add('hidden');
+            input.setAttribute('readonly', 'readonly');
+            input.value = select.value;
+        }
+    }
+
+    function addManpowerRow() {
+        const tbody = document.getElementById('manpower-tbody');
+        const rows = tbody.querySelectorAll('.manpower-row');
+        const nextNo = rows.length + 1;
+        
+        const tr = document.createElement('tr');
+        tr.className = 'manpower-row';
+        tr.innerHTML = `
+            <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">${nextNo}</td>
+            <td class="px-4 py-2">
+                <input type="hidden" name="manpower[${manpowerIndex}][no]" class="mp-no-input" value="${nextNo}">
+                <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, ${manpowerIndex})">
+                    <option value="loading">Loading / Input / Packing</option>
+                    <option value="sprayer">Sprayer</option>
+                    <option value="checker">Checker</option>
+                    <option value="qc">QC</option>
+                    <option value="operator">Operator</option>
+                    <option value="leader">Leader</option>
+                    <option value="__custom__">Other (custom)...</option>
+                </select>
+                <input type="text" name="manpower[${manpowerIndex}][role]" value="loading" class="w-full text-xs rounded border-gray-300 py-1 role-input hidden" placeholder="Type custom role..." readonly>
+            </td>
+            <td class="px-4 py-2">
+                <input type="text" name="manpower[${manpowerIndex}][name]" placeholder="Operator Name" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-4 py-2 text-center">
+                <button type="button" onclick="removeManpowerRow(this)" class="text-red-500 hover:text-red-700 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        manpowerIndex++;
+        updateManpowerNumbers();
+    }
+
+    function removeManpowerRow(btn) {
+        const tr = btn.closest('tr');
+        tr.remove();
+        updateManpowerNumbers();
+    }
+
+    function updateManpowerNumbers() {
+        const rows = document.querySelectorAll('.manpower-row');
+        rows.forEach((row, index) => {
+            const no = index + 1;
+            row.querySelector('.mp-no').textContent = no;
+            row.querySelector('.mp-no-input').value = no;
+        });
+    }
 </script>

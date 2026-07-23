@@ -341,32 +341,24 @@
             <!-- Manpower Section -->
             <div>
                 <h3 class="text-sm font-bold border-b border-black pb-1 mb-2">Manpower (MP)</h3>
-                <div class="grid grid-cols-3 gap-4 text-[11px]">
-                    <div class="border border-black">
-                        <div class="bg-gray-100 p-1 font-bold text-center border-b border-black">Loading / Input /
-                            packing</div>
-                        <ul class="divide-y divide-black p-1">
-                            @foreach ($report->manpowers->where('role', 'loading')->sortBy('no') as $mp)
-                                <li class="py-1 px-2">{{ $mp->no }}. {{ $mp->name ?: '-' }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                    <div class="border border-black">
-                        <div class="bg-gray-100 p-1 font-bold text-center border-b border-black">MP Sprayer</div>
-                        <ul class="divide-y divide-black p-1">
-                            @foreach ($report->manpowers->where('role', 'sprayer')->sortBy('no') as $mp)
-                                <li class="py-1 px-2">{{ $mp->no }}. {{ $mp->name ?: '-' }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                    <div class="border border-black">
-                        <div class="bg-gray-100 p-1 font-bold text-center border-b border-black">MP Checker</div>
-                        <ul class="divide-y divide-black p-1">
-                            @foreach ($report->manpowers->where('role', 'checker')->sortBy('no') as $mp)
-                                <li class="py-1 px-2">{{ $mp->no }}. {{ $mp->name ?: '-' }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+                @php
+                    $mpGroups = $report->manpowers->sortBy('no')->groupBy('role');
+                @endphp
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-[11px]">
+                    @forelse($mpGroups as $role => $members)
+                        <div class="border border-black">
+                            <div class="bg-gray-100 p-1 font-bold text-center border-b border-black capitalize">
+                                {{ $role }}
+                            </div>
+                            <ul class="divide-y divide-black p-1">
+                                @foreach ($members as $mp)
+                                    <li class="py-1 px-2">{{ $mp->no }}. {{ $mp->name ?: '-' }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 col-span-full text-center py-2">No manpower recorded.</p>
+                    @endforelse
                 </div>
             </div>
 
