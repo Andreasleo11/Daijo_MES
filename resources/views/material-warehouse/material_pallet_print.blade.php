@@ -133,8 +133,8 @@
             );
             $qrTextBase64 = base64_encode($writer->write($qrText)->getString());
 
-            // 2. Full Web URL QR (Right Side) — For Native HP Camera Live Lookup
-            $qrUrl = url('/material-warehouse/qr-lookup?pallet_id=' . $pallet->pallet_id);
+            // 2. Full Web Signed URL QR (Right Side) — Cryptographically Signed for Public IP Security
+            $qrUrl = \Illuminate\Support\Facades\URL::signedRoute('mwh.public-pallet-lookup', ['palletId' => $pallet->pallet_id]);
             $qrUrlObj = new \Endroid\QrCode\QrCode(
                 data: $qrUrl,
                 errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,

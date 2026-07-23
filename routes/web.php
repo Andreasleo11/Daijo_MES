@@ -338,6 +338,22 @@ use App\Livewire\ManualSync;
     })->where('user_id', '[0-9A-Za-z]+'); // Ensure only valid user IDs
     // Route untuk auto login
 
+// Public Material Pallet Live Check (Cryptographically Signed URL - Safe for Public IP)
+Route::get('/public/material-pallet/{palletId}', function (\Illuminate\Http\Request $request, $palletId) {
+    if (! $request->hasValidSignature()) {
+        abort(403, 'Akses Ditolak: Halaman ini hanya dapat diakses melalui QR Code fisik resmi.');
+    }
+
+    $pallet = \App\Models\MwhPallet::with([
+        'position.rack',
+        'material',
+        'incomingHeader',
+        'outgoings.position.rack'
+    ])->where('pallet_id', strtoupper($palletId))->first();
+
+    return view('material-warehouse.public_pallet_lookup', compact('pallet', 'palletId'));
+})->name('mwh.public-pallet-lookup')->middleware('throttle:60,1');
+
 Route::middleware('auth')->group(function (){
 
     // Machine Daily Production Report

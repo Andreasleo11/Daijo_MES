@@ -332,4 +332,27 @@ class MaterialWarehouseTransactionTest extends TestCase
         $pos->refresh();
         $this->assertEquals('PARTIAL', $pos->status);
     }
+
+    public function test_public_pallet_lookup_accessible_without_authentication()
+    {
+        $pallet = MwhPallet::create([
+            'pallet_id'   => 'MPLT-PUBLIC-777',
+            'item_code'   => 'PUBLIC-ITEM-01',
+            'initial_qty' => 500.00,
+            'current_qty' => 500.00,
+            'status'      => 'STORED',
+        ]);
+
+        // Unsigned request should be rejected with 403 Forbidden
+        $this->get('/public/material-pallet/MPLT-PUBLIC-777')->assertStatus(403);
+
+        // Signed URL request should succeed without login
+        $signedUrl = \Illuminate\Support\Facades\URL::signedRoute('mwh.public-pallet-lookup', ['palletId' => 'MPLT-PUBLIC-777']);
+        $response = $this->get($signedUrl);
+
+        $response->assertStatus(200);
+        $response->assertSee('MPLT-PUBLIC-777');
+        $response->assertSee('PUBLIC-ITEM-01');
+        $response->assertSee('500.00');
+    }
 }
