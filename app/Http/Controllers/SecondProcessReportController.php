@@ -14,13 +14,50 @@ class SecondProcessReportController extends Controller
     {
         $query = SecondProcessReport::query();
 
-        if ($request->filled('date')) {
-            $query->whereDate('date', $request->date);
+        // Date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
         }
 
-        $reports = $query->orderBy('date', 'desc')->paginate(15);
+        // Discrete filters
+        if ($request->filled('shift')) {
+            $query->where('shift', $request->shift);
+        }
+        if ($request->filled('process_prod')) {
+            $query->where('process_prod', $request->process_prod);
+        }
+        if ($request->filled('unit_line')) {
+            $query->where('unit_line', 'LIKE', '%' . $request->unit_line . '%');
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-        return view('second_process.index', compact('reports'));
+        // Keyword search (model, part_number, customer, part_name)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('model', 'LIKE', "%{$search}%")
+                  ->orWhere('part_number', 'LIKE', "%{$search}%")
+                  ->orWhere('customer', 'LIKE', "%{$search}%")
+                  ->orWhere('part_name', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Summary stats from filtered query (before pagination)
+        $summary = (clone $query)->selectRaw('
+            COUNT(*) as total_reports,
+            COALESCE(SUM(jumlah_output), 0) as total_output,
+            COALESCE(SUM(jumlah_ok), 0) as total_ok,
+            COALESCE(SUM(jumlah_ng), 0) as total_ng
+        ')->first();
+
+        $reports = $query->orderBy('date', 'desc')->paginate(25)->withQueryString();
+
+        return view('second_process.index', compact('reports', 'summary'));
     }
 
     public function create()
