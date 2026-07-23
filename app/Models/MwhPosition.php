@@ -27,4 +27,9 @@ class MwhPosition extends Model
     {
         return $this->belongsTo(MwhRack::class, 'rack_id');
     }
+
+    public function pallets()
+    {
+        return $this->hasMany(MwhPallet::class, 'position_id');
+    }
 }
