@@ -328,7 +328,7 @@
                                                 </div>
 
                                                 <div class="text-[10px] text-gray-500 flex justify-between items-center font-mono pt-1">
-                                                    <span>Tgl Masuk (FIFO): <strong class="text-gray-800">{{ $pal->created_at ? $pal->created_at->format('Y-m-d') : '-' }}</strong></span>
+                                                    <span>Tgl Masuk (FIFO): <strong class="text-gray-800">{{ $pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></span>
                                                 </div>
 
                                                 <div class="pt-1 flex justify-end gap-1.5">

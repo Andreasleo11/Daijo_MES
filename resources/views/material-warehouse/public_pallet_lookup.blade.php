@@ -147,7 +147,7 @@
                 <!-- Document Info Footer -->
                 <div class="pt-3 border-t border-slate-100 flex flex-wrap justify-between items-center text-xs text-slate-500 font-medium gap-2">
                     <div>No. PO: <strong class="font-mono text-slate-800">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</strong></div>
-                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->created_at ? $pallet->created_at->format('Y-m-d H:i') : '-' }}</strong></div>
+                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></div>
                 </div>
             </div>
 
@@ -169,7 +169,7 @@
                             <div class="space-y-0.5">
                                 <div class="font-mono font-black text-slate-900 text-xs">{{ $out->outgoing_code }}</div>
                                 <div class="text-[10px] text-slate-500 font-medium">
-                                    Tujuan: <strong class="text-slate-700">{{ $out->issued_to ?: '-' }}</strong> &bull; {{ $out->outgoing_date ? $out->outgoing_date->format('Y-m-d') : '-' }}
+                                    Tujuan: <strong class="text-slate-700">{{ $out->issued_to ?: '-' }}</strong> &bull; {{ $out->created_at ? $out->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : ($out->outgoing_date ? $out->outgoing_date->format('d M Y') : '-') }} WIB
                                 </div>
                             </div>
                             <span class="font-black text-rose-600 font-mono text-sm whitespace-nowrap bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-100">

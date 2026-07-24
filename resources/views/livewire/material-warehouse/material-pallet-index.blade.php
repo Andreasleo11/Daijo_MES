@@ -114,7 +114,7 @@
                                     @endif
                                 </td>
                                 <td class="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                                    {{ $p->created_at ? $p->created_at->format('Y-m-d H:i') : '-' }}
+                                    {{ $p->created_at ? $p->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB
                                 </td>
                                 <td class="py-3.5 px-4 text-right space-x-1.5">
                                     <a href="{{ route('mwh.pallet.print', $p->pallet_id) }}" target="_blank" class="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg inline-block transition" title="Print QR Label">
