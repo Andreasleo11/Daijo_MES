@@ -76,13 +76,15 @@ class MaterialPalletIndex extends Component
             $positionId = $pallet->position_id;
             $palletCode = $pallet->pallet_id;
 
+            // Also delete related outgoing transaction history for this test pallet
+            \App\Models\MwhOutgoing::where('pallet_id', $palletCode)->delete();
             $pallet->delete();
 
             if ($positionId) {
                 $mwhService->updatePositionStatus($positionId);
             }
 
-            session()->flash('success', "Pallet {$palletCode} berhasil dihapus.");
+            session()->flash('success', "Pallet {$palletCode} beserta history transaksinya berhasil dihapus.");
         }
     }
 

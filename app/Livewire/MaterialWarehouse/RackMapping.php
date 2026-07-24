@@ -30,6 +30,7 @@ class RackMapping extends Component
     public string $new_lot_no = '';
     public string $new_supplier_name = '';
     public string $new_po_number = '';
+    public string $new_created_at = '';
     public array $newMaterialSearchResults = [];
 
     // UI State
@@ -50,6 +51,7 @@ class RackMapping extends Component
             $this->editLastItemCode = $pos->last_item_code;
             $this->showDetail = true;
             $this->showAddMaterialForm = false;
+            $this->new_created_at = now()->format('Y-m-d');
             $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'newMaterialSearchResults']);
         }
     }
@@ -80,7 +82,9 @@ class RackMapping extends Component
     {
         $this->showAddMaterialForm = !$this->showAddMaterialForm;
         if (!$this->showAddMaterialForm) {
-            $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'newMaterialSearchResults']);
+            $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'new_created_at', 'newMaterialSearchResults']);
+        } else {
+            $this->new_created_at = now()->format('Y-m-d');
         }
     }
 
@@ -90,6 +94,7 @@ class RackMapping extends Component
             'selectedPositionId' => 'required|exists:mwh_positions,id',
             'new_item_code'      => 'required|string|exists:master_list_materials,item_code',
             'new_qty'            => 'required|numeric|min:0.01',
+            'new_created_at'     => 'required|date',
             'new_lot_no'         => 'nullable|string|max:255',
             'new_supplier_name'  => 'nullable|string|max:255',
             'new_po_number'      => 'nullable|string|max:255',
@@ -97,6 +102,7 @@ class RackMapping extends Component
             'new_item_code.required' => 'Part Code material harus diisi.',
             'new_item_code.exists'   => 'Part Code material tidak ada di Master List.',
             'new_qty.required'       => 'Jumlah (KG) harus diisi.',
+            'new_created_at.required' => 'Tanggal masuk (FIFO) harus diisi.',
         ]);
 
         $pos = MwhPosition::find($this->selectedPositionId);
@@ -105,12 +111,16 @@ class RackMapping extends Component
         try {
             DB::beginTransaction();
 
+            $arrivalDate = date('Y-m-d', strtotime($this->new_created_at));
+            $createdAtTimestamp = date('Y-m-d H:i:s', strtotime($this->new_created_at . ' ' . now()->format('H:i:s')));
+
             $header = MwhIncomingHeader::create([
                 'document_no'   => $mwhService->generateDocumentNo(),
                 'supplier_name' => trim($this->new_supplier_name) ?: null,
                 'po_number'     => trim($this->new_po_number) ?: null,
-                'arrival_date'  => now()->format('Y-m-d'),
+                'arrival_date'  => $arrivalDate,
                 'remarks'       => 'Direct input via Material Warehouse Mapping',
+                'created_at'    => $createdAtTimestamp,
             ]);
 
             $remainingToSplit = (float) $this->new_qty;
@@ -131,6 +141,7 @@ class RackMapping extends Component
                     'uom'                => 'KG',
                     'position_id'        => $pos->id,
                     'status'             => 'STORED',
+                    'created_at'         => $createdAtTimestamp,
                 ]);
             }
 
@@ -138,12 +149,39 @@ class RackMapping extends Component
 
             DB::commit();
 
-            session()->flash('success', "Material {$this->new_item_code} ({$this->new_qty} KG) berhasil ditambahkan ke slot {$pos->position_code}.");
+            session()->flash('success', "Material {$this->new_item_code} ({$this->new_qty} KG, Tgl FIFO: {$arrivalDate}) berhasil ditambahkan ke slot {$pos->position_code}.");
 
-            $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'newMaterialSearchResults', 'showAddMaterialForm']);
+            $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'new_created_at', 'newMaterialSearchResults', 'showAddMaterialForm']);
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Gagal menambahkan material ke slot: ' . $e->getMessage());
+        }
+    }
+
+    public function deletePalletFromSlot($palletId, MaterialWarehouseService $mwhService): void
+    {
+        try {
+            DB::beginTransaction();
+
+            $pallet = MwhPallet::find($palletId);
+            if ($pallet) {
+                $posId = $pallet->position_id;
+                $palletCode = $pallet->pallet_id;
+
+                // Also delete related outgoing transaction history for this test pallet
+                \App\Models\MwhOutgoing::where('pallet_id', $palletCode)->delete();
+                $pallet->delete();
+
+                if ($posId) {
+                    $mwhService->updatePositionStatus($posId);
+                }
+
+                DB::commit();
+                session()->flash('success', "Pallet {$palletCode} berhasil dihapus dari slot.");
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Gagal menghapus pallet dari slot: ' . $e->getMessage());
         }
     }
 

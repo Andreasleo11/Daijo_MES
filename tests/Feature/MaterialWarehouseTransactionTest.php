@@ -324,19 +324,33 @@ class MaterialWarehouseTransactionTest extends TestCase
             ->call('selectPosition', $pos->id)
             ->set('new_item_code', 'MAT-DIRECT-01')
             ->set('new_qty', '650')
+            ->set('new_created_at', '2026-06-15')
             ->set('new_lot_no', 'LOT-DIRECT-99')
             ->call('storeMaterialToSlot')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('mwh_pallets', [
-            'position_id' => $pos->id,
-            'item_code'   => 'MAT-DIRECT-01',
-            'current_qty' => 650.00,
-            'lot_no'      => 'LOT-DIRECT-99',
-        ]);
+        $pallet = MwhPallet::where('position_id', $pos->id)->where('item_code', 'MAT-DIRECT-01')->first();
+        $this->assertNotNull($pallet);
+        $this->assertEquals(650.00, $pallet->current_qty);
+        $this->assertEquals('LOT-DIRECT-99', $pallet->lot_no);
+        $this->assertEquals('2026-06-15', $pallet->created_at->format('Y-m-d'));
 
         $pos->refresh();
         $this->assertEquals('PARTIAL', $pos->status);
+
+        // Create outgoing transaction for this test pallet
+        app(MaterialWarehouseService::class)->processOutgoingPicking($pallet->pallet_id, 100.00, '2026-06-16', 'Mesin 02', 'Test Outgoing');
+
+        $this->assertDatabaseHas('mwh_outgoings', ['pallet_id' => $pallet->pallet_id, 'deleted_at' => null]);
+
+        // Delete pallet from slot
+        Livewire::test(\App\Livewire\MaterialWarehouse\RackMapping::class)
+            ->call('selectPosition', $pos->id)
+            ->call('deletePalletFromSlot', $pallet->id)
+            ->assertHasNoErrors();
+
+        $this->assertSoftDeleted('mwh_pallets', ['id' => $pallet->id]);
+        $this->assertSoftDeleted('mwh_outgoings', ['pallet_id' => $pallet->pallet_id]);
     }
 
     public function test_public_pallet_lookup_accessible_without_authentication()

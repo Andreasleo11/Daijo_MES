@@ -270,19 +270,20 @@
                                                 @error('new_qty') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
                                             </div>
                                             <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Lot / Batch No</label>
-                                                <input type="text" wire:model="new_lot_no" placeholder="Ex: LOT-01" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500">
+                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Tanggal Masuk (FIFO) *</label>
+                                                <input type="date" wire:model="new_created_at" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
+                                                @error('new_created_at') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
 
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Supplier (Opsional)</label>
-                                                <input type="text" wire:model="new_supplier_name" placeholder="Nama Supplier" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
+                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Lot / Batch No</label>
+                                                <input type="text" wire:model="new_lot_no" placeholder="Ex: LOT-01" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500">
                                             </div>
                                             <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">No. PO (Opsional)</label>
-                                                <input type="text" wire:model="new_po_number" placeholder="PO-12345" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-500">
+                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Supplier (Opsional)</label>
+                                                <input type="text" wire:model="new_supplier_name" placeholder="Nama Supplier" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
                                             </div>
                                         </div>
 
@@ -326,14 +327,22 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="pt-1 flex justify-end gap-2">
-                                                    <a href="{{ route('mwh.pallet.print', $pal->pallet_id) }}" target="_blank" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1">
+                                                <div class="text-[10px] text-gray-500 flex justify-between items-center font-mono pt-1">
+                                                    <span>Tgl Masuk (FIFO): <strong class="text-gray-800">{{ $pal->created_at ? $pal->created_at->format('Y-m-d') : '-' }}</strong></span>
+                                                </div>
+
+                                                <div class="pt-1 flex justify-end gap-1.5">
+                                                    <a href="{{ route('mwh.pallet.print', $pal->pallet_id) }}" target="_blank" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Cetak Label QR">
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                                         <span>Print QR</span>
                                                     </a>
-                                                    <a href="{{ route('mwh.outgoing.create', ['selected_item_code' => $pal->item_code]) }}" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1">
-                                                        <span>Picking Outgoing</span>
+                                                    <a href="{{ route('mwh.outgoing.create', ['selected_item_code' => $pal->item_code]) }}" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Picking Outgoing">
+                                                        <span>Picking</span>
                                                     </a>
+                                                    <button onclick="confirm('Hapus Pallet {{ $pal->pallet_id }} dari slot ini?') || event.stopImmediatePropagation()" wire:click="deletePalletFromSlot({{ $pal->id }})" class="px-2 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Hapus Pallet">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                        <span>Hapus</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         @endforeach

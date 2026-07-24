@@ -22,6 +22,7 @@ class MwhPallet extends Model
         'uom',
         'position_id',
         'status',
+        'created_at',
     ];
 
     protected $casts = [

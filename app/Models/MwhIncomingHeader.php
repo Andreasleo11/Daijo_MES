@@ -18,6 +18,7 @@ class MwhIncomingHeader extends Model
         'po_number',
         'arrival_date',
         'remarks',
+        'created_at',
     ];
 
     protected $casts = [
