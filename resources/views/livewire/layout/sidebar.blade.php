@@ -504,44 +504,37 @@ new class extends Component {
         </div>
     </div>
 
-    {{-- BOTTOM USER DROPDOWN --}}
-    <div class="px-6 py-4 border-t border-gray-200">
-        <div x-data="{ open: false }" class="relative">
-            <button
-                @click="open = !open"
-                class="w-full inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                <div
-                    x-data="{ name: '{{ auth()->user()?->name ?? 'Guest' }}' }"
-                    x-text="name"
-                    x-on:profile-updated.window="name = $event.detail.name">
+    {{-- BOTTOM USER FOOTER --}}
+    <div class="p-4 border-t border-gray-200 bg-gray-50/80">
+        <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-2.5 overflow-hidden">
+                <div class="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                    {{ strtoupper(substr(auth()->user()?->name ?? 'G', 0, 2)) }}
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                     viewBox="0 0 24 24" stroke-width="1.5"
-                     stroke="currentColor" class="ms-1 size-2">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-            </button>
-
-            <div
-                x-show="open"
-                @click.away="open = false"
-                x-transition
-                class="absolute right-0 bottom-full mb-2 w-48 bg-white shadow-lg z-10 rounded-md ring-1 ring-black ring-opacity-5">
-                <div class="py-1">
-                    @if (auth()->user() && auth()->user()->can('view-admin-links'))
-                        <a href="{{ route('profile') }}"
-                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">
-                            {{ __('Profile') }}
-                        </a>
-                    @endif
-
-                    <button
-                        wire:click="logout"
-                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">
-                        {{ __('Log Out') }}
-                    </button>
+                <div class="truncate">
+                    <div class="text-xs font-bold text-gray-900 truncate leading-tight">
+                        {{ auth()->user()?->name ?? 'Guest' }}
+                    </div>
+                    <div class="text-[10px] text-gray-500 font-semibold uppercase truncate">
+                        {{ auth()->user()?->role?->name ?? 'User' }}
+                    </div>
                 </div>
+            </div>
+
+            <div class="flex items-center space-x-1 shrink-0">
+                @if (auth()->user() && auth()->user()->can('view-admin-links'))
+                    <a href="{{ route('profile') }}" wire:navigate class="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition" title="Profile">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    </a>
+                @endif
+
+                <button
+                    wire:click="logout"
+                    class="px-2.5 py-1.5 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200/80 rounded-xl transition flex items-center space-x-1 text-xs font-bold shadow-xs active:scale-95"
+                    title="Log Out">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <span>Logout</span>
+                </button>
             </div>
         </div>
     </div>
