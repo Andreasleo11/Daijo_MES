@@ -148,19 +148,33 @@ class MaterialIncomingCreator extends Component
                         }
                     }
 
-                    $palletId = $mwhService->generatePalletId();
+                    $inserted = false;
+                    $attempts = 0;
 
-                    $pallet = MwhPallet::create([
-                        'pallet_id'          => $palletId,
-                        'incoming_header_id' => $header->id,
-                        'item_code'          => $itemCode,
-                        'lot_no'             => $lotNo,
-                        'initial_qty'        => $palletQty,
-                        'current_qty'        => $palletQty,
-                        'uom'                => 'KG',
-                        'position_id'        => $targetPosId,
-                        'status'             => 'STORED',
-                    ]);
+                    while (!$inserted && $attempts < 5) {
+                        $attempts++;
+                        $palletId = $mwhService->generatePalletId();
+
+                        try {
+                            $pallet = MwhPallet::create([
+                                'pallet_id'          => $palletId,
+                                'incoming_header_id' => $header->id,
+                                'item_code'          => $itemCode,
+                                'lot_no'             => $lotNo,
+                                'initial_qty'        => $palletQty,
+                                'current_qty'        => $palletQty,
+                                'uom'                => 'KG',
+                                'position_id'        => $targetPosId,
+                                'status'             => 'STORED',
+                            ]);
+                            $inserted = true;
+                        } catch (\Illuminate\Database\QueryException $qe) {
+                            if ($attempts >= 5 || !str_contains($qe->getMessage(), '1062 Duplicate entry')) {
+                                throw $qe;
+                            }
+                            usleep(50000);
+                        }
+                    }
 
                     $mwhService->updatePositionStatus($targetPosId);
 
@@ -177,6 +191,13 @@ class MaterialIncomingCreator extends Component
 
             $this->showSuccessModal = true;
             session()->flash('success', 'Transaksi Kedatangan Material & Palletizing berhasil disimpan.');
+        } catch (\Illuminate\Database\QueryException $qe) {
+            DB::rollBack();
+            if (str_contains($qe->getMessage(), '1062 Duplicate entry')) {
+                session()->flash('error', 'Terjadi duplikasi ID Pallet saat menyimpan. Silakan coba klik Simpan sekali lagi.');
+            } else {
+                session()->flash('error', 'Terjadi kesalahan basis data saat menyimpan transaksi kedatangan.');
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Gagal menyimpan transaksi kedatangan: ' . $e->getMessage());

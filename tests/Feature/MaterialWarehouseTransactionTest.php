@@ -375,4 +375,37 @@ class MaterialWarehouseTransactionTest extends TestCase
         $response->assertSee('PUBLIC-ITEM-01');
         $response->assertSee('500.00');
     }
+
+    public function test_generating_code_after_soft_delete_prevents_duplicate_entry()
+    {
+        $mwhService = app(MaterialWarehouseService::class);
+
+        $p1Code = $mwhService->generatePalletId();
+        $p1 = MwhPallet::create([
+            'pallet_id'   => $p1Code,
+            'item_code'   => 'TEST-ITEM-DUP',
+            'initial_qty' => 100,
+            'current_qty' => 100,
+            'status'      => 'STORED',
+        ]);
+
+        // Soft delete p1
+        $p1->delete();
+        $this->assertSoftDeleted('mwh_pallets', ['id' => $p1->id]);
+
+        // Generate next pallet ID
+        $p2Code = $mwhService->generatePalletId();
+        $this->assertNotEquals($p1Code, $p2Code);
+
+        // Creating p2 must succeed without Duplicate Entry exception
+        $p2 = MwhPallet::create([
+            'pallet_id'   => $p2Code,
+            'item_code'   => 'TEST-ITEM-DUP',
+            'initial_qty' => 200,
+            'current_qty' => 200,
+            'status'      => 'STORED',
+        ]);
+
+        $this->assertDatabaseHas('mwh_pallets', ['pallet_id' => $p2Code, 'deleted_at' => null]);
+    }
 }

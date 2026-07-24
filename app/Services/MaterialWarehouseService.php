@@ -16,12 +16,22 @@ class MaterialWarehouseService
     public function generateDocumentNo(): string
     {
         $prefix = 'IN-' . date('Ymd') . '-';
-        $latest = MwhIncomingHeader::where('document_no', 'like', $prefix . '%')
+        $latest = MwhIncomingHeader::withTrashed()
+            ->where('document_no', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
 
         $num = $latest ? ((int) substr($latest->document_no, -4)) + 1 : 1;
-        return $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+
+        do {
+            $code = $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+            $exists = MwhIncomingHeader::withTrashed()->where('document_no', $code)->exists();
+            if ($exists) {
+                $num++;
+            }
+        } while ($exists);
+
+        return $code;
     }
 
     /**
@@ -30,12 +40,22 @@ class MaterialWarehouseService
     public function generatePalletId(): string
     {
         $prefix = 'MPLT-' . date('Ymd') . '-';
-        $latest = MwhPallet::where('pallet_id', 'like', $prefix . '%')
+        $latest = MwhPallet::withTrashed()
+            ->where('pallet_id', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
 
         $num = $latest ? ((int) substr($latest->pallet_id, -4)) + 1 : 1;
-        return $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+
+        do {
+            $code = $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+            $exists = MwhPallet::withTrashed()->where('pallet_id', $code)->exists();
+            if ($exists) {
+                $num++;
+            }
+        } while ($exists);
+
+        return $code;
     }
 
     /**
@@ -44,12 +64,22 @@ class MaterialWarehouseService
     public function generateOutgoingCode(): string
     {
         $prefix = 'OUT-' . date('Ymd') . '-';
-        $latest = MwhOutgoing::where('outgoing_code', 'like', $prefix . '%')
+        $latest = MwhOutgoing::withTrashed()
+            ->where('outgoing_code', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
 
         $num = $latest ? ((int) substr($latest->outgoing_code, -4)) + 1 : 1;
-        return $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+
+        do {
+            $code = $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
+            $exists = MwhOutgoing::withTrashed()->where('outgoing_code', $code)->exists();
+            if ($exists) {
+                $num++;
+            }
+        } while ($exists);
+
+        return $code;
     }
 
     /**

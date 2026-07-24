@@ -17,18 +17,22 @@ class WmsService
         $date = Carbon::now()->format('Ymd');
         $prefix = 'PLT-' . $date . '-';
         
-        $lastPallet = WmsPalletForm::where('pallet_id', 'LIKE', $prefix . '%')
-            ->orderBy('pallet_id', 'desc')
+        $lastPallet = WmsPalletForm::withTrashed()
+            ->where('pallet_id', 'LIKE', $prefix . '%')
+            ->orderBy('id', 'desc')
             ->first();
 
-        if ($lastPallet) {
-            $lastNum = (int) substr($lastPallet->pallet_id, -4);
-            $newNum = str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
-        } else {
-            $newNum = '0001';
-        }
+        $lastNum = $lastPallet ? (int) substr($lastPallet->pallet_id, -4) + 1 : 1;
 
-        return $prefix . $newNum;
+        do {
+            $code = $prefix . str_pad($lastNum, 4, '0', STR_PAD_LEFT);
+            $exists = WmsPalletForm::withTrashed()->where('pallet_id', $code)->exists();
+            if ($exists) {
+                $lastNum++;
+            }
+        } while ($exists);
+
+        return $code;
     }
 
     /**

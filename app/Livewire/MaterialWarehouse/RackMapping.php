@@ -129,20 +129,34 @@ class RackMapping extends Component
                 $palletQty = min(1000.0, $remainingToSplit);
                 $remainingToSplit -= $palletQty;
 
-                $palletId = $mwhService->generatePalletId();
+                $inserted = false;
+                $attempts = 0;
 
-                MwhPallet::create([
-                    'pallet_id'          => $palletId,
-                    'incoming_header_id' => $header->id,
-                    'item_code'          => strtoupper(trim($this->new_item_code)),
-                    'lot_no'             => trim($this->new_lot_no) ?: null,
-                    'initial_qty'        => $palletQty,
-                    'current_qty'        => $palletQty,
-                    'uom'                => 'KG',
-                    'position_id'        => $pos->id,
-                    'status'             => 'STORED',
-                    'created_at'         => $createdAtTimestamp,
-                ]);
+                while (!$inserted && $attempts < 5) {
+                    $attempts++;
+                    $palletId = $mwhService->generatePalletId();
+
+                    try {
+                        MwhPallet::create([
+                            'pallet_id'          => $palletId,
+                            'incoming_header_id' => $header->id,
+                            'item_code'          => strtoupper(trim($this->new_item_code)),
+                            'lot_no'             => trim($this->new_lot_no) ?: null,
+                            'initial_qty'        => $palletQty,
+                            'current_qty'        => $palletQty,
+                            'uom'                => 'KG',
+                            'position_id'        => $pos->id,
+                            'status'             => 'STORED',
+                            'created_at'         => $createdAtTimestamp,
+                        ]);
+                        $inserted = true;
+                    } catch (\Illuminate\Database\QueryException $qe) {
+                        if ($attempts >= 5 || !str_contains($qe->getMessage(), '1062 Duplicate entry')) {
+                            throw $qe;
+                        }
+                        usleep(50000); // 50ms pause before retrying next ID
+                    }
+                }
             }
 
             $mwhService->updatePositionStatus($pos->id);
@@ -152,6 +166,13 @@ class RackMapping extends Component
             session()->flash('success', "Material {$this->new_item_code} ({$this->new_qty} KG, Tgl FIFO: {$arrivalDate}) berhasil ditambahkan ke slot {$pos->position_code}.");
 
             $this->reset(['new_item_code', 'new_item_description', 'new_qty', 'new_lot_no', 'new_supplier_name', 'new_po_number', 'new_created_at', 'newMaterialSearchResults', 'showAddMaterialForm']);
+        } catch (\Illuminate\Database\QueryException $qe) {
+            DB::rollBack();
+            if (str_contains($qe->getMessage(), '1062 Duplicate entry')) {
+                session()->flash('error', 'Terjadi duplikasi ID Pallet saat menyimpan. Silakan coba klik tombol Simpan sekali lagi.');
+            } else {
+                session()->flash('error', 'Terjadi kesalahan basis data saat menyimpan material ke slot.');
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Gagal menambahkan material ke slot: ' . $e->getMessage());
