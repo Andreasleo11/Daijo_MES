@@ -197,7 +197,7 @@
         </div>
 
         <div class="footer">
-            <span>Tgl Masuk: {{ $pallet->created_at ? $pallet->created_at->format('Y-m-d H:i') : date('Y-m-d H:i') }}</span>
+            <span>Tgl Masuk: {{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : now()->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB</span>
             <span>Printed by Daijo MES WMS</span>
         </div>
     </div>
