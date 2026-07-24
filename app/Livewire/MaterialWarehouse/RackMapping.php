@@ -33,11 +33,29 @@ class RackMapping extends Component
     public string $new_created_at = '';
     public array $newMaterialSearchResults = [];
 
-    // UI State
+    // Public / View-Only State
+    public bool $isViewOnly = false;
+
+    // UI & Filter State
     public $showDetail = false;
     public string $searchTerm = '';
+    public string $selectedItemFilter = '';
+    public bool $showFifoSummaryModal = false;
+    public ?string $expandedFifoItemCode = null;
 
-    protected $queryString = ['searchTerm' => ['except' => '']];
+    protected $queryString = [
+        'searchTerm' => ['except' => ''],
+        'selectedItemFilter' => ['except' => ''],
+    ];
+
+    public function toggleFifoItemExpand(string $itemCode): void
+    {
+        if ($this->expandedFifoItemCode === $itemCode) {
+            $this->expandedFifoItemCode = null;
+        } else {
+            $this->expandedFifoItemCode = $itemCode;
+        }
+    }
 
     public function selectPosition($id)
     {
@@ -334,6 +352,12 @@ class RackMapping extends Component
         }
     }
 
+    public function selectSearchSuggestion(string $itemCode): void
+    {
+        $this->selectedItemFilter = $itemCode;
+        $this->searchTerm = $itemCode;
+    }
+
     public function render()
     {
         $racks = MwhRack::with(['positions' => function($query) {
@@ -344,32 +368,109 @@ class RackMapping extends Component
                   }]);
         }])->get();
 
+        $availableItemCodes = MwhPallet::query()
+            ->where('current_qty', '>', 0)
+            ->distinct()
+            ->orderBy('item_code', 'asc')
+            ->pluck('item_code')
+            ->toArray();
+
         $matchingPositionIds = [];
         $queryStr = trim($this->searchTerm);
+        $itemFilter = trim($this->selectedItemFilter);
 
-        if (strlen($queryStr) > 0) {
+        if (strlen($queryStr) > 0 || strlen($itemFilter) > 0) {
             $matchingPositionIds = MwhPosition::query()
-                ->where(function($q) use ($queryStr) {
-                    $q->where('position_code', 'like', '%' . $queryStr . '%')
-                      ->orWhere('slot_label', 'like', '%' . $queryStr . '%')
-                      ->orWhere('last_item_code', 'like', '%' . $queryStr . '%')
-                      ->orWhereHas('rack', function($rq) use ($queryStr) {
-                          $rq->where('rack_code', 'like', '%' . $queryStr . '%');
-                      })
-                      ->orWhereHas('pallets', function($pq) use ($queryStr) {
-                          $pq->where('current_qty', '>', 0)
-                             ->where(function($subQ) use ($queryStr) {
-                                 $subQ->where('pallet_id', 'like', '%' . $queryStr . '%')
-                                      ->orWhere('item_code', 'like', '%' . $queryStr . '%')
-                                      ->orWhere('lot_no', 'like', '%' . $queryStr . '%')
-                                      ->orWhereHas('material', function($mq) use ($queryStr) {
-                                          $mq->where('item_description', 'like', '%' . $queryStr . '%');
-                                      });
-                             });
-                      });
+                ->where(function($q) use ($queryStr, $itemFilter) {
+                    if (strlen($itemFilter) > 0) {
+                        $q->where('last_item_code', $itemFilter)
+                          ->orWhereHas('pallets', function($pq) use ($itemFilter) {
+                              $pq->where('current_qty', '>', 0)->where('item_code', $itemFilter);
+                          });
+                    }
+
+                    if (strlen($queryStr) > 0) {
+                        $q->where(function($sub) use ($queryStr) {
+                            $sub->where('position_code', 'like', '%' . $queryStr . '%')
+                              ->orWhere('slot_label', 'like', '%' . $queryStr . '%')
+                              ->orWhere('last_item_code', 'like', '%' . $queryStr . '%')
+                              ->orWhereHas('rack', function($rq) use ($queryStr) {
+                                  $rq->where('rack_code', 'like', '%' . $queryStr . '%');
+                              })
+                              ->orWhereHas('pallets', function($pq) use ($queryStr) {
+                                  $pq->where('current_qty', '>', 0)
+                                     ->where(function($subQ) use ($queryStr) {
+                                         $subQ->where('pallet_id', 'like', '%' . $queryStr . '%')
+                                              ->orWhere('item_code', 'like', '%' . $queryStr . '%')
+                                              ->orWhere('lot_no', 'like', '%' . $queryStr . '%')
+                                              ->orWhereHas('material', function($mq) use ($queryStr) {
+                                                  $mq->where('item_description', 'like', '%' . $queryStr . '%');
+                                              });
+                                     });
+                              });
+                        });
+                    }
                 })
                 ->pluck('id')
                 ->toArray();
+        }
+
+        // Live Search Suggestions for Autocomplete Dropdown
+        $searchSuggestions = [];
+        if (strlen($queryStr) >= 2) {
+            $st = '%' . $queryStr . '%';
+            $searchSuggestions = MwhPallet::with('material')
+                ->where('current_qty', '>', 0)
+                ->where(function($q) use ($st) {
+                    $q->where('item_code', 'like', $st)
+                      ->orWhere('pallet_id', 'like', $st)
+                      ->orWhere('lot_no', 'like', $st)
+                      ->orWhereHas('material', function($mq) use ($st) {
+                          $mq->where('item_description', 'like', $st);
+                      });
+                })
+                ->limit(10)
+                ->get()
+                ->map(function($p) {
+                    return [
+                        'item_code'        => $p->item_code,
+                        'item_description' => $p->material ? $p->material->item_description : '-',
+                        'pallet_id'        => $p->pallet_id,
+                    ];
+                })
+                ->unique('item_code')
+                ->values()
+                ->toArray();
+        }
+
+        // Special Active Item FIFO Summary Banner (Appears right above slot status legend bar when item is selected/searched)
+        $targetItemCode = $itemFilter ?: $queryStr;
+        $activeItemSummary = null;
+
+        if (strlen($targetItemCode) > 0) {
+            $itemPallets = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+                ->where('current_qty', '>', 0)
+                ->where(function($q) use ($targetItemCode) {
+                    $q->where('item_code', $targetItemCode)
+                      ->orWhere('item_code', 'like', '%' . $targetItemCode . '%');
+                })
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            if ($itemPallets->isNotEmpty()) {
+                $matchedItemCode = $itemPallets->first()->item_code;
+                $exactPallets = $itemPallets->where('item_code', $matchedItemCode)->values();
+                $firstPallet = $exactPallets->first() ?? $itemPallets->first();
+
+                $activeItemSummary = [
+                    'item_code'        => $matchedItemCode,
+                    'item_description' => $firstPallet->material ? $firstPallet->material->item_description : '-',
+                    'total_qty'        => $exactPallets->sum('current_qty'),
+                    'pallet_count'     => $exactPallets->count(),
+                    'oldest_date'      => $firstPallet->created_at,
+                    'pallets'          => $exactPallets,
+                ];
+            }
         }
 
         $selectedPosData = $this->selectedPositionId 
@@ -382,10 +483,47 @@ class RackMapping extends Component
             ])->find($this->selectedPositionId) 
             : null;
 
+        $fifoSummaryData = [];
+        if ($this->showFifoSummaryModal) {
+            $groupedPallets = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+                ->where('current_qty', '>', 0)
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->groupBy('item_code');
+
+            foreach ($groupedPallets as $itemCode => $pallets) {
+                $firstPallet = $pallets->first();
+                $palletIds = $pallets->pluck('pallet_id')->toArray();
+
+                $outgoings = \App\Models\MwhOutgoing::with(['pallet', 'position'])
+                    ->whereIn('pallet_id', $palletIds)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $fifoSummaryData[] = [
+                    'item_code'        => $itemCode,
+                    'item_description' => $firstPallet->material ? $firstPallet->material->item_description : '-',
+                    'total_qty'        => $pallets->sum('current_qty'),
+                    'pallet_count'     => $pallets->count(),
+                    'oldest_date'      => $firstPallet->created_at,
+                    'pallets'          => $pallets,
+                    'outgoings'        => $outgoings,
+                ];
+            }
+
+            usort($fifoSummaryData, function($a, $b) {
+                return strcmp($a['item_code'], $b['item_code']);
+            });
+        }
+
         return view('livewire.material-warehouse.rack-mapping', [
-            'racks' => $racks,
-            'selectedPosData' => $selectedPosData,
+            'racks'               => $racks,
+            'selectedPosData'     => $selectedPosData,
             'matchingPositionIds' => $matchingPositionIds,
+            'availableItemCodes'  => $availableItemCodes,
+            'searchSuggestions'   => $searchSuggestions,
+            'activeItemSummary'   => $activeItemSummary,
+            'fifoSummaryData'     => $fifoSummaryData,
         ]);
     }
 }

@@ -354,6 +354,10 @@ Route::get('/public/material-pallet/{palletId}', function (\Illuminate\Http\Requ
     return view('material-warehouse.public_pallet_lookup', compact('pallet', 'palletId'));
 })->name('mwh.public-pallet-lookup')->middleware('throttle:60,1');
 
+Route::get('/public/material-warehouse/mapping', \App\Livewire\MaterialWarehouse\PublicRackMapping::class)
+    ->name('mwh.public-mapping')
+    ->middleware('throttle:60,1');
+
 Route::middleware('auth')->group(function (){
 
     // Machine Daily Production Report

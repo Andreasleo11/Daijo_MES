@@ -408,4 +408,12 @@ class MaterialWarehouseTransactionTest extends TestCase
 
         $this->assertDatabaseHas('mwh_pallets', ['pallet_id' => $p2Code, 'deleted_at' => null]);
     }
+
+    public function test_public_material_warehouse_mapping_accessible_without_authentication()
+    {
+        $response = $this->get('/public/material-warehouse/mapping');
+        $response->assertStatus(200);
+        $response->assertSee('Public View-Only');
+        $response->assertSee('MATERIAL WAREHOUSE RACK MAPPING');
+    }
 }

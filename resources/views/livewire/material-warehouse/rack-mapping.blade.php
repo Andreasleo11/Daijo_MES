@@ -1,7 +1,30 @@
 <div class="p-6 bg-gray-50 min-h-screen">
     <div class="max-w-7xl mx-auto space-y-6">
         
-        <!-- Header, Search Bar & Legend -->
+        @if ($isViewOnly)
+            <!-- Public View-Only Banner -->
+            <div class="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-4 sm:p-5 rounded-2xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                        <svg class="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 bg-emerald-400/20 text-emerald-200 text-[9px] font-black rounded-md border border-emerald-400/30 uppercase tracking-widest">Public View-Only</span>
+                            <h1 class="text-lg font-black tracking-tight text-white">MATERIAL WAREHOUSE RACK MAPPING</h1>
+                        </div>
+                        <p class="text-xs text-emerald-200 mt-0.5">Monitoring realtime lokasi rak bahan baku, pencarian item, & summary prioritas FIFO</p>
+                    </div>
+                </div>
+                
+                <button wire:click="$set('showFifoSummaryModal', true)" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <span>📊 SUMMARY STOCK & FIFO</span>
+                </button>
+            </div>
+        @endif
+
+        <!-- Header, Search Bar & Actions -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <div class="flex items-center gap-2">
@@ -11,12 +34,22 @@
                 <p class="text-gray-500 text-sm mt-1">Monitoring & Tata Letak Rak Bahan Baku / Material</p>
             </div>
 
-            <!-- Search Bar & Actions -->
+            <!-- Search Bar, Dropdown Filter & Actions -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                <!-- Search Input -->
-                <div class="relative flex-grow sm:w-80">
+                <!-- Dropdown Search Item Material Yang Ada -->
+                <div class="sm:w-60">
+                    <select wire:model.live="selectedItemFilter" class="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-gray-800">
+                        <option value="">-- Semua Material Item --</option>
+                        @foreach ($availableItemCodes as $itemCode)
+                            <option value="{{ $itemCode }}">{{ $itemCode }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Text Search Input with 1s Debounce & Autocomplete Dropdown -->
+                <div class="relative flex-grow sm:w-64">
                     <input type="text" 
-                           wire:model.live.debounce.250ms="searchTerm" 
+                           wire:model.live.debounce.1000ms="searchTerm" 
                            placeholder="Cari Part Code, Pallet ID, Lot, Rak..." 
                            class="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
                     <div class="absolute left-3 top-3 text-gray-400">
@@ -27,15 +60,98 @@
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     @endif
+
+                    <!-- Autocomplete Search Suggestions Dropdown List -->
+                    @if (!empty($searchSuggestions))
+                        <div class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-gray-100 max-h-60 overflow-y-auto animate-in fade-in duration-150">
+                            <div class="px-3 py-1.5 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Rekomendasi Hasil Pencarian
+                            </div>
+                            @foreach ($searchSuggestions as $sug)
+                                <div wire:click="selectSearchSuggestion('{{ $sug['item_code'] }}')" class="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition">
+                                    <div>
+                                        <div class="font-mono font-bold text-xs text-emerald-900">{{ $sug['item_code'] }}</div>
+                                        <div class="text-[11px] text-gray-500 truncate max-w-[180px]">{{ $sug['item_description'] }}</div>
+                                    </div>
+                                    <span class="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ $sug['pallet_id'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
-                <!-- Add Rack Button -->
-                <button wire:click="$set('showAddRackModal', true)" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    <span>ADD RACK MATERIAL</span>
-                </button>
+                <!-- FIFO Summary Button (In Main Header) -->
+                @if (!$isViewOnly)
+                    <button wire:click="$set('showFifoSummaryModal', true)" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span>SUMMARY FIFO</span>
+                    </button>
+                @endif
+
+                <!-- Add Rack Button (Hidden in View-Only) -->
+                @if (!$isViewOnly)
+                    <button wire:click="$set('showAddRackModal', true)" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        <span>ADD RACK</span>
+                    </button>
+                @endif
             </div>
         </div>
+
+        <!-- Special Active Item FIFO Summary Banner (Appears right above slot status legend bar when item is typed/selected) -->
+        @if ($activeItemSummary)
+            <div class="bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white p-5 rounded-2xl shadow-lg border border-emerald-700/50 space-y-4 animate-in fade-in duration-200">
+                <div class="flex flex-wrap justify-between items-start sm:items-center gap-3 border-b border-emerald-700/50 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-emerald-500/20 text-emerald-300 rounded-xl flex items-center justify-center font-mono font-black border border-emerald-400/30 text-lg shadow-inner">
+                            📦
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[9px] font-black uppercase tracking-widest bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded border border-emerald-400/30">Ringkasan Stok FIFO Material</span>
+                                <span class="font-mono text-base font-black text-emerald-300">{{ $activeItemSummary['item_code'] }}</span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-medium mt-0.5">{{ $activeItemSummary['item_description'] }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold text-emerald-300 tracking-wider block">Total Stok</span>
+                            <span class="text-xl font-black font-mono text-white">{{ number_format($activeItemSummary['total_qty'], 2) }} KG</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold text-emerald-300 tracking-wider block">Total Pallet</span>
+                            <span class="text-xl font-black font-mono text-emerald-300">{{ $activeItemSummary['pallet_count'] }} Pallet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-300 flex items-center justify-between">
+                        <span>Urutan Pengambilan Pallet (FIFO - Terlama Dulu)</span>
+                        <span class="text-[9px] text-emerald-400 font-normal">Klik item untuk membuka detail slot</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                        @foreach ($activeItemSummary['pallets'] as $idx => $pal)
+                            <div wire:click="selectPosition({{ $pal->position_id }})" class="p-3 bg-emerald-950/70 hover:bg-emerald-800/80 rounded-xl border border-emerald-700/60 transition cursor-pointer space-y-1 shadow-xs hover:border-emerald-400">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="font-mono font-black text-emerald-300">#{{ $idx + 1 }} {{ $pal->pallet_id }}</span>
+                                    <span class="px-2 py-0.5 bg-emerald-400/20 text-emerald-200 text-[10px] font-bold rounded-md font-mono border border-emerald-400/30">
+                                        {{ $pal->position ? $pal->position->position_code : 'Unassigned' }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-baseline text-xs pt-0.5">
+                                    <span class="font-mono font-black text-white text-sm">{{ number_format($pal->current_qty, 2) }} KG</span>
+                                    <span class="text-[10px] text-slate-300 font-mono">{{ $pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <!-- Legend & Search Result Counter -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-xs">
@@ -458,6 +574,159 @@
                         <button wire:click="$set('showAddRackModal', false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all">Batal</button>
                         <button wire:click="createNewRack" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl uppercase text-[10px] tracking-widest shadow-md transition-all">BUAT RAK</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal Summary FIFO Material -->
+    @if($showFifoSummaryModal)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md animate-in fade-in duration-200">
+            <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col animate-in zoom-in-95 duration-200">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-emerald-800 to-teal-900 p-5 text-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                            <svg class="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black tracking-tight text-white uppercase">SUMMARY STOCK & PRIORITAS FIFO</h3>
+                            <p class="text-xs text-emerald-200">Total Material Aktif: {{ count($fifoSummaryData) }} Item &bull; Diurutkan berdasarkan FIFO (Terlama Dulu)</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('showFifoSummaryModal', false)" class="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body (Scrollable List) -->
+                <div class="p-6 overflow-y-auto space-y-4 flex-grow bg-slate-50">
+                    @forelse ($fifoSummaryData as $item)
+                        @php
+                            $isExpanded = ($expandedFifoItemCode === $item['item_code']);
+                        @endphp
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all duration-200">
+                            <!-- Summary Bar Header (Clickable Dropdown Accordion) -->
+                            <div wire:click="toggleFifoItemExpand('{{ $item['item_code'] }}')" class="p-4 bg-white hover:bg-emerald-50/50 cursor-pointer flex flex-wrap sm:flex-nowrap justify-between items-center gap-3 transition">
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="font-mono font-black text-slate-900 text-base">{{ $item['item_code'] }}</span>
+                                        <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">{{ $item['pallet_count'] }} Pallet</span>
+                                    </div>
+                                    <div class="text-xs text-slate-500 font-semibold">{{ $item['item_description'] }}</div>
+                                </div>
+
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-right">
+                                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Stok</div>
+                                        <div class="text-lg font-black text-emerald-700 font-mono">{{ number_format($item['total_qty'], 2) }} KG</div>
+                                    </div>
+
+                                    <div class="text-right hidden sm:block">
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Prioritas FIFO (Masuk Pertama)</div>
+                                        <div class="text-xs font-mono font-bold text-slate-800">{{ $item['oldest_date'] ? $item['oldest_date']->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</div>
+                                    </div>
+
+                                    <div class="p-2 bg-slate-100 text-slate-600 rounded-xl">
+                                        <svg class="w-4 h-4 transform transition-transform duration-200 {{ $isExpanded ? 'rotate-180 text-emerald-600' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Expandable Dropdown Details (Pallet List + Outgoing History) -->
+                            @if ($isExpanded)
+                                <div class="p-5 bg-slate-100/70 border-t border-slate-200/80 space-y-5 animate-in slide-in-from-top-2 duration-200">
+                                    
+                                    <!-- 1. Pallet List (FIFO Order) -->
+                                    <div class="space-y-2">
+                                        <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                                            <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                                            <span>Urutan Pallet (FIFO - Terlama Dulu)</span>
+                                        </h4>
+
+                                        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                                            <table class="w-full text-left text-xs">
+                                                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                                    <tr>
+                                                        <th class="py-2.5 px-3">Pallet ID</th>
+                                                        <th class="py-2.5 px-3">Slot Rak</th>
+                                                        <th class="py-2.5 px-3">Lot / Batch</th>
+                                                        <th class="py-2.5 px-3 text-right">Sisa Qty (KG)</th>
+                                                        <th class="py-2.5 px-3">Tgl Masuk (FIFO)</th>
+                                                        <th class="py-2.5 px-3 text-center">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    @foreach ($item['pallets'] as $idx => $pal)
+                                                        <tr class="hover:bg-emerald-50/40">
+                                                            <td class="py-2.5 px-3 font-mono font-bold text-emerald-900">
+                                                                <span class="text-[10px] text-slate-400 font-bold mr-1">#{{ $idx + 1 }}</span>
+                                                                {{ $pal->pallet_id }}
+                                                            </td>
+                                                            <td class="py-2.5 px-3 font-mono font-bold text-slate-800">
+                                                                {{ $pal->position ? $pal->position->position_code : 'Unassigned' }}
+                                                            </td>
+                                                            <td class="py-2.5 px-3 font-mono text-slate-600">{{ $pal->lot_no ?: '-' }}</td>
+                                                            <td class="py-2.5 px-3 font-mono font-black text-emerald-700 text-right">{{ number_format($pal->current_qty, 2) }} KG</td>
+                                                            <td class="py-2.5 px-3 font-mono text-slate-600">{{ $pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</td>
+                                                            <td class="py-2.5 px-3 text-center">
+                                                                <span class="px-2 py-0.5 text-[9px] font-black rounded-full {{ $pal->status === 'STORED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                                    {{ $pal->status }}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2. Outgoing History -->
+                                    <div class="space-y-2">
+                                        <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                                            <span class="w-2 h-2 bg-rose-500 rounded-full"></span>
+                                            <span>History Pengeluaran Material (Outgoings)</span>
+                                        </h4>
+
+                                        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                                            <table class="w-full text-left text-xs">
+                                                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                                    <tr>
+                                                        <th class="py-2.5 px-3">Kode Outgoing</th>
+                                                        <th class="py-2.5 px-3">Pallet ID</th>
+                                                        <th class="py-2.5 px-3 text-right">Qty Keluar (KG)</th>
+                                                        <th class="py-2.5 px-3">Tujuan / Issued To</th>
+                                                        <th class="py-2.5 px-3">Waktu Outgoing</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    @forelse ($item['outgoings'] as $out)
+                                                        <tr class="hover:bg-rose-50/30">
+                                                            <td class="py-2.5 px-3 font-mono font-bold text-slate-900">{{ $out->outgoing_code }}</td>
+                                                            <td class="py-2.5 px-3 font-mono text-emerald-800 font-bold">{{ $out->pallet_id }}</td>
+                                                            <td class="py-2.5 px-3 font-mono font-black text-rose-600 text-right">-{{ number_format($out->qty_taken, 2) }} KG</td>
+                                                            <td class="py-2.5 px-3 text-slate-700 font-medium">{{ $out->issued_to ?: '-' }}</td>
+                                                            <td class="py-2.5 px-3 font-mono text-slate-600">{{ $out->created_at ? $out->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : ($out->outgoing_date ? $out->outgoing_date->format('d M Y') : '-') }} WIB</td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="5" class="py-4 text-center text-slate-400 italic text-xs">Belum ada riwayat pengeluaran untuk item material ini.</td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest italic space-y-2">
+                            <svg class="w-12 h-12 mx-auto text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            <p>Tidak ada stok material aktif di gudang saat ini.</p>
+                        </div>
+                    @endforelse
                 </div>
             </div>
         </div>

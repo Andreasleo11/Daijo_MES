@@ -5,190 +5,235 @@
     <title>Print Label QR Pallet - {{ $pallet->pallet_id }}</title>
     <style>
         @page {
-            size: A6 landscape;
-            margin: 4mm;
-        }
-        body {
-            font-family: 'Courier New', Courier, monospace, sans-serif;
+            size: 100mm 150mm;
             margin: 0;
-            padding: 8px;
-            color: #000;
-            background: #fff;
         }
-        .label-card {
-            border: 3px solid #000;
-            border-radius: 8px;
-            padding: 10px;
-            max-width: 155mm;
-            margin: 0 auto;
+        * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            color: #000;
+            width: 100mm;
+            height: 150mm;
+            overflow: hidden;
+        }
+
+        /* Kertas 100mm(lebar) x 150mm(panjang) portrait.
+           Label 135mm lebar di-rotate 90° → muat di 150mm panjang kertas.
+           Tinggi label ~80mm → muat di 100mm lebar kertas. */
+        .page-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(90deg);
+            transform-origin: center center;
+            width: 135mm;
+        }
+
+        .label-card {
+            border: 2px solid #000;
+            border-radius: 6px;
+            padding: 8px 10px;
+            width: 135mm;
+            background: #fff;
         }
         .header {
             text-align: center;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 5px;
-            margin-bottom: 8px;
+            border-bottom: 1.5px dashed #000;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
         }
         .header h2 {
-            margin: 0;
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 900;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .header p {
-            margin: 2px 0 0 0;
-            font-size: 9px;
+            font-size: 7px;
+            font-weight: bold;
+            margin-top: 1px;
         }
         .content-grid {
             display: flex;
             flex-direction: row;
             justify-content: space-between;
-            align-items: center;
-            gap: 10px;
+            align-items: flex-start;
+            gap: 6px;
         }
         .qr-box {
             text-align: center;
-            min-width: 95px;
-            padding: 4px;
+            width: 70px;
+            min-width: 70px;
+            flex-shrink: 0;
         }
         .qr-box img {
-            width: 90px;
-            height: 90px;
+            width: 62px;
+            height: 62px;
             display: block;
             margin: 0 auto;
         }
         .qr-title {
-            font-size: 8px;
+            font-size: 6.5px;
             font-weight: 900;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
             text-transform: uppercase;
         }
         .qr-sub {
-            font-size: 8px;
+            font-size: 6px;
             font-weight: bold;
-            margin-top: 3px;
+            margin-top: 1px;
             font-family: monospace;
+            word-break: break-all;
         }
         .details {
             flex-grow: 1;
-            padding: 0 8px;
-            border-left: 1px dashed #ccc;
-            border-right: 1px dashed #ccc;
+            padding: 0 6px;
+            border-left: 1px dashed #000;
+            border-right: 1px dashed #000;
+            min-width: 0;
         }
         .details table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 8.5px;
         }
         .details td {
-            padding: 2px 0;
+            padding: 1.5px 0;
             vertical-align: top;
+            word-break: break-word;
         }
-        .details .label-title {
+        .details .lbl {
             font-weight: bold;
-            font-size: 9px;
-            color: #333;
+            font-size: 7px;
+            color: #000;
             text-transform: uppercase;
+            width: 30%;
+            white-space: nowrap;
         }
-        .details .value {
-            font-size: 12px;
+        .details .val {
+            font-size: 10px;
             font-weight: 900;
         }
         .footer {
             border-top: 1px solid #000;
-            margin-top: 8px;
-            padding-top: 4px;
-            font-size: 8px;
+            margin-top: 4px;
+            padding-top: 2px;
+            font-size: 7px;
+            font-weight: bold;
             display: flex;
             justify-content: space-between;
         }
+
         @media print {
-            .no-print { display: none; }
+            .no-print {
+                display: none !important;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                width: 100mm !important;
+                height: 150mm !important;
+            }
+            .page-wrapper {
+                position: absolute !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) rotate(90deg) !important;
+                width: 135mm !important;
+            }
+            .label-card {
+                width: 135mm !important;
+                page-break-inside: avoid !important;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="no-print" style="margin-bottom: 12px; text-align: right;">
-        <button onclick="window.print()" style="padding: 8px 16px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-            🖨️ Cetak Label Sekarang
+    <div class="no-print" style="position: fixed; top: 12px; right: 12px; z-index: 9999;">
+        <button onclick="window.print()" style="padding: 10px 18px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            🖨️ Cetak Label (Portrait → Sideways)
         </button>
     </div>
 
-    <div class="label-card">
-        <div class="header">
-            <h2>DAIJO MES — MATERIAL PALLET LABEL</h2>
-            <p>PT. DAIJO INDUSTRIAL — MATERIAL WAREHOUSE</p>
-        </div>
+    <div class="page-wrapper">
+        <div class="label-card">
+            <div class="header">
+                <h2>DAIJO MES — MATERIAL PALLET LABEL</h2>
+                <p>PT. DAIJO INDUSTRIAL — MATERIAL WAREHOUSE</p>
+            </div>
 
         @php
             $writer = new \Endroid\QrCode\Writer\PngWriter();
 
-            // 1. Plain Text QR (Left Side) — For Barcode Scanner Gun / Outgoing
             $qrText = new \Endroid\QrCode\QrCode(
                 data: $pallet->pallet_id,
                 errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
-                size: 90,
+                size: 80,
                 margin: 0
             );
             $qrTextBase64 = base64_encode($writer->write($qrText)->getString());
 
-            // 2. Full Web Signed URL QR (Right Side) — Cryptographically Signed for Public IP Security
             $qrUrl = \Illuminate\Support\Facades\URL::signedRoute('mwh.public-pallet-lookup', ['palletId' => $pallet->pallet_id]);
             $qrUrlObj = new \Endroid\QrCode\QrCode(
                 data: $qrUrl,
                 errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
-                size: 90,
+                size: 80,
                 margin: 0
             );
             $qrUrlBase64 = base64_encode($writer->write($qrUrlObj)->getString());
         @endphp
 
         <div class="content-grid">
-            <!-- Left Side: QR 1 for Barcode Scanner Gun -->
             <div class="qr-box">
                 <div class="qr-title" style="color: #1e293b;">SCANNER / OUTGOING</div>
                 <img src="data:image/png;base64,{{ $qrTextBase64 }}" alt="QR Outgoing">
                 <div class="qr-sub">{{ $pallet->pallet_id }}</div>
             </div>
 
-            <!-- Middle: Details Table -->
             <div class="details">
                 <table>
                     <tr>
-                        <td class="label-title" style="width: 38%;">PALLET ID:</td>
-                        <td class="value" style="font-size: 14px; font-family: monospace; color: #065f46;">{{ $pallet->pallet_id }}</td>
+                        <td class="lbl">PALLET ID:</td>
+                        <td class="val" style="font-family: monospace; color: #065f46;">{{ $pallet->pallet_id }}</td>
                     </tr>
                     <tr>
-                        <td class="label-title">PART CODE:</td>
-                        <td class="value" style="font-family: monospace;">{{ $pallet->item_code }}</td>
+                        <td class="lbl">PART CODE:</td>
+                        <td class="val" style="font-family: monospace;">{{ $pallet->item_code }}</td>
                     </tr>
                     <tr>
-                        <td class="label-title">DESKRIPSI:</td>
-                        <td style="font-size: 10px;">{{ $pallet->material ? $pallet->material->item_description : '-' }}</td>
+                        <td class="lbl">DESKRIPSI:</td>
+                        <td style="font-size: 8.5px;">{{ $pallet->material ? $pallet->material->item_description : '-' }}</td>
                     </tr>
                     <tr>
-                        <td class="label-title">INITIAL QTY:</td>
-                        <td class="value">{{ number_format($pallet->initial_qty, 2) }} KG</td>
+                        <td class="lbl">INITIAL QTY:</td>
+                        <td class="val">{{ number_format($pallet->initial_qty, 2) }} KG</td>
                     </tr>
                     <tr>
-                        <td class="label-title">SLOT RAK:</td>
-                        <td class="value" style="font-family: monospace; text-decoration: underline;">
+                        <td class="lbl">SLOT RAK:</td>
+                        <td class="val" style="font-family: monospace; text-decoration: underline;">
                             {{ $pallet->position ? $pallet->position->position_code : 'UNASSIGNED' }}
                         </td>
                     </tr>
                     <tr>
-                        <td class="label-title">LOT / BATCH:</td>
-                        <td>{{ $pallet->lot_no ?: '-' }}</td>
+                        <td class="lbl">LOT / BATCH:</td>
+                        <td style="font-size: 8px;">{{ $pallet->lot_no ?: '-' }}</td>
                     </tr>
                     <tr>
-                        <td class="label-title">SUPPLIER / PO:</td>
-                        <td style="font-size: 9px;">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->supplier_name ?: '-') : '-' }} / {{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</td>
+                        <td class="lbl">SUPPLIER/PO:</td>
+                        <td style="font-size: 7.5px;">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->supplier_name ?: '-') : '-' }} / {{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</td>
                     </tr>
                 </table>
             </div>
 
-            <!-- Right Side: QR 2 for Native HP Camera Live Lookup -->
             <div class="qr-box">
                 <div class="qr-title" style="color: #059669;">LIVE CHECK (HP)</div>
                 <img src="data:image/png;base64,{{ $qrUrlBase64 }}" alt="QR Live">
@@ -199,6 +244,7 @@
         <div class="footer">
             <span>Tgl Masuk: {{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : now()->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB</span>
             <span>Printed by Daijo MES WMS</span>
+        </div>
         </div>
     </div>
 
