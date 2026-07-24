@@ -46,7 +46,7 @@
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 class="text-xs font-black text-emerald-800 uppercase tracking-widest border-b border-gray-100 pb-2">1. Header Dokumen Kedatangan</h3>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No. Dokumen (Auto)</label>
                         <input type="text" wire:model="document_no" readonly class="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-600 cursor-not-allowed">
@@ -76,8 +76,8 @@
             </div>
 
             <!-- Section 2: Multi-Item Detail Table -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-2 gap-1">
                     <h3 class="text-xs font-black text-emerald-800 uppercase tracking-widest">2. Detail Item Material Kedatangan</h3>
                     <span class="text-[11px] text-gray-400">💡 Qty > 1,000 KG otomatis dipecah menjadi beberapa Pallet ID</span>
                 </div>
@@ -95,9 +95,9 @@
                                 @endif
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
                                 <!-- Part Code Autocomplete -->
-                                <div class="md:col-span-4 relative">
+                                <div class="sm:col-span-2 md:col-span-4 relative">
                                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Part Code Material *</label>
                                     <input type="text" wire:model.live="items.{{ $index }}.item_code" placeholder="Cari Part Code / Nama..." class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500">
                                     
@@ -116,19 +116,19 @@
                                 </div>
 
                                 <!-- Part Description Display -->
-                                <div class="md:col-span-3">
+                                <div class="sm:col-span-2 md:col-span-3">
                                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Deskripsi Material</label>
                                     <input type="text" value="{{ $row['item_description'] }}" readonly class="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-600 truncate cursor-not-allowed">
                                 </div>
 
                                 <!-- Lot / Batch No -->
-                                <div class="md:col-span-2">
+                                <div class="sm:col-span-1 md:col-span-2">
                                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Lot / Batch No</label>
                                     <input type="text" wire:model="items.{{ $index }}.lot_no" placeholder="Misal: LOT-991" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono">
                                 </div>
 
                                 <!-- Total Qty (KG) -->
-                                <div class="md:col-span-3">
+                                <div class="sm:col-span-1 md:col-span-3">
                                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Qty (KG) *</label>
                                     <div class="relative">
                                         <input type="number" step="0.01" wire:model="items.{{ $index }}.qty" placeholder="Misal: 1500" class="w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
@@ -138,7 +138,7 @@
                                 </div>
 
                                 <!-- Slot Rak Assignment -->
-                                <div class="md:col-span-12">
+                                <div class="sm:col-span-2 md:col-span-12">
                                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Assign Slot Rak Lokasi Penyimpanan *</label>
                                     <select wire:model="items.{{ $index }}.position_id" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-emerald-500">
                                         <option value="">-- Pilih Slot Rak Material --</option>

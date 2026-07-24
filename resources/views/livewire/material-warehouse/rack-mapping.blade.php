@@ -164,9 +164,9 @@
             </div>
 
             <!-- Detail Sidebar -->
-            <div class="w-full lg:w-96 flex-shrink-0">
+            <div id="slot-detail-panel" class="w-full lg:w-96 flex-shrink-0">
                 @if($showDetail && $selectedPosData)
-                    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden sticky top-6 animate-in slide-in-from-right duration-300">
+                    <div x-init="$el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })" class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden sticky top-6 animate-in slide-in-from-right duration-300">
                         <!-- Header Slot Info -->
                         @php
                             $totalQtyInSlot = $selectedPosData->pallets ? $selectedPosData->pallets->sum('current_qty') : 0;

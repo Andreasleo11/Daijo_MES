@@ -40,10 +40,10 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
 
             <!-- Left Panel: Search Part Code & FIFO Recommendations -->
-            <div class="lg:col-span-5 space-y-6">
+            <div class="md:col-span-5 space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                     <h3 class="text-xs font-black text-amber-800 uppercase tracking-widest border-b border-gray-100 pb-2">1. Cari Material & Rekomendasi FIFO</h3>
 
@@ -117,7 +117,7 @@
             </div>
 
             <!-- Right Panel: Form Pengambilan Material Outgoing -->
-            <div class="lg:col-span-7 space-y-6">
+            <div class="md:col-span-7 space-y-6">
                 <form wire:submit.prevent="processPicking" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                     <h3 class="text-xs font-black text-amber-800 uppercase tracking-widest border-b border-gray-100 pb-2">2. Form Pengambilan Material Outgoing</h3>
 
