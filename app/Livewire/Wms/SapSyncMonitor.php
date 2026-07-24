@@ -23,21 +23,6 @@ class SapSyncMonitor extends Component
 
     protected $queryString = ['search', 'statusFilter'];
 
-    public bool $isDelivery = true;
-
-    public function mount()
-    {
-        if (request()->routeIs('wms.sap-sync-monitor-delivery')) {
-            $this->isDelivery = true;
-        }
-    }
-
-    public function setDeliveryType(bool $isDelivery)
-    {
-        $this->isDelivery = $isDelivery;
-        $this->resetPage();
-    }
-
     public function updatedSearch()
     {
         $this->resetPage();
@@ -68,9 +53,6 @@ class SapSyncMonitor extends Component
     /**
      * Retry syncing a pallet
      */
-    /**
-     * Retry syncing a pallet
-     */
     public function retrySync($palletId)
     {
         // Reset status to pending (0) to trigger UI polling
@@ -79,7 +61,7 @@ class SapSyncMonitor extends Component
             'updated_at'      => now()
         ]);
 
-        // Cuma riset detail yang BELUM sukses (status != 1) dan BELUM diabaikan (status != 4)
+        // Reset details not already synced or ignored
         WmsPalletFormDetail::where('pallet_form_id', $palletId)
             ->whereNotIn('sap_sync_status', [1, 4])
             ->update([
@@ -97,13 +79,11 @@ class SapSyncMonitor extends Component
      */
     public function retrySpk($palletId, $spkNo)
     {
-        // Reset status header ke pending (0)
         WmsPalletForm::where('pallet_id', $palletId)->update([
             'sap_sync_status' => 0,
             'updated_at'      => now()
         ]);
 
-        // Reset detail yang bermasalah pada SPK ini ke pending (0)
         WmsPalletFormDetail::where('pallet_form_id', $palletId)
             ->where('spk_no', $spkNo)
             ->whereNotIn('sap_sync_status', [1, 4])
@@ -114,7 +94,6 @@ class SapSyncMonitor extends Component
 
         SyncPalletToSapJob::dispatch($palletId);
 
-        // Refresh detail list di modal
         $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $palletId)->get();
 
         session()->flash('message', "SPK {$spkNo} in Pallet {$palletId} re-queued for synchronization.");
@@ -150,7 +129,6 @@ class SapSyncMonitor extends Component
             'sap_error_msg'   => 'Manually ignored by user'
         ]);
 
-        // Refresh details
         if ($this->selectedPalletId) {
             $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $this->selectedPalletId)->get();
         }
@@ -167,7 +145,6 @@ class SapSyncMonitor extends Component
         
         if ($failedPalletIds->isEmpty()) return;
 
-        // Bulk Reset Status to 0 cuma buat yang BELUM sukses
         WmsPalletForm::whereIn('pallet_id', $failedPalletIds)->update(['sap_sync_status' => 0]);
         WmsPalletFormDetail::whereIn('pallet_form_id', $failedPalletIds)
             ->whereNotIn('sap_sync_status', [1, 4])
@@ -187,16 +164,6 @@ class SapSyncMonitor extends Component
     {
         $query = WmsPalletForm::query()->withCount('details');
 
-        if ($this->isDelivery) {
-            $query->whereHas('details', function ($q) {
-                $q->where('warehouse', 'FG');
-            });
-        } else {
-            $query->whereDoesntHave('details', function ($q) {
-                $q->where('warehouse', 'FG');
-            });
-        }
-
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('pallet_id', 'like', '%' . $this->search . '%')
@@ -210,12 +177,7 @@ class SapSyncMonitor extends Component
 
         $pallets = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        // Stats
-        if ($this->isDelivery) {
-            $baseQuery = WmsPalletForm::whereHas('details', fn($q) => $q->where('warehouse', 'FG'));
-        } else {
-            $baseQuery = WmsPalletForm::whereDoesntHave('details', fn($q) => $q->where('warehouse', 'FG'));
-        }
+        $baseQuery = WmsPalletForm::query();
 
         $stats = [
             'total'   => (clone $baseQuery)->count(),

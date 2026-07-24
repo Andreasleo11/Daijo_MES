@@ -449,7 +449,7 @@ class PalletSorting extends Component
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            dd($e->getMessage(), $e->getTraceAsString());
+            Log::error("Gagal menerapkan sorting: " . $e->getMessage());
             session()->flash('error', 'Gagal menerapkan sorting: ' . $e->getMessage());
         }
     }

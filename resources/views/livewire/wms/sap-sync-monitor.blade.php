@@ -4,10 +4,10 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-black text-gray-900 tracking-tighter uppercase italic">
-                    WMS <span class="text-blue-600">SAP</span> Sync Monitor @if($isDelivery) (Delivery) @endif
+                    WMS <span class="text-blue-600">SAP</span> Sync Monitor
                 </h1>
                 <p class="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
-                    Batch Header Processing System @if($isDelivery) - Inventory Transfer @else - Receipt Production @endif
+                    Batch Header Processing System - Inventory Transfer
                 </p>
             </div>
             
@@ -102,8 +102,12 @@
                             </td>
                             <td class="py-4 px-6">
                                 @if($pallet->sap_sync_at)
-                                    <div class="text-[10px] font-black text-gray-600">{{ $pallet->sap_sync_at->timezone('Asia/Jakarta')->format('d M Y') }}</div>
-                                    <div class="text-[9px] font-bold text-gray-400">{{ $pallet->sap_sync_at->timezone('Asia/Jakarta')->format('H:i:s') }}</div>
+                                    <div class="text-[10px] font-black text-gray-600">{{ $pallet->sap_sync_at->timezone('Asia/Jakarta')->format('d M Y H:i:s') }}</div>
+                                    @if($pallet->sap_sync_duration)
+                                        <span class="inline-flex items-center text-[9px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 mt-1">
+                                            ⏱️ {{ number_format($pallet->sap_sync_duration, 2) }} detik
+                                        </span>
+                                    @endif
                                 @else
                                     <span class="text-[10px] font-bold text-gray-300 italic">Never</span>
                                 @endif

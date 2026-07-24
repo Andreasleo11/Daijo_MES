@@ -27,6 +27,7 @@ class WmsPalletSortingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake();
 
         $this->withoutVite();
 

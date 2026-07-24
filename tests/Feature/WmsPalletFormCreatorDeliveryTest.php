@@ -164,6 +164,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             $table->integer('sap_sync_status')->default(0);
             $table->text('sap_error_msg')->nullable();
             $table->timestamp('sap_sync_at')->nullable();
+            $table->decimal('sap_sync_duration', 8, 2)->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -437,14 +438,9 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         // Test normal route
         $this->actingAs($this->adminUser);
         
-        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => false])
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class)
             ->assertSee('PLT-NORMAL-001')
-            ->assertDontSee('PLT-DELIV-002');
-
-        // Test delivery route
-        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => true])
-            ->assertSee('PLT-DELIV-002')
-            ->assertDontSee('PLT-NORMAL-001');
+            ->assertSee('PLT-DELIV-002');
     }
 
     /**
@@ -539,7 +535,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         ]);
 
         // Run retrySpk
-        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class, ['isDelivery' => true])
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class)
             ->call('retrySpk', 'PLT-RETRY-001', 'SPK-7777')
             ->assertHasNoErrors();
 

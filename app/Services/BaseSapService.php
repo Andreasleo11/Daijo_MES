@@ -198,4 +198,20 @@ class BaseSapService
     {
         return $this->post($this->endpoint, []);
     }
+
+    protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
+    {
+        \Illuminate\Support\Facades\DB::table('api_logs')->insert([
+            'api_name'        => $apiName,
+            'method'          => $method,
+            'endpoint'        => $endpoint,
+            'request_payload' => json_encode($request, JSON_PRETTY_PRINT),
+            'response_payload'=> json_encode($response, JSON_PRETTY_PRINT),
+            'status_code'     => $statusCode,
+            'status'          => $status,
+            'message'         => $message,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+    }
 }

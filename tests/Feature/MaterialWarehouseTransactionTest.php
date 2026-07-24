@@ -79,46 +79,52 @@ class MaterialWarehouseTransactionTest extends TestCase
             });
         }
 
-        Schema::create('mwh_incoming_headers', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->id();
-            $table->string('document_no')->unique();
-            $table->string('supplier_name')->nullable();
-            $table->string('po_number')->nullable();
-            $table->date('arrival_date');
-            $table->text('remarks')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('mwh_incoming_headers')) {
+            Schema::create('mwh_incoming_headers', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('document_no')->unique();
+                $table->string('supplier_name')->nullable();
+                $table->string('po_number')->nullable();
+                $table->date('arrival_date');
+                $table->text('remarks')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
-        Schema::create('mwh_pallets', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->id();
-            $table->string('pallet_id')->unique();
-            $table->foreignId('incoming_header_id')->nullable();
-            $table->string('item_code');
-            $table->string('lot_no')->nullable();
-            $table->decimal('initial_qty', 12, 2)->default(0);
-            $table->decimal('current_qty', 12, 2)->default(0);
-            $table->string('uom', 20)->default('KG');
-            $table->foreignId('position_id')->nullable();
-            $table->enum('status', ['STORED', 'PARTIAL', 'EMPTY'])->default('STORED');
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('mwh_pallets')) {
+            Schema::create('mwh_pallets', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('pallet_id')->unique();
+                $table->foreignId('incoming_header_id')->nullable();
+                $table->string('item_code');
+                $table->string('lot_no')->nullable();
+                $table->decimal('initial_qty', 12, 2)->default(0);
+                $table->decimal('current_qty', 12, 2)->default(0);
+                $table->string('uom', 20)->default('KG');
+                $table->foreignId('position_id')->nullable();
+                $table->enum('status', ['STORED', 'PARTIAL', 'EMPTY'])->default('STORED');
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
-        Schema::create('mwh_outgoings', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->id();
-            $table->string('outgoing_code')->unique();
-            $table->string('pallet_id');
-            $table->foreignId('position_id')->nullable();
-            $table->string('item_code');
-            $table->decimal('qty_taken', 12, 2)->default(0);
-            $table->string('uom', 20)->default('KG');
-            $table->date('outgoing_date');
-            $table->string('issued_to')->nullable();
-            $table->text('remarks')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('mwh_outgoings')) {
+            Schema::create('mwh_outgoings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('outgoing_code')->unique();
+                $table->string('pallet_id');
+                $table->foreignId('position_id')->nullable();
+                $table->string('item_code');
+                $table->decimal('qty_taken', 12, 2)->default(0);
+                $table->string('uom', 20)->default('KG');
+                $table->date('outgoing_date');
+                $table->string('issued_to')->nullable();
+                $table->text('remarks')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         if (!Schema::hasTable('roles')) {
             Schema::create('roles', function (\Illuminate\Database\Schema\Blueprint $table) {
