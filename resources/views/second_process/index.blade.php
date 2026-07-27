@@ -45,7 +45,7 @@
             {{-- Filter Bar --}}
             <form method="GET" action="{{ route('second-process-reports.index') }}" class="mb-6">
                 <div class="bg-white shadow-sm border border-gray-200 rounded-lg p-5">
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                         {{-- Date From --}}
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">From Date</label>
@@ -56,6 +56,12 @@
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">To Date</label>
                             <input type="date" name="date_to" value="{{ request('date_to') }}"
+                                class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        {{-- Unit / Line --}}
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Unit/Line</label>
+                            <input type="text" name="unit_line" value="{{ request('unit_line') }}" placeholder="Unit/Line"
                                 class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         {{-- Shift --}}
