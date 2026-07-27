@@ -42,10 +42,10 @@
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end text-xs font-semibold">
                 <div class="flex items-center space-x-2">
                     <span class="text-gray-500">Status:</span>
-                    <select wire:model.live="statusFilter" class="bg-gray-50 border border-gray-200 rounded-xl text-xs px-3 py-1.5 focus:ring-2 focus:ring-emerald-500">
+                    <select wire:model.live="statusFilter" class="bg-gray-50 border border-gray-200 rounded-xl text-xs px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 font-bold">
                         <option value="ALL">Semua Status</option>
                         <option value="STORED">STORED (Utuh)</option>
-                        <option value="PARTIAL">PARTIAL (Sebagian)</option>
+                        <option value="PARTIAL">PARTIAL (Slot / Terambil)</option>
                         <option value="EMPTY">EMPTY (Habis)</option>
                     </select>
                 </div>
@@ -70,10 +70,11 @@
                             <th class="py-3.5 px-4">Pallet ID</th>
                             <th class="py-3.5 px-4">Part Code & Deskripsi</th>
                             <th class="py-3.5 px-4">Lot No / Supplier</th>
-                            <th class="py-3.5 px-4">Initial / Sisa Qty (KG)</th>
+                            <th class="py-3.5 px-4">Initial Qty</th>
+                            <th class="py-3.5 px-4">Tgl Kedatangan</th>
+                            <th class="py-3.5 px-4">Sisa Qty</th>
                             <th class="py-3.5 px-4">Slot Rak</th>
                             <th class="py-3.5 px-4 text-center">Status</th>
-                            <th class="py-3.5 px-4">Tgl Masuk</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -91,30 +92,41 @@
                                     <div><span class="font-mono text-gray-800">{{ $p->lot_no ?: '-' }}</span></div>
                                     <div class="text-[10px] text-gray-400">{{ $p->incomingHeader ? $p->incomingHeader->supplier_name : '-' }}</div>
                                 </td>
-                                <td class="py-3.5 px-4">
-                                    <div class="text-gray-400 text-[10px]">Awal: {{ number_format($p->initial_qty, 2) }} KG</div>
-                                    <div class="text-sm font-black text-gray-900">{{ number_format($p->current_qty, 2) }} KG</div>
+                                <td class="py-3.5 px-4 font-bold text-gray-700">
+                                    {{ number_format($p->initial_qty, 2) }} KG
+                                </td>
+                                <td class="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
+                                    {{ $p->incomingHeader && $p->incomingHeader->arrival_date ? $p->incomingHeader->arrival_date->format('d M Y') : ($p->created_at ? $p->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}
+                                </td>
+                                <td class="py-3.5 px-4 font-black text-gray-900 text-sm">
+                                    {{ number_format($p->current_qty, 2) }} KG
                                 </td>
                                 <td class="py-3.5 px-4 font-mono font-bold text-gray-800">
                                     @if ($p->position)
-                                        <span class="inline-block px-2.5 py-1 bg-gray-100 text-gray-800 rounded-md text-[11px]">
-                                            {{ $p->position->position_code }}
-                                        </span>
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="inline-block px-2.5 py-1 bg-gray-100 text-gray-800 rounded-md text-[11px] font-mono font-bold">
+                                                {{ $p->position->position_code }}
+                                            </span>
+                                            @if ($p->position->status === 'PARTIAL')
+                                                <span class="px-1.5 py-0.5 bg-amber-100 text-amber-900 text-[9px] font-black rounded border border-amber-300">PARTIAL SLOT</span>
+                                            @elseif ($p->position->status === 'FULL')
+                                                <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded border border-emerald-300">FULL SLOT</span>
+                                            @endif
+                                        </div>
                                     @else
                                         <span class="text-gray-400 italic">Unassigned</span>
                                     @endif
                                 </td>
                                 <td class="py-3.5 px-4 text-center">
-                                    @if ($p->status === 'STORED')
-                                        <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-black text-[10px]">STORED</span>
-                                    @elseif ($p->status === 'PARTIAL')
-                                        <span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full font-black text-[10px]">PARTIAL</span>
+                                    @if ($p->status === 'PARTIAL')
+                                        <span class="px-2.5 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-[10px] border border-amber-300">PARTIAL (Terambil)</span>
+                                    @elseif ($p->position && $p->position->status === 'PARTIAL')
+                                        <span class="px-2.5 py-1 bg-amber-50 text-amber-800 rounded-full font-black text-[10px] border border-amber-200">PARTIAL (Slot Space)</span>
+                                    @elseif ($p->status === 'STORED')
+                                        <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-black text-[10px]">STORED (Utuh)</span>
                                     @else
-                                        <span class="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full font-black text-[10px]">EMPTY</span>
+                                        <span class="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full font-black text-[10px]">EMPTY (Habis)</span>
                                     @endif
-                                </td>
-                                <td class="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                                    {{ $p->created_at ? $p->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB
                                 </td>
                                 <td class="py-3.5 px-4 text-right space-x-1.5">
                                     <a href="{{ route('mwh.pallet.print', $p->pallet_id) }}" target="_blank" class="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg inline-block transition" title="Print QR Label">

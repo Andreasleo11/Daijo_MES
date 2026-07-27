@@ -117,10 +117,13 @@ class MaterialWarehouseService
     public function getFifoRecommendations(string $itemCode)
     {
         return MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
-            ->where('item_code', $itemCode)
-            ->where('current_qty', '>', 0)
-            ->whereIn('status', ['STORED', 'PARTIAL'])
-            ->orderBy('created_at', 'asc')
+            ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
+            ->where('mwh_pallets.item_code', $itemCode)
+            ->where('mwh_pallets.current_qty', '>', 0)
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL'])
+            ->select('mwh_pallets.*')
+            ->orderByRaw('COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)) ASC')
+            ->orderBy('mwh_pallets.id', 'asc')
             ->get();
     }
 

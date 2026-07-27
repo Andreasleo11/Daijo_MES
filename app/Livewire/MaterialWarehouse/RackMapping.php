@@ -40,12 +40,14 @@ class RackMapping extends Component
     public $showDetail = false;
     public string $searchTerm = '';
     public string $selectedItemFilter = '';
+    public string $selectedAreaFilter = 'ALL';
     public bool $showFifoSummaryModal = false;
     public ?string $expandedFifoItemCode = null;
 
     protected $queryString = [
         'searchTerm' => ['except' => ''],
         'selectedItemFilter' => ['except' => ''],
+        'selectedAreaFilter' => ['except' => 'ALL'],
     ];
 
     public function toggleFifoItemExpand(string $itemCode): void
@@ -516,8 +518,31 @@ class RackMapping extends Component
             });
         }
 
+        $groupedRacks = [];
+        $availableAreas = [];
+
+        foreach ($racks as $rack) {
+            $areaName = 'LAINNYA';
+            if (preg_match('/(?:RAK-)?([A-Za-z]+)/i', $rack->rack_code, $matches)) {
+                $areaName = 'AREA ' . strtoupper($matches[1]);
+            }
+
+            if (!in_array($areaName, $availableAreas)) {
+                $availableAreas[] = $areaName;
+            }
+
+            if (empty($this->selectedAreaFilter) || $this->selectedAreaFilter === 'ALL' || $this->selectedAreaFilter === $areaName) {
+                $groupedRacks[$areaName][] = $rack;
+            }
+        }
+
+        sort($availableAreas);
+        ksort($groupedRacks);
+
         return view('livewire.material-warehouse.rack-mapping', [
             'racks'               => $racks,
+            'groupedRacks'        => $groupedRacks,
+            'availableAreas'      => $availableAreas,
             'selectedPosData'     => $selectedPosData,
             'matchingPositionIds' => $matchingPositionIds,
             'availableItemCodes'  => $availableItemCodes,

@@ -94,7 +94,7 @@
 
                                 <div class="text-[11px] text-gray-600 flex justify-between items-center font-mono">
                                     <span>Slot Rak: <strong>{{ $f['position']['position_code'] ?? 'Unassigned' }}</strong></span>
-                                    <span class="text-[10px] text-gray-400">Tgl: {{ date('Y-m-d', strtotime($f['created_at'])) }}</span>
+                                    <span class="text-[10px] text-emerald-800 font-bold">Tgl Kedatangan: {{ isset($f['incoming_header']['arrival_date']) && $f['incoming_header']['arrival_date'] ? date('d M Y', strtotime($f['incoming_header']['arrival_date'])) : date('d M Y', strtotime($f['created_at'])) }}</span>
                                 </div>
 
                                 <button type="button" wire:click="selectPalletForPicking('{{ $f['pallet_id'] }}')" class="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 shadow-sm">
@@ -204,7 +204,7 @@
                                         <td class="py-3 px-4 font-mono text-gray-800">{{ $out->item_code }}</td>
                                         <td class="py-3 px-4 font-black text-rose-600">-{{ number_format($out->qty_taken, 2) }} KG</td>
                                         <td class="py-3 px-4 text-gray-600">{{ $out->issued_to ?: '-' }}</td>
-                                        <td class="py-3 px-4 font-mono text-gray-500 text-[11px]">{{ $out->outgoing_date ? $out->outgoing_date->format('Y-m-d') : '-' }}</td>
+                                        <td class="py-3 px-4 font-mono text-gray-500 text-[11px]">{{ $out->outgoing_date ? $out->outgoing_date->format('d M Y') : '-' }}</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="6" class="py-8 text-center text-gray-400">Belum ada history transaksi outgoing.</td></tr>

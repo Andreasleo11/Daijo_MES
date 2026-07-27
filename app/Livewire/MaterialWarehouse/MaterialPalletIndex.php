@@ -103,9 +103,30 @@ class MaterialPalletIndex extends Component
                 });
             })
             ->when($this->statusFilter !== 'ALL', function ($query) {
-                $query->where('status', $this->statusFilter);
+                if ($this->statusFilter === 'PARTIAL') {
+                    $query->where(function($q) {
+                        $q->where('status', 'PARTIAL')
+                          ->orWhereRaw('current_qty < initial_qty AND current_qty > 0')
+                          ->orWhereHas('position', function($pq) {
+                              $pq->where('status', 'PARTIAL');
+                          });
+                    });
+                } elseif ($this->statusFilter === 'STORED') {
+                    $query->where(function($q) {
+                        $q->where('status', 'STORED')
+                          ->whereRaw('current_qty >= initial_qty AND current_qty > 0');
+                    });
+                } elseif ($this->statusFilter === 'EMPTY') {
+                    $query->where(function($q) {
+                        $q->where('status', 'EMPTY')
+                          ->orWhere('current_qty', '<=', 0);
+                    });
+                }
             })
-            ->orderBy('created_at', 'desc')
+            ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
+            ->select('mwh_pallets.*')
+            ->orderByRaw('COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)) DESC')
+            ->orderBy('mwh_pallets.id', 'desc')
             ->paginate($this->perPage);
 
         $availablePositions = MwhPosition::with('rack')

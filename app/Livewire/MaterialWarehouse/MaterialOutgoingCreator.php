@@ -148,7 +148,8 @@ class MaterialOutgoingCreator extends Component
     public function render()
     {
         $outgoings = MwhOutgoing::with(['position.rack', 'material', 'pallet'])
-            ->orderBy('created_at', 'desc')
+            ->orderBy('outgoing_date', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(15);
 
         return view('livewire.material-warehouse.material-outgoing-creator', [

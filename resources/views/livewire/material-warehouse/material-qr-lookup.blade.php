@@ -96,7 +96,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium text-gray-700 border-t border-gray-100 pt-4">
-                        <div><span class="text-gray-400">Tgl Masuk (FIFO):</span> <strong class="font-mono text-emerald-800">{{ $palletData->created_at ? $palletData->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></div>
+                        <div><span class="text-gray-400">Tgl Kedatangan:</span> <strong class="font-mono text-emerald-800">{{ $palletData->incomingHeader && $palletData->incomingHeader->arrival_date ? $palletData->incomingHeader->arrival_date->format('d M Y') : ($palletData->created_at ? $palletData->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></div>
                         <div><span class="text-gray-400">Lot / Batch No:</span> <strong class="font-mono text-gray-900">{{ $palletData->lot_no ?: '-' }}</strong></div>
                         <div><span class="text-gray-400">Supplier:</span> <strong>{{ $palletData->incomingHeader ? ($palletData->incomingHeader->supplier_name ?: '-') : '-' }}</strong></div>
                         <div><span class="text-gray-400">PO Number:</span> <strong class="font-mono">{{ $palletData->incomingHeader ? ($palletData->incomingHeader->po_number ?: '-') : '-' }}</strong></div>

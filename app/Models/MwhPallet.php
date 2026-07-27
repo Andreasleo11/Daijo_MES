@@ -49,4 +49,18 @@ class MwhPallet extends Model
     {
         return $this->hasMany(MwhOutgoing::class, 'pallet_id', 'pallet_id');
     }
+
+    /**
+     * Dynamically compute live pallet status based on current_qty vs initial_qty.
+     */
+    public function getStatusAttribute($value): string
+    {
+        if ($this->current_qty <= 0) {
+            return 'EMPTY';
+        }
+        if ($this->current_qty < $this->initial_qty) {
+            return 'PARTIAL';
+        }
+        return $value ?: 'STORED';
+    }
 }

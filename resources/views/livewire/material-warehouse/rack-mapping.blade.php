@@ -35,7 +35,16 @@
             </div>
 
             <!-- Search Bar, Dropdown Filter & Actions -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                <!-- Dropdown Filter Area / Blok Rak (A, B, C...) -->
+                <div class="sm:w-44">
+                    <select wire:model.live="selectedAreaFilter" class="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-gray-800">
+                        <option value="ALL">-- Semua Area Rak --</option>
+                        @foreach ($availableAreas as $area)
+                            <option value="{{ $area }}">{{ $area }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <!-- Dropdown Search Item Material Yang Ada -->
                 <div class="sm:w-60">
                     <select wire:model.live="selectedItemFilter" class="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-gray-800">
@@ -192,78 +201,95 @@
         @endif
 
         <div class="flex flex-col lg:flex-row gap-6">
-            <!-- Grid Container -->
-            <div class="flex-grow flex flex-wrap gap-6 items-start" id="mapping-grid">
-                @forelse($racks as $rack)
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)]">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-                            <div>
-                                <h3 class="text-lg font-black text-emerald-700 italic tracking-tighter uppercase">Rack {{ $rack->rack_code }}</h3>
+            <!-- Grid Container Grouped by Area -->
+            <div class="flex-grow space-y-8" id="mapping-grid">
+                @forelse($groupedRacks as $areaName => $areaRacks)
+                    <div class="space-y-4">
+                        <!-- Area Section Header -->
+                        <div class="flex items-center justify-between bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-sm border border-slate-800">
+                            <div class="flex items-center space-x-3">
+                                <span class="w-3 h-3 bg-emerald-400 rounded-full"></span>
+                                <h2 class="text-base font-black tracking-wider uppercase font-mono text-emerald-300">🏢 {{ $areaName }}</h2>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-full">{{ count($rack->positions) }} Slots</span>
-                                <button wire:click="deleteRack({{ $rack->id }})" onclick="return confirm('Anda yakin ingin menghapus rak material ini beserta seluruh isinya?')" class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Hapus Rak">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </div>
+                            <span class="text-xs font-bold font-mono bg-emerald-950 text-emerald-200 px-3 py-1 rounded-xl border border-emerald-800">
+                                {{ count($areaRacks) }} RAK
+                            </span>
                         </div>
 
-                        <!-- Vertical Level Columns -->
-                        <div class="flex flex-row gap-4 overflow-x-auto pb-2">
-                            @foreach($rack->positions->groupBy('level_no')->sortKeys() as $level => $positions)
-                                <div class="flex flex-col gap-2 flex-1 min-w-[75px]">
-                                    <div class="text-[9px] font-black text-emerald-600 text-center uppercase tracking-tighter border-b border-emerald-100 mb-1 pb-1">
-                                        LVL {{ $level }}
+                        <!-- Racks in this Area -->
+                        <div class="flex flex-wrap gap-6 items-start">
+                            @foreach($areaRacks as $rack)
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)]">
+                                    <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                                        <div>
+                                            <h3 class="text-lg font-black text-emerald-700 italic tracking-tighter uppercase">Rack {{ $rack->rack_code }}</h3>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-full">{{ count($rack->positions) }} Slots</span>
+                                            @if (!$isViewOnly)
+                                                <button wire:click="deleteRack({{ $rack->id }})" onclick="return confirm('Anda yakin ingin menghapus rak material ini beserta seluruh isinya?')" class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Hapus Rak">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <div class="space-y-2">
-                                        @foreach($positions as $pos)
-                                            @php
-                                                $isMatched = in_array($pos->id, $matchingPositionIds);
-                                                $isSelected = $selectedPositionId == $pos->id;
 
-                                                $statusColor = 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700';
-                                                if($pos->status == 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
-                                                if($pos->status == 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
-                                                
-                                                if ($isMatched) {
-                                                    $statusColor = 'bg-yellow-200 hover:bg-yellow-300 border-amber-500 text-amber-950 font-black shadow-md ring-4 ring-yellow-400/80 animate-pulse';
-                                                }
-
-                                                $ringClass = $isSelected ? 'ring-4 ring-emerald-500 ring-offset-2 scale-105 z-10' : '';
-                                                $palletCount = $pos->pallets ? count($pos->pallets) : 0;
-                                            @endphp
-                                            <button wire:click="selectPosition({{ $pos->id }})" 
-                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $ringClass }} rounded-xl p-1.5 transition-all group relative overflow-hidden flex flex-col justify-between items-center shadow-xs"
-                                                    title="{{ $pos->position_code }} ({{ $pos->slot_label ?? 'Slot' }})">
-                                                
-                                                @if ($isMatched)
-                                                    <span class="absolute top-0.5 right-0.5 px-1 py-0.2 bg-amber-500 text-white rounded text-[7px] font-black uppercase tracking-tighter shadow-xs">
-                                                        MATCH
-                                                    </span>
-                                                @endif
-
-                                                <div class="text-[8px] font-black text-gray-500 group-hover:text-gray-800 text-center uppercase leading-none truncate w-full">
-                                                    S{{ $pos->slot_no }}
+                                    <!-- Vertical Level Columns -->
+                                    <div class="flex flex-row gap-4 overflow-x-auto pb-2">
+                                        @foreach($rack->positions->groupBy('level_no')->sortKeys() as $level => $positions)
+                                            <div class="flex flex-col gap-2 flex-1 min-w-[75px]">
+                                                <div class="text-[9px] font-black text-emerald-600 text-center uppercase tracking-tighter border-b border-emerald-100 mb-1 pb-1">
+                                                    LVL {{ $level }}
                                                 </div>
+                                                <div class="space-y-2">
+                                                    @foreach($positions as $pos)
+                                                        @php
+                                                            $isMatched = in_array($pos->id, $matchingPositionIds);
+                                                            $isSelected = $selectedPositionId == $pos->id;
 
-                                                <div class="text-[9px] font-black text-emerald-800 text-center uppercase leading-none my-0.5 truncate w-full">
-                                                    {{ $pos->slot_label ?: $pos->position_code }}
+                                                            $statusColor = 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700';
+                                                            if($pos->status == 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
+                                                            if($pos->status == 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
+                                                            
+                                                            if ($isMatched) {
+                                                                $statusColor = 'bg-yellow-200 hover:bg-yellow-300 border-amber-500 text-amber-950 font-black shadow-md ring-4 ring-yellow-400/80 animate-pulse';
+                                                            }
+
+                                                            if ($isSelected) {
+                                                                $statusColor .= ' ring-4 ring-emerald-500 shadow-lg scale-105';
+                                                            }
+
+                                                            $palletCount = $pos->pallets ? count($pos->pallets) : 0;
+                                                        @endphp
+
+                                                        <button 
+                                                            wire:click="selectPosition({{ $pos->id }})"
+                                                            class="w-full text-left p-2 rounded-xl border transition-all duration-150 relative flex flex-col justify-between min-h-[60px] cursor-pointer {{ $statusColor }}"
+                                                        >
+                                                            <div class="flex justify-between items-start w-full">
+                                                                <span class="font-mono font-black text-[10px] tracking-tighter">{{ $pos->position_code }}</span>
+                                                                <span class="text-[8px] font-bold px-1 rounded bg-black/5 uppercase">
+                                                                    {{ $pos->status }}
+                                                                </span>
+                                                            </div>
+
+                                                            @if($palletCount > 0)
+                                                                <div class="text-[7px] font-extrabold text-emerald-900 bg-white/90 px-1 py-0.5 rounded leading-none w-full truncate text-center shadow-2xs">
+                                                                    {{ $palletCount }} Pallet ({{ number_format($pos->pallets->sum('current_qty'), 0) }} KG)
+                                                                </div>
+                                                            @elseif($pos->last_item_code)
+                                                                <div class="text-[7px] font-extrabold text-emerald-700 bg-emerald-50/80 px-1 py-0.5 rounded leading-none w-full truncate text-center">
+                                                                    {{ $pos->last_item_code }}
+                                                                </div>
+                                                            @else
+                                                                <div class="text-[7px] font-medium text-gray-400 leading-none">
+                                                                    Kosong
+                                                                </div>
+                                                            @endif
+                                                        </button>
+                                                    @endforeach
                                                 </div>
-
-                                                @if($palletCount > 0)
-                                                    <div class="text-[7px] font-extrabold text-emerald-900 bg-white/90 px-1 py-0.5 rounded leading-none w-full truncate text-center shadow-2xs">
-                                                        {{ $palletCount }} Pallet ({{ number_format($pos->pallets->sum('current_qty'), 0) }} KG)
-                                                    </div>
-                                                @elseif($pos->last_item_code)
-                                                    <div class="text-[7px] font-extrabold text-emerald-700 bg-emerald-50/80 px-1 py-0.5 rounded leading-none w-full truncate text-center">
-                                                        {{ $pos->last_item_code }}
-                                                    </div>
-                                                @else
-                                                    <div class="text-[7px] font-medium text-gray-400 leading-none">
-                                                        Kosong
-                                                    </div>
-                                                @endif
-                                            </button>
+                                            </div>
                                         @endforeach
                                     </div>
                                 </div>
@@ -274,7 +300,7 @@
                     <div class="w-full bg-white p-12 rounded-2xl border border-gray-100 text-center space-y-4">
                         <svg class="w-16 h-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                         <h3 class="text-gray-600 font-bold text-base">Belum Ada Rak Material</h3>
-                        <p class="text-gray-400 text-xs max-w-sm mx-auto">Klik tombol "+ ADD RACK MATERIAL" di atas untuk membuat tata letak rak material baru.</p>
+                        <p class="text-gray-400 text-xs max-w-sm mx-auto">Klik tombol "+ ADD RACK" di atas untuk menambahkan master lokasi rak baru.</p>
                     </div>
                 @endforelse
             </div>
@@ -290,9 +316,19 @@
                             $capPct = round(($totalQtyInSlot / $maxCap) * 100);
                             $isOverCap = $totalQtyInSlot > $maxCap;
                             $barWidth = min(100, $capPct);
+
+                            // Dynamic Header Gradient matching slot status
+                            $headerBg = 'from-slate-700 to-slate-800'; // EMPTY (Gray)
+                            if ($isOverCap) {
+                                $headerBg = 'from-rose-700 to-red-800'; // OVER CAPACITY (Red)
+                            } elseif ($selectedPosData->status === 'FULL') {
+                                $headerBg = 'from-emerald-600 to-teal-700'; // FULL (Green)
+                            } elseif ($selectedPosData->status === 'PARTIAL') {
+                                $headerBg = 'from-amber-500 to-yellow-600'; // PARTIAL (Yellow)
+                            }
                         @endphp
 
-                        <div class="bg-gradient-to-r {{ $isOverCap ? 'from-rose-700 to-red-800' : 'from-emerald-600 to-teal-700' }} p-6 text-white relative">
+                        <div class="bg-gradient-to-r {{ $headerBg }} p-6 text-white relative">
                             <button wire:click="$set('showDetail', false)" class="absolute top-4 right-4 text-white/70 hover:text-white transition">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -308,7 +344,7 @@
                                         </span>
                                     @else
                                         <span class="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded">
-                                            {{ $selectedPosData->status }}
+                                            SLOT RAK: {{ $selectedPosData->status }} (Kapasitas {{ $capPct }}%)
                                         </span>
                                     @endif
                                 </div>
@@ -323,7 +359,7 @@
                                         <span>{{ number_format($totalQtyInSlot, 2) }} / {{ number_format($maxCap) }} KG ({{ $capPct }}%)</span>
                                     </div>
                                     <div class="w-full bg-black/30 rounded-full h-2 overflow-hidden">
-                                        <div class="{{ $isOverCap ? 'bg-amber-300 animate-pulse' : 'bg-emerald-300' }} h-full rounded-full transition-all duration-500" style="width: {{ $barWidth }}%"></div>
+                                        <div class="{{ $isOverCap ? 'bg-amber-300 animate-pulse' : ($selectedPosData->status === 'PARTIAL' ? 'bg-amber-300' : ($selectedPosData->status === 'FULL' ? 'bg-emerald-300' : 'bg-slate-300')) }} h-full rounded-full transition-all duration-500" style="width: {{ $barWidth }}%"></div>
                                     </div>
                                 </div>
                             </div>
@@ -337,82 +373,10 @@
                                         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                                         <span>Isi Material Dalam Slot Ini</span>
                                     </h4>
-                                    <div class="flex items-center space-x-2">
-                                        <button type="button" wire:click="toggleAddMaterialForm" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold transition flex items-center space-x-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                            <span>{{ $showAddMaterialForm ? 'Tutup Form' : '+ Input Material' }}</span>
-                                        </button>
-                                        <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
-                                            {{ count($selectedPosData->pallets ?: []) }} Pallet
-                                        </span>
-                                    </div>
+                                    <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
+                                        {{ count($selectedPosData->pallets ?: []) }} Pallet
+                                    </span>
                                 </div>
-
-                                @if ($showAddMaterialForm)
-                                    <form wire:submit.prevent="storeMaterialToSlot" class="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
-                                        <div class="flex justify-between items-center border-b border-emerald-200/60 pb-1.5">
-                                            <span class="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Input Material ke Slot {{ $selectedPosData->position_code }}</span>
-                                            <span class="text-[9px] text-emerald-700 font-bold">Penyesuaian Actual</span>
-                                        </div>
-
-                                        <!-- Part Code Autocomplete -->
-                                        <div class="relative">
-                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Part Code Material *</label>
-                                            <input type="text" wire:model.live="new_item_code" placeholder="Cari Part Code / Nama..." class="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500">
-                                            
-                                            @if (!empty($newMaterialSearchResults))
-                                                <div class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 z-30 max-h-40 overflow-y-auto">
-                                                    @foreach ($newMaterialSearchResults as $res)
-                                                        <button type="button" wire:click="selectNewMaterial('{{ $res['item_code'] }}', '{{ addslashes($res['item_description'] ?? '') }}')" class="w-full text-left px-3 py-1.5 hover:bg-emerald-50 transition border-b border-gray-50 flex flex-col">
-                                                            <span class="text-xs font-bold font-mono text-gray-900">{{ $res['item_code'] }}</span>
-                                                            <span class="text-[9px] text-gray-500 truncate">{{ $res['item_description'] }}</span>
-                                                        </button>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                            @error('new_item_code') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
-                                        </div>
-
-                                        @if ($new_item_description)
-                                            <div class="p-2 bg-white/80 rounded-lg text-[10px] text-gray-700 border border-emerald-100 truncate">
-                                                <span class="font-bold">Deskripsi:</span> {{ $new_item_description }}
-                                            </div>
-                                        @endif
-
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Qty (KG) *</label>
-                                                <input type="number" step="0.01" wire:model="new_qty" placeholder="Ex: 500" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
-                                                @error('new_qty') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
-                                            </div>
-                                            <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Tanggal Masuk (FIFO) *</label>
-                                                <input type="date" wire:model="new_created_at" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
-                                                @error('new_created_at') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
-                                            </div>
-                                        </div>
-
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Lot / Batch No</label>
-                                                <input type="text" wire:model="new_lot_no" placeholder="Ex: LOT-01" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500">
-                                            </div>
-                                            <div>
-                                                <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Supplier (Opsional)</label>
-                                                <input type="text" wire:model="new_supplier_name" placeholder="Nama Supplier" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
-                                            </div>
-                                        </div>
-
-                                        <div class="flex justify-end space-x-2 pt-1">
-                                            <button type="button" wire:click="toggleAddMaterialForm" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg font-bold text-[10px]">
-                                                Batal
-                                            </button>
-                                            <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-sm transition">
-                                                + Simpan Material ke Slot
-                                            </button>
-                                        </div>
-                                    </form>
-                                @endif
 
                                 @if ($selectedPosData->pallets && count($selectedPosData->pallets) > 0)
                                     <div class="space-y-3">
@@ -444,7 +408,7 @@
                                                 </div>
 
                                                 <div class="text-[10px] text-gray-500 flex justify-between items-center font-mono pt-1">
-                                                    <span>Tgl Masuk (FIFO): <strong class="text-gray-800">{{ $pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></span>
+                                                    <span>Tgl Kedatangan: <strong class="text-gray-800">{{ $pal->incomingHeader && $pal->incomingHeader->arrival_date ? $pal->incomingHeader->arrival_date->format('d M Y') : ($pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></span>
                                                 </div>
 
                                                 <div class="pt-1 flex justify-end gap-1.5">
@@ -455,10 +419,6 @@
                                                     <a href="{{ route('mwh.outgoing.create', ['selected_item_code' => $pal->item_code]) }}" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Picking Outgoing">
                                                         <span>Picking</span>
                                                     </a>
-                                                    <button onclick="confirm('Hapus Pallet {{ $pal->pallet_id }} dari slot ini?') || event.stopImmediatePropagation()" wire:click="deletePalletFromSlot({{ $pal->id }})" class="px-2 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Hapus Pallet">
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                        <span>Hapus</span>
-                                                    </button>
                                                 </div>
                                             </div>
                                         @endforeach
@@ -472,51 +432,162 @@
                                 @endif
                             </div>
 
-                            <!-- Section 2: Form Edit Configuration Slot -->
-                            <div class="border-t border-gray-100 pt-4 space-y-4">
-                                <h4 class="text-xs font-black text-gray-800 uppercase tracking-widest">Pengaturan & Edit Slot</h4>
-
-                                <div>
-                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Kode Slot / Position Code</label>
-                                    <input type="text" wire:model="editPositionCode" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none uppercase transition-all">
-                                    @error('editPositionCode') <span class="text-[10px] text-red-500 font-semibold">{{ $message }}</span> @enderror
-                                </div>
-
-                                <div>
-                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Label Custom / Display Name</label>
-                                    <input type="text" wire:model="editSlotLabel" placeholder="Misal: RESIN-A1, BAGGING-01" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
-                                    @error('editSlotLabel') <span class="text-[10px] text-red-500 font-semibold">{{ $message }}</span> @enderror
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status Slot</label>
-                                        <select wire:model="editStatus" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
-                                            <option value="EMPTY">EMPTY</option>
-                                            <option value="PARTIAL">PARTIAL</option>
-                                            <option value="FULL">FULL</option>
-                                        </select>
+                            <!-- Section 2: Form Edit Configuration Slot (Collapsible) -->
+                            <div class="border-t border-gray-100 pt-4 space-y-3" x-data="{ showEditSlot: false }">
+                                <button @click="showEditSlot = !showEditSlot" type="button" class="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition group cursor-pointer">
+                                    <h4 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center space-x-2">
+                                        <svg class="w-4 h-4 text-emerald-600 group-hover:rotate-45 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                        <span>Pengaturan & Edit Slot</span>
+                                    </h4>
+                                    <div class="flex items-center space-x-1.5 text-gray-500 font-mono text-[10px]">
+                                        <span class="font-bold uppercase text-emerald-700" x-text="showEditSlot ? 'Tutup' : 'Klik Buka'"></span>
+                                        <svg class="w-4 h-4 transform transition-transform duration-200" :class="{ 'rotate-180': showEditSlot }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                     </div>
+                                </button>
+
+                                <div x-show="showEditSlot" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" class="space-y-4 pt-2">
+                                    <!-- Input Material ke Slot -->
+                                    @if (!$isViewOnly)
+                                        <div class="pb-2 border-b border-gray-100">
+                                            <button type="button" wire:click="toggleAddMaterialForm" class="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                <span>{{ $showAddMaterialForm ? 'Tutup Form Input Material' : '+ Input Material Ke Slot Ini' }}</span>
+                                            </button>
+
+                                            @if ($showAddMaterialForm)
+                                                <form wire:submit.prevent="storeMaterialToSlot" class="mt-3 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                                                    <div class="flex justify-between items-center border-b border-emerald-200/60 pb-1.5">
+                                                        <span class="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Input Material ke Slot {{ $selectedPosData->position_code }}</span>
+                                                        <span class="text-[9px] text-emerald-700 font-bold">Penyesuaian Actual</span>
+                                                    </div>
+
+                                                    <!-- Part Code Autocomplete -->
+                                                    <div class="relative">
+                                                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Part Code Material *</label>
+                                                        <input type="text" wire:model.live="new_item_code" placeholder="Cari Part Code / Nama..." class="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500">
+                                                        
+                                                        @if (!empty($newMaterialSearchResults))
+                                                            <div class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 z-30 max-h-40 overflow-y-auto">
+                                                                @foreach ($newMaterialSearchResults as $res)
+                                                                    <button type="button" wire:click="selectNewMaterial('{{ $res['item_code'] }}', '{{ addslashes($res['item_description'] ?? '') }}')" class="w-full text-left px-3 py-1.5 hover:bg-emerald-50 transition border-b border-gray-50 flex flex-col">
+                                                                        <span class="text-xs font-bold font-mono text-gray-900">{{ $res['item_code'] }}</span>
+                                                                        <span class="text-[9px] text-gray-500 truncate">{{ $res['item_description'] }}</span>
+                                                                    </button>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        @error('new_item_code') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
+                                                    </div>
+
+                                                    @if ($new_item_description)
+                                                        <div class="p-2 bg-white/80 rounded-lg text-[10px] text-gray-700 border border-emerald-100 truncate">
+                                                            <span class="font-bold">Deskripsi:</span> {{ $new_item_description }}
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Qty (KG) *</label>
+                                                            <input type="number" step="0.01" wire:model="new_qty" placeholder="Ex: 500" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
+                                                            @error('new_qty') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Tanggal Masuk (FIFO) *</label>
+                                                            <input type="date" wire:model="new_created_at" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500">
+                                                            @error('new_created_at') <span class="text-[9px] text-rose-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Lot / Batch No</label>
+                                                            <input type="text" wire:model="new_lot_no" placeholder="Ex: LOT-01" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500">
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Supplier (Opsional)</label>
+                                                            <input type="text" wire:model="new_supplier_name" placeholder="Nama Supplier" class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="flex justify-end space-x-2 pt-1">
+                                                        <button type="button" wire:click="toggleAddMaterialForm" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg font-bold text-[10px]">
+                                                            Batal
+                                                        </button>
+                                                        <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-sm transition">
+                                                            + Simpan Material ke Slot
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endif
+
+                                    <!-- Form Edit Slot -->
                                     <div>
-                                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Max Capacity (KG)</label>
-                                        <input type="number" step="0.01" wire:model="editMaxCapacity" placeholder="Ex: 1000" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
+                                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Kode Slot / Position Code</label>
+                                        <input type="text" wire:model="editPositionCode" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none uppercase transition-all">
+                                        @error('editPositionCode') <span class="text-[10px] text-red-500 font-semibold">{{ $message }}</span> @enderror
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Item Code (Quick Note)</label>
-                                    <input type="text" wire:model="editLastItemCode" placeholder="Kode Material (Opsional)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none uppercase transition-all">
-                                </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Label Custom / Display Name</label>
+                                        <input type="text" wire:model="editSlotLabel" placeholder="Misal: RESIN-A1, BAGGING-01" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
+                                        @error('editSlotLabel') <span class="text-[10px] text-red-500 font-semibold">{{ $message }}</span> @enderror
+                                    </div>
 
-                                <div class="pt-2 flex gap-2">
-                                    <button wire:click="saveSettings" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-95">
-                                        Simpan Perubahan
-                                    </button>
-                                    <button wire:click="resetSlot" onclick="return confirm('Reset status slot ini menjadi EMPTY dan kosongkan pallet?')" class="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-200 rounded-xl transition-all" title="Reset Status">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status Slot</label>
+                                            <select wire:model="editStatus" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
+                                                <option value="EMPTY">EMPTY</option>
+                                                <option value="PARTIAL">PARTIAL</option>
+                                                <option value="FULL">FULL</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Max Capacity (KG)</label>
+                                            <input type="number" step="0.01" wire:model="editMaxCapacity" placeholder="Ex: 1000" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Item Code (Quick Note)</label>
+                                        <input type="text" wire:model="editLastItemCode" placeholder="Kode Material (Opsional)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold focus:bg-white focus:border-emerald-500 outline-none uppercase transition-all">
+                                    </div>
+
+                                    <div class="pt-2 flex gap-2">
+                                        <button wire:click="saveSettings" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-95">
+                                            Simpan Perubahan
+                                        </button>
+                                        @if (!$isViewOnly)
+                                            <button wire:click="resetSlot" onclick="return confirm('Reset status slot ini menjadi EMPTY dan kosongkan pallet?')" class="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-200 rounded-xl transition-all" title="Reset / Hapus Slot">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    <!-- Action Hapus Pallet dari Slot (Pindah ke Pengaturan & Edit Slot) -->
+                                    @if ($selectedPosData->pallets && count($selectedPosData->pallets) > 0 && !$isViewOnly)
+                                        <div class="pt-3 border-t border-gray-100 space-y-2">
+                                            <label class="block text-[10px] font-black text-rose-500 uppercase tracking-widest">Hapus Unit Pallet Dari Slot Ini</label>
+                                            <div class="space-y-1.5">
+                                                @foreach ($selectedPosData->pallets as $pal)
+                                                    <div class="flex items-center justify-between p-2.5 bg-rose-50/70 border border-rose-200/80 rounded-xl">
+                                                        <div>
+                                                            <div class="font-mono font-bold text-xs text-rose-900">{{ $pal->pallet_id }}</div>
+                                                            <div class="text-[10px] text-rose-700 font-mono">{{ $pal->item_code }} ({{ number_format($pal->current_qty, 0) }} KG)</div>
+                                                        </div>
+                                                        <button type="button" onclick="confirm('Hapus Pallet {{ $pal->pallet_id }} dari slot ini?') || event.stopImmediatePropagation()" wire:click="deletePalletFromSlot({{ $pal->id }})" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shadow-2xs">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                            <span>Hapus Pallet</span>
+                                                        </button>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
-                            </div>
+                            </div>       </div>
                         </div>
                     </div>
                 @else
