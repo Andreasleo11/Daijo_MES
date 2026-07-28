@@ -147,7 +147,7 @@
                 <!-- Document Info Footer -->
                 <div class="pt-3 border-t border-slate-100 flex flex-wrap justify-between items-center text-xs text-slate-500 font-medium gap-2">
                     <div>No. PO: <strong class="font-mono text-slate-800">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</strong></div>
-                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></div>
+                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->incomingHeader && $pallet->incomingHeader->arrival_date ? $pallet->incomingHeader->arrival_date->format('d M Y') : ($pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></div>
                 </div>
             </div>
 
