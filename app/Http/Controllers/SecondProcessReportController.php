@@ -555,7 +555,7 @@ class SecondProcessReportController extends Controller
         $report = SecondProcessReport::findOrFail($id);
         $user = auth()->user();
 
-        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
+        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION', 'QUALITY'])) {
             return redirect()->back()->withErrors(['error' => 'You are not authorized to sign reports in the Second Process department.']);
         }
 
@@ -630,7 +630,7 @@ class SecondProcessReportController extends Controller
         $report = SecondProcessReport::findOrFail($id);
         $user = auth()->user();
 
-        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
+        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION', 'QUALITY'])) {
             return redirect()->back()->withErrors(['error' => 'You are not authorized to reject reports in this department.']);
         }
 

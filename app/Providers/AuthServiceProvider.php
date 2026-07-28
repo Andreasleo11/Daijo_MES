@@ -60,7 +60,7 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('view-second-process-links', function($user){
-            return $user->hasRoleAccess('SECONDPROCESS');
+            return $user->hasRoleAccess('SECONDPROCESS') || $user->hasRoleAccess('QUALITY');
         });
 
         Gate::define('view-assembly-process-links', function($user){
