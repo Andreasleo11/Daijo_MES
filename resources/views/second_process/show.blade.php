@@ -151,6 +151,48 @@
         </form>
     </dialog>
 
+    <!-- First Piece Gate Status Card -->
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 no-print mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                @if($firstPiece && $firstPiece->isApproved())
+                    <div class="p-2.5 rounded-full bg-green-100 text-green-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">First Piece Gate Status</h4>
+                        <div class="text-sm font-bold text-green-800 flex items-center gap-2">
+                            <span>✅ Approved by QC Inspector ({{ $firstPiece->checked_by }})</span>
+                            <span class="text-xs font-normal text-gray-500">on {{ $firstPiece->checked_at ? $firstPiece->checked_at->format('d/m/Y H:i') : '' }}</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-2.5 rounded-full bg-amber-100 text-amber-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">First Piece Gate Status</h4>
+                        <div class="text-sm font-bold text-amber-800">
+                            ⚠️ First Piece Inspection Pending / Not Approved by QC
+                        </div>
+                    </div>
+                @endif
+            </div>
+
+            <div>
+                @if($firstPiece)
+                    <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-xs transition inline-block">
+                        View First Piece Inspection &rarr;
+                    </a>
+                @else
+                    <a href="{{ route('first-piece-inspections.create', ['part_number' => $report->part_number, 'date' => $report->date, 'part_name' => $report->part_name, 'model' => $report->model]) }}" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded text-xs transition inline-block">
+                        + Create First Piece Inspection &rarr;
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
+
     <!-- Printable Area -->
     @php
         $maxHour = max(1, $report->hourlyProductions->max('hour_ke'));
@@ -492,6 +534,95 @@
                             @endif
                         </div>
                     </div>
+
+                    <!-- IPQC Inspection Section (Secondary Process) -->
+                    @if($report->ipqcRecords->count() > 0 || $report->ipqc_lot_color)
+                        <div class="pt-6 border-t-2 border-black mt-6">
+                            <div class="text-center font-bold text-sm uppercase underline mb-3">IPQC INSPECTION REPORT (SECONDARY PROCESS)</div>
+
+                            <table class="w-full border-collapse border border-black text-[11px] mb-3">
+                                <tbody>
+                                    <tr>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">LOT COLOR</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_lot_color ?? '-' }}</td>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD GLOSSY</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_glossy ?? '-' }}</td>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD VISCOCITY</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_viscosity ?? '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">PRODUCT COLOR</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_product_color ?? '-' }}</td>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD OVEN TEMP</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_oven_temp ?? '-' }}</td>
+                                        <td class="border border-black p-1.5 font-bold bg-gray-50">APP SAMPLE</td>
+                                        <td class="border border-black p-1.5">{{ $report->ipqc_app_sample ?? 'YES' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full border-collapse border border-black text-[10px] text-center">
+                                    <thead>
+                                        <tr class="bg-gray-100 font-bold">
+                                            <th class="border border-black p-1">Period</th>
+                                            <th class="border border-black p-1">Fitting Test</th>
+                                            <th class="border border-black p-1">Tape Test</th>
+                                            <th class="border border-black p-1">Output</th>
+                                            <th class="border border-black p-1">Sample</th>
+                                            <th class="border border-black p-1">Rej Samp</th>
+                                            <th class="border border-black p-1">Rej %</th>
+                                            <th class="border border-black p-1">Pass Qty</th>
+                                            <th class="border border-black p-1">Rej Qty</th>
+                                            <th class="border border-black p-1">Judgement</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($report->ipqcRecords as $ipqcRec)
+                                            <tr>
+                                                <td class="border border-black p-1 font-bold">Hour {{ $ipqcRec->hour_ke }}</td>
+                                                <td class="border border-black p-1">{{ $ipqcRec->fitting_test ?? 'OK' }}</td>
+                                                <td class="border border-black p-1 font-bold {{ $ipqcRec->tape_test_judgement === 'NG' ? 'text-red-600' : 'text-green-700' }}">{{ $ipqcRec->tape_test_judgement ?? 'OK' }}</td>
+                                                <td class="border border-black p-1 font-bold">{{ number_format($ipqcRec->output_qty) }}</td>
+                                                <td class="border border-black p-1">{{ number_format($ipqcRec->sample_qty) }}</td>
+                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($ipqcRec->reject_sample_qty) }}</td>
+                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($ipqcRec->reject_rate, 2) }}%</td>
+                                                <td class="border border-black p-1 text-green-700 font-bold">{{ number_format($ipqcRec->pass_qty) }}</td>
+                                                <td class="border border-black p-1 text-red-700 font-bold">{{ number_format($ipqcRec->reject_qty) }}</td>
+                                                <td class="border border-black p-1 font-extrabold {{ $ipqcRec->judgement === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $ipqcRec->judgement ?? 'OK' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-gray-100 font-bold">
+                                            <td colspan="3" class="border border-black p-1 text-right">TOTAL / OVERALL:</td>
+                                            <td class="border border-black p-1 font-black">{{ number_format($report->ipqc_total_output) }}</td>
+                                            <td class="border border-black p-1 font-black">{{ number_format($report->ipqc_total_sample) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($report->ipqc_total_reject_sample) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($report->ipqc_total_reject_rate, 2) }}%</td>
+                                            <td class="border border-black p-1 font-black text-green-700">{{ number_format($report->ipqc_total_pass) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-700">{{ number_format($report->ipqc_total_reject) }}</td>
+                                            <td class="border border-black p-1 font-black {{ $report->ipqc_overall_judgement === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $report->ipqc_overall_judgement ?? 'OK' }}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            @if($report->qcAttachments->count() > 0)
+                                <div class="mt-3">
+                                    <div class="text-[10px] font-bold uppercase mb-1">QC Physical Proof Attachments:</div>
+                                    <div class="grid grid-cols-4 gap-2">
+                                        @foreach($report->qcAttachments as $att)
+                                            <div class="border border-black p-1 text-center text-[9px]">
+                                                <img src="{{ $att->url }}" class="h-16 object-cover mx-auto">
+                                                <div class="truncate mt-0.5">{{ $att->label ?? $att->original_name }}</div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
 
                     <!-- Signatures display -->
                     <div class="grid grid-cols-4 gap-2 text-center pt-4 border-t border-black mt-4 text-[10px]">

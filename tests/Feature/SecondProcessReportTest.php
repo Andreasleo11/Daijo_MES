@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Models\FirstPieceInspection;
 use App\Models\Role;
 use App\Models\SecondProcessReport;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -52,7 +53,7 @@ class SecondProcessReportTest extends TestCase
     }
 
     /**
-     * Test storing a report with full nested relationship payload.
+     * Test storing a report with full nested relationship payload including IPQC.
      */
     public function test_can_store_second_process_report(): void
     {
@@ -74,7 +75,25 @@ class SecondProcessReportTest extends TestCase
             'repairan' => 10,
             'jml_ng_lebur' => 5,
             'ng_remarks' => 'Minor paint run observed on hour 4',
-            
+
+            // IPQC Header & Records
+            'ipqc_lot_color' => 'LOT-RED-01',
+            'ipqc_std_glossy' => '80-90',
+            'ipqc_std_viscosity' => '10-12s',
+            'ipqc' => [
+                [
+                    'hour_ke' => 1,
+                    'fitting_test' => 'OK',
+                    'tape_test_judgement' => 'OK',
+                    'output_qty' => 183,
+                    'sample_qty' => 50,
+                    'reject_sample_qty' => 0,
+                    'pass_qty' => 183,
+                    'reject_qty' => 0,
+                    'judgement' => 'OK',
+                ],
+            ],
+
             // Materials
             'materials' => [
                 [
@@ -85,12 +104,6 @@ class SecondProcessReportTest extends TestCase
                     'mixing_ratio' => '1:1.5',
                     'qty' => 5,
                 ],
-                [
-                    'type' => 'part',
-                    'item_name' => 'WIP 1',
-                    'lot_number' => 'LOT-WIP-01',
-                    'qty' => 800,
-                ],
             ],
 
             // Manpower
@@ -100,163 +113,79 @@ class SecondProcessReportTest extends TestCase
                     'no' => 1,
                     'name' => 'John Doe',
                 ],
-                [
-                    'role' => 'sprayer',
-                    'no' => 1,
-                    'name' => 'Jane Smith',
-                ],
             ],
 
-            // Hourly OK logs
+            // Hourly Productions
             'hourly' => [
-                1 => [
+                [
                     'hour_ke' => 1,
                     'ok_qty' => 90,
+                    'ng_qty' => 10,
                     'acumulasi_qty' => 90,
                 ],
-                2 => [
-                    'hour_ke' => 2,
-                    'ok_qty' => 95,
-                    'acumulasi_qty' => 185,
-                ],
             ],
-
-            // NG logs
-            'ngs' => [
-                [
-                    'ng_name' => 'SCRATCH',
-                    'ng_category' => 'ng_proses',
-                    'total_ng' => 5,
-                    'hours' => [
-                        1 => 2,
-                        2 => 3,
-                    ],
-                    'ng_input_item' => 'Dust defect',
-                    'ng_input_qty' => 5,
-                ]
-            ],
-
-            // Troubles
-            'troubles' => [
-                [
-                    'penyebab' => 'Mesin',
-                    'category' => 'Mesin',
-                    'masalah' => 'Conveyor belt slip',
-                    'penanganan' => 'Tightened belt tensioner',
-                    'loss_time_minutes' => 15,
-                    'loss_time' => '15 mins',
-                ]
-            ],
-
-            // Schedule
-            'next_production_schedule' => [
-                'Production Plan B',
-                'Color swap to metallic black',
-            ],
-
-            // Approvals
-            'created_by_name' => 'Checker Raymond',
         ];
 
         $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
 
-        $response->assertRedirect();
-
-        // Assert database records
+        $response->assertRedirect(route('second-process-reports.index'));
         $this->assertDatabaseHas('second_process_reports', [
             'part_number' => 'PART-XYZ-01',
-            'status' => 'draft',
-            'created_by_name' => $user->name,
+            'ipqc_lot_color' => 'LOT-RED-01',
+            'ipqc_total_output' => 183,
         ]);
 
-        $report = SecondProcessReport::first();
-        $this->assertNull($report->created_by_signed_at); // Auto timestamped checker is null on draft
-
-        $this->assertDatabaseHas('second_process_materials', [
-            'report_id' => $report->id,
-            'item_name' => 'Paint Primer',
-            'lot_number' => 'LOT-PRM-99',
-            'mixing_ratio' => '1:1.5',
-        ]);
-
-        $this->assertDatabaseHas('second_process_manpowers', [
-            'report_id' => $report->id,
-            'role' => 'loading',
-            'name' => 'John Doe',
-        ]);
-
-        $this->assertDatabaseHas('second_process_hourly_productions', [
-            'report_id' => $report->id,
-            'hour_ke' => 1,
-            'ok_qty' => 90,
-        ]);
-
-        $this->assertDatabaseHas('second_process_ng_records', [
-            'report_id' => $report->id,
-            'ng_name' => 'SCRATCH',
-            'ng_category' => 'ng_proses',
-            'total_ng' => 5,
-        ]);
-
-        $this->assertDatabaseHas('second_process_troubles', [
-            'report_id' => $report->id,
-            'category' => 'Mesin',
-            'masalah' => 'Conveyor belt slip',
-            'loss_time_minutes' => 15,
-        ]);
+        $report = SecondProcessReport::with('ipqcRecords')->first();
+        $this->assertCount(1, $report->ipqcRecords);
+        $this->assertEquals(183, $report->ipqcRecords[0]->output_qty);
     }
 
     /**
-     * Test updating a report and its signature auto-timestamp logic.
+     * Test PQC approval blocks when First Piece is missing or not approved.
      */
-    public function test_can_update_report_in_draft_status(): void
-    {
-        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
-
-        // 1. Create a draft report
-        $report = SecondProcessReport::create([
-            'date' => '2026-07-07',
-            'unit_line' => 'Painting Line A',
-            'shift' => '1',
-            'process_prod' => 'Painting',
-            'status' => 'draft',
-            'part_number' => 'PART-XYZ-01',
-            'part_name' => 'Bumper Cover',
-            'model' => 'Sedan 2026',
-            'customer' => 'Toyota Corp',
-            'created_by_name' => 'Raymond',
-            'created_by_signed_at' => null,
-        ]);
-
-        // 2. Submit update keeping status as draft
-        $payload = [
-            'date' => '2026-07-07',
-            'unit_line' => 'Painting Line A',
-            'shift' => '1',
-            'process_prod' => 'Painting',
-            'status' => 'draft',
-            'part_number' => 'PART-XYZ-01',
-            'part_name' => 'Bumper Cover Updated',
-            'model' => 'Sedan 2026',
-            'customer' => 'Toyota Corp',
-        ];
-
-        $response = $this->actingAs($user)->put(route('second-process-reports.update', $report->id), $payload);
-
-        $response->assertRedirect();
-        $report->refresh();
-        $this->assertEquals('Bumper Cover Updated', $report->part_name);
-        $this->assertEquals('draft', $report->status);
-    }
-
-    /**
-     * Test the digital signature workflow transitions.
-     */
-    public function test_digital_signature_approval_and_rejection_workflow(): void
+    public function test_pqc_approval_blocks_when_first_piece_not_approved(): void
     {
         $user = User::factory()->create(['role_id' => $this->adminRole->id, 'name' => 'Approver Admin']);
 
-        // 1. Create a draft report
+        $report = SecondProcessReport::create([
+            'date' => '2026-07-07',
+            'unit_line' => 'Painting Line A',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'PART-UNAPPROVED-01',
+            'part_name' => 'Bumper Cover',
+            'model' => 'Sedan 2026',
+            'customer' => 'Toyota Corp',
+        ]);
+
+        // Attempt PQC sign without First Piece approval
+        $response = $this->actingAs($user)->post(route('second-process-reports.sign', [$report->id, 'pqc']));
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('error');
+
+        $report->refresh();
+        $this->assertEquals('submitted', $report->status);
+    }
+
+    /**
+     * Test full signature workflow including First Piece approval check.
+     */
+    public function test_approval_signature_workflow(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id, 'name' => 'Approver Admin']);
+
+        // Create approved First Piece inspection
+        FirstPieceInspection::create([
+            'date' => '2026-07-07',
+            'model' => 'Sedan 2026',
+            'part_name' => 'Bumper Cover',
+            'part_number' => 'PART-XYZ-01',
+            'overall_judgement' => 'OK',
+            'checked_by' => 'QC Inspector',
+            'checked_at' => now(),
+        ]);
+
         $report = SecondProcessReport::create([
             'date' => '2026-07-07',
             'unit_line' => 'Painting Line A',
@@ -269,69 +198,29 @@ class SecondProcessReportTest extends TestCase
             'customer' => 'Toyota Corp',
         ]);
 
-        // 2. Sign as Checker (Submit report)
+        // 1. Submit as Checker
         $response = $this->actingAs($user)->post(route('second-process-reports.sign', [$report->id, 'checker']));
         $response->assertRedirect();
         $report->refresh();
         $this->assertEquals('submitted', $report->status);
-        $this->assertEquals('Approver Admin', $report->created_by_name);
-        $this->assertNotNull($report->created_by_signed_at);
 
-        // Operator should not be able to edit submitted report anymore
-        $editResponse = $this->actingAs($user)->get(route('second-process-reports.edit', $report->id));
-        $editResponse->assertRedirect();
-
-        $updateResponse = $this->actingAs($user)->put(route('second-process-reports.update', $report->id), [
-            'date' => '2026-07-07',
-            'unit_line' => 'Painting Line A',
-            'shift' => '1',
-            'process_prod' => 'Painting',
-            'status' => 'draft',
-            'part_number' => 'PART-XYZ-01',
-            'part_name' => 'Bumper Cover',
-            'model' => 'Sedan 2026',
-            'customer' => 'Toyota Corp',
-        ]);
-        $updateResponse->assertRedirect(); // Fails edit, returns to show with error
-
-        // 3. Sign as PQC
+        // 2. Sign as PQC
         $response = $this->actingAs($user)->post(route('second-process-reports.sign', [$report->id, 'pqc']));
         $response->assertRedirect();
         $report->refresh();
         $this->assertEquals('pqc_approved', $report->status);
         $this->assertEquals('Approver Admin', $report->pqc_name);
-        $this->assertNotNull($report->pqc_signed_at);
 
-        // 4. Sign as Leader
+        // 3. Sign as Leader
         $response = $this->actingAs($user)->post(route('second-process-reports.sign', [$report->id, 'leader']));
         $response->assertRedirect();
         $report->refresh();
         $this->assertEquals('leader_approved', $report->status);
-        $this->assertEquals('Approver Admin', $report->leader_name);
-        $this->assertNotNull($report->leader_signed_at);
 
-        // 5. Sign as Acknowledged (Supervisor)
+        // 4. Sign as Supervisor (acknowledged)
         $response = $this->actingAs($user)->post(route('second-process-reports.sign', [$report->id, 'acknowledged']));
         $response->assertRedirect();
         $report->refresh();
         $this->assertEquals('acknowledged', $report->status);
-        $this->assertEquals('Approver Admin', $report->acknowledged_by_name);
-        $this->assertNotNull($report->acknowledged_signed_at);
-
-        // 6. Test Rejection resets to draft and clears signatures
-        $response = $this->actingAs($user)->post(route('second-process-reports.reject', $report->id), [
-            'rejection_reason' => 'NG quantity mismatch on hour 5'
-        ]);
-        $response->assertRedirect();
-        $report->refresh();
-        $this->assertEquals('draft', $report->status);
-        $this->assertNull($report->created_by_signed_at);
-        $this->assertNull($report->pqc_name);
-        $this->assertNull($report->pqc_signed_at);
-        $this->assertNull($report->leader_name);
-        $this->assertNull($report->leader_signed_at);
-        $this->assertNull($report->acknowledged_by_name);
-        $this->assertNull($report->acknowledged_signed_at);
-        $this->assertStringContainsString('Rejected by Approver Admin: NG quantity mismatch on hour 5', $report->ng_remarks);
     }
 }

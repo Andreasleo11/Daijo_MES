@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\FirstPieceInspection;
+use App\Models\IpqcCheckItem;
+use App\Models\IpqcMeasurementConfig;
 use App\Models\MasterListItem;
 use App\Models\SecondProcessReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class SecondProcessReportController extends Controller
 {
@@ -63,7 +67,10 @@ class SecondProcessReportController extends Controller
     public function create()
     {
         $report = new SecondProcessReport();
-        return view('second_process.create', compact('report'));
+        $ipqcCheckItems = IpqcCheckItem::active()->ordered()->get();
+        $ipqcMeasurements = IpqcMeasurementConfig::active()->ordered()->get();
+
+        return view('second_process.create', compact('report', 'ipqcCheckItems', 'ipqcMeasurements'));
     }
 
     public function store(Request $request)
@@ -83,9 +90,16 @@ class SecondProcessReportController extends Controller
             'manpowers',
             'ngRecords.hourlyDetails',
             'troubles',
+            'ipqcRecords.attachments',
+            'qcAttachments',
         ])->findOrFail($id);
 
-        return view('second_process.show', compact('report'));
+        $firstPiece = FirstPieceInspection::where('part_number', $report->part_number)
+            ->whereDate('date', $report->date)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return view('second_process.show', compact('report', 'firstPiece'));
     }
 
     public function edit($id)
@@ -96,6 +110,8 @@ class SecondProcessReportController extends Controller
             'manpowers',
             'ngRecords.hourlyDetails',
             'troubles',
+            'ipqcRecords.attachments',
+            'qcAttachments',
         ])->findOrFail($id);
 
         if ($report->status !== 'draft') {
@@ -103,7 +119,10 @@ class SecondProcessReportController extends Controller
                 ->with('error', 'Only draft reports can be edited.');
         }
 
-        return view('second_process.edit', compact('report'));
+        $ipqcCheckItems = IpqcCheckItem::active()->ordered()->get();
+        $ipqcMeasurements = IpqcMeasurementConfig::active()->ordered()->get();
+
+        return view('second_process.edit', compact('report', 'ipqcCheckItems', 'ipqcMeasurements'));
     }
 
     public function update(Request $request, $id)
@@ -198,15 +217,42 @@ class SecondProcessReportController extends Controller
             'troubles.*.category' => 'nullable|string',
             'troubles.*.masalah' => 'nullable|string',
             'troubles.*.loss_time_minutes' => 'nullable|integer',
+
+            // IPQC Header fields
+            'ipqc_lot_color' => 'nullable|string',
+            'ipqc_std_glossy' => 'nullable|string',
+            'ipqc_std_viscosity' => 'nullable|string',
+            'ipqc_std_oven_temp' => 'nullable|string',
+            'ipqc_product_color' => 'nullable|string',
+            'ipqc_app_sample' => 'nullable|string',
+            'ipqc_selected_measurements' => 'nullable|array',
+            'ipqc_inspector_name' => 'nullable|string',
+            'ipqc_checker_name' => 'nullable|string',
+            'ipqc_overall_judgement' => 'nullable|string',
+
+            // IPQC Hourly Records
+            'ipqc' => 'nullable|array',
+            'ipqc.*.hour_ke' => 'required|integer',
+            'ipqc.*.fitting_test' => 'nullable|string',
+            'ipqc.*.tape_test_judgement' => 'nullable|string',
+            'ipqc.*.appearance_checks' => 'nullable|array',
+            'ipqc.*.condition_checks' => 'nullable|array',
+            'ipqc.*.measurements' => 'nullable|array',
+            'ipqc.*.output_qty' => 'nullable|integer',
+            'ipqc.*.sample_qty' => 'nullable|integer',
+            'ipqc.*.reject_sample_qty' => 'nullable|integer',
+            'ipqc.*.pass_qty' => 'nullable|integer',
+            'ipqc.*.reject_qty' => 'nullable|integer',
+            'ipqc.*.judgement' => 'nullable|string',
         ]);
 
-        // ponytail: Default nullable integer fields to 0 if not set, preventing DB non-null constraint violations
+        // Default integer fields
         $validated['target_per_hour'] = $validated['target_per_hour'] ?? 0;
         $validated['jml_input_wip'] = $validated['jml_input_wip'] ?? 0;
         $validated['repairan'] = $validated['repairan'] ?? 0;
         $validated['jml_ng_lebur'] = $validated['jml_ng_lebur'] ?? 0;
 
-        // Server-side calculation of totals
+        // Server-side calculation of production totals
         $jumlah_ok = 0;
         if (isset($validated['hourly'])) {
             foreach ($validated['hourly'] as $hour) {
@@ -239,7 +285,42 @@ class SecondProcessReportController extends Controller
         $validated['jumlah_output'] = $jumlah_output;
         $validated['ng_prosentase'] = $ng_prosentase;
 
-        // Auto-assign status, default to draft if not set
+        // Calculate IPQC Totals
+        $ipqcTotalOutput = 0;
+        $ipqcTotalSample = 0;
+        $ipqcTotalRejectSample = 0;
+        $ipqcTotalPass = 0;
+        $ipqcTotalReject = 0;
+        $ipqcOverallJudgement = 'OK';
+
+        if (isset($validated['ipqc'])) {
+            foreach ($validated['ipqc'] as $ipqcRow) {
+                $ipqcTotalOutput += (int) ($ipqcRow['output_qty'] ?? 0);
+                $ipqcTotalSample += (int) ($ipqcRow['sample_qty'] ?? 0);
+                $ipqcTotalRejectSample += (int) ($ipqcRow['reject_sample_qty'] ?? 0);
+                $ipqcTotalPass += (int) ($ipqcRow['pass_qty'] ?? 0);
+                $ipqcTotalReject += (int) ($ipqcRow['reject_qty'] ?? 0);
+
+                if (($ipqcRow['judgement'] ?? 'OK') === 'NG') {
+                    $ipqcOverallJudgement = 'NG';
+                }
+            }
+        }
+
+        $ipqcTotalRejectRate = 0;
+        if ($ipqcTotalSample > 0) {
+            $ipqcTotalRejectRate = round(($ipqcTotalRejectSample / $ipqcTotalSample) * 100, 2);
+        }
+
+        $validated['ipqc_total_output'] = $ipqcTotalOutput;
+        $validated['ipqc_total_sample'] = $ipqcTotalSample;
+        $validated['ipqc_total_reject_sample'] = $ipqcTotalRejectSample;
+        $validated['ipqc_total_reject_rate'] = $ipqcTotalRejectRate;
+        $validated['ipqc_total_pass'] = $ipqcTotalPass;
+        $validated['ipqc_total_reject'] = $ipqcTotalReject;
+        $validated['ipqc_overall_judgement'] = $ipqcOverallJudgement;
+
+        // Auto-assign status
         $validated['status'] = $validated['status'] ?? ($report->exists ? $report->status : 'draft');
 
         if (! $report->exists) {
@@ -270,7 +351,7 @@ class SecondProcessReportController extends Controller
             }
         }
 
-        DB::transaction(function () use ($report, $validated) {
+        DB::transaction(function () use ($request, $report, $validated) {
             if ($report->exists) {
                 // Delete old relations
                 $report->materials()->delete();
@@ -278,11 +359,21 @@ class SecondProcessReportController extends Controller
                 $report->manpowers()->delete();
                 $report->ngRecords()->delete();
                 $report->troubles()->delete();
-                
-                // Update report
+                $report->ipqcRecords()->delete();
+
+                // Delete selected attachments if requested
+                if ($request->has('delete_attachments')) {
+                    foreach ($request->delete_attachments as $attachId) {
+                        $attachment = QcAttachment::find($attachId);
+                        if ($attachment) {
+                            Storage::disk('public')->delete($attachment->file_path);
+                            $attachment->delete();
+                        }
+                    }
+                }
+
                 $report->update($validated);
             } else {
-                // Create report
                 $report->fill($validated)->save();
             }
 
@@ -351,13 +442,58 @@ class SecondProcessReportController extends Controller
                     }
                 }
             }
+
+            // Create IPQC Records
+            if (isset($validated['ipqc'])) {
+                foreach ($validated['ipqc'] as $ipqcData) {
+                    $sampleQty = (int) ($ipqcData['sample_qty'] ?? 0);
+                    $rejSampleQty = (int) ($ipqcData['reject_sample_qty'] ?? 0);
+                    $ipqcData['reject_rate'] = $sampleQty > 0 ? round(($rejSampleQty / $sampleQty) * 100, 2) : 0;
+
+                    $ipqcRecord = $report->ipqcRecords()->create($ipqcData);
+
+                    // Handle Tape Test files per period
+                    $hourKe = $ipqcData['hour_ke'];
+                    if ($request->hasFile("ipqc_tape_files.{$hourKe}")) {
+                        foreach ($request->file("ipqc_tape_files.{$hourKe}") as $file) {
+                            if ($file->isValid()) {
+                                $path = $file->store('qc-attachments/' . date('Y/m'), 'public');
+                                $ipqcRecord->attachments()->create([
+                                    'file_path' => $path,
+                                    'original_name' => $file->getClientOriginalName(),
+                                    'label' => "Tape Test Photo - Period {$hourKe}",
+                                    'mime_type' => $file->getMimeType(),
+                                    'file_size' => $file->getSize(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Handle Report level attachments
+            if ($request->hasFile('qc_report_files')) {
+                foreach ($request->file('qc_report_files') as $idx => $file) {
+                    if ($file->isValid()) {
+                        $path = $file->store('qc-attachments/' . date('Y/m'), 'public');
+                        $label = $request->input("qc_report_file_labels.{$idx}", 'QC Proof Attachment');
+                        $report->qcAttachments()->create([
+                            'file_path' => $path,
+                            'original_name' => $file->getClientOriginalName(),
+                            'label' => $label,
+                            'mime_type' => $file->getMimeType(),
+                            'file_size' => $file->getSize(),
+                        ]);
+                    }
+                }
+            }
         });
     }
 
     public function destroy($id)
     {
         $report = SecondProcessReport::findOrFail($id);
-        $report->delete(); // child rows will be deleted via database foreign key cascade delete
+        $report->delete();
 
         return redirect()->route('second-process-reports.index')
             ->with('success', 'Report deleted successfully.');
@@ -405,7 +541,6 @@ class SecondProcessReportController extends Controller
         $report = SecondProcessReport::findOrFail($id);
         $user = auth()->user();
 
-        // Check department role authorization
         if (!$user->role || !in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
             return redirect()->back()->withErrors(['error' => 'You are not authorized to sign reports in the Second Process department.']);
         }
@@ -426,6 +561,19 @@ class SecondProcessReportController extends Controller
                 if ($report->status !== 'submitted') {
                     return redirect()->back()->withErrors(['error' => 'PQC signature can only be applied to submitted reports.']);
                 }
+
+                // Check First Piece Approval Gate
+                $firstPiece = FirstPieceInspection::where('part_number', $report->part_number)
+                    ->whereDate('date', $report->date)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                if (!$firstPiece || !$firstPiece->isApproved()) {
+                    return redirect()->back()->withErrors([
+                        'error' => "Cannot sign PQC approval: First Piece Inspection for part '{$report->part_number}' on {$report->date} is not approved by QC."
+                    ]);
+                }
+
                 $report->update([
                     'pqc_name' => $user->name,
                     'pqc_signed_at' => now(),
@@ -476,7 +624,6 @@ class SecondProcessReportController extends Controller
             'rejection_reason' => 'required|string|max:1000'
         ]);
 
-        // Reset report back to draft and clear signatures
         $report->update([
             'status' => 'draft',
             'created_by_signed_at' => null,

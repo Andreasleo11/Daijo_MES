@@ -4,6 +4,7 @@ use App\Http\Controllers\AssemblyDailyController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FirstPieceInspectionController;
 use App\Http\Controllers\SecondProcessReportController;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
@@ -770,6 +771,11 @@ Route::middleware('auth')->group(function (){
     Route::post('second-process-reports/{id}/sign/{role}', [SecondProcessReportController::class, 'sign'])->name('second-process-reports.sign');
     Route::post('second-process-reports/{id}/reject', [SecondProcessReportController::class, 'reject'])->name('second-process-reports.reject');
     Route::resource('second-process-reports', SecondProcessReportController::class);
+
+    // First Piece Inspection routes
+    Route::get('first-piece-inspections/check-approval', [FirstPieceInspectionController::class, 'checkApproval'])->name('first-piece-inspections.check-approval');
+    Route::post('first-piece-inspections/{id}/sign/{role}', [FirstPieceInspectionController::class, 'sign'])->name('first-piece-inspections.sign');
+    Route::resource('first-piece-inspections', FirstPieceInspectionController::class);
     
     Route::get('/master-list-manager', [MasterListItemController::class, 'manage'])->name('admin.master-list-manager');
     Route::get('/master-list-logs', [MasterListItemController::class, 'logs'])->name('admin.master-list-logs');

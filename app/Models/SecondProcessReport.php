@@ -40,10 +40,29 @@ class SecondProcessReport extends Model
         'leader_signed_at',
         'acknowledged_by_name',
         'acknowledged_signed_at',
+
+        // IPQC Header & Summary fields
+        'ipqc_lot_color',
+        'ipqc_std_glossy',
+        'ipqc_std_viscosity',
+        'ipqc_std_oven_temp',
+        'ipqc_product_color',
+        'ipqc_app_sample',
+        'ipqc_selected_measurements',
+        'ipqc_total_output',
+        'ipqc_total_sample',
+        'ipqc_total_reject_sample',
+        'ipqc_total_reject_rate',
+        'ipqc_total_pass',
+        'ipqc_total_reject',
+        'ipqc_inspector_name',
+        'ipqc_checker_name',
+        'ipqc_overall_judgement',
     ];
 
     protected $casts = [
         'next_production_schedule' => 'array',
+        'ipqc_selected_measurements' => 'array',
     ];
 
     public function materials()
@@ -69,5 +88,15 @@ class SecondProcessReport extends Model
     public function troubles()
     {
         return $this->hasMany(SecondProcessTrouble::class, 'report_id');
+    }
+
+    public function ipqcRecords()
+    {
+        return $this->hasMany(SecondProcessIpqcRecord::class, 'report_id');
+    }
+
+    public function qcAttachments()
+    {
+        return $this->morphMany(QcAttachment::class, 'attachable');
     }
 }

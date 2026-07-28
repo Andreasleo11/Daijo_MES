@@ -2,11 +2,16 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-bold">Second Process Daily Production Reports</h2>
-                <a href="{{ route('second-process-reports.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition">
-                    + New Report
-                </a>
+                <div class="flex items-center space-x-2">
+                    <a href="{{ route('first-piece-inspections.index') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow transition text-sm">
+                        📋 First Piece Inspections
+                    </a>
+                    <a href="{{ route('second-process-reports.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition text-sm">
+                        + New Report
+                    </a>
+                </div>
             </div>
 
             @if(session('success'))
