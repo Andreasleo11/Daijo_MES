@@ -252,8 +252,8 @@
                     <td class="val" style="font-size: 8.5px;">{{ $pallet->material ? $pallet->material->item_description : '-' }}</td>
                 </tr>
                 <tr>
-                    <td class="lbl">INITIAL QTY:</td>
-                    <td class="val">{{ number_format($pallet->initial_qty, 2) }} KG</td>
+                    <td class="lbl">CURRENT QTY:</td>
+                    <td class="val">{{ number_format($pallet->current_qty, 2) }} KG</td>
                 </tr>
                 <tr>
                     <td class="lbl">SLOT RAK:</td>
