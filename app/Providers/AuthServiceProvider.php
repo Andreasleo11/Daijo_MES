@@ -74,5 +74,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('view-production-links', function($user){
             return $user->hasRoleAccess('PRODUCTION');
         });
+
+        Gate::define('view-quality-links', function($user){
+            return $user->hasRoleAccess('QUALITY');
+        });
     }
 }
