@@ -223,4 +223,62 @@ class SecondProcessReportTest extends TestCase
         $report->refresh();
         $this->assertEquals('acknowledged', $report->status);
     }
+
+    /**
+     * Test search items endpoint returns project_code and customer_name.
+     */
+    public function test_search_items_returns_project_code_and_customer(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $cust = \App\Models\MasterCustomerDelivery::create([
+            'customer_code' => 'CUST-TEST-01',
+            'customer_name' => 'Test Customer Corp',
+        ]);
+
+        \App\Models\MasterListItem::create([
+            'item_code' => 'ITEM-SEARCH-01',
+            'item_name' => 'Test Widget Part',
+            'tipe_mesin' => '0',
+            'standart_packaging_list' => 10,
+            'setup_time_minute' => '0',
+            'pair' => '0',
+            'cavity' => 1,
+            'cycle_time' => 1.0,
+            'project_code' => 'MODEL-TEST-99',
+            'customer_code' => 'CUST-TEST-01',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('second-process-reports.search-items', ['query' => 'ITEM-SEARCH']));
+
+        $response->assertOk()
+            ->assertJsonFragment([
+                'item_code' => 'ITEM-SEARCH-01',
+                'item_name' => 'Test Widget Part',
+                'project_code' => 'MODEL-TEST-99',
+                'customer_name' => 'Test Customer Corp',
+            ]);
+    }
+
+    /**
+     * Test search customers endpoint returns MasterCustomerDelivery items.
+     */
+    public function test_search_customers_returns_master_customer(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        \App\Models\MasterCustomerDelivery::create([
+            'customer_code' => 'CUST-DEL-88',
+            'customer_name' => 'Daijo Motor Supply',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('second-process-reports.search-customers', ['query' => 'Daijo']));
+
+        $response->assertOk()
+            ->assertJsonFragment([
+                'customer_code' => 'CUST-DEL-88',
+                'customer_name' => 'Daijo Motor Supply',
+            ]);
+    }
 }
+

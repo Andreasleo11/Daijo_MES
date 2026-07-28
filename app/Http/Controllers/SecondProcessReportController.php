@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\FirstPieceInspection;
 use App\Models\IpqcCheckItem;
 use App\Models\IpqcMeasurementConfig;
+use App\Models\MasterCustomerDelivery;
 use App\Models\MasterListItem;
 use App\Models\SecondProcessReport;
 use Illuminate\Http\Request;
@@ -34,7 +35,7 @@ class SecondProcessReportController extends Controller
             $query->where('process_prod', $request->process_prod);
         }
         if ($request->filled('unit_line')) {
-            $query->where('unit_line', 'LIKE', '%' . $request->unit_line . '%');
+            $query->where('unit_line', 'LIKE', '%'.$request->unit_line.'%');
         }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -45,9 +46,9 @@ class SecondProcessReportController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('model', 'LIKE', "%{$search}%")
-                  ->orWhere('part_number', 'LIKE', "%{$search}%")
-                  ->orWhere('customer', 'LIKE', "%{$search}%")
-                  ->orWhere('part_name', 'LIKE', "%{$search}%");
+                    ->orWhere('part_number', 'LIKE', "%{$search}%")
+                    ->orWhere('customer', 'LIKE', "%{$search}%")
+                    ->orWhere('part_name', 'LIKE', "%{$search}%");
             });
         }
 
@@ -66,7 +67,7 @@ class SecondProcessReportController extends Controller
 
     public function create()
     {
-        $report = new SecondProcessReport();
+        $report = new SecondProcessReport;
         $ipqcCheckItems = IpqcCheckItem::active()->ordered()->get();
         $ipqcMeasurements = IpqcMeasurementConfig::active()->ordered()->get();
 
@@ -75,7 +76,7 @@ class SecondProcessReportController extends Controller
 
     public function store(Request $request)
     {
-        $report = new SecondProcessReport();
+        $report = new SecondProcessReport;
         $this->saveReport($request, $report);
 
         return redirect()->route('second-process-reports.index')
@@ -457,7 +458,7 @@ class SecondProcessReportController extends Controller
                     if ($request->hasFile("ipqc_tape_files.{$hourKe}")) {
                         foreach ($request->file("ipqc_tape_files.{$hourKe}") as $file) {
                             if ($file->isValid()) {
-                                $path = $file->store('qc-attachments/' . date('Y/m'), 'public');
+                                $path = $file->store('qc-attachments/'.date('Y/m'), 'public');
                                 $ipqcRecord->attachments()->create([
                                     'file_path' => $path,
                                     'original_name' => $file->getClientOriginalName(),
@@ -475,7 +476,7 @@ class SecondProcessReportController extends Controller
             if ($request->hasFile('qc_report_files')) {
                 foreach ($request->file('qc_report_files') as $idx => $file) {
                     if ($file->isValid()) {
-                        $path = $file->store('qc-attachments/' . date('Y/m'), 'public');
+                        $path = $file->store('qc-attachments/'.date('Y/m'), 'public');
                         $label = $request->input("qc_report_file_labels.{$idx}", 'QC Proof Attachment');
                         $report->qcAttachments()->create([
                             'file_path' => $path,
@@ -506,7 +507,8 @@ class SecondProcessReportController extends Controller
             return response()->json([]);
         }
 
-        $items = MasterListItem::where('item_code', 'LIKE', "%{$query}%")
+        $items = MasterListItem::with('customer')
+            ->where('item_code', 'LIKE', "%{$query}%")
             ->orWhere('item_name', 'LIKE', "%{$query}%")
             ->limit(20)
             ->get()
@@ -516,6 +518,9 @@ class SecondProcessReportController extends Controller
                     'item_code' => $item->item_code,
                     'item_name' => $item->item_name,
                     'item_description' => $item->item_name,
+                    'project_code' => $item->project_code,
+                    'customer_name' => $item->customer?->customer_name ?? $item->customer_code,
+                    'customer_code' => $item->customer_code,
                 ];
             });
 
@@ -529,9 +534,18 @@ class SecondProcessReportController extends Controller
             return response()->json([]);
         }
 
-        $customers = Customer::where('name', 'LIKE', "%{$query}%")
+        $customers = MasterCustomerDelivery::where('customer_name', 'LIKE', "%{$query}%")
+            ->orWhere('customer_code', 'LIKE', "%{$query}%")
             ->limit(20)
-            ->get();
+            ->get()
+            ->map(function ($cust) {
+                return [
+                    'id' => $cust->id,
+                    'customer_code' => $cust->customer_code,
+                    'customer_name' => $cust->customer_name,
+                    'name' => $cust->customer_name,
+                ];
+            });
 
         return response()->json($customers);
     }
@@ -541,7 +555,7 @@ class SecondProcessReportController extends Controller
         $report = SecondProcessReport::findOrFail($id);
         $user = auth()->user();
 
-        if (!$user->role || !in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
+        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
             return redirect()->back()->withErrors(['error' => 'You are not authorized to sign reports in the Second Process department.']);
         }
 
@@ -553,7 +567,7 @@ class SecondProcessReportController extends Controller
                 $report->update([
                     'created_by_name' => $user->name,
                     'created_by_signed_at' => now(),
-                    'status' => 'submitted'
+                    'status' => 'submitted',
                 ]);
                 break;
 
@@ -568,16 +582,16 @@ class SecondProcessReportController extends Controller
                     ->orderBy('id', 'desc')
                     ->first();
 
-                if (!$firstPiece || !$firstPiece->isApproved()) {
+                if (! $firstPiece || ! $firstPiece->isApproved()) {
                     return redirect()->back()->withErrors([
-                        'error' => "Cannot sign PQC approval: First Piece Inspection for part '{$report->part_number}' on {$report->date} is not approved by QC."
+                        'error' => "Cannot sign PQC approval: First Piece Inspection for part '{$report->part_number}' on {$report->date} is not approved by QC.",
                     ]);
                 }
 
                 $report->update([
                     'pqc_name' => $user->name,
                     'pqc_signed_at' => now(),
-                    'status' => 'pqc_approved'
+                    'status' => 'pqc_approved',
                 ]);
                 break;
 
@@ -588,7 +602,7 @@ class SecondProcessReportController extends Controller
                 $report->update([
                     'leader_name' => $user->name,
                     'leader_signed_at' => now(),
-                    'status' => 'leader_approved'
+                    'status' => 'leader_approved',
                 ]);
                 break;
 
@@ -599,7 +613,7 @@ class SecondProcessReportController extends Controller
                 $report->update([
                     'acknowledged_by_name' => $user->name,
                     'acknowledged_signed_at' => now(),
-                    'status' => 'acknowledged'
+                    'status' => 'acknowledged',
                 ]);
                 break;
 
@@ -608,7 +622,7 @@ class SecondProcessReportController extends Controller
         }
 
         return redirect()->route('second-process-reports.show', $id)
-            ->with('success', ucfirst($role) . ' signature applied successfully.');
+            ->with('success', ucfirst($role).' signature applied successfully.');
     }
 
     public function reject(Request $request, $id)
@@ -616,12 +630,12 @@ class SecondProcessReportController extends Controller
         $report = SecondProcessReport::findOrFail($id);
         $user = auth()->user();
 
-        if (!$user->role || !in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
+        if (! $user->role || ! in_array($user->role->name, ['ADMIN', 'SECONDPROCESS', 'PRODUCTION'])) {
             return redirect()->back()->withErrors(['error' => 'You are not authorized to reject reports in this department.']);
         }
 
         $request->validate([
-            'rejection_reason' => 'required|string|max:1000'
+            'rejection_reason' => 'required|string|max:1000',
         ]);
 
         $report->update([
@@ -633,7 +647,7 @@ class SecondProcessReportController extends Controller
             'leader_signed_at' => null,
             'acknowledged_by_name' => null,
             'acknowledged_signed_at' => null,
-            'ng_remarks' => trim(($report->ng_remarks ? $report->ng_remarks . "\n" : '') . 'Rejected by ' . $user->name . ': ' . $request->rejection_reason)
+            'ng_remarks' => trim(($report->ng_remarks ? $report->ng_remarks."\n" : '').'Rejected by '.$user->name.': '.$request->rejection_reason),
         ]);
 
         return redirect()->route('second-process-reports.show', $id)

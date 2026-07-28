@@ -103,9 +103,31 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Unit /
                             Line</label>
-                        <input type="text" name="unit_line" value="{{ old('unit_line', $report->unit_line) }}"
+                        <select name="unit_line"
                             class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required>
+                            <option value="">-- Select Unit / Line --</option>
+                            @php
+                                $unitLineOptions = [
+                                    'Line A',
+                                    'Line B',
+                                    'Line C',
+                                    'Line D',
+                                    'Area Buffing',
+                                    'Area Amplas/Treatment',
+                                    'Area Packing',
+                                    'Area Assy',
+                                ];
+                                $currentUnitLine = old('unit_line', $report->unit_line);
+                            @endphp
+                            @foreach ($unitLineOptions as $opt)
+                                <option value="{{ $opt }}" {{ $currentUnitLine == $opt ? 'selected' : '' }}>
+                                    {{ $opt }}</option>
+                            @endforeach
+                            @if ($currentUnitLine && !in_array($currentUnitLine, $unitLineOptions))
+                                <option value="{{ $currentUnitLine }}" selected>{{ $currentUnitLine }}</option>
+                            @endif
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Shift</label>
@@ -258,29 +280,61 @@
                             <tbody class="divide-y divide-gray-200" id="manpower-tbody">
                                 @forelse($report->manpowers->sortBy('no') as $index => $mp)
                                     <tr class="manpower-row">
-                                        <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">{{ $loop->iteration }}</td>
+                                        <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">
+                                            {{ $loop->iteration }}</td>
                                         <td class="px-4 py-2">
-                                            <input type="hidden" name="manpower[{{ $index }}][no]" class="mp-no-input" value="{{ $loop->iteration }}">
+                                            <input type="hidden" name="manpower[{{ $index }}][no]"
+                                                class="mp-no-input" value="{{ $loop->iteration }}">
                                             @php
-                                                $isCustom = !in_array($mp->role, ['loading', 'sprayer', 'checker', 'qc', 'operator', 'leader']);
+                                                $isCustom = !in_array($mp->role, [
+                                                    'loading',
+                                                    'sprayer',
+                                                    'checker',
+                                                    'qc',
+                                                    'operator',
+                                                    'leader',
+                                                ]);
                                             @endphp
-                                            <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, {{ $index }})">
-                                                <option value="loading" {{ $mp->role == 'loading' ? 'selected' : '' }}>Loading / Input / Packing</option>
-                                                <option value="sprayer" {{ $mp->role == 'sprayer' ? 'selected' : '' }}>Sprayer</option>
-                                                <option value="checker" {{ $mp->role == 'checker' ? 'selected' : '' }}>Checker</option>
-                                                <option value="qc" {{ $mp->role == 'qc' ? 'selected' : '' }}>QC</option>
-                                                <option value="operator" {{ $mp->role == 'operator' ? 'selected' : '' }}>Operator</option>
-                                                <option value="leader" {{ $mp->role == 'leader' ? 'selected' : '' }}>Leader</option>
-                                                <option value="__custom__" {{ $isCustom ? 'selected' : '' }}>Other (custom)...</option>
+                                            <select
+                                                class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select"
+                                                onchange="toggleCustomRole(this, {{ $index }})">
+                                                <option value="loading"
+                                                    {{ $mp->role == 'loading' ? 'selected' : '' }}>Loading / Input /
+                                                    Packing</option>
+                                                <option value="sprayer"
+                                                    {{ $mp->role == 'sprayer' ? 'selected' : '' }}>Sprayer</option>
+                                                <option value="checker"
+                                                    {{ $mp->role == 'checker' ? 'selected' : '' }}>Checker</option>
+                                                <option value="qc" {{ $mp->role == 'qc' ? 'selected' : '' }}>QC
+                                                </option>
+                                                <option value="operator"
+                                                    {{ $mp->role == 'operator' ? 'selected' : '' }}>Operator</option>
+                                                <option value="leader" {{ $mp->role == 'leader' ? 'selected' : '' }}>
+                                                    Leader</option>
+                                                <option value="__custom__" {{ $isCustom ? 'selected' : '' }}>Other
+                                                    (custom)
+                                                    ...</option>
                                             </select>
-                                            <input type="text" name="manpower[{{ $index }}][role]" value="{{ $mp->role }}" class="w-full text-xs rounded border-gray-300 py-1 role-input {{ $isCustom ? '' : 'hidden' }}" placeholder="Type custom role..." {{ $isCustom ? '' : 'readonly' }}>
+                                            <input type="text" name="manpower[{{ $index }}][role]"
+                                                value="{{ $mp->role }}"
+                                                class="w-full text-xs rounded border-gray-300 py-1 role-input {{ $isCustom ? '' : 'hidden' }}"
+                                                placeholder="Type custom role..." {{ $isCustom ? '' : 'readonly' }}>
                                         </td>
                                         <td class="px-4 py-2">
-                                            <input type="text" name="manpower[{{ $index }}][name]" value="{{ $mp->name }}" placeholder="Operator Name" class="w-full text-xs rounded border-gray-300 py-1">
+                                            <input type="text" name="manpower[{{ $index }}][name]"
+                                                value="{{ $mp->name }}" placeholder="Operator Name"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-4 py-2 text-center">
-                                            <button type="button" onclick="removeManpowerRow(this)" class="text-red-500 hover:text-red-700 p-1">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            <button type="button" onclick="removeManpowerRow(this)"
+                                                class="text-red-500 hover:text-red-700 p-1">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                    </path>
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -289,8 +343,11 @@
                                     <tr class="manpower-row">
                                         <td class="px-4 py-2 text-center font-bold text-gray-500 mp-no">1</td>
                                         <td class="px-4 py-2">
-                                            <input type="hidden" name="manpower[0][no]" class="mp-no-input" value="1">
-                                            <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, 0)">
+                                            <input type="hidden" name="manpower[0][no]" class="mp-no-input"
+                                                value="1">
+                                            <select
+                                                class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select"
+                                                onchange="toggleCustomRole(this, 0)">
                                                 <option value="loading">Loading / Input / Packing</option>
                                                 <option value="sprayer">Sprayer</option>
                                                 <option value="checker">Checker</option>
@@ -299,14 +356,25 @@
                                                 <option value="leader">Leader</option>
                                                 <option value="__custom__">Other (custom)...</option>
                                             </select>
-                                            <input type="text" name="manpower[0][role]" value="loading" class="w-full text-xs rounded border-gray-300 py-1 role-input hidden" placeholder="Type custom role..." readonly>
+                                            <input type="text" name="manpower[0][role]" value="loading"
+                                                class="w-full text-xs rounded border-gray-300 py-1 role-input hidden"
+                                                placeholder="Type custom role..." readonly>
                                         </td>
                                         <td class="px-4 py-2">
-                                            <input type="text" name="manpower[0][name]" placeholder="Operator Name" class="w-full text-xs rounded border-gray-300 py-1">
+                                            <input type="text" name="manpower[0][name]"
+                                                placeholder="Operator Name"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-4 py-2 text-center">
-                                            <button type="button" onclick="removeManpowerRow(this)" class="text-red-500 hover:text-red-700 p-1">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            <button type="button" onclick="removeManpowerRow(this)"
+                                                class="text-red-500 hover:text-red-700 p-1">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                    </path>
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -984,14 +1052,20 @@
         <div id="tab-content-ipqc" class="tab-pane hidden space-y-8">
 
             <!-- First Piece Inspection Status Banner (Live Gate Check) -->
-            <div id="first-piece-gate-banner" class="bg-gray-50 border border-gray-200 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div id="first-piece-gate-banner"
+                class="bg-gray-50 border border-gray-200 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center space-x-3">
                     <div id="first-piece-gate-icon" class="p-2 rounded-full bg-gray-200 text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                     </div>
                     <div>
-                        <div class="text-xs font-bold text-gray-500 uppercase tracking-wider">First Piece Gate Status</div>
-                        <div id="first-piece-gate-text" class="text-sm font-bold text-gray-800">Checking First Piece Inspection status...</div>
+                        <div class="text-xs font-bold text-gray-500 uppercase tracking-wider">First Piece Gate Status
+                        </div>
+                        <div id="first-piece-gate-text" class="text-sm font-bold text-gray-800">Checking First Piece
+                            Inspection status...</div>
                     </div>
                 </div>
                 <div id="first-piece-gate-action">
@@ -1002,37 +1076,60 @@
             <!-- IPQC Header Specifications Section -->
             <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
                     </svg>
                     IPQC Inspection Setup & Specifications
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Lot Color</label>
-                        <input type="text" name="ipqc_lot_color" value="{{ old('ipqc_lot_color', $report->ipqc_lot_color) }}" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs" placeholder="Lot Color">
+                        <input type="text" name="ipqc_lot_color"
+                            value="{{ old('ipqc_lot_color', $report->ipqc_lot_color) }}"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs"
+                            placeholder="Lot Color">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Std Glossy</label>
-                        <input type="text" name="ipqc_std_glossy" value="{{ old('ipqc_std_glossy', $report->ipqc_std_glossy) }}" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs" placeholder="-">
+                        <input type="text" name="ipqc_std_glossy"
+                            value="{{ old('ipqc_std_glossy', $report->ipqc_std_glossy) }}"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs"
+                            placeholder="-">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Std Viscosity</label>
-                        <input type="text" name="ipqc_std_viscosity" value="{{ old('ipqc_std_viscosity', $report->ipqc_std_viscosity) }}" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs" placeholder="e.g. 9-12 s">
+                        <input type="text" name="ipqc_std_viscosity"
+                            value="{{ old('ipqc_std_viscosity', $report->ipqc_std_viscosity) }}"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs"
+                            placeholder="e.g. 9-12 s">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Std Oven Temp</label>
-                        <input type="text" name="ipqc_std_oven_temp" value="{{ old('ipqc_std_oven_temp', $report->ipqc_std_oven_temp) }}" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs" placeholder="e.g. 40-80°C">
+                        <input type="text" name="ipqc_std_oven_temp"
+                            value="{{ old('ipqc_std_oven_temp', $report->ipqc_std_oven_temp) }}"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs"
+                            placeholder="e.g. 40-80°C">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Product Color</label>
-                        <input type="text" name="ipqc_product_color" value="{{ old('ipqc_product_color', $report->ipqc_product_color) }}" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs" placeholder="e.g. Silver">
+                        <input type="text" name="ipqc_product_color"
+                            value="{{ old('ipqc_product_color', $report->ipqc_product_color) }}"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs"
+                            placeholder="e.g. Silver">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">App Sample</label>
-                        <select name="ipqc_app_sample" class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs">
-                            <option value="YES" {{ old('ipqc_app_sample', $report->ipqc_app_sample) === 'YES' ? 'selected' : '' }}>YES</option>
-                            <option value="NO" {{ old('ipqc_app_sample', $report->ipqc_app_sample) === 'NO' ? 'selected' : '' }}>NO</option>
+                        <select name="ipqc_app_sample"
+                            class="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-xs">
+                            <option value="YES"
+                                {{ old('ipqc_app_sample', $report->ipqc_app_sample) === 'YES' ? 'selected' : '' }}>YES
+                            </option>
+                            <option value="NO"
+                                {{ old('ipqc_app_sample', $report->ipqc_app_sample) === 'NO' ? 'selected' : '' }}>NO
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -1041,19 +1138,34 @@
             <!-- Measurement Fields Selector Card -->
             <div class="bg-purple-50 p-5 rounded-lg border border-purple-200">
                 <h3 class="text-sm font-bold text-purple-900 mb-2 uppercase tracking-wider flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                        </path>
+                    </svg>
                     Select Active Measurement Checks For This Report
                 </h3>
-                <p class="text-xs text-purple-700 mb-3">Check the boxes below to display corresponding measurement columns in the 2-hour IPQC log table.</p>
+                <p class="text-xs text-purple-700 mb-3">Check the boxes below to display corresponding measurement
+                    columns in the 2-hour IPQC log table.</p>
 
                 @php
-                    $selectedMeas = old('ipqc_selected_measurements', $report->ipqc_selected_measurements ?? ['act_oven_temp', 'viscosity', 'cycle_time', 'nichiban_test']);
+                    $selectedMeas = old(
+                        'ipqc_selected_measurements',
+                        $report->ipqc_selected_measurements ?? [
+                            'act_oven_temp',
+                            'viscosity',
+                            'cycle_time',
+                            'nichiban_test',
+                        ],
+                    );
                 @endphp
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs bg-white p-4 rounded border border-purple-200">
-                    @foreach($ipqcMeasurements as $mConfig)
+                <div
+                    class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs bg-white p-4 rounded border border-purple-200">
+                    @foreach ($ipqcMeasurements as $mConfig)
                         <label class="flex items-center space-x-2 cursor-pointer font-semibold text-gray-800">
-                            <input type="checkbox" name="ipqc_selected_measurements[]" value="{{ $mConfig->field_key }}"
+                            <input type="checkbox" name="ipqc_selected_measurements[]"
+                                value="{{ $mConfig->field_key }}"
                                 class="meas-toggle-cb rounded text-purple-600 focus:ring-purple-500"
                                 {{ in_array($mConfig->field_key, $selectedMeas) ? 'checked' : '' }}
                                 data-key="{{ $mConfig->field_key }}">
@@ -1078,10 +1190,11 @@
                                 <th class="border border-gray-300 px-2 py-2">Fitting Test</th>
                                 <th class="border border-gray-300 px-2 py-2">Appearance Checks</th>
                                 <th class="border border-gray-300 px-2 py-2">Condition Checks</th>
-                                
-                                @foreach($ipqcMeasurements as $mConfig)
-                                    <th class="border border-gray-300 px-2 py-2 meas-col meas-col-{{ $mConfig->field_key }} {{ in_array($mConfig->field_key, $selectedMeas) ? '' : 'hidden' }}">
-                                        {{ $mConfig->label }} {{ $mConfig->unit ? '('.$mConfig->unit.')' : '' }}
+
+                                @foreach ($ipqcMeasurements as $mConfig)
+                                    <th
+                                        class="border border-gray-300 px-2 py-2 meas-col meas-col-{{ $mConfig->field_key }} {{ in_array($mConfig->field_key, $selectedMeas) ? '' : 'hidden' }}">
+                                        {{ $mConfig->label }} {{ $mConfig->unit ? '(' . $mConfig->unit . ')' : '' }}
                                     </th>
                                 @endforeach
 
@@ -1100,9 +1213,9 @@
                             @for ($h = 1; $h <= $currentHoursCount; $h++)
                                 @php
                                     $ipqcRow = $report->ipqcRecords->where('hour_ke', $h)->first();
-                                    $appChecks = $ipqcRow ? ($ipqcRow->appearance_checks ?? []) : [];
-                                    $condChecks = $ipqcRow ? ($ipqcRow->condition_checks ?? []) : [];
-                                    $measData = $ipqcRow ? ($ipqcRow->measurements ?? []) : [];
+                                    $appChecks = $ipqcRow ? $ipqcRow->appearance_checks ?? [] : [];
+                                    $condChecks = $ipqcRow ? $ipqcRow->condition_checks ?? [] : [];
+                                    $measData = $ipqcRow ? $ipqcRow->measurements ?? [] : [];
                                     $appTotalNG = array_sum($appChecks);
                                     $condTotalNG = array_sum($condChecks);
                                 @endphp
@@ -1110,31 +1223,43 @@
                                     <!-- Period / Hour -->
                                     <td class="border border-gray-300 px-2 py-2 font-bold text-gray-700 bg-gray-50">
                                         Hour {{ $h }}
-                                        <input type="hidden" name="ipqc[{{ $h }}][hour_ke]" value="{{ $h }}">
+                                        <input type="hidden" name="ipqc[{{ $h }}][hour_ke]"
+                                            value="{{ $h }}">
                                     </td>
 
                                     <!-- Fitting Test -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <select name="ipqc[{{ $h }}][fitting_test]" class="text-xs rounded border-gray-300 py-1 px-1">
-                                            <option value="OK" {{ ($ipqcRow->fitting_test ?? 'OK') === 'OK' ? 'selected' : '' }}>OK</option>
-                                            <option value="NG" {{ ($ipqcRow->fitting_test ?? '') === 'NG' ? 'selected' : '' }}>NG</option>
+                                        <select name="ipqc[{{ $h }}][fitting_test]"
+                                            class="text-xs rounded border-gray-300 py-1 px-1">
+                                            <option value="OK"
+                                                {{ ($ipqcRow->fitting_test ?? 'OK') === 'OK' ? 'selected' : '' }}>OK
+                                            </option>
+                                            <option value="NG"
+                                                {{ ($ipqcRow->fitting_test ?? '') === 'NG' ? 'selected' : '' }}>NG
+                                            </option>
                                         </select>
                                     </td>
 
                                     <!-- Appearance Checks (Collapsible Detail Modal Button) -->
                                     <td class="border border-gray-300 px-2 py-1">
                                         <details class="group relative text-left">
-                                            <summary class="cursor-pointer font-bold px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-center select-none">
+                                            <summary
+                                                class="cursor-pointer font-bold px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-center select-none">
                                                 Defects ({{ $appTotalNG }})
                                             </summary>
-                                            <div class="absolute left-0 mt-1 w-64 bg-white border border-gray-300 shadow-xl rounded-lg p-3 z-30 max-h-60 overflow-y-auto space-y-2">
-                                                <div class="text-[11px] font-bold text-purple-900 border-b pb-1">Appearance Defect Counts</div>
-                                                @foreach($ipqcCheckItems->where('category', 'appearance') as $item)
+                                            <div
+                                                class="absolute left-0 mt-1 w-64 bg-white border border-gray-300 shadow-xl rounded-lg p-3 z-30 max-h-60 overflow-y-auto space-y-2">
+                                                <div class="text-[11px] font-bold text-purple-900 border-b pb-1">
+                                                    Appearance Defect Counts</div>
+                                                @foreach ($ipqcCheckItems->where('category', 'appearance') as $item)
                                                     @php $val = $appChecks[$item->name] ?? ''; @endphp
                                                     <div class="flex justify-between items-center text-[11px]">
-                                                        <span class="text-gray-700 truncate w-36">{{ $item->name }}</span>
-                                                        <input type="number" name="ipqc[{{ $h }}][appearance_checks][{{ $item->name }}]"
-                                                            value="{{ $val }}" placeholder="0" min="0"
+                                                        <span
+                                                            class="text-gray-700 truncate w-36">{{ $item->name }}</span>
+                                                        <input type="number"
+                                                            name="ipqc[{{ $h }}][appearance_checks][{{ $item->name }}]"
+                                                            value="{{ $val }}" placeholder="0"
+                                                            min="0"
                                                             class="w-14 text-center rounded border-gray-300 py-0.5 text-[11px]">
                                                     </div>
                                                 @endforeach
@@ -1145,17 +1270,23 @@
                                     <!-- Condition Checks -->
                                     <td class="border border-gray-300 px-2 py-1">
                                         <details class="group relative text-left">
-                                            <summary class="cursor-pointer font-bold px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded text-center select-none">
+                                            <summary
+                                                class="cursor-pointer font-bold px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded text-center select-none">
                                                 Checks ({{ $condTotalNG }})
                                             </summary>
-                                            <div class="absolute left-0 mt-1 w-64 bg-white border border-gray-300 shadow-xl rounded-lg p-3 z-30 max-h-60 overflow-y-auto space-y-2">
-                                                <div class="text-[11px] font-bold text-indigo-900 border-b pb-1">Condition Part Checks</div>
-                                                @foreach($ipqcCheckItems->where('category', 'condition') as $item)
+                                            <div
+                                                class="absolute left-0 mt-1 w-64 bg-white border border-gray-300 shadow-xl rounded-lg p-3 z-30 max-h-60 overflow-y-auto space-y-2">
+                                                <div class="text-[11px] font-bold text-indigo-900 border-b pb-1">
+                                                    Condition Part Checks</div>
+                                                @foreach ($ipqcCheckItems->where('category', 'condition') as $item)
                                                     @php $val = $condChecks[$item->name] ?? ''; @endphp
                                                     <div class="flex justify-between items-center text-[11px]">
-                                                        <span class="text-gray-700 truncate w-36">{{ $item->name }}</span>
-                                                        <input type="number" name="ipqc[{{ $h }}][condition_checks][{{ $item->name }}]"
-                                                            value="{{ $val }}" placeholder="0" min="0"
+                                                        <span
+                                                            class="text-gray-700 truncate w-36">{{ $item->name }}</span>
+                                                        <input type="number"
+                                                            name="ipqc[{{ $h }}][condition_checks][{{ $item->name }}]"
+                                                            value="{{ $val }}" placeholder="0"
+                                                            min="0"
                                                             class="w-14 text-center rounded border-gray-300 py-0.5 text-[11px]">
                                                     </div>
                                                 @endforeach
@@ -1164,10 +1295,12 @@
                                     </td>
 
                                     <!-- Selected Measurement Inputs -->
-                                    @foreach($ipqcMeasurements as $mConfig)
+                                    @foreach ($ipqcMeasurements as $mConfig)
                                         @php $mVal = $measData[$mConfig->field_key] ?? ''; @endphp
-                                        <td class="border border-gray-300 px-1 py-1 meas-col meas-col-{{ $mConfig->field_key }} {{ in_array($mConfig->field_key, $selectedMeas) ? '' : 'hidden' }}">
-                                            <input type="text" name="ipqc[{{ $h }}][measurements][{{ $mConfig->field_key }}]"
+                                        <td
+                                            class="border border-gray-300 px-1 py-1 meas-col meas-col-{{ $mConfig->field_key }} {{ in_array($mConfig->field_key, $selectedMeas) ? '' : 'hidden' }}">
+                                            <input type="text"
+                                                name="ipqc[{{ $h }}][measurements][{{ $mConfig->field_key }}]"
                                                 value="{{ $mVal }}" placeholder="-"
                                                 class="w-full text-center text-xs rounded border-gray-300 py-1">
                                         </td>
@@ -1175,20 +1308,28 @@
 
                                     <!-- Tape Test Judgement -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <select name="ipqc[{{ $h }}][tape_test_judgement]" class="text-xs rounded border-gray-300 py-1 px-1 font-bold">
-                                            <option value="OK" {{ ($ipqcRow->tape_test_judgement ?? 'OK') === 'OK' ? 'selected' : '' }}>OK</option>
-                                            <option value="NG" {{ ($ipqcRow->tape_test_judgement ?? '') === 'NG' ? 'selected' : '' }}>NG</option>
+                                        <select name="ipqc[{{ $h }}][tape_test_judgement]"
+                                            class="text-xs rounded border-gray-300 py-1 px-1 font-bold">
+                                            <option value="OK"
+                                                {{ ($ipqcRow->tape_test_judgement ?? 'OK') === 'OK' ? 'selected' : '' }}>
+                                                OK</option>
+                                            <option value="NG"
+                                                {{ ($ipqcRow->tape_test_judgement ?? '') === 'NG' ? 'selected' : '' }}>
+                                                NG</option>
                                         </select>
                                     </td>
 
                                     <!-- Tape Photo Upload -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="file" name="ipqc_tape_files[{{ $h }}][]" multiple accept="image/*" class="text-[10px] w-28">
-                                        @if($ipqcRow && $ipqcRow->attachments->count() > 0)
+                                        <input type="file" name="ipqc_tape_files[{{ $h }}][]" multiple
+                                            accept="image/*" class="text-[10px] w-28">
+                                        @if ($ipqcRow && $ipqcRow->attachments->count() > 0)
                                             <div class="flex space-x-1 mt-1 justify-center">
-                                                @foreach($ipqcRow->attachments as $tAttach)
-                                                    <a href="{{ $tAttach->url }}" target="_blank" title="{{ $tAttach->label }}">
-                                                        <img src="{{ $tAttach->url }}" class="h-6 w-6 object-cover rounded border">
+                                                @foreach ($ipqcRow->attachments as $tAttach)
+                                                    <a href="{{ $tAttach->url }}" target="_blank"
+                                                        title="{{ $tAttach->label }}">
+                                                        <img src="{{ $tAttach->url }}"
+                                                            class="h-6 w-6 object-cover rounded border">
                                                     </a>
                                                 @endforeach
                                             </div>
@@ -1197,39 +1338,55 @@
 
                                     <!-- Output Qty -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="number" name="ipqc[{{ $h }}][output_qty]" value="{{ $ipqcRow->output_qty ?? '' }}" placeholder="0" class="w-16 text-center text-xs rounded border-gray-300 py-1 font-bold ipqc-output-input">
+                                        <input type="number" name="ipqc[{{ $h }}][output_qty]"
+                                            value="{{ $ipqcRow->output_qty ?? '' }}" placeholder="0"
+                                            class="w-16 text-center text-xs rounded border-gray-300 py-1 font-bold ipqc-output-input">
                                     </td>
 
                                     <!-- Sample Qty -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="number" name="ipqc[{{ $h }}][sample_qty]" value="{{ $ipqcRow->sample_qty ?? '' }}" placeholder="0" class="w-16 text-center text-xs rounded border-gray-300 py-1 ipqc-sample-input">
+                                        <input type="number" name="ipqc[{{ $h }}][sample_qty]"
+                                            value="{{ $ipqcRow->sample_qty ?? '' }}" placeholder="0"
+                                            class="w-16 text-center text-xs rounded border-gray-300 py-1 ipqc-sample-input">
                                     </td>
 
                                     <!-- Rej Sample Qty -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="number" name="ipqc[{{ $h }}][reject_sample_qty]" value="{{ $ipqcRow->reject_sample_qty ?? '' }}" placeholder="0" class="w-16 text-center text-xs rounded border-gray-300 py-1 text-red-600 font-bold ipqc-rejsample-input">
+                                        <input type="number" name="ipqc[{{ $h }}][reject_sample_qty]"
+                                            value="{{ $ipqcRow->reject_sample_qty ?? '' }}" placeholder="0"
+                                            class="w-16 text-center text-xs rounded border-gray-300 py-1 text-red-600 font-bold ipqc-rejsample-input">
                                     </td>
 
                                     <!-- Rej Rate (%) Auto -->
-                                    <td class="border border-gray-300 px-1 py-1 font-bold text-red-600 ipqc-rejrate-cell">
+                                    <td
+                                        class="border border-gray-300 px-1 py-1 font-bold text-red-600 ipqc-rejrate-cell">
                                         {{ $ipqcRow->reject_rate ?? '0' }}%
                                     </td>
 
                                     <!-- Pass Qty -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="number" name="ipqc[{{ $h }}][pass_qty]" value="{{ $ipqcRow->pass_qty ?? '' }}" placeholder="0" class="w-16 text-center text-xs rounded border-gray-300 py-1 text-green-700 font-bold">
+                                        <input type="number" name="ipqc[{{ $h }}][pass_qty]"
+                                            value="{{ $ipqcRow->pass_qty ?? '' }}" placeholder="0"
+                                            class="w-16 text-center text-xs rounded border-gray-300 py-1 text-green-700 font-bold">
                                     </td>
 
                                     <!-- Rej Qty -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <input type="number" name="ipqc[{{ $h }}][reject_qty]" value="{{ $ipqcRow->reject_qty ?? '' }}" placeholder="0" class="w-16 text-center text-xs rounded border-gray-300 py-1 text-red-700 font-bold">
+                                        <input type="number" name="ipqc[{{ $h }}][reject_qty]"
+                                            value="{{ $ipqcRow->reject_qty ?? '' }}" placeholder="0"
+                                            class="w-16 text-center text-xs rounded border-gray-300 py-1 text-red-700 font-bold">
                                     </td>
 
                                     <!-- Period Judgment -->
                                     <td class="border border-gray-300 px-1 py-1">
-                                        <select name="ipqc[{{ $h }}][judgement]" class="text-xs rounded border-gray-300 py-1 px-1 font-extrabold text-center">
-                                            <option value="OK" {{ ($ipqcRow->judgement ?? 'OK') === 'OK' ? 'selected' : '' }}>OK</option>
-                                            <option value="NG" {{ ($ipqcRow->judgement ?? '') === 'NG' ? 'selected' : '' }}>NG</option>
+                                        <select name="ipqc[{{ $h }}][judgement]"
+                                            class="text-xs rounded border-gray-300 py-1 px-1 font-extrabold text-center">
+                                            <option value="OK"
+                                                {{ ($ipqcRow->judgement ?? 'OK') === 'OK' ? 'selected' : '' }}>OK
+                                            </option>
+                                            <option value="NG"
+                                                {{ ($ipqcRow->judgement ?? '') === 'NG' ? 'selected' : '' }}>NG
+                                            </option>
                                         </select>
                                     </td>
                                 </tr>
@@ -1246,29 +1403,36 @@
                     <div class="space-y-3 text-xs">
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">QC Inspector Name</label>
-                            <input type="text" name="ipqc_inspector_name" value="{{ old('ipqc_inspector_name', $report->ipqc_inspector_name) }}" class="w-full rounded border-gray-300 text-xs" placeholder="Inspector Name">
+                            <input type="text" name="ipqc_inspector_name"
+                                value="{{ old('ipqc_inspector_name', $report->ipqc_inspector_name) }}"
+                                class="w-full rounded border-gray-300 text-xs" placeholder="Inspector Name">
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">QC Checker Name</label>
-                            <input type="text" name="ipqc_checker_name" value="{{ old('ipqc_checker_name', $report->ipqc_checker_name) }}" class="w-full rounded border-gray-300 text-xs" placeholder="Checker Name">
+                            <input type="text" name="ipqc_checker_name"
+                                value="{{ old('ipqc_checker_name', $report->ipqc_checker_name) }}"
+                                class="w-full rounded border-gray-300 text-xs" placeholder="Checker Name">
                         </div>
                     </div>
                 </div>
 
                 <div>
                     <h3 class="text-sm font-bold text-gray-800 uppercase mb-3">QC Attachments & Physical Proof</h3>
-                    <p class="text-xs text-gray-500 mb-2">Upload overall defect photos or report-level physical sample proof.</p>
+                    <p class="text-xs text-gray-500 mb-2">Upload overall defect photos or report-level physical sample
+                        proof.</p>
                     <input type="file" name="qc_report_files[]" multiple accept="image/*" class="w-full text-xs">
-                    
-                    @if($report->exists && $report->qcAttachments->count() > 0)
+
+                    @if ($report->exists && $report->qcAttachments->count() > 0)
                         <div class="mt-3 grid grid-cols-3 gap-2">
-                            @foreach($report->qcAttachments as $rAttach)
+                            @foreach ($report->qcAttachments as $rAttach)
                                 <div class="border rounded p-1 bg-white text-center">
                                     <a href="{{ $rAttach->url }}" target="_blank">
                                         <img src="{{ $rAttach->url }}" class="h-16 object-cover mx-auto rounded">
                                     </a>
-                                    <label class="mt-1 flex items-center justify-center text-[10px] text-red-600 cursor-pointer">
-                                        <input type="checkbox" name="delete_attachments[]" value="{{ $rAttach->id }}" class="mr-1">
+                                    <label
+                                        class="mt-1 flex items-center justify-center text-[10px] text-red-600 cursor-pointer">
+                                        <input type="checkbox" name="delete_attachments[]"
+                                            value="{{ $rAttach->id }}" class="mr-1">
                                         Delete
                                     </label>
                                 </div>
@@ -1280,10 +1444,12 @@
 
             <!-- Navigation Tab 5 -->
             <div class="flex justify-between pt-4 border-t border-gray-200 mt-6">
-                <button type="button" onclick="switchTab('handover')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded shadow transition text-xs">
+                <button type="button" onclick="switchTab('handover')"
+                    class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded shadow transition text-xs">
                     &larr; Back to Handover
                 </button>
-                <button type="button" onclick="submitProductionReport()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-md transition text-xs">
+                <button type="button" onclick="submitProductionReport()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-md transition text-xs">
                     Submit Complete Report
                 </button>
             </div>
@@ -1510,12 +1676,17 @@
             '{{ route('second-process-reports.search-items') }}',
             function(item) {
                 document.getElementById('part_number').value = item.item_code;
-                document.querySelector('input[name="part_name"]').value = item.item_description || '';
+                document.querySelector('input[name="part_name"]').value = item.item_name || item
+                    .item_description || '';
+                if (item.project_code) {
+                    document.querySelector('input[name="model"]').value = item.project_code;
+                }
+                document.getElementById('customer').value = item.customer_name || '';
             });
         setupAutocomplete('customer', 'customer-dropdown',
             '{{ route('second-process-reports.search-customers') }}',
             function(item) {
-                document.getElementById('customer').value = item.name;
+                document.getElementById('customer').value = item.customer_name || item.name || '';
             });
 
         // 3. Dynamic Hour Management (Unified Production Table Sync)
@@ -2125,7 +2296,7 @@
         const tbody = document.getElementById('manpower-tbody');
         const rows = tbody.querySelectorAll('.manpower-row');
         const nextNo = rows.length + 1;
-        
+
         const tr = document.createElement('tr');
         tr.className = 'manpower-row';
         tr.innerHTML = `
@@ -2189,7 +2360,8 @@
 
     // IPQC Reject Rate Auto Calculation
     document.addEventListener('input', function(e) {
-        if (e.target.classList.contains('ipqc-sample-input') || e.target.classList.contains('ipqc-rejsample-input')) {
+        if (e.target.classList.contains('ipqc-sample-input') || e.target.classList.contains(
+                'ipqc-rejsample-input')) {
             const tr = e.target.closest('tr');
             if (tr) {
                 const sample = parseFloat(tr.querySelector('.ipqc-sample-input')?.value || 0);
@@ -2223,24 +2395,33 @@
         const model = modelInput ? encodeURIComponent(modelInput.value.trim()) : '';
 
         if (!partNumber || !date) {
-            text.innerHTML = '<span class="text-gray-500">Please enter Date and Part Number in Tab 1 to check First Piece gate status.</span>';
+            text.innerHTML =
+                '<span class="text-gray-500">Please enter Date and Part Number in Tab 1 to check First Piece gate status.</span>';
             action.innerHTML = '';
             return;
         }
 
-        fetch(`/first-piece-inspections/check-approval?part_number=${encodeURIComponent(partNumber)}&date=${encodeURIComponent(date)}`)
+        fetch(
+                `/first-piece-inspections/check-approval?part_number=${encodeURIComponent(partNumber)}&date=${encodeURIComponent(date)}`
+            )
             .then(res => res.json())
             .then(data => {
                 if (data.approved) {
-                    banner.className = 'bg-green-50 border border-green-300 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4';
+                    banner.className =
+                        'bg-green-50 border border-green-300 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4';
                     icon.className = 'p-2 rounded-full bg-green-200 text-green-700';
-                    text.innerHTML = `<span class="text-green-800 font-bold">✅ APPROVED</span> — Checked by <strong>${data.inspection.checked_by || 'QC'}</strong> on ${data.inspection.checked_at || ''}`;
-                    action.innerHTML = `<a href="/first-piece-inspections/${data.inspection.id}" target="_blank" class="bg-green-700 hover:bg-green-800 text-white text-xs font-bold py-1.5 px-4 rounded shadow transition inline-block">View First Piece Inspection &rarr;</a>`;
+                    text.innerHTML =
+                        `<span class="text-green-800 font-bold">✅ APPROVED</span> — Checked by <strong>${data.inspection.checked_by || 'QC'}</strong> on ${data.inspection.checked_at || ''}`;
+                    action.innerHTML =
+                        `<a href="/first-piece-inspections/${data.inspection.id}" target="_blank" class="bg-green-700 hover:bg-green-800 text-white text-xs font-bold py-1.5 px-4 rounded shadow transition inline-block">View First Piece Inspection &rarr;</a>`;
                 } else {
-                    banner.className = 'bg-amber-50 border border-amber-300 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4';
+                    banner.className =
+                        'bg-amber-50 border border-amber-300 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4';
                     icon.className = 'p-2 rounded-full bg-amber-200 text-amber-700';
-                    text.innerHTML = `<span class="text-amber-800 font-bold">⚠️ NOT YET APPROVED</span> — First Piece Inspection for part <strong>${partNumber}</strong> on ${date} is pending or missing.`;
-                    action.innerHTML = `<a href="/first-piece-inspections/create?part_number=${encodeURIComponent(partNumber)}&date=${encodeURIComponent(date)}&part_name=${partName}&model=${model}" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1.5 px-4 rounded shadow transition inline-block">+ Create First Piece Inspection &rarr;</a>`;
+                    text.innerHTML =
+                        `<span class="text-amber-800 font-bold">⚠️ NOT YET APPROVED</span> — First Piece Inspection for part <strong>${partNumber}</strong> on ${date} is pending or missing.`;
+                    action.innerHTML =
+                        `<a href="/first-piece-inspections/create?part_number=${encodeURIComponent(partNumber)}&date=${encodeURIComponent(date)}&part_name=${partName}&model=${model}" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1.5 px-4 rounded shadow transition inline-block">+ Create First Piece Inspection &rarr;</a>`;
                 }
             })
             .catch(err => {
