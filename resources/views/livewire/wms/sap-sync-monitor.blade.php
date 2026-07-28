@@ -12,11 +12,32 @@
             </div>
             
             <div class="flex items-center gap-3">
+                <button wire:click="testEndpoint" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center space-x-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span>Test SAP Endpoint</span>
+                </button>
                 <button wire:click="retryAllFailed" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 active:scale-95">
                     Retry All Failed
                 </button>
             </div>
         </div>
+
+        @if (session()->has('message'))
+            <div class="mb-6 bg-emerald-100 border-l-4 border-emerald-500 p-4 rounded-r-2xl shadow-sm flex items-center space-x-3">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <p class="text-emerald-800 text-xs font-bold">{{ session('message') }}</p>
+            </div>
+        @endif
+
+        @if (session()->has('error'))
+            <div class="mb-6 bg-red-100 border-l-4 border-red-500 p-4 rounded-r-2xl shadow-sm space-y-1">
+                <div class="flex items-center space-x-2 text-red-800 font-bold text-xs uppercase">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Error Tes Koneksi / Endpoint SAP</span>
+                </div>
+                <p class="text-red-700 text-xs font-mono break-all font-semibold pl-7">{{ session('error') }}</p>
+            </div>
+        @endif
 
         {{-- Stats Cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">

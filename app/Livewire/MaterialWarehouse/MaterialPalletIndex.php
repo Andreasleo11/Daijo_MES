@@ -22,6 +22,13 @@ class MaterialPalletIndex extends Component
     public ?string $relocatingPalletCode = null;
     public ?int $newPositionId = null;
 
+    // QC Hold Modal State
+    public bool $showQcHoldModal = false;
+    public ?int $qcPalletId = null;
+    public ?string $qcPalletCode = null;
+    public bool $isQcHold = false;
+    public string $qcHoldReason = '';
+
     protected $queryString = ['search', 'statusFilter'];
 
     public function updatingSearch(): void
@@ -32,6 +39,44 @@ class MaterialPalletIndex extends Component
     public function updatingStatusFilter(): void
     {
         $this->resetPage();
+    }
+
+    public function openQcHoldModal(int $id): void
+    {
+        $pallet = MwhPallet::findOrFail($id);
+        $this->qcPalletId      = $pallet->id;
+        $this->qcPalletCode    = $pallet->pallet_id;
+        $this->isQcHold        = (bool) $pallet->is_qc_hold;
+        $this->qcHoldReason    = $pallet->qc_hold_reason ?? '';
+        $this->showQcHoldModal = true;
+    }
+
+    public function saveQcHold(): void
+    {
+        $pallet = MwhPallet::findOrFail($this->qcPalletId);
+
+        $pallet->update([
+            'is_qc_hold'     => $this->isQcHold,
+            'qc_hold_reason' => $this->isQcHold ? trim($this->qcHoldReason) : null,
+        ]);
+
+        $statusText = $this->isQcHold ? 'di-HOLD QC' : 'di-RELEASE (OK)';
+        session()->flash('success', "Status QC Pallet {$pallet->pallet_id} berhasil diperbarui menjadi {$statusText}.");
+
+        $this->showQcHoldModal = false;
+    }
+
+    public function toggleQcHoldDirect(int $id): void
+    {
+        $pallet = MwhPallet::findOrFail($id);
+        $newHold = !$pallet->is_qc_hold;
+        $pallet->update([
+            'is_qc_hold'     => $newHold,
+            'qc_hold_reason' => $newHold ? ($pallet->qc_hold_reason ?: 'QC Hold by User') : null,
+        ]);
+
+        $statusText = $newHold ? 'di-HOLD QC' : 'di-RELEASE (OK)';
+        session()->flash('success', "Status QC Pallet {$pallet->pallet_id} berhasil diperbarui menjadi {$statusText}.");
     }
 
     public function openRelocateModal(int $id): void
@@ -97,6 +142,7 @@ class MaterialPalletIndex extends Component
                     $q->where('pallet_id', 'like', $s)
                       ->orWhere('item_code', 'like', $s)
                       ->orWhere('lot_no', 'like', $s)
+                      ->orWhere('qc_hold_reason', 'like', $s)
                       ->orWhereHas('position', function ($posQ) use ($s) {
                           $posQ->where('position_code', 'like', $s);
                       });
@@ -121,6 +167,8 @@ class MaterialPalletIndex extends Component
                         $q->where('status', 'EMPTY')
                           ->orWhere('current_qty', '<=', 0);
                     });
+                } elseif ($this->statusFilter === 'QC_HOLD') {
+                    $query->where('is_qc_hold', true);
                 }
             })
             ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')

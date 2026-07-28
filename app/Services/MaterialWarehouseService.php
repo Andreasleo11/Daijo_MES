@@ -135,6 +135,11 @@ class MaterialWarehouseService
         return DB::transaction(function () use ($palletId, $qtyTaken, $outgoingDate, $issuedTo, $remarks) {
             $pallet = MwhPallet::where('pallet_id', $palletId)->firstOrFail();
 
+            if ($pallet->is_qc_hold) {
+                $reason = $pallet->qc_hold_reason ?: 'Tanpa keterangan';
+                throw new \InvalidArgumentException("Pallet {$palletId} sedang di-HOLD oleh QC (Alasan: {$reason}) dan tidak dapat diambil.");
+            }
+
             if ($qtyTaken <= 0 || $qtyTaken > $pallet->current_qty) {
                 throw new \InvalidArgumentException("Jumlah pengambilan ({$qtyTaken} KG) melebihi sisa stok di Pallet {$palletId} ({$pallet->current_qty} KG).");
             }

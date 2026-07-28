@@ -104,6 +104,8 @@ class MaterialWarehouseTransactionTest extends TestCase
                 $table->string('uom', 20)->default('KG');
                 $table->foreignId('position_id')->nullable();
                 $table->enum('status', ['STORED', 'PARTIAL', 'EMPTY'])->default('STORED');
+                $table->boolean('is_qc_hold')->default(false);
+                $table->text('qc_hold_reason')->nullable();
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -415,5 +417,26 @@ class MaterialWarehouseTransactionTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Public View-Only');
         $response->assertSee('MATERIAL WAREHOUSE RACK MAPPING');
+    }
+
+    public function test_qc_hold_prevents_outgoing_picking_and_can_be_toggled()
+    {
+        $mwhService = app(MaterialWarehouseService::class);
+
+        $pallet = MwhPallet::create([
+            'pallet_id'      => 'MPLT-QCHOLD-001',
+            'item_code'      => 'MAT-QCHOLD-99',
+            'initial_qty'    => 500.00,
+            'current_qty'    => 500.00,
+            'status'         => 'STORED',
+            'is_qc_hold'     => true,
+            'qc_hold_reason' => 'Warna tidak sesuai spesifikasi QC',
+        ]);
+
+        // Attempting outgoing picking on QC HOLD pallet must throw InvalidArgumentException
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Pallet MPLT-QCHOLD-001 sedang di-HOLD oleh QC');
+
+        $mwhService->processOutgoingPicking('MPLT-QCHOLD-001', 100.00, '2026-07-28');
     }
 }

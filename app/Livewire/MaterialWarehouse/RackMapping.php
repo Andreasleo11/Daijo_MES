@@ -199,6 +199,25 @@ class RackMapping extends Component
         }
     }
 
+    public function toggleQcHoldPallet($palletId, ?string $reason = null): void
+    {
+        try {
+            $pallet = MwhPallet::find($palletId);
+            if ($pallet) {
+                $newHold = !$pallet->is_qc_hold;
+                $pallet->update([
+                    'is_qc_hold'     => $newHold,
+                    'qc_hold_reason' => $newHold ? (trim($reason ?: '') ?: 'QC Hold by User') : null,
+                ]);
+
+                $statusLabel = $newHold ? 'di-HOLD QC' : 'di-RELEASE (OK)';
+                session()->flash('success', "Status QC Pallet {$pallet->pallet_id} berhasil diubah menjadi {$statusLabel}.");
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Gagal merubah status QC Hold: ' . $e->getMessage());
+        }
+    }
+
     public function deletePalletFromSlot($palletId, MaterialWarehouseService $mwhService): void
     {
         try {

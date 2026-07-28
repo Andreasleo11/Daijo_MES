@@ -203,6 +203,31 @@
                                     </button>
                                 </div>
                             </div>
+
+                            @if (isset($unassignedPallets) && count($unassignedPallets) > 0)
+                                <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-black text-amber-900 uppercase tracking-widest">
+                                            📦 Delivery Pending Slot ({{ count($unassignedPallets) }})
+                                        </h4>
+                                        <span class="text-[9px] bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-bold">Store Action</span>
+                                    </div>
+                                    <p class="text-[10px] text-amber-700">Pallet di bawah ini di-scan oleh Delivery dan siap di-assign ke slot <strong>{{ $selectedPosData->position_code }}</strong>:</p>
+                                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        @foreach ($unassignedPallets as $un)
+                                            <div class="p-2.5 bg-white border border-amber-200 rounded-xl flex items-center justify-between text-xs shadow-2xs">
+                                                <div>
+                                                    <div class="font-mono font-black text-gray-900">{{ $un->pallet_id }}</div>
+                                                    <div class="text-[10px] text-gray-500 font-semibold">{{ $un->part_no }} &bull; {{ number_format($un->total_pallet_qty, 0) }} pcs</div>
+                                                </div>
+                                                <button wire:click="assignPalletToSelectedSlot('{{ $un->pallet_id }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold shadow-xs transition">
+                                                    Assign ke Slot Ini
+                                                </button>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @else

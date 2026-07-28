@@ -150,4 +150,30 @@ class WmsSapSyncService extends BaseSapService
 
         return ['status' => $allSynced, 'message' => $allSynced ? 'Success' : 'Partial or Total Failure'];
     }
+
+    /**
+     * Test connection & authentication to SAP API endpoint.
+     * Returns explicit error message if failed.
+     */
+    public function testConnection(): array
+    {
+        try {
+            $token = $this->getToken();
+            if ($token) {
+                return [
+                    'status'  => true,
+                    'message' => 'Koneksi ke SAP API Berhasil (Token terverifikasi).',
+                ];
+            }
+            return [
+                'status'  => false,
+                'message' => 'Koneksi ke SAP API Gagal: Token tidak ditemukan.',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'status'  => false,
+                'message' => 'Error Koneksi SAP API: ' . $e->getMessage(),
+            ];
+        }
+    }
 }

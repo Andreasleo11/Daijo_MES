@@ -383,11 +383,28 @@
                                         @foreach ($selectedPosData->pallets as $pal)
                                             <div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 hover:border-emerald-300 transition space-y-2">
                                                 <div class="flex justify-between items-center">
-                                                    <span class="font-mono font-black text-xs text-emerald-800">{{ $pal->pallet_id }}</span>
-                                                    <span class="px-2 py-0.5 {{ $pal->status === 'STORED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} rounded-full text-[9px] font-bold">
-                                                        {{ $pal->status }}
-                                                    </span>
+                                                    <div class="flex items-center space-x-1.5">
+                                                        <span class="font-mono font-black text-xs text-emerald-800">{{ $pal->pallet_id }}</span>
+                                                        @if ($pal->is_qc_hold)
+                                                            <span class="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[9px] font-black animate-pulse">HOLD</span>
+                                                        @endif
+                                                    </div>
+                                                    @if ($pal->is_qc_hold)
+                                                        <span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded-full text-[9px] font-black border border-rose-300">
+                                                            ⛔ QC HOLD
+                                                        </span>
+                                                    @else
+                                                        <span class="px-2 py-0.5 {{ $pal->status === 'STORED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} rounded-full text-[9px] font-bold">
+                                                            {{ $pal->status }}
+                                                        </span>
+                                                    @endif
                                                 </div>
+
+                                                @if ($pal->is_qc_hold && $pal->qc_hold_reason)
+                                                    <div class="p-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[10px] text-rose-700 font-medium">
+                                                        <strong>Alasan QC Hold:</strong> {{ $pal->qc_hold_reason }}
+                                                    </div>
+                                                @endif
 
                                                 <div class="space-y-1">
                                                     <div class="font-mono font-bold text-xs text-gray-900">{{ $pal->item_code }}</div>
@@ -411,14 +428,21 @@
                                                     <span>Tgl Kedatangan: <strong class="text-gray-800">{{ $pal->incomingHeader && $pal->incomingHeader->arrival_date ? $pal->incomingHeader->arrival_date->format('d M Y') : ($pal->created_at ? $pal->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></span>
                                                 </div>
 
-                                                <div class="pt-1 flex justify-end gap-1.5">
+                                                <div class="pt-1 flex justify-end gap-1.5 flex-wrap">
+                                                    @if (!$isViewOnly)
+                                                        <button wire:click="toggleQcHoldPallet({{ $pal->id }})" class="px-2 py-1 {{ $pal->is_qc_hold ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white' }} rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Toggle QC Hold Status">
+                                                            <span>{{ $pal->is_qc_hold ? 'Release QC' : 'QC Hold' }}</span>
+                                                        </button>
+                                                    @endif
                                                     <a href="{{ route('mwh.pallet.print', $pal->pallet_id) }}" target="_blank" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Cetak Label QR">
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                                         <span>Print QR</span>
                                                     </a>
-                                                    <a href="{{ route('mwh.outgoing.create', ['selected_item_code' => $pal->item_code]) }}" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Picking Outgoing">
-                                                        <span>Picking</span>
-                                                    </a>
+                                                    @if (!$pal->is_qc_hold)
+                                                        <a href="{{ route('mwh.outgoing.create', ['selected_item_code' => $pal->item_code]) }}" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1" title="Picking Outgoing">
+                                                            <span>Picking</span>
+                                                        </a>
+                                                    @endif
                                                 </div>
                                             </div>
                                         @endforeach

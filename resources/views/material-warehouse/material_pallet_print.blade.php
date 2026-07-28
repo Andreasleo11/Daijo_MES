@@ -208,13 +208,13 @@
 
     <div class="page-wrapper">
         <div class="label-card">
+            <!-- Area Kosong (Blank Space) Tempat Tempel Stiker FIFO di Paling Atas -->
+            <div class="fifo-sticker-zone"></div>
+
             <div class="header">
                 <h2>DAIJO MES — MATERIAL PALLET LABEL</h2>
                 <p>PT. DAIJO INDUSTRIAL — MATERIAL WAREHOUSE</p>
             </div>
-
-            <!-- Area Kosong (Blank Space) Tempat Tempel Stiker FIFO -->
-            <div class="fifo-sticker-zone"></div>
 
             <div class="pallet-banner">
                 <div class="lbl">UNIT PALLET ID</div>

@@ -132,6 +132,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             $table->foreignId('whse_id');
             $table->string('rack_code');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('wms_positions', function (Blueprint $table) {
@@ -151,7 +152,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         Schema::create('wms_pallet_forms', function (Blueprint $table) {
             $table->id();
             $table->string('pallet_id')->unique();
-            $table->foreignId('position_id');
+            $table->foreignId('position_id')->nullable();
             $table->string('part_no')->nullable();
             $table->string('model_name')->nullable();
             $table->date('prod_date');
@@ -549,5 +550,50 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
 
         // Assert job was dispatched
         \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncPalletToSapJob::class);
+    }
+
+    public function test_store_can_assign_slot_to_unassigned_delivery_pallet(): void
+    {
+        $unassignedPallet = WmsPalletForm::create([
+            'pallet_id'        => 'PLT-STORE-ASSIGN-01',
+            'position_id'      => null,
+            'part_no'          => 'PART-STORE',
+            'model_name'       => 'Model Store',
+            'prod_date'        => '2026-07-28',
+            'delivery_name'    => 'Driver Store',
+            'delivery_shift'   => '1',
+            'box_qty'          => 2,
+            'total_pallet_qty' => 200,
+        ]);
+
+        $this->actingAs($this->adminUser);
+
+        Livewire::test(\App\Livewire\Wms\PalletFormIndex::class)
+            ->set('filterSlot', 'UNASSIGNED')
+            ->call('openAssignModal', 'PLT-STORE-ASSIGN-01')
+            ->set('assignPositionId', $this->position->id)
+            ->call('saveAssignSlot')
+            ->assertHasNoErrors();
+
+        $unassignedPallet->refresh();
+        $this->assertEquals($this->position->id, $unassignedPallet->position_id);
+    }
+
+    public function test_test_endpoint_displays_explicit_error_message_on_failure(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['message' => 'Invalid Company DB Credentials'], 500),
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $res = $sapSyncService->testConnection();
+
+        $this->assertFalse($res['status']);
+        $this->assertStringContainsString('Failed to authenticate to SAP', $res['message']);
+
+        Livewire::actingAs($this->adminUser)
+            ->test(\App\Livewire\Wms\SapSyncMonitor::class)
+            ->call('testEndpoint')
+            ->assertSee('Failed to authenticate to SAP');
     }
 }

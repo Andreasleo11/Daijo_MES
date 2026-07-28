@@ -111,11 +111,13 @@ new class extends Component {
 
                 <!-- 4. Dropdown: WMS & Warehouse -->
                 <livewire:parent-dropdown label="WMS & Warehouse" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'wms.pallet-form.create', 'label' => 'Program Warehouse'],
+                    ['name' => 'wms.pallet-form.create-delivery', 'label' => 'Scan Delivery FG'],
+                    ['name' => 'wms.pallet-form.create', 'label' => 'Program Warehouse (Normal)'],
+                    ['name' => 'wms.pallet-form.index', 'label' => 'Assign Slot & Riwayat Pallet'],
                     ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
-                    ['name' => 'wms.pallet-form.index', 'label' => 'Pallet Form History'],
                     ['name' => 'wms.pallet-form.sorting', 'label' => 'Pallet Sorting and Consolidation'],
                     ['name' => 'wms.pallet-form.picking-guide', 'label' => 'Delivery Picking Guide (FIFO)'],
+                    ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping (FG)'],
                     ['name' => 'wms.logs', 'label' => 'Audit Trail Logs'],
                     ['name' => 'updated.barcode.item.position', 'label' => 'Detailed Item List'],
                 ]" />
@@ -382,6 +384,20 @@ new class extends Component {
                     />
 
                     <livewire:sidebar-link
+                        href="{{ route('wms.pallet-form.create-delivery') }}"
+                        label="Scan Delivery FG"
+                        :active="request()->routeIs('wms.pallet-form.create-delivery')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
+                        href="{{ route('wms.pallet-form.index') }}"
+                        label="Assign Slot & Riwayat Pallet"
+                        :active="request()->routeIs('wms.pallet-form.index')"
+                        wire:navigate
+                    />
+
+                    <livewire:sidebar-link
                         href="{{ route('wms.pallet-form.create') }}"
                         label="Program Warehouse"
                         :active="request()->routeIs('wms.pallet-form.create')"
@@ -392,13 +408,6 @@ new class extends Component {
                         href="{{ route('wms.pallet-form.lookup') }}"
                         label="Pallet Detail Check"
                         :active="request()->routeIs('wms.pallet-form.lookup')"
-                        wire:navigate
-                    />
-
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.index') }}"
-                        label="Pallet Form History"
-                        :active="request()->routeIs('wms.pallet-form.index')"
                         wire:navigate
                     />
 

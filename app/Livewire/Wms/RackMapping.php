@@ -173,10 +173,42 @@ class RackMapping extends Component
 
         $customers = \App\Models\MasterCustomerDelivery::orderBy('customer_code')->get();
 
+        $unassignedPallets = \App\Models\WmsPalletForm::whereNull('position_id')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return view('livewire.wms.rack-mapping', [
-            'racks' => $racks,
-            'selectedPosData' => $selectedPosData,
-            'customers' => $customers,
+            'racks'             => $racks,
+            'selectedPosData'   => $selectedPosData,
+            'customers'         => $customers,
+            'unassignedPallets' => $unassignedPallets,
         ]);
+    }
+
+    public function assignPalletToSelectedSlot($palletId, WmsService $wmsService)
+    {
+        if (! $this->selectedPositionId) {
+            session()->flash('error', 'Pilih slot rak terlebih dahulu.');
+            return;
+        }
+
+        try {
+            $pos = WmsPosition::find($this->selectedPositionId);
+            $pallet = \App\Models\WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
+
+            $oldPosId = $pallet->position_id;
+            $pallet->update(['position_id' => $pos->id]);
+
+            if ($oldPosId) {
+                $wmsService->updatePositionStatus($oldPosId);
+            }
+            $wmsService->updatePositionStatus($pos->id);
+
+            $wmsService->logTransaction($pallet->pallet_id, 'ASSIGN_SLOT', $pos->id, auth()->id(), "Assigned by Store from Rack Mapping");
+
+            session()->flash('success', "Pallet {$pallet->pallet_id} berhasil di-assign ke slot rak {$pos->position_code}.");
+        } catch (\Exception $e) {
+            session()->flash('error', "Gagal assign pallet: " . $e->getMessage());
+        }
     }
 }
