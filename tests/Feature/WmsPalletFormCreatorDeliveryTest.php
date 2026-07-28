@@ -596,4 +596,75 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             ->call('testEndpoint')
             ->assertSee('Failed to authenticate to SAP');
     }
+
+    public function test_sap_sync_handles_api_failure_response_correctly(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => false, 'message' => 'Item Code ITM-UNKNOWN does not exist'], 400),
+        ]);
+
+        $pallet = WmsPalletForm::create([
+            'pallet_id'       => 'PLT-FAIL-001',
+            'position_id'     => $this->position->id,
+            'part_no'         => 'PART-FAIL',
+            'model_name'      => 'Model Fail',
+            'prod_date'       => '2026-07-28',
+            'sap_sync_status' => 0,
+        ]);
+
+        $detail = WmsPalletFormDetail::create([
+            'pallet_form_id'  => 'PLT-FAIL-001',
+            'part_no'         => 'PART-FAIL',
+            'spk_no'          => 'SPK-9999',
+            'qty'             => 50,
+            'warehouse'       => 'FG',
+            'sap_sync_status' => 0,
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $sapSyncService->syncPalletInventoryTransfer('PLT-FAIL-001');
+
+        $pallet->refresh();
+        $detail->refresh();
+
+        $this->assertEquals(2, $pallet->sap_sync_status); // 2 = FAILED
+        $this->assertEquals(2, $detail->sap_sync_status);
+        $this->assertStringContainsString('SAP API Error', $detail->sap_error_msg);
+    }
+
+    public function test_sap_sync_handles_idempotent_duplicate_entry_as_success(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => false, 'message' => 'Document already exist in SAP'], 200),
+        ]);
+
+        $pallet = WmsPalletForm::create([
+            'pallet_id'       => 'PLT-DUP-001',
+            'position_id'     => $this->position->id,
+            'part_no'         => 'PART-DUP',
+            'model_name'      => 'Model Dup',
+            'prod_date'       => '2026-07-28',
+            'sap_sync_status' => 0,
+        ]);
+
+        $detail = WmsPalletFormDetail::create([
+            'pallet_form_id'  => 'PLT-DUP-001',
+            'part_no'         => 'PART-DUP',
+            'spk_no'          => 'SPK-8888',
+            'qty'             => 100,
+            'warehouse'       => 'FG',
+            'sap_sync_status' => 0,
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $sapSyncService->syncPalletInventoryTransfer('PLT-DUP-001');
+
+        $pallet->refresh();
+        $detail->refresh();
+
+        $this->assertEquals(1, $pallet->sap_sync_status); // 1 = SUCCESS (Idempotent duplicate handled)
+        $this->assertEquals(1, $detail->sap_sync_status);
+    }
 }
