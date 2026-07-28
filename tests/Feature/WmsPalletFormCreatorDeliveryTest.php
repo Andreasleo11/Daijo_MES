@@ -132,6 +132,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             $table->foreignId('whse_id');
             $table->string('rack_code');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('wms_positions', function (Blueprint $table) {
@@ -151,7 +152,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         Schema::create('wms_pallet_forms', function (Blueprint $table) {
             $table->id();
             $table->string('pallet_id')->unique();
-            $table->foreignId('position_id');
+            $table->foreignId('position_id')->nullable();
             $table->string('part_no')->nullable();
             $table->string('model_name')->nullable();
             $table->date('prod_date');
@@ -549,5 +550,121 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
 
         // Assert job was dispatched
         \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncPalletToSapJob::class);
+    }
+
+    public function test_store_can_assign_slot_to_unassigned_delivery_pallet(): void
+    {
+        $unassignedPallet = WmsPalletForm::create([
+            'pallet_id'        => 'PLT-STORE-ASSIGN-01',
+            'position_id'      => null,
+            'part_no'          => 'PART-STORE',
+            'model_name'       => 'Model Store',
+            'prod_date'        => '2026-07-28',
+            'delivery_name'    => 'Driver Store',
+            'delivery_shift'   => '1',
+            'box_qty'          => 2,
+            'total_pallet_qty' => 200,
+        ]);
+
+        $this->actingAs($this->adminUser);
+
+        Livewire::test(\App\Livewire\Wms\PalletFormIndex::class)
+            ->set('filterSlot', 'UNASSIGNED')
+            ->call('openAssignModal', 'PLT-STORE-ASSIGN-01')
+            ->set('assignPositionId', $this->position->id)
+            ->call('saveAssignSlot')
+            ->assertHasNoErrors();
+
+        $unassignedPallet->refresh();
+        $this->assertEquals($this->position->id, $unassignedPallet->position_id);
+    }
+
+    public function test_test_endpoint_displays_explicit_error_message_on_failure(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['message' => 'Invalid Company DB Credentials'], 500),
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $res = $sapSyncService->testConnection();
+
+        $this->assertFalse($res['status']);
+        $this->assertStringContainsString('Failed to authenticate to SAP', $res['message']);
+
+        Livewire::actingAs($this->adminUser)
+            ->test(\App\Livewire\Wms\SapSyncMonitor::class)
+            ->call('testEndpoint')
+            ->assertSee('Failed to authenticate to SAP');
+    }
+
+    public function test_sap_sync_handles_api_failure_response_correctly(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => false, 'message' => 'Item Code ITM-UNKNOWN does not exist'], 400),
+        ]);
+
+        $pallet = WmsPalletForm::create([
+            'pallet_id'       => 'PLT-FAIL-001',
+            'position_id'     => $this->position->id,
+            'part_no'         => 'PART-FAIL',
+            'model_name'      => 'Model Fail',
+            'prod_date'       => '2026-07-28',
+            'sap_sync_status' => 0,
+        ]);
+
+        $detail = WmsPalletFormDetail::create([
+            'pallet_form_id'  => 'PLT-FAIL-001',
+            'part_no'         => 'PART-FAIL',
+            'spk_no'          => 'SPK-9999',
+            'qty'             => 50,
+            'warehouse'       => 'FG',
+            'sap_sync_status' => 0,
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $sapSyncService->syncPalletInventoryTransfer('PLT-FAIL-001');
+
+        $pallet->refresh();
+        $detail->refresh();
+
+        $this->assertEquals(2, $pallet->sap_sync_status); // 2 = FAILED
+        $this->assertEquals(2, $detail->sap_sync_status);
+        $this->assertStringContainsString('SAP API Error', $detail->sap_error_msg);
+    }
+
+    public function test_sap_sync_handles_idempotent_duplicate_entry_as_success(): void
+    {
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => false, 'message' => 'Document already exist in SAP'], 200),
+        ]);
+
+        $pallet = WmsPalletForm::create([
+            'pallet_id'       => 'PLT-DUP-001',
+            'position_id'     => $this->position->id,
+            'part_no'         => 'PART-DUP',
+            'model_name'      => 'Model Dup',
+            'prod_date'       => '2026-07-28',
+            'sap_sync_status' => 0,
+        ]);
+
+        $detail = WmsPalletFormDetail::create([
+            'pallet_form_id'  => 'PLT-DUP-001',
+            'part_no'         => 'PART-DUP',
+            'spk_no'          => 'SPK-8888',
+            'qty'             => 100,
+            'warehouse'       => 'FG',
+            'sap_sync_status' => 0,
+        ]);
+
+        $sapSyncService = app(WmsSapSyncService::class);
+        $sapSyncService->syncPalletInventoryTransfer('PLT-DUP-001');
+
+        $pallet->refresh();
+        $detail->refresh();
+
+        $this->assertEquals(1, $pallet->sap_sync_status); // 1 = SUCCESS (Idempotent duplicate handled)
+        $this->assertEquals(1, $detail->sap_sync_status);
     }
 }

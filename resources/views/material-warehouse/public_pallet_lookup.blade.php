@@ -62,7 +62,11 @@
                     </div>
 
                     <div>
-                        @if ($pallet->status === 'STORED')
+                        @if ($pallet->is_qc_hold)
+                            <span class="inline-flex items-center px-3 py-1 bg-rose-600 text-white rounded-full font-black text-xs shadow-md animate-pulse">
+                                ⛔ QC HOLD
+                            </span>
+                        @elseif ($pallet->status === 'STORED')
                             <span class="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-black text-xs border border-emerald-200 shadow-xs">
                                 <span class="w-2 h-2 bg-emerald-500 rounded-full mr-1.5 animate-pulse"></span>
                                 STORED (Utuh)
@@ -80,6 +84,16 @@
                         @endif
                     </div>
                 </div>
+
+                @if ($pallet->is_qc_hold)
+                    <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 space-y-1">
+                        <div class="flex items-center space-x-2 font-black text-xs text-rose-700 uppercase tracking-wider">
+                            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span>Status QC HOLD (Kunci Material)</span>
+                        </div>
+                        <p class="text-xs font-semibold text-rose-800">Alasan / Remark: {{ $pallet->qc_hold_reason ?: 'Menunggu approval / verifikasi QC' }}</p>
+                    </div>
+                @endif
 
                 <!-- Stock Qty Banner with Dynamic Progress Bar -->
                 <div class="p-5 bg-gradient-to-br from-emerald-900 to-teal-950 text-white rounded-2xl shadow-md space-y-3 relative overflow-hidden">
@@ -147,7 +161,7 @@
                 <!-- Document Info Footer -->
                 <div class="pt-3 border-t border-slate-100 flex flex-wrap justify-between items-center text-xs text-slate-500 font-medium gap-2">
                     <div>No. PO: <strong class="font-mono text-slate-800">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</strong></div>
-                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }} WIB</strong></div>
+                    <div>Tgl Kedatangan: <strong class="font-mono text-slate-800">{{ $pallet->incomingHeader && $pallet->incomingHeader->arrival_date ? $pallet->incomingHeader->arrival_date->format('d M Y') : ($pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></div>
                 </div>
             </div>
 

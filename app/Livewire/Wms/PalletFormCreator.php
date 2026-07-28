@@ -357,9 +357,12 @@ class PalletFormCreator extends Component
 
             $pos = $wmsService->recommendPosition($customerCodes, $primaryPartNo);
 
-            if (! $pos) {
+            // If in delivery mode or position not found, leave position_id unassigned for Store to assign later
+            if (! $pos && ! $this->isDelivery) {
                 throw new \Exception('Tidak ada posisi rak yang tersedia. Warehouse mungkin penuh.');
             }
+
+            $positionId = $pos ? $pos->id : null;
 
             // --- Generate ONE Pallet ID ---
             $palletId = $wmsService->generatePalletId();
@@ -367,7 +370,7 @@ class PalletFormCreator extends Component
             // --- Create Header ---
             WmsPalletForm::create([
                 'pallet_id'        => $palletId,
-                'position_id'      => $pos->id,
+                'position_id'      => $positionId,
                 'part_no'          => $headerPartNo,
                 'model_name'       => $headerModelName,
                 'prod_date'        => $this->prod_date,
@@ -394,12 +397,14 @@ class PalletFormCreator extends Component
                 ]);
             }
 
-            // --- Update position tracking ---
-            $pos->update(['last_item_code' => $headerPartNo]);
-            $wmsService->updatePositionStatus($pos->id);
+            // --- Update position tracking if position assigned ---
+            if ($pos) {
+                $pos->update(['last_item_code' => $headerPartNo]);
+                $wmsService->updatePositionStatus($pos->id);
+            }
 
             // --- Log Transaction ---
-            $wmsService->logTransaction($palletId, 'IN', $pos->id);
+            $wmsService->logTransaction($palletId, 'IN', $positionId);
 
             DB::commit();
 

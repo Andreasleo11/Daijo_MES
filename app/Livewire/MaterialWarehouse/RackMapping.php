@@ -50,6 +50,15 @@ class RackMapping extends Component
         'selectedAreaFilter' => ['except' => 'ALL'],
     ];
 
+    public function mount(?MaterialWarehouseService $mwhService = null): void
+    {
+        $mwhService = $mwhService ?? app(MaterialWarehouseService::class);
+        $positions = MwhPosition::has('pallets')->get();
+        foreach ($positions as $pos) {
+            $mwhService->updatePositionStatus($pos->id);
+        }
+    }
+
     public function toggleFifoItemExpand(string $itemCode): void
     {
         if ($this->expandedFifoItemCode === $itemCode) {
@@ -196,6 +205,25 @@ class RackMapping extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Gagal menambahkan material ke slot: ' . $e->getMessage());
+        }
+    }
+
+    public function toggleQcHoldPallet($palletId, ?string $reason = null): void
+    {
+        try {
+            $pallet = MwhPallet::find($palletId);
+            if ($pallet) {
+                $newHold = !$pallet->is_qc_hold;
+                $pallet->update([
+                    'is_qc_hold'     => $newHold,
+                    'qc_hold_reason' => $newHold ? (trim($reason ?: '') ?: 'QC Hold by User') : null,
+                ]);
+
+                $statusLabel = $newHold ? 'di-HOLD QC' : 'di-RELEASE (OK)';
+                session()->flash('success', "Status QC Pallet {$pallet->pallet_id} berhasil diubah menjadi {$statusLabel}.");
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Gagal merubah status QC Hold: ' . $e->getMessage());
         }
     }
 

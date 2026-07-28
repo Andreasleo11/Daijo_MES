@@ -47,6 +47,7 @@
                         <option value="STORED">STORED (Utuh)</option>
                         <option value="PARTIAL">PARTIAL (Slot / Terambil)</option>
                         <option value="EMPTY">EMPTY (Habis)</option>
+                        <option value="QC_HOLD">⛔ QC HOLD</option>
                     </select>
                 </div>
 
@@ -80,9 +81,17 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50 font-medium text-gray-700">
                         @forelse ($pallets as $p)
-                            <tr class="hover:bg-emerald-50/40 transition">
+                            <tr class="hover:bg-emerald-50/40 transition {{ $p->is_qc_hold ? 'bg-rose-50/30' : '' }}">
                                 <td class="py-3.5 px-4 font-mono font-black text-emerald-800">
-                                    {{ $p->pallet_id }}
+                                    <div class="flex items-center space-x-1.5">
+                                        <span>{{ $p->pallet_id }}</span>
+                                        @if ($p->is_qc_hold)
+                                            <span class="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[9px] font-black animate-pulse" title="QC Hold: {{ $p->qc_hold_reason ?: 'QC Hold' }}">HOLD</span>
+                                        @endif
+                                    </div>
+                                    @if ($p->is_qc_hold && $p->qc_hold_reason)
+                                        <div class="text-[10px] text-rose-600 font-bold italic truncate max-w-xs mt-0.5">Reason: {{ $p->qc_hold_reason }}</div>
+                                    @endif
                                 </td>
                                 <td class="py-3.5 px-4">
                                     <div class="font-mono font-bold text-gray-900">{{ $p->item_code }}</div>
@@ -118,7 +127,12 @@
                                     @endif
                                 </td>
                                 <td class="py-3.5 px-4 text-center">
-                                    @if ($p->status === 'PARTIAL')
+                                    @if ($p->is_qc_hold)
+                                        <span class="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-full font-black text-[10px] border border-rose-300 shadow-sm inline-flex items-center space-x-1">
+                                            <svg class="w-3 h-3 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                            <span>⛔ QC HOLD</span>
+                                        </span>
+                                    @elseif ($p->status === 'PARTIAL')
                                         <span class="px-2.5 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-[10px] border border-amber-300">PARTIAL (Terambil)</span>
                                     @elseif ($p->position && $p->position->status === 'PARTIAL')
                                         <span class="px-2.5 py-1 bg-amber-50 text-amber-800 rounded-full font-black text-[10px] border border-amber-200">PARTIAL (Slot Space)</span>
@@ -129,6 +143,9 @@
                                     @endif
                                 </td>
                                 <td class="py-3.5 px-4 text-right space-x-1.5">
+                                    <button wire:click="openQcHoldModal({{ $p->id }})" class="p-1.5 {{ $p->is_qc_hold ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-amber-50 text-amber-700 hover:bg-amber-100' }} rounded-lg inline-block transition" title="QC Hold / Release / Edit Remark">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    </button>
                                     <a href="{{ route('mwh.pallet.print', $p->pallet_id) }}" target="_blank" class="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg inline-block transition" title="Print QR Label">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                     </a>
@@ -142,7 +159,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="py-12 text-center text-gray-400">
+                                <td colspan="9" class="py-12 text-center text-gray-400">
                                     <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                                     <p class="font-bold">Belum ada data stok pallet material</p>
                                 </td>
@@ -157,6 +174,49 @@
             </div>
         </div>
     </div>
+
+    <!-- QC Hold Modal -->
+    @if ($showQcHoldModal)
+        <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-up border border-rose-100">
+                <div class="p-6 bg-gradient-to-r from-rose-900 to-amber-900 text-white flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-black tracking-tight flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span>Kontrol QC Hold & Remark</span>
+                        </h3>
+                        <p class="text-xs text-rose-200">Pallet ID: <strong class="font-mono text-white">{{ $qcPalletCode }}</strong></p>
+                    </div>
+                    <button wire:click="$set('showQcHoldModal', false)" class="text-rose-300 hover:text-white transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+
+                <form wire:submit.prevent="saveQcHold" class="p-6 space-y-4">
+                    <div class="p-4 bg-rose-50 rounded-2xl border border-rose-200 space-y-3">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" wire:model.live="isQcHold" class="w-5 h-5 text-rose-600 rounded border-gray-300 focus:ring-rose-500">
+                            <div>
+                                <span class="text-sm font-black text-rose-900 block">Status QC HOLD (Kunci Pallet)</span>
+                                <span class="text-[11px] text-rose-700 block">Jika di-centang, pallet tidak dapat dipilih untuk pengeluaran (outgoing).</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Alasan Hold / QC Remark *</label>
+                        <textarea wire:model="qcHoldReason" rows="3" placeholder="Contoh: Menunggu approval inspek QC, kontaminasi warna, lot bermasalah..." class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:ring-2 focus:ring-rose-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-3">
+                        <button type="button" wire:click="$set('showQcHoldModal', false)" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-xs transition">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition flex items-center space-x-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Simpan Status QC</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 
     <!-- Relocation Modal -->
     @if ($showRelocateModal)

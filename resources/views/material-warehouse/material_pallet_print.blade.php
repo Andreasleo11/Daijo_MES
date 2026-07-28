@@ -5,7 +5,7 @@
     <title>Print Label QR Pallet - {{ $pallet->pallet_id }}</title>
     <style>
         @page {
-            size: 100mm 150mm;
+            size: portrait;
             margin: 0;
         }
         * {
@@ -17,118 +17,158 @@
             margin: 0;
             padding: 0;
             background: #fff;
-            font-family: 'Courier New', Courier, monospace, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             color: #000;
-            width: 100mm;
-            height: 150mm;
-            overflow: hidden;
+            width: 100%;
         }
 
-        /* Kertas 100mm(lebar) x 150mm(panjang) portrait.
-           Label 135mm lebar di-rotate 90° → muat di 150mm panjang kertas.
-           Tinggi label ~80mm → muat di 100mm lebar kertas. */
         .page-wrapper {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(90deg);
-            transform-origin: center center;
-            width: 135mm;
+            width: 96mm;
+            max-width: 96mm;
+            margin: 0 auto;
+            padding: 2mm 0;
+            background: #fff;
+            box-sizing: border-box;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
 
         .label-card {
-            border: 2px solid #000;
-            border-radius: 6px;
+            border: 2.5px solid #000;
+            border-radius: 8px;
             padding: 8px 10px;
-            width: 135mm;
+            width: 100%;
             background: #fff;
+            box-sizing: border-box;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
+
         .header {
             text-align: center;
-            border-bottom: 1.5px dashed #000;
-            padding-bottom: 3px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px;
             margin-bottom: 5px;
         }
         .header h2 {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
         }
         .header p {
-            font-size: 7px;
+            font-size: 7.5px;
             font-weight: bold;
+            color: #333;
             margin-top: 1px;
         }
-        .content-grid {
+
+        /* Area Kosong Khusus Tempel Stiker FIFO */
+        .fifo-sticker-zone {
+            border: 1.5px dashed #475569;
+            border-radius: 6px;
+            height: 17mm;
+            margin-bottom: 5px;
+            background: #fff;
+        }
+
+        .pallet-banner {
+            background: #f1f5f9;
+            border: 1.5px solid #000;
+            border-radius: 6px;
+            text-align: center;
+            padding: 4px;
+            margin-bottom: 5px;
+        }
+        .pallet-banner .lbl {
+            font-size: 7px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #475569;
+        }
+        .pallet-banner .val {
+            font-size: 15px;
+            font-weight: 900;
+            font-family: 'Courier New', Courier, monospace;
+            color: #0f172a;
+        }
+
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .details-table td {
+            padding: 3px 2px;
+            vertical-align: top;
+            border-bottom: 1px dashed #cbd5e1;
+        }
+        .details-table tr:last-child td {
+            border-bottom: none;
+        }
+        .details-table .lbl {
+            font-size: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #334155;
+            width: 32%;
+        }
+        .details-table .val {
+            font-size: 10px;
+            font-weight: 900;
+            color: #000;
+        }
+        .details-table .val-code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+        }
+        .details-table .val-slot {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: underline;
+        }
+
+        .qr-section {
             display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 6px;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            padding: 5px 0;
+            margin-bottom: 4px;
+            background: #fafafa;
         }
         .qr-box {
             text-align: center;
-            width: 70px;
-            min-width: 70px;
-            flex-shrink: 0;
+            width: 48%;
         }
         .qr-box img {
-            width: 62px;
-            height: 62px;
+            width: 72px;
+            height: 72px;
             display: block;
-            margin: 0 auto;
+            margin: 2px auto;
         }
         .qr-title {
-            font-size: 6.5px;
+            font-size: 7px;
             font-weight: 900;
-            margin-bottom: 1px;
             text-transform: uppercase;
         }
         .qr-sub {
-            font-size: 6px;
+            font-size: 6.5px;
             font-weight: bold;
-            margin-top: 1px;
             font-family: monospace;
             word-break: break-all;
         }
-        .details {
-            flex-grow: 1;
-            padding: 0 6px;
-            border-left: 1px dashed #000;
-            border-right: 1px dashed #000;
-            min-width: 0;
-        }
-        .details table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 8.5px;
-        }
-        .details td {
-            padding: 1.5px 0;
-            vertical-align: top;
-            word-break: break-word;
-        }
-        .details .lbl {
-            font-weight: bold;
-            font-size: 7px;
-            color: #000;
-            text-transform: uppercase;
-            width: 30%;
-            white-space: nowrap;
-        }
-        .details .val {
-            font-size: 10px;
-            font-weight: 900;
-        }
+
         .footer {
-            border-top: 1px solid #000;
-            margin-top: 4px;
-            padding-top: 2px;
-            font-size: 7px;
+            padding-top: 3px;
+            font-size: 7.5px;
             font-weight: bold;
             display: flex;
             justify-content: space-between;
+            color: #334155;
         }
 
         @media print {
@@ -138,20 +178,22 @@
             html, body {
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
-                width: 100mm !important;
-                height: 150mm !important;
+                width: 100% !important;
+                background: #fff !important;
+                overflow: visible !important;
             }
             .page-wrapper {
-                position: absolute !important;
-                top: 50% !important;
-                left: 50% !important;
-                transform: translate(-50%, -50%) rotate(90deg) !important;
-                width: 135mm !important;
+                padding: 2mm 0 !important;
+                width: 96mm !important;
+                max-width: 96mm !important;
+                margin: 0 auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             .label-card {
-                width: 135mm !important;
+                width: 100% !important;
                 page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
         }
     </style>
@@ -160,91 +202,95 @@
 
     <div class="no-print" style="position: fixed; top: 12px; right: 12px; z-index: 9999;">
         <button onclick="window.print()" style="padding: 10px 18px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            🖨️ Cetak Label (Portrait → Sideways)
+            🖨️ Cetak Label (Standar 100x150mm)
         </button>
     </div>
 
     <div class="page-wrapper">
         <div class="label-card">
+            <!-- Area Kosong (Blank Space) Tempat Tempel Stiker FIFO di Paling Atas -->
+            <div class="fifo-sticker-zone"></div>
+
             <div class="header">
                 <h2>DAIJO MES — MATERIAL PALLET LABEL</h2>
                 <p>PT. DAIJO INDUSTRIAL — MATERIAL WAREHOUSE</p>
             </div>
 
-        @php
-            $writer = new \Endroid\QrCode\Writer\PngWriter();
-
-            $qrText = new \Endroid\QrCode\QrCode(
-                data: $pallet->pallet_id,
-                errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
-                size: 80,
-                margin: 0
-            );
-            $qrTextBase64 = base64_encode($writer->write($qrText)->getString());
-
-            $qrUrl = \Illuminate\Support\Facades\URL::signedRoute('mwh.public-pallet-lookup', ['palletId' => $pallet->pallet_id]);
-            $qrUrlObj = new \Endroid\QrCode\QrCode(
-                data: $qrUrl,
-                errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
-                size: 80,
-                margin: 0
-            );
-            $qrUrlBase64 = base64_encode($writer->write($qrUrlObj)->getString());
-        @endphp
-
-        <div class="content-grid">
-            <div class="qr-box">
-                <div class="qr-title" style="color: #1e293b;">SCANNER / OUTGOING</div>
-                <img src="data:image/png;base64,{{ $qrTextBase64 }}" alt="QR Outgoing">
-                <div class="qr-sub">{{ $pallet->pallet_id }}</div>
+            <div class="pallet-banner">
+                <div class="lbl">UNIT PALLET ID</div>
+                <div class="val">{{ $pallet->pallet_id }}</div>
             </div>
 
-            <div class="details">
-                <table>
-                    <tr>
-                        <td class="lbl">PALLET ID:</td>
-                        <td class="val" style="font-family: monospace; color: #065f46;">{{ $pallet->pallet_id }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">PART CODE:</td>
-                        <td class="val" style="font-family: monospace;">{{ $pallet->item_code }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">DESKRIPSI:</td>
-                        <td style="font-size: 8.5px;">{{ $pallet->material ? $pallet->material->item_description : '-' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">INITIAL QTY:</td>
-                        <td class="val">{{ number_format($pallet->initial_qty, 2) }} KG</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">SLOT RAK:</td>
-                        <td class="val" style="font-family: monospace; text-decoration: underline;">
-                            {{ $pallet->position ? $pallet->position->position_code : 'UNASSIGNED' }}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">LOT / BATCH:</td>
-                        <td style="font-size: 8px;">{{ $pallet->lot_no ?: '-' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">SUPPLIER/PO:</td>
-                        <td style="font-size: 7.5px;">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->supplier_name ?: '-') : '-' }} / {{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</td>
-                    </tr>
-                </table>
+            @php
+                $writer = new \Endroid\QrCode\Writer\PngWriter();
+
+                $qrText = new \Endroid\QrCode\QrCode(
+                    data: $pallet->pallet_id,
+                    errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
+                    size: 100,
+                    margin: 0
+                );
+                $qrTextBase64 = base64_encode($writer->write($qrText)->getString());
+
+                $qrUrl = \Illuminate\Support\Facades\URL::signedRoute('mwh.public-pallet-lookup', ['palletId' => $pallet->pallet_id]);
+                $qrUrlObj = new \Endroid\QrCode\QrCode(
+                    data: $qrUrl,
+                    errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Low,
+                    size: 100,
+                    margin: 0
+                );
+                $qrUrlBase64 = base64_encode($writer->write($qrUrlObj)->getString());
+            @endphp
+
+            <table class="details-table">
+                <tr>
+                    <td class="lbl">PART CODE:</td>
+                    <td class="val val-code">{{ $pallet->item_code }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">DESKRIPSI:</td>
+                    <td class="val" style="font-size: 8.5px;">{{ $pallet->material ? $pallet->material->item_description : '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">INITIAL QTY:</td>
+                    <td class="val">{{ number_format($pallet->initial_qty, 2) }} KG</td>
+                </tr>
+                <tr>
+                    <td class="lbl">SLOT RAK:</td>
+                    <td class="val val-slot">{{ $pallet->position ? $pallet->position->position_code : 'UNASSIGNED' }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">LOT / BATCH:</td>
+                    <td class="val" style="font-size: 8.5px;">{{ $pallet->lot_no ?: '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">SUPPLIER:</td>
+                    <td class="val" style="font-size: 8px;">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->supplier_name ?: '-') : '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">NO. PO:</td>
+                    <td class="val" style="font-size: 8px;">{{ $pallet->incomingHeader ? ($pallet->incomingHeader->po_number ?: '-') : '-' }}</td>
+                </tr>
+            </table>
+
+            <div class="qr-section">
+                <div class="qr-box">
+                    <div class="qr-title" style="color: #000;">OUTGOING / SCANNER</div>
+                    <img src="data:image/png;base64,{{ $qrTextBase64 }}" alt="QR Outgoing">
+                    <div class="qr-sub">{{ $pallet->pallet_id }}</div>
+                </div>
+
+                <div class="qr-box" style="border-left: 1.5px dashed #cbd5e1;">
+                    <div class="qr-title" style="color: #059669;">LIVE CHECK (HP)</div>
+                    <img src="data:image/png;base64,{{ $qrUrlBase64 }}" alt="QR Live">
+                    <div class="qr-sub" style="color: #059669;">SCAN VIA HP</div>
+                </div>
             </div>
 
-            <div class="qr-box">
-                <div class="qr-title" style="color: #059669;">LIVE CHECK (HP)</div>
-                <img src="data:image/png;base64,{{ $qrUrlBase64 }}" alt="QR Live">
-                <div class="qr-sub" style="color: #059669;">SCAN VIA HP</div>
+            <div class="footer">
+                <span>Tgl Kedatangan: {{ $pallet->incomingHeader && $pallet->incomingHeader->arrival_date ? $pallet->incomingHeader->arrival_date->format('d M Y') : ($pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y') : now()->timezone('Asia/Jakarta')->format('d M Y')) }}</span>
+                <span>Daijo MES WMS</span>
             </div>
-        </div>
-
-        <div class="footer">
-            <span>Tgl Masuk: {{ $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : now()->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB</span>
-            <span>Printed by Daijo MES WMS</span>
-        </div>
         </div>
     </div>
 

@@ -16,12 +16,24 @@ class SapSyncMonitor extends Component
     public $search = '';
     public $statusFilter = '';
     
-    // Modal properties
+    // Modal & Test properties
     public $showDetails = false;
     public $selectedPalletId = null;
     public $palletDetails = [];
+    public $connectionTestResult = null;
 
     protected $queryString = ['search', 'statusFilter'];
+
+    public function testEndpoint(WmsSapSyncService $sapService)
+    {
+        $res = $sapService->testConnection();
+        $this->connectionTestResult = $res;
+        if ($res['status']) {
+            session()->flash('message', $res['message']);
+        } else {
+            session()->flash('error', $res['message']);
+        }
+    }
 
     public function updatedSearch()
     {

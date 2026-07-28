@@ -97,9 +97,21 @@
                                     <span class="text-[10px] text-emerald-800 font-bold">Tgl Kedatangan: {{ isset($f['incoming_header']['arrival_date']) && $f['incoming_header']['arrival_date'] ? date('d M Y', strtotime($f['incoming_header']['arrival_date'])) : date('d M Y', strtotime($f['created_at'])) }}</span>
                                 </div>
 
-                                <button type="button" wire:click="selectPalletForPicking('{{ $f['pallet_id'] }}')" class="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 shadow-sm">
-                                    <span>Pilih Pallet Ini untuk Picking</span>
-                                </button>
+                                @if (!empty($f['is_qc_hold']))
+                                    <div class="p-2 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 flex items-center justify-between">
+                                        <span class="flex items-center space-x-1">
+                                            <span>⛔ PALLET DI-HOLD QC</span>
+                                        </span>
+                                        <span class="text-[10px] text-rose-600 font-medium italic">{{ $f['qc_hold_reason'] ?: 'Tanpa Alasan' }}</span>
+                                    </div>
+                                    <button type="button" disabled class="w-full py-1.5 px-3 bg-gray-300 text-gray-500 rounded-lg text-xs font-bold cursor-not-allowed flex items-center justify-center space-x-1">
+                                        <span>Tidak Dapat Dipicking (QC Hold)</span>
+                                    </button>
+                                @else
+                                    <button type="button" wire:click="selectPalletForPicking('{{ $f['pallet_id'] }}')" class="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 shadow-sm">
+                                        <span>Pilih Pallet Ini untuk Picking</span>
+                                    </button>
+                                @endif
                             </div>
                         @empty
                             <div class="p-6 text-center text-gray-400">

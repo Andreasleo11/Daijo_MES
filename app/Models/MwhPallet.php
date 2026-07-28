@@ -22,12 +22,15 @@ class MwhPallet extends Model
         'uom',
         'position_id',
         'status',
+        'is_qc_hold',
+        'qc_hold_reason',
         'created_at',
     ];
 
     protected $casts = [
         'initial_qty' => 'decimal:2',
         'current_qty' => 'decimal:2',
+        'is_qc_hold'  => 'boolean',
     ];
 
     public function incomingHeader()

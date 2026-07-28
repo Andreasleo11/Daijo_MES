@@ -100,8 +100,9 @@ class MaterialWarehouseService
                 'last_item_code' => null,
             ]);
         } else {
-            $totalQty = $activePallets->sum('current_qty');
-            $status = $totalQty >= $position->max_capacity ? 'FULL' : 'PARTIAL';
+            $totalQty = (float) $activePallets->sum('current_qty');
+            $maxCap = (float) ($position->max_capacity > 0 ? $position->max_capacity : 1000.0);
+            $status = round($totalQty, 2) >= round($maxCap, 2) ? 'FULL' : 'PARTIAL';
             $lastItem = $activePallets->last()->item_code;
 
             $position->update([
@@ -134,6 +135,11 @@ class MaterialWarehouseService
     {
         return DB::transaction(function () use ($palletId, $qtyTaken, $outgoingDate, $issuedTo, $remarks) {
             $pallet = MwhPallet::where('pallet_id', $palletId)->firstOrFail();
+
+            if ($pallet->is_qc_hold) {
+                $reason = $pallet->qc_hold_reason ?: 'Tanpa keterangan';
+                throw new \InvalidArgumentException("Pallet {$palletId} sedang di-HOLD oleh QC (Alasan: {$reason}) dan tidak dapat diambil.");
+            }
 
             if ($qtyTaken <= 0 || $qtyTaken > $pallet->current_qty) {
                 throw new \InvalidArgumentException("Jumlah pengambilan ({$qtyTaken} KG) melebihi sisa stok di Pallet {$palletId} ({$pallet->current_qty} KG).");
