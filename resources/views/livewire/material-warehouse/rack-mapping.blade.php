@@ -247,9 +247,19 @@
                                                             $isMatched = in_array($pos->id, $matchingPositionIds);
                                                             $isSelected = $selectedPositionId == $pos->id;
 
+                                                            $totalQty = $pos->pallets ? (float) $pos->pallets->sum('current_qty') : 0;
+                                                            $maxCap = (float) ($pos->max_capacity > 0 ? $pos->max_capacity : 1000.0);
+                                                            if (round($totalQty, 2) >= round($maxCap, 2)) {
+                                                                $effectiveStatus = 'FULL';
+                                                            } elseif (round($totalQty, 2) > 0) {
+                                                                $effectiveStatus = 'PARTIAL';
+                                                            } else {
+                                                                $effectiveStatus = ($pos->status === 'FULL') ? 'FULL' : 'EMPTY';
+                                                            }
+
                                                             $statusColor = 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700';
-                                                            if($pos->status == 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
-                                                            if($pos->status == 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
+                                                            if($effectiveStatus == 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
+                                                            if($effectiveStatus == 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
                                                             
                                                             if ($isMatched) {
                                                                 $statusColor = 'bg-yellow-200 hover:bg-yellow-300 border-amber-500 text-amber-950 font-black shadow-md ring-4 ring-yellow-400/80 animate-pulse';
@@ -269,7 +279,7 @@
                                                             <div class="flex justify-between items-start w-full">
                                                                 <span class="font-mono font-black text-[10px] tracking-tighter">{{ $pos->position_code }}</span>
                                                                 <span class="text-[8px] font-bold px-1 rounded bg-black/5 uppercase">
-                                                                    {{ $pos->status }}
+                                                                    {{ $effectiveStatus }}
                                                                 </span>
                                                             </div>
 

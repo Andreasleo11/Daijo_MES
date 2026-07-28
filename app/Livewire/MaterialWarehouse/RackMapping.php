@@ -50,6 +50,15 @@ class RackMapping extends Component
         'selectedAreaFilter' => ['except' => 'ALL'],
     ];
 
+    public function mount(?MaterialWarehouseService $mwhService = null): void
+    {
+        $mwhService = $mwhService ?? app(MaterialWarehouseService::class);
+        $positions = MwhPosition::has('pallets')->get();
+        foreach ($positions as $pos) {
+            $mwhService->updatePositionStatus($pos->id);
+        }
+    }
+
     public function toggleFifoItemExpand(string $itemCode): void
     {
         if ($this->expandedFifoItemCode === $itemCode) {
