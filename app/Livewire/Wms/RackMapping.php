@@ -160,20 +160,32 @@ class RackMapping extends Component
 
     public function render()
     {
-        $racks = WmsRack::with(['positions' => function($query) {
-            $query->with('customer')
-                  ->withCount('palletForms')
+        $hasCustomerTable = \Illuminate\Support\Facades\Schema::hasTable('master_customer_delivery');
+
+        $racks = WmsRack::with(['positions' => function($query) use ($hasCustomerTable) {
+            if ($hasCustomerTable) {
+                $query->with('customer');
+            }
+            $query->withCount('palletForms')
                   ->orderBy('level_no', 'desc')
                   ->orderBy('slot_no', 'asc');
         }])->get();
 
+        $selectedPosRelations = ['palletForms'];
+        if ($hasCustomerTable) {
+            $selectedPosRelations[] = 'customer';
+        }
+
         $selectedPosData = $this->selectedPositionId 
-            ? WmsPosition::with(['palletForms', 'customer'])->withCount('palletForms')->find($this->selectedPositionId) 
+            ? WmsPosition::with($selectedPosRelations)->withCount('palletForms')->find($this->selectedPositionId) 
             : null;
 
-        $customers = \App\Models\MasterCustomerDelivery::orderBy('customer_code')->get();
+        $customers = $hasCustomerTable
+            ? \App\Models\MasterCustomerDelivery::orderBy('customer_code')->get()
+            : collect();
 
         $unassignedPallets = \App\Models\WmsPalletForm::whereNull('position_id')
+            ->where('total_pallet_qty', '>', 0)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -195,6 +207,11 @@ class RackMapping extends Component
         try {
             $pos = WmsPosition::find($this->selectedPositionId);
             $pallet = \App\Models\WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
+
+            if ($pallet->total_pallet_qty <= 0) {
+                session()->flash('error', "Pallet {$pallet->pallet_id} sudah habis (quantity 0) dan tidak perlu di-assign ke slot rak.");
+                return;
+            }
 
             $oldPosId = $pallet->position_id;
             $pallet->update(['position_id' => $pos->id]);

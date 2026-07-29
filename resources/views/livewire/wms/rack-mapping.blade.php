@@ -79,7 +79,7 @@
                                             @endphp
                                             <button wire:click="selectPosition({{ $pos->id }})" 
                                                     class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
-                                                    title="{{ $pos->position_code }} @if($pos->customer) (Customer: {{ $pos->customer->customer_name }}) @endif">
+                                                    title="{{ $pos->position_code }} @if($pos->customer_code) (Customer: {{ $pos->customer_code }}) @endif">
                                                 
                                                 <div class="text-[8px] font-black text-gray-400 group-hover:text-gray-600 text-center uppercase leading-none">
                                                     S{{ $pos->slot_no }}
