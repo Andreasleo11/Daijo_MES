@@ -90,6 +90,11 @@ class MaterialWarehouseService
         $position = MwhPosition::find($positionId);
         if (!$position) return;
 
+        // Automatically detach any material pallets from this slot position that have current_qty <= 0
+        MwhPallet::where('position_id', $positionId)
+            ->where('current_qty', '<=', 0)
+            ->update(['position_id' => null, 'status' => 'EMPTY']);
+
         $activePallets = MwhPallet::where('position_id', $positionId)
             ->where('current_qty', '>', 0)
             ->get();
@@ -145,7 +150,7 @@ class MaterialWarehouseService
                 throw new \InvalidArgumentException("Jumlah pengambilan ({$qtyTaken} KG) melebihi sisa stok di Pallet {$palletId} ({$pallet->current_qty} KG).");
             }
 
-            $newQty = $pallet->current_qty - $qtyTaken;
+            $newQty = max(0, $pallet->current_qty - $qtyTaken);
             $newStatus = $newQty <= 0 ? 'EMPTY' : 'PARTIAL';
 
             $oldPositionId = $pallet->position_id;
@@ -153,6 +158,7 @@ class MaterialWarehouseService
             $pallet->update([
                 'current_qty' => $newQty,
                 'status'      => $newStatus,
+                'position_id' => $newQty <= 0 ? null : $pallet->position_id,
             ]);
 
             $outgoing = MwhOutgoing::create([

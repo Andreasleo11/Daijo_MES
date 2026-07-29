@@ -136,18 +136,26 @@ class WmsService
      */
     public function updatePositionStatus($positionId)
     {
+        // Automatically detach any pallet forms from this position that have total_pallet_qty <= 0 or status OUT
+        \App\Models\WmsPalletForm::where('position_id', $positionId)
+            ->where(function($q) {
+                $q->where('total_pallet_qty', '<=', 0)
+                  ->orWhere('status', 'OUT');
+            })
+            ->update(['position_id' => null]);
+
         $pos = WmsPosition::with(['palletForms' => function($q) {
-            $q->where('status', 'STORED');
+            $q->where('status', 'STORED')->where('total_pallet_qty', '>', 0);
         }])->find($positionId);
         
         if (!$pos) return;
 
-        $totalQtySum = $pos->palletForms->sum('total_pallet_qty');
+        $totalQtySum = (float) $pos->palletForms->sum('total_pallet_qty');
         $palletCount = $pos->palletForms->count();
         
-        if ($palletCount <= 0) {
+        if ($palletCount <= 0 || $totalQtySum <= 0) {
             $pos->update(['status' => 'EMPTY', 'last_item_code' => null]);
-        } elseif ($totalQtySum >= $pos->max_capacity) {
+        } elseif ($palletCount >= $pos->max_capacity) {
             $pos->update(['status' => 'FULL']);
         } else {
             $pos->update(['status' => 'PARTIAL']);
