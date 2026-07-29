@@ -91,13 +91,18 @@ new class extends Component {
                     ['name' => 'daily-item-code.index', 'label' => 'Daily Production Plan'],
                     ['name' => 'ppic.machine-daily-report', 'label' => 'Laporan Produksi Mesin'],
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
-                    ['name' => 'second-process.dashboard', 'label' => 'Second Process Floor Dashboard'],
-                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
-                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
                     ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
                     ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
                     ['name' => 'maintenance.index', 'label' => 'Maintenance Index'],
                     ['name' => 'invlinelist', 'label' => 'Machine List'],
+                ]" />
+
+                <!-- Dropdown: Second Process -->
+                <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
+                    ['name' => 'second-process.dashboard', 'label' => 'Second Process Floor Dashboard'],
+                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                    ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
                 ]" />
 
                 <!-- 4. Dropdown: WMS & Warehouse -->

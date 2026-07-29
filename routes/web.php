@@ -770,6 +770,7 @@ Route::middleware('auth')->group(function (){
 
     // Second Process Reports
     Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
+    Route::get('second-process-report-analytics', [\App\Http\Controllers\SecondProcessReportAnalyticsController::class, 'index'])->name('second-process.report-analytics');
     Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
     Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
     Route::post('second-process-reports/{id}/sign/{role}', [SecondProcessReportController::class, 'sign'])->name('second-process-reports.sign');
