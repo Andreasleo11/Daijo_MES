@@ -182,6 +182,19 @@ class SapSyncMonitor extends Component
 
     public function render()
     {
+        // Ground truth self-healing: Ensure any header status matches the status of its detail items
+        $unresolvedPallets = WmsPalletForm::whereIn('sap_sync_status', [0, 2, 3])->has('details')->get();
+        foreach ($unresolvedPallets as $p) {
+            $allSynced = !$p->details()->whereNotIn('sap_sync_status', [1, 4])->exists();
+            if ($allSynced) {
+                $p->update([
+                    'sap_sync_status' => 1,
+                    'sap_error_msg'   => null,
+                    'sap_sync_at'     => $p->details()->max('sap_sync_at') ?? now(),
+                ]);
+            }
+        }
+
         $query = WmsPalletForm::query()->withCount('details');
 
         if ($this->search) {
