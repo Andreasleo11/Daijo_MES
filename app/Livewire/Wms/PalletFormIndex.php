@@ -107,8 +107,26 @@ class PalletFormIndex extends Component
         }
     }
 
-    public function render()
+    public function render(WmsService $wmsService)
     {
+        // Self-healing: Ensure any pallet with total_pallet_qty <= 0 or status == OUT has position_id cleared
+        $stalePallets = WmsPalletForm::whereNotNull('position_id')
+            ->where(function($q) {
+                $q->where('total_pallet_qty', '<=', 0)
+                  ->orWhere('status', 'OUT');
+            })
+            ->get();
+
+        if ($stalePallets->isNotEmpty()) {
+            $affectedPosIds = $stalePallets->pluck('position_id')->filter()->unique();
+            WmsPalletForm::whereIn('id', $stalePallets->pluck('id'))
+                ->update(['position_id' => null]);
+
+            foreach ($affectedPosIds as $posId) {
+                $wmsService->updatePositionStatus($posId);
+            }
+        }
+
         $palletForms = WmsPalletForm::with(['position.rack', 'details.item.customer'])
             ->where(function($query) {
                 $query->where('pallet_id', 'like', '%' . $this->search . '%')
@@ -119,9 +137,12 @@ class PalletFormIndex extends Component
             ->when($this->filterSlot !== 'ALL', function($query) {
                 if ($this->filterSlot === 'UNASSIGNED') {
                     $query->whereNull('position_id')
-                          ->where('total_pallet_qty', '>', 0);
+                          ->where('total_pallet_qty', '>', 0)
+                          ->where('status', '!=', 'OUT');
                 } elseif ($this->filterSlot === 'ASSIGNED') {
-                    $query->whereNotNull('position_id');
+                    $query->whereNotNull('position_id')
+                          ->where('total_pallet_qty', '>', 0)
+                          ->where('status', '!=', 'OUT');
                 }
             })
             ->orderBy('created_at', 'desc')

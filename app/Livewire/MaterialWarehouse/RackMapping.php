@@ -53,7 +53,7 @@ class RackMapping extends Component
     public function mount(?MaterialWarehouseService $mwhService = null): void
     {
         $mwhService = $mwhService ?? app(MaterialWarehouseService::class);
-        $positions = MwhPosition::has('pallets')->get();
+        $positions = MwhPosition::all();
         foreach ($positions as $pos) {
             $mwhService->updatePositionStatus($pos->id);
         }
@@ -413,17 +413,15 @@ class RackMapping extends Component
             $matchingPositionIds = MwhPosition::query()
                 ->where(function($q) use ($queryStr, $itemFilter) {
                     if (strlen($itemFilter) > 0) {
-                        $q->where('last_item_code', $itemFilter)
-                          ->orWhereHas('pallets', function($pq) use ($itemFilter) {
-                              $pq->where('current_qty', '>', 0)->where('item_code', $itemFilter);
-                          });
+                        $q->whereHas('pallets', function($pq) use ($itemFilter) {
+                            $pq->where('current_qty', '>', 0)->where('item_code', $itemFilter);
+                        });
                     }
 
                     if (strlen($queryStr) > 0) {
                         $q->where(function($sub) use ($queryStr) {
                             $sub->where('position_code', 'like', '%' . $queryStr . '%')
                               ->orWhere('slot_label', 'like', '%' . $queryStr . '%')
-                              ->orWhere('last_item_code', 'like', '%' . $queryStr . '%')
                               ->orWhereHas('rack', function($rq) use ($queryStr) {
                                   $rq->where('rack_code', 'like', '%' . $queryStr . '%');
                               })
