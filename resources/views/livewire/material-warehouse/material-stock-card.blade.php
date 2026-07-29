@@ -206,7 +206,11 @@
 
                                     <!-- Jenis Transaksi -->
                                     <td class="px-5 py-3.5">
-                                        @if($m['type'] === 'INCOMING')
+                                        @if($m['type'] === 'OPENING_BALANCE')
+                                            <span class="px-2.5 py-1 bg-amber-100 text-amber-800 font-black text-[10px] rounded-lg border border-amber-200 inline-flex items-center">
+                                                📦 SALDO AWAL
+                                            </span>
+                                        @elseif($m['type'] === 'INCOMING')
                                             <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-lg border border-emerald-200 inline-flex items-center">
                                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                                 INCOMING

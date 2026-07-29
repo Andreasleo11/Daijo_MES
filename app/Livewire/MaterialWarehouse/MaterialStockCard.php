@@ -113,84 +113,118 @@ class MaterialStockCard extends Component
             $summary['total_outgoing'] = (float) MwhOutgoing::where('item_code', $this->selectedItemCode)
                 ->sum('qty_taken');
 
-            // 2. Fetch Incoming movements (MwhPallet records)
-            $incomingQuery = MwhPallet::with(['incomingHeader', 'position'])
-                ->where('item_code', $this->selectedItemCode);
+            // 2. Fetch ALL Incoming movements (MwhPallet records) without SQL date cutoff
+            $incomings = MwhPallet::with(['incomingHeader', 'position'])
+                ->where('item_code', $this->selectedItemCode)
+                ->get()
+                ->map(function ($pallet) {
+                    $dt = $pallet->created_at ?: ($pallet->incomingHeader?->arrival_date ? Carbon::parse($pallet->incomingHeader->arrival_date) : null);
+                    return [
+                        'id'                 => 'IN-' . $pallet->id,
+                        'timestamp'          => $dt,
+                        'date_formatted'     => $dt ? $dt->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
+                        'type'               => 'INCOMING',
+                        'ref_code'           => $pallet->pallet_id,
+                        'sub_ref'            => 'Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'),
+                        'source_destination' => $pallet->incomingHeader?->supplier_name ?: 'Internal Supplier',
+                        'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
+                        'qty_in'             => (float) $pallet->initial_qty,
+                        'qty_out'            => 0.0,
+                        'uom'                => $pallet->uom ?? 'KG',
+                        'remarks'            => 'Penerimaan Pallet Baru (' . number_format($pallet->current_qty, 2) . ' KG sisa)',
+                    ];
+                });
 
-            if ($this->fromDate) {
-                $incomingQuery->whereDate('created_at', '>=', $this->fromDate);
-            }
-            if ($this->toDate) {
-                $incomingQuery->whereDate('created_at', '<=', $this->toDate);
-            }
-
-            $incomings = $incomingQuery->get()->map(function ($pallet) {
-                return [
-                    'id'                 => 'IN-' . $pallet->id,
-                    'timestamp'          => $pallet->created_at,
-                    'date_formatted'     => $pallet->created_at ? $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
-                    'type'               => 'INCOMING',
-                    'ref_code'           => $pallet->pallet_id,
-                    'sub_ref'            => 'Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'),
-                    'source_destination' => $pallet->incomingHeader?->supplier_name ?: 'Internal Supplier',
-                    'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
-                    'qty_in'             => (float) $pallet->initial_qty,
-                    'qty_out'            => 0.0,
-                    'uom'                => $pallet->uom ?? 'KG',
-                    'remarks'            => 'Penerimaan Pallet Baru (' . number_format($pallet->current_qty, 2) . ' KG sisa)',
-                ];
-            });
-
-            // 3. Fetch Outgoing movements (MwhOutgoing records)
-            $outgoingQuery = MwhOutgoing::with(['pallet.position', 'position'])
-                ->where('item_code', $this->selectedItemCode);
-
-            if ($this->fromDate) {
-                $outgoingQuery->whereDate('created_at', '>=', $this->fromDate);
-            }
-            if ($this->toDate) {
-                $outgoingQuery->whereDate('created_at', '<=', $this->toDate);
-            }
-
-            $outgoings = $outgoingQuery->get()->map(function ($out) {
-                return [
-                    'id'                 => 'OUT-' . $out->id,
-                    'timestamp'          => $out->created_at,
-                    'date_formatted'     => $out->created_at ? $out->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
-                    'type'               => 'OUTGOING',
-                    'ref_code'           => $out->outgoing_code,
-                    'sub_ref'            => 'Pallet: ' . $out->pallet_id,
-                    'source_destination' => 'Tujuan: ' . ($out->issued_to ?: 'Produksi'),
-                    'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
-                    'qty_in'             => 0.0,
-                    'qty_out'            => (float) $out->qty_taken,
-                    'uom'                => $out->uom ?? 'KG',
-                    'remarks'            => $out->remarks ?: 'Pengambilan Material',
-                ];
-            });
+            // 3. Fetch ALL Outgoing movements (MwhOutgoing records) without SQL date cutoff
+            $outgoings = MwhOutgoing::with(['pallet.position', 'position'])
+                ->where('item_code', $this->selectedItemCode)
+                ->get()
+                ->map(function ($out) {
+                    $dt = $out->created_at ?: ($out->outgoing_date ? Carbon::parse($out->outgoing_date) : null);
+                    return [
+                        'id'                 => 'OUT-' . $out->id,
+                        'timestamp'          => $dt,
+                        'date_formatted'     => $dt ? $dt->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
+                        'type'               => 'OUTGOING',
+                        'ref_code'           => $out->outgoing_code,
+                        'sub_ref'            => 'Pallet: ' . $out->pallet_id,
+                        'source_destination' => 'Tujuan: ' . ($out->issued_to ?: 'Produksi'),
+                        'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
+                        'qty_in'             => 0.0,
+                        'qty_out'            => (float) $out->qty_taken,
+                        'uom'                => $out->uom ?? 'KG',
+                        'remarks'            => $out->remarks ?: 'Pengambilan Material',
+                    ];
+                });
 
             // 4. Merge and sort chronologically (oldest to newest for calculating running balance)
             $allMovements = $incomings->concat($outgoings)->sortBy('timestamp')->values();
 
-            // 5. Calculate Running Balance
+            // 5. Calculate Running Balance & Opening Balance for Date Filter
             $runningBalance = 0.0;
-            $calculatedMovements = $allMovements->map(function ($item) use (&$runningBalance) {
+            $fromCarbon = $this->fromDate ? Carbon::parse($this->fromDate)->startOfDay() : null;
+            $toCarbon   = $this->toDate ? Carbon::parse($this->toDate)->endOfDay() : null;
+            $openingBalance = 0.0;
+
+            $calculatedMovements = collect();
+
+            foreach ($allMovements as $item) {
+                $itemDt = $item['timestamp'];
+                
+                // If transaction happened BEFORE fromDate, accumulate to openingBalance
+                if ($fromCarbon && $itemDt && $itemDt->lt($fromCarbon)) {
+                    if ($item['type'] === 'INCOMING') {
+                        $openingBalance += $item['qty_in'];
+                    } else {
+                        $openingBalance -= $item['qty_out'];
+                    }
+                    $runningBalance = max(0.0, $openingBalance);
+                    continue;
+                }
+
                 if ($item['type'] === 'INCOMING') {
                     $runningBalance += $item['qty_in'];
                 } else {
                     $runningBalance -= $item['qty_out'];
                 }
                 $item['balance'] = max(0.0, $runningBalance);
-                return $item;
-            });
 
-            // 6. Apply Search and Type Filters
+                // Check toDate limit
+                if ($toCarbon && $itemDt && $itemDt->gt($toCarbon)) {
+                    continue;
+                }
+
+                $calculatedMovements->push($item);
+            }
+
+            // 6. Prepend Opening Balance row if fromDate filter is active and openingBalance > 0
+            if ($fromCarbon && $openingBalance > 0) {
+                $openingRow = [
+                    'id'                 => 'OPENING-BAL',
+                    'timestamp'          => $fromCarbon,
+                    'date_formatted'     => $fromCarbon->timezone('Asia/Jakarta')->format('d M Y') . ' (00:00)',
+                    'type'               => 'OPENING_BALANCE',
+                    'ref_code'           => 'SALDO AWAL',
+                    'sub_ref'            => 'Akumulasi Sebelum ' . $fromCarbon->format('d M Y'),
+                    'source_destination' => 'Stok Bawaan Periode Sebelumnya',
+                    'slot_code'          => '-',
+                    'qty_in'             => $openingBalance,
+                    'qty_out'            => 0.0,
+                    'uom'                => $selectedMaterial?->purchasing_uom ?? 'KG',
+                    'balance'            => $openingBalance,
+                    'remarks'            => 'Saldo awal per tanggal ' . $fromCarbon->format('d M Y'),
+                ];
+
+                $calculatedMovements->prepend($openingRow);
+            }
+
+            // 7. Apply Search and Type Filters
             $movements = $calculatedMovements;
 
             if ($this->filterType === 'INCOMING') {
-                $movements = $movements->where('type', 'INCOMING');
+                $movements = $movements->filter(fn($i) => in_array($i['type'], ['INCOMING', 'OPENING_BALANCE']));
             } elseif ($this->filterType === 'OUTGOING') {
-                $movements = $movements->where('type', 'OUTGOING');
+                $movements = $movements->filter(fn($i) => in_array($i['type'], ['OUTGOING', 'OPENING_BALANCE']));
             }
 
             if (!empty($this->search)) {
@@ -204,7 +238,7 @@ class MaterialStockCard extends Component
                 });
             }
 
-            // Keep chronological order (oldest to newest, top-to-bottom) like a standard physical Stock Card ledger
+            // Keep chronological order (oldest to newest, top-to-bottom)
             $movements = $movements->values();
         }
 
