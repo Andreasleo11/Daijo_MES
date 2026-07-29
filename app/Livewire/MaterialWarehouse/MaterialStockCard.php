@@ -27,11 +27,35 @@ class MaterialStockCard extends Component
         'toDate'           => ['except' => null],
     ];
 
+    public function getActiveMaterialsProperty()
+    {
+        $incomingCodes = MwhPallet::whereNotNull('item_code')->select('item_code')->distinct()->pluck('item_code');
+        $outgoingCodes = MwhOutgoing::whereNotNull('item_code')->select('item_code')->distinct()->pluck('item_code');
+
+        $activeCodes = $incomingCodes->merge($outgoingCodes)->unique()->filter()->values();
+
+        if ($activeCodes->isEmpty()) {
+            return collect();
+        }
+
+        $masterMaterials = MasterListMaterial::whereIn('item_code', $activeCodes)->get()->keyBy('item_code');
+
+        return $activeCodes->map(function ($code) use ($masterMaterials) {
+            $master = $masterMaterials->get($code);
+            return (object) [
+                'item_code'          => $code,
+                'item_description'   => $master?->item_description ?: 'Material ' . $code,
+                'purchasing_uom'     => $master?->purchasing_uom ?: 'KG',
+                'preferred_supplier' => $master?->preferred_supplier ?: '-',
+            ];
+        })->sortBy('item_code')->values();
+    }
+
     public function mount(): void
     {
-        // Default to first available material if non-selected
+        // Default to first available active material with transactions if non-selected
         if (empty($this->selectedItemCode)) {
-            $firstMat = MasterListMaterial::orderBy('item_code', 'asc')->first();
+            $firstMat = $this->activeMaterials->first();
             if ($firstMat) {
                 $this->selectedItemCode = $firstMat->item_code;
             }
@@ -61,7 +85,7 @@ class MaterialStockCard extends Component
 
     public function render()
     {
-        $materials = MasterListMaterial::orderBy('item_code', 'asc')->get();
+        $materials = $this->activeMaterials;
         $selectedMaterial = $materials->firstWhere('item_code', $this->selectedItemCode);
 
         $movements = collect();
