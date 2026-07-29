@@ -319,17 +319,6 @@
                             </div>
                         </div>
 
-                        {{-- Recommended Slot Display --}}
-                        @if($recommendedSlot)
-                            <div class="p-4 bg-slate-800 rounded-2xl border-2 border-slate-700 shadow-inner group overflow-hidden relative">
-                                <div class="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
-                                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                </div>
-                                <div class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1">RECOMMENDED SLOT</div>
-                                <div class="text-3xl font-black text-white italic tracking-tighter">{{ $recommendedSlot }}</div>
-                            </div>
-                        @endif
-
                         {{-- Multi-item indicator --}}
                         @php
                             $uniqueParts = collect($scanned_items)->pluck('part_no')->filter()->unique()->values();

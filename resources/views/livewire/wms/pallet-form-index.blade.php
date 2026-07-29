@@ -108,8 +108,8 @@
                                          </div>
                                      @elseif($form->total_pallet_qty > 0 && $form->status !== 'OUT')
                                          <div class="flex items-center space-x-2">
-                                             <span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-lg uppercase tracking-tight animate-pulse">
-                                                 ⚠️ BELUM ASSIGN SLOT
+                                             <span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-lg uppercase tracking-tight">
+                                                 ⏳ TEMPORARY (BELUM ADA TEMPAT)
                                              </span>
                                              <button wire:click="openAssignModal('{{ $form->pallet_id }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all">
                                                  Assign Slot
@@ -174,7 +174,7 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Pilih Slot Rak WMS:</label>
                         <select wire:model="assignPositionId" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="">-- Pilih Slot Rak --</option>
+                            <option value="">⏳ TEMPORARY (Belum ada tempat / Unassigned)</option>
                             @foreach ($availablePositions as $pos)
                                 <option value="{{ $pos->id }}">
                                     {{ $pos->position_code }} (Customer: {{ $pos->customer_code ?: 'ALL' }}, Status: {{ $pos->status }})

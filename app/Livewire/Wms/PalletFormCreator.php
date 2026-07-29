@@ -51,9 +51,6 @@ class PalletFormCreator extends Component
     // Accumulated scan list
     public array $scanned_items = [];
 
-    // Real-time recommendation
-    public $recommendedSlot = null;
-
     // ─── Validation ────────────────────────────────────────────────────────────
     protected $rules = [
         'prod_date'     => 'required|date',
@@ -306,23 +303,6 @@ class PalletFormCreator extends Component
         $this->total_pallet_qty = array_sum(array_map(function($item) {
             return (float) ($item['qty'] ?? 0);
         }, $this->scanned_items));
-        
-        $this->updateRecommendation();
-    }
-
-    private function updateRecommendation(): void
-    {
-        if (count($this->scanned_items) === 0) {
-            $this->recommendedSlot = null;
-            return;
-        }
-
-        $wmsService = app(WmsService::class);
-        $customerCodes = array_column($this->scanned_items, 'customer_code');
-        $firstPartNo = array_filter(array_column($this->scanned_items, 'part_no'))[0] ?? '';
-        
-        $pos = $wmsService->recommendPosition($customerCodes, $firstPartNo);
-        $this->recommendedSlot = $pos ? $pos->position_code : 'RAK PENUH';
     }
 
     // ─── Generate Pallet Form ──────────────────────────────────────────────────
@@ -351,18 +331,8 @@ class PalletFormCreator extends Component
             $headerPartNo    = $isMixed ? 'MIXED' : ($allPartNos[0] ?? null);
             $headerModelName = $isMixed ? 'MULTI-ITEM' : ($this->scanned_items[0]['model_name'] ?? null);
 
-            // --- Rack recommendation ---
-            $customerCodes = array_column($this->scanned_items, 'customer_code');
-            $primaryPartNo = $allPartNos[0] ?? '';
-
-            $pos = $wmsService->recommendPosition($customerCodes, $primaryPartNo);
-
-            // If in delivery mode or position not found, leave position_id unassigned for Store to assign later
-            if (! $pos && ! $this->isDelivery) {
-                throw new \Exception('Tidak ada posisi rak yang tersedia. Warehouse mungkin penuh.');
-            }
-
-            $positionId = $pos ? $pos->id : null;
+            // Position ID is NULL when created (Temporary - Slot rak diisi manual oleh orang Store)
+            $positionId = null;
 
             // --- Generate ONE Pallet ID ---
             $palletId = $wmsService->generatePalletId();
@@ -370,7 +340,7 @@ class PalletFormCreator extends Component
             // --- Create Header ---
             WmsPalletForm::create([
                 'pallet_id'        => $palletId,
-                'position_id'      => $positionId,
+                'position_id'      => null,
                 'part_no'          => $headerPartNo,
                 'model_name'       => $headerModelName,
                 'prod_date'        => $this->prod_date,
@@ -397,14 +367,8 @@ class PalletFormCreator extends Component
                 ]);
             }
 
-            // --- Update position tracking if position assigned ---
-            if ($pos) {
-                $pos->update(['last_item_code' => $headerPartNo]);
-                $wmsService->updatePositionStatus($pos->id);
-            }
-
             // --- Log Transaction ---
-            $wmsService->logTransaction($palletId, 'IN', $positionId);
+            $wmsService->logTransaction($palletId, 'IN', null);
 
             DB::commit();
 
