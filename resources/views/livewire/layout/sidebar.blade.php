@@ -9,7 +9,9 @@ new class extends Component {
     public function logout(Logout $logout): void
     {
         if (auth()->user()->role->name === 'WORKSHOP') {
-            auth()->user()->update(['username' => null]);
+            auth()
+                ->user()
+                ->update(['username' => null]);
         } elseif (auth()->user()->role->name === 'OPERATOR') {
             MachineJob::where('user_id', auth()->user()->id)->update(['employee_name' => null]);
         }
@@ -26,9 +28,7 @@ new class extends Component {
            transform transition-transform duration-200 ease-in-out
            z-30
            lg:translate-x-0"
-    :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }"
-    x-cloak
->
+    :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }" x-cloak>
     {{-- TOP --}}
     <div class="px-6 py-4 flex-grow overflow-y-auto border-scrollbar">
         <div class="flex items-center justify-between">
@@ -41,12 +41,9 @@ new class extends Component {
 
             {{-- Close button mobile --}}
             <button @click="sidebarOpen = false" class="lg:hidden text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                     viewBox="0 0 24 24" stroke="currentColor"
-                     class="h-6 w-6">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12" />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    class="h-6 w-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
@@ -55,20 +52,12 @@ new class extends Component {
         <div class="space-y-2 mt-4">
             @if (auth()->user()->can('view-admin-links'))
                 <!-- Admin Dashboard Link -->
-                <livewire:sidebar-link
-                    href="{{ route('dashboard') }}"
-                    label="Dashboard Home"
-                    :active="request()->routeIs('dashboard')"
-                    wire:navigate
-                />
+                <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard Home" :active="request()->routeIs('dashboard')"
+                    wire:navigate />
 
                 @if (auth()->user()->can('manage-users-roles'))
-                    <livewire:sidebar-link
-                        href="{{ route('admin.user-role-manager') }}"
-                        label="User Role Management"
-                        :active="request()->routeIs('admin.user-role-manager')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('admin.user-role-manager') }}" label="User Role Management"
+                        :active="request()->routeIs('admin.user-role-manager')" wire:navigate />
                 @endif
 
                 <!-- 1. Dropdown: Dashboard All -->
@@ -102,7 +91,9 @@ new class extends Component {
                     ['name' => 'daily-item-code.index', 'label' => 'Daily Production Plan'],
                     ['name' => 'ppic.machine-daily-report', 'label' => 'Laporan Produksi Mesin'],
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
+                    ['name' => 'second-process.dashboard', 'label' => 'Second Process Floor Dashboard'],
                     ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
                     ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
                     ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
                     ['name' => 'maintenance.index', 'label' => 'Maintenance Index'],
@@ -164,40 +155,22 @@ new class extends Component {
                     ['name' => 'production-summary-monitor', 'label' => 'Cek Stock Program ke SAP'],
                     ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor'],
                 ]" />
-
             @else
                 @if (
                     !auth()->user()->can('view-store-links') &&
-                    !auth()->user()->can('view-business-links') &&
-                    !auth()->user()->can('view-production-links')
-                )
-                    <livewire:sidebar-link
-                        href="{{ route('dashboard') }}"
-                        label="Dashboard"
-                        :active="request()->routeIs('dashboard')"
-                        wire:navigate
-                    />
+                        !auth()->user()->can('view-business-links') &&
+                        !auth()->user()->can('view-production-links'))
+                    <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
+                        wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('operator.daily-report') }}"
-                        label="Laporan Harian Mesin"
-                        :active="request()->routeIs('operator.daily-report')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('operator.daily-report') }}" label="Laporan Harian Mesin"
+                        :active="request()->routeIs('operator.daily-report')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('maintenance.machine.index') }}"
-                        label="Maintenance Machine"
-                        :active="request()->routeIs('maintenance.machine.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('maintenance.machine.index') }}" label="Maintenance Machine"
+                        :active="request()->routeIs('maintenance.machine.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('maintenance.mould.index') }}"
-                        label="Maintenance Mould"
-                        :active="request()->routeIs('maintenance.mould.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('maintenance.mould.index') }}" label="Maintenance Mould"
+                        :active="request()->routeIs('maintenance.mould.index')" wire:navigate />
                 @endif
 
 
@@ -210,114 +183,58 @@ new class extends Component {
                         ['name' => 'dashboard.moulding.tv', 'label' => 'Dashboard Project'],
                     ]" />
 
-                    <livewire:sidebar-link
-                        href="{{ route('production.bom.index') }}"
-                        label="Production BOM"
-                        :active="request()->routeIs('production.bom.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('production.bom.index') }}" label="Production BOM"
+                        :active="request()->routeIs('production.bom.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('waiting_purchase_orders.index') }}"
-                        label="Waiting Purchase Orders"
-                        :active="request()->routeIs('waiting_purchase_orders.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('waiting_purchase_orders.index') }}"
+                        label="Waiting Purchase Orders" :active="request()->routeIs('waiting_purchase_orders.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('notification_recipients.index') }}"
-                        label="Notification Recipients"
-                        :active="request()->routeIs('notification_recipients.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('notification_recipients.index') }}"
+                        label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate />
                 @endif
 
                 @if (auth()->user()->can('view-business-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('delivery-schedule.form') }}"
-                        label="Delivery Schedule Input (BARU)"
-                        :active="request()->routeIs('delivery-schedule.form')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('delivery-schedule.form') }}"
+                        label="Delivery Schedule Input (BARU)" :active="request()->routeIs('delivery-schedule.form')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('delivery-schedule.calendar') }}"
-                        label="Kalender Delivery Schedule"
-                        :active="request()->routeIs('delivery-schedule.calendar')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('delivery-schedule.calendar') }}"
+                        label="Kalender Delivery Schedule" :active="request()->routeIs('delivery-schedule.calendar')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('delivery.analysis') }}"
-                        label="Delivery Schedule Terbaru"
-                        :active="request()->routeIs('delivery.analysis')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('delivery.analysis') }}" label="Delivery Schedule Terbaru"
+                        :active="request()->routeIs('delivery.analysis')" wire:navigate />
                 @endif
 
 
                 <!-- PE Links -->
                 @if (auth()->user()->can('view-pe-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('master-item.index') }}"
-                        label="Master Item"
-                        :active="request()->routeIs('master-item.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('master-item.index') }}" label="Master Item"
+                        :active="request()->routeIs('master-item.index')" wire:navigate />
                 @endif
 
 
                 @if (auth()->user()->can('view-production-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('receipt-production-logs') }}"
-                        label="Cek Data masuk ke SAP"
-                        :active="request()->routeIs('receipt-production-logs')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data masuk ke SAP"
+                        :active="request()->routeIs('receipt-production-logs')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('production-summary-monitor') }}"
-                        label="Cek stock dari Program ke SAP"
-                        :active="request()->routeIs('production-summary-monitor')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('production-summary-monitor') }}"
+                        label="Cek stock dari Program ke SAP" :active="request()->routeIs('production-summary-monitor')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.sap-sync-monitor-delivery') }}"
-                        label="SAP Sync Monitor"
-                        :active="request()->routeIs('wms.sap-sync-monitor*')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.sap-sync-monitor-delivery') }}" label="SAP Sync Monitor"
+                        :active="request()->routeIs('wms.sap-sync-monitor*')" wire:navigate />
                 @endif
 
 
                 <!-- PPIC Links -->
                 @if (auth()->user()->can('view-ppic-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('daily-item-code.index') }}"
-                        label="Daily Production Plan"
-                        :active="request()->routeIs('daily-item-code.index')"
-                        wire:navigate
-                    />
-                    <livewire:sidebar-link
-                        href="{{ route('ppic.machine-daily-report') }}"
-                        label="Laporan Produksi Mesin"
-                        :active="request()->routeIs('ppic.machine-daily-report')"
-                        wire:navigate
-                    />
-                    <livewire:sidebar-link
-                        href="{{ route('master-list-item') }}"
-                        label="Master List Item"
-                        :active="request()->routeIs('master-list-item')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('daily-item-code.index') }}" label="Daily Production Plan"
+                        :active="request()->routeIs('daily-item-code.index')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('ppic.machine-daily-report') }}"
+                        label="Laporan Produksi Mesin" :active="request()->routeIs('ppic.machine-daily-report')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('master-list-item') }}" label="Master List Item"
+                        :active="request()->routeIs('master-list-item')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('receipt-production-logs') }}"
-                        label="Cek Data SPK ke SAP"
-                        :active="request()->routeIs('receipt-production-logs')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data SPK ke SAP"
+                        :active="request()->routeIs('receipt-production-logs')" wire:navigate />
                 @endif
 
                 <!-- Store Links -->
@@ -334,180 +251,89 @@ new class extends Component {
                         ['name' => 'summaryDashboard', 'label' => 'Packaging Dashboard'],
                     ]" />
 
-                    <livewire:sidebar-link
-                        href="{{ route('inandout.index') }}"
-                        label="Scan Barcode (In/Out)"
-                        :active="request()->routeIs('inandout.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('inandout.index') }}" label="Scan Barcode (In/Out)"
+                        :active="request()->routeIs('inandout.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('customer.add') }}"
-                        label="Manage Customer"
-                        :active="request()->routeIs('customer.add')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('customer.add') }}" label="Manage Customer"
+                        :active="request()->routeIs('customer.add')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('so.dashboard') }}"
-                        label="SO DASHBOARD"
-                        :active="request()->routeIs('so.dashboard')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('so.dashboard') }}" label="SO DASHBOARD" :active="request()->routeIs('so.dashboard')"
+                        wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('so.index') }}"
-                        label="DATA SO"
-                        :active="request()->routeIs('so.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('so.index') }}" label="DATA SO" :active="request()->routeIs('so.index')"
+                        wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('pegawai.scan') }}"
-                        label="SCAN SO"
-                        :active="request()->routeIs('pegawai.scan')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('pegawai.scan') }}" label="SCAN SO" :active="request()->routeIs('pegawai.scan')"
+                        wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('production-summary-monitor') }}"
-                        label="Cek stock Program ke SAP"
-                        :active="request()->routeIs('production-summary-monitor')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('production-summary-monitor') }}"
+                        label="Cek stock Program ke SAP" :active="request()->routeIs('production-summary-monitor')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('receipt-production-logs') }}"
-                        label="Cek Data masuk ke SAP"
-                        :active="request()->routeIs('receipt-production-logs')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data masuk ke SAP"
+                        :active="request()->routeIs('receipt-production-logs')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.create-delivery') }}"
-                        label="Scan Delivery FG"
-                        :active="request()->routeIs('wms.pallet-form.create-delivery')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.create-delivery') }}"
+                        label="Scan Delivery FG" :active="request()->routeIs('wms.pallet-form.create-delivery')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.index') }}"
-                        label="Assign Slot & Riwayat Pallet"
-                        :active="request()->routeIs('wms.pallet-form.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.index') }}"
+                        label="Assign Slot & Riwayat Pallet" :active="request()->routeIs('wms.pallet-form.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.create') }}"
-                        label="Program Warehouse"
-                        :active="request()->routeIs('wms.pallet-form.create')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.create') }}" label="Program Warehouse"
+                        :active="request()->routeIs('wms.pallet-form.create')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.lookup') }}"
-                        label="Pallet Detail Check"
-                        :active="request()->routeIs('wms.pallet-form.lookup')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.lookup') }}" label="Pallet Detail Check"
+                        :active="request()->routeIs('wms.pallet-form.lookup')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.logs') }}"
-                        label="Audit Trail Logs"
-                        :active="request()->routeIs('wms.logs')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.logs') }}" label="Audit Trail Logs" :active="request()->routeIs('wms.logs')"
+                        wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.mapping') }}"
-                        label="Warehouse Mapping"
-                        :active="request()->routeIs('wms.mapping')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.mapping') }}" label="Warehouse Mapping"
+                        :active="request()->routeIs('wms.mapping')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.incoming.create') }}"
-                        label="Penerimaan Material (Incoming)"
-                        :active="request()->routeIs('mwh.incoming.create')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.incoming.create') }}"
+                        label="Penerimaan Material (Incoming)" :active="request()->routeIs('mwh.incoming.create')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.pallets.index') }}"
-                        label="Stock & Pallet Material"
-                        :active="request()->routeIs('mwh.pallets.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.pallets.index') }}" label="Stock & Pallet Material"
+                        :active="request()->routeIs('mwh.pallets.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.outgoing.create') }}"
-                        label="Pengambilan Material (Outgoing)"
-                        :active="request()->routeIs('mwh.outgoing.create')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.outgoing.create') }}"
+                        label="Pengambilan Material (Outgoing)" :active="request()->routeIs('mwh.outgoing.create')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.qr-lookup') }}"
-                        label="Scan QR Material"
-                        :active="request()->routeIs('mwh.qr-lookup')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.qr-lookup') }}" label="Scan QR Material"
+                        :active="request()->routeIs('mwh.qr-lookup')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.mapping') }}"
-                        label="Material Warehouse Mapping"
-                        :active="request()->routeIs('mwh.mapping')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.mapping') }}" label="Material Warehouse Mapping"
+                        :active="request()->routeIs('mwh.mapping')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('mwh.master-list.index') }}"
-                        label="Master List Material"
-                        :active="request()->routeIs('mwh.master-list.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('mwh.master-list.index') }}" label="Master List Material"
+                        :active="request()->routeIs('mwh.master-list.index')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.sorting') }}"
-                        label="Pallet Sorting and Consolidation"
-                        :active="request()->routeIs('wms.pallet-form.sorting')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.sorting') }}"
+                        label="Pallet Sorting and Consolidation" :active="request()->routeIs('wms.pallet-form.sorting')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.pallet-form.picking-guide') }}"
-                        label="Delivery Picking Guide (FIFO)"
-                        :active="request()->routeIs('wms.pallet-form.picking-guide')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.picking-guide') }}"
+                        label="Delivery Picking Guide (FIFO)" :active="request()->routeIs('wms.pallet-form.picking-guide')" wire:navigate />
 
-                    <livewire:sidebar-link
-                        href="{{ route('wms.sap-sync-monitor-delivery') }}"
-                        label="SAP Sync Monitor"
-                        :active="request()->routeIs('wms.sap-sync-monitor*')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('wms.sap-sync-monitor-delivery') }}"
+                        label="SAP Sync Monitor" :active="request()->routeIs('wms.sap-sync-monitor*')" wire:navigate />
                 @endif
 
                 <hr>
 
                 <!-- Maintenance Links -->
                 @if (auth()->user()->can('view-maintenance-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('maintenance.index') }}"
-                        label="Maintenance Index"
-                        :active="request()->routeIs('maintenance.index')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('maintenance.index') }}" label="Maintenance Index"
+                        :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
                 @if (auth()->user()->can('view-second-process-links'))
-                    <livewire:sidebar-link
-                        href="{{ route('second-process-reports.index') }}"
-                        label="Daily Production Report"
-                        :active="request()->routeIs('second-process-reports.*')"
-                        wire:navigate
-                    />
+                    <livewire:sidebar-link href="{{ route('second-process-reports.index') }}"
+                        label="Daily Production Report" :active="request()->routeIs('second-process-reports.*')" wire:navigate />
+                @endif
+
+                @if (auth()->user()->can('view-quality-links'))
+                    <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
+                        :active="request()->routeIs('ipqc-inspections.*')" wire:navigate />
                 @endif
             @endif
         </div>
@@ -517,7 +343,8 @@ new class extends Component {
     <div class="p-4 border-t border-gray-200 bg-gray-50/80">
         <div class="flex items-center justify-between gap-2">
             <div class="flex items-center space-x-2.5 overflow-hidden">
-                <div class="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                <div
+                    class="w-9 h-9 rounded-xl bg-slate-800 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                     {{ strtoupper(substr(auth()->user()?->name ?? 'G', 0, 2)) }}
                 </div>
                 <div class="truncate">
@@ -532,16 +359,23 @@ new class extends Component {
 
             <div class="flex items-center space-x-1 shrink-0">
                 @if (auth()->user() && auth()->user()->can('view-admin-links'))
-                    <a href="{{ route('profile') }}" wire:navigate class="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition" title="Profile">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <a href="{{ route('profile') }}" wire:navigate
+                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition"
+                        title="Profile">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                     </a>
                 @endif
 
-                <button
-                    wire:click="logout"
+                <button wire:click="logout"
                     class="px-2.5 py-1.5 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200/80 rounded-xl transition flex items-center space-x-1 text-xs font-bold shadow-xs active:scale-95"
                     title="Log Out">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
                     <span>Logout</span>
                 </button>
             </div>
