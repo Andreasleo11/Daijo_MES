@@ -97,25 +97,31 @@
                                     <div class="text-xs text-gray-400">{{ $form->box_qty }} Boxes</div>
                                 </td>
                                 <td class="px-6 py-4">
-                                    @if($form->position)
-                                        <div class="flex items-center space-x-2">
-                                            <span class="px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-lg uppercase tracking-tight">
-                                                {{ $form->position->position_code }}
-                                            </span>
-                                            <button wire:click="openAssignModal('{{ $form->pallet_id }}')" class="text-gray-400 hover:text-blue-600 p-1" title="Ubah Slot Rak">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                            </button>
-                                        </div>
-                                    @else
-                                        <div class="flex items-center space-x-2">
-                                            <span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-lg uppercase tracking-tight animate-pulse">
-                                                ⚠️ BELUM ASSIGN SLOT
-                                            </span>
-                                            <button wire:click="openAssignModal('{{ $form->pallet_id }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all">
-                                                Assign Slot
-                                            </button>
-                                        </div>
-                                    @endif
+                                     @if($form->position)
+                                         <div class="flex items-center space-x-2">
+                                             <span class="px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-lg uppercase tracking-tight">
+                                                 {{ $form->position->position_code }}
+                                             </span>
+                                             @if($form->total_pallet_qty > 0)
+                                                 <button wire:click="openAssignModal('{{ $form->pallet_id }}')" class="text-gray-400 hover:text-blue-600 p-1" title="Ubah Slot Rak">
+                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                 </button>
+                                             @endif
+                                         </div>
+                                     @elseif($form->total_pallet_qty > 0)
+                                         <div class="flex items-center space-x-2">
+                                             <span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-lg uppercase tracking-tight animate-pulse">
+                                                 ⚠️ BELUM ASSIGN SLOT
+                                             </span>
+                                             <button wire:click="openAssignModal('{{ $form->pallet_id }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all">
+                                                 Assign Slot
+                                             </button>
+                                         </div>
+                                     @else
+                                         <span class="px-2.5 py-1 bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-bold rounded-lg uppercase tracking-tight">
+                                             📦 STOK HABIS (0 QTY)
+                                         </span>
+                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-right flex justify-end space-x-2">
                                     <a href="{{ route('wms.pallet-form.print', ['id' => $form->pallet_id]) }}" target="_blank"

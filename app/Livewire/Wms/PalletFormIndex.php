@@ -34,6 +34,12 @@ class PalletFormIndex extends Component
     public function openAssignModal($palletId)
     {
         $pallet = WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
+
+        if ($pallet->total_pallet_qty <= 0) {
+            session()->flash('error', "Pallet {$pallet->pallet_id} sudah habis (quantity 0) dan tidak perlu di-assign ke slot rak.");
+            return;
+        }
+
         $this->assignPalletId   = $pallet->pallet_id;
         $this->assignPositionId = $pallet->position_id;
         $this->showAssignModal  = true;
@@ -49,6 +55,13 @@ class PalletFormIndex extends Component
 
         try {
             $pallet = WmsPalletForm::where('pallet_id', $this->assignPalletId)->firstOrFail();
+
+            if ($pallet->total_pallet_qty <= 0) {
+                session()->flash('error', "Pallet {$pallet->pallet_id} sudah habis (quantity 0) dan tidak perlu di-assign ke slot rak.");
+                $this->showAssignModal = false;
+                return;
+            }
+
             $oldPositionId = $pallet->position_id;
             $newPositionId = (int) $this->assignPositionId;
 
@@ -105,7 +118,8 @@ class PalletFormIndex extends Component
             })
             ->when($this->filterSlot !== 'ALL', function($query) {
                 if ($this->filterSlot === 'UNASSIGNED') {
-                    $query->whereNull('position_id');
+                    $query->whereNull('position_id')
+                          ->where('total_pallet_qty', '>', 0);
                 } elseif ($this->filterSlot === 'ASSIGNED') {
                     $query->whereNotNull('position_id');
                 }

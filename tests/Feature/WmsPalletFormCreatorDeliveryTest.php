@@ -667,4 +667,39 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         $this->assertEquals(1, $pallet->sap_sync_status); // 1 = SUCCESS (Idempotent duplicate handled)
         $this->assertEquals(1, $detail->sap_sync_status);
     }
+
+    public function test_zero_qty_pallet_cannot_be_assigned_and_excluded_from_unassigned_filter(): void
+    {
+        $zeroQtyPallet = WmsPalletForm::create([
+            'pallet_id'        => 'PLT-ZERO-QTY-01',
+            'position_id'      => null,
+            'part_no'          => 'PART-EMPTY',
+            'model_name'       => 'Model Empty',
+            'prod_date'        => '2026-07-29',
+            'delivery_name'    => 'Driver Zero',
+            'delivery_shift'   => '1',
+            'box_qty'          => 0,
+            'total_pallet_qty' => 0,
+        ]);
+
+        $this->actingAs($this->adminUser);
+
+        // 1. Assert zero-qty pallet is NOT present in UNASSIGNED filter list
+        Livewire::test(\App\Livewire\Wms\PalletFormIndex::class)
+            ->set('filterSlot', 'UNASSIGNED')
+            ->assertDontSee('PLT-ZERO-QTY-01');
+
+        // 2. Assert openAssignModal on zero-qty pallet blocks assignment modal
+        Livewire::test(\App\Livewire\Wms\PalletFormIndex::class)
+            ->call('openAssignModal', 'PLT-ZERO-QTY-01')
+            ->assertSet('showAssignModal', false);
+
+        // 3. Assert RackMapping assignPalletToSelectedSlot on zero-qty pallet blocks assignment
+        Livewire::test(\App\Livewire\Wms\RackMapping::class)
+            ->set('selectedPositionId', $this->position->id)
+            ->call('assignPalletToSelectedSlot', 'PLT-ZERO-QTY-01');
+
+        $zeroQtyPallet->refresh();
+        $this->assertNull($zeroQtyPallet->position_id);
+    }
 }
