@@ -19,7 +19,7 @@ class WmsService
         
         $lastPallet = WmsPalletForm::withTrashed()
             ->where('pallet_id', 'LIKE', $prefix . '%')
-            ->orderBy('id', 'desc')
+            ->orderBy('pallet_id', 'desc')
             ->first();
 
         $lastNum = $lastPallet ? (int) substr($lastPallet->pallet_id, -4) + 1 : 1;
