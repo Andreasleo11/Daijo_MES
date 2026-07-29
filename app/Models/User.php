@@ -76,8 +76,12 @@ class User extends Authenticatable
 
     public function hasRoleAccess($requiredRole)
     {
-        if (!$this->role) {
+        if (! $this->role) {
             return false;
+        }
+
+        if ($this->hasRole('SUPER-ADMIN')) {
+            return true;
         }
 
         // Get the role hierarchy from config
@@ -86,7 +90,7 @@ class User extends Authenticatable
         // Get the current user's role
         $userRole = $this->role->name;
 
-        if (!isset($roleHierarchy[$userRole])) {
+        if (! isset($roleHierarchy[$userRole])) {
             return false;
         }
 
@@ -103,5 +107,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(ZoneLog::class, 'zone_id', 'zone_id');
     }
-
 }
