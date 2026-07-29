@@ -178,21 +178,6 @@
                             <option value="buffing"
                                 {{ old('output_destination', $report->output_destination) == 'buffing' ? 'selected' : '' }}>
                                 Buffing</option>
-                            <option value="packing"
-                                {{ old('output_destination', $report->output_destination) == 'packing' ? 'selected' : '' }}>
-                                Packing</option>
-                            <option value="amplas"
-                                {{ old('output_destination', $report->output_destination) == 'amplas' ? 'selected' : '' }}>
-                                Amplas</option>
-                            <option value="treatment"
-                                {{ old('output_destination', $report->output_destination) == 'treatment' ? 'selected' : '' }}>
-                                Treatment</option>
-                            <option value="assy"
-                                {{ old('output_destination', $report->output_destination) == 'assy' ? 'selected' : '' }}>
-                                Assembly (Assy)</option>
-                            <option value="rework"
-                                {{ old('output_destination', $report->output_destination) == 'rework' ? 'selected' : '' }}>
-                                Rework</option>
                         </select>
                     </div>
                     <div>
