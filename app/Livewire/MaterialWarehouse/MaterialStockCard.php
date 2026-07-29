@@ -204,8 +204,8 @@ class MaterialStockCard extends Component
                 });
             }
 
-            // Reverse for displaying newest movements on top while preserving balance calculation
-            $movements = $movements->reverse()->values();
+            // Keep chronological order (oldest to newest, top-to-bottom) like a standard physical Stock Card ledger
+            $movements = $movements->values();
         }
 
         return view('livewire.material-warehouse.material-stock-card', [
