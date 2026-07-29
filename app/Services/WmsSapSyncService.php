@@ -46,8 +46,24 @@ class WmsSapSyncService extends BaseSapService
             ->get();
 
         if ($freshItemsToSync->isEmpty()) {
-            Log::info("Pallet {$palletId} skipped: All items are already synced or ignored.");
-            return ['status' => true, 'message' => 'Already synced or ignored'];
+            $hasPending = WmsPalletFormDetail::where('pallet_form_id', $palletId)->whereIn('sap_sync_status', [0, 3])->exists();
+            $hasError   = WmsPalletFormDetail::where('pallet_form_id', $palletId)->where('sap_sync_status', 2)->exists();
+            $allSynced  = !WmsPalletFormDetail::where('pallet_form_id', $palletId)->whereNotIn('sap_sync_status', [1, 4])->exists();
+
+            if ($allSynced) {
+                $pallet->sap_sync_status = 1;
+                $pallet->sap_error_msg = null;
+            } elseif ($hasError) {
+                $pallet->sap_sync_status = 2;
+                $pallet->sap_error_msg = "Beberapa item gagal sinkron.";
+            } elseif ($hasPending) {
+                $pallet->sap_sync_status = 0;
+            }
+            $pallet->sap_sync_at = now();
+            $pallet->save();
+
+            Log::info("Pallet {$palletId} skipped: All items are already synced or ignored. Updated header status to {$pallet->sap_sync_status}");
+            return ['status' => $allSynced, 'message' => $allSynced ? 'Success' : 'Already synced or ignored'];
         }
 
         // Prepare payload
