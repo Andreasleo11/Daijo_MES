@@ -403,6 +403,7 @@ Route::middleware('auth')->group(function (){
         Route::get('/incoming/create', \App\Livewire\MaterialWarehouse\MaterialIncomingCreator::class)->name('incoming.create');
         Route::get('/pallets', \App\Livewire\MaterialWarehouse\MaterialPalletIndex::class)->name('pallets.index');
         Route::get('/outgoing/create', \App\Livewire\MaterialWarehouse\MaterialOutgoingCreator::class)->name('outgoing.create');
+        Route::get('/stock-card', \App\Livewire\MaterialWarehouse\MaterialStockCard::class)->name('stock-card.index');
         Route::get('/qr-lookup', \App\Livewire\MaterialWarehouse\MaterialQrLookup::class)->name('qr-lookup');
         Route::get('/pallet/print/{palletId}', function ($palletId) {
             $pallet = \App\Models\MwhPallet::with(['incomingHeader', 'position', 'material'])->where('pallet_id', $palletId)->firstOrFail();

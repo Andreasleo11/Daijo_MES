@@ -439,4 +439,50 @@ class MaterialWarehouseTransactionTest extends TestCase
 
         $mwhService->processOutgoingPicking('MPLT-QCHOLD-001', 100.00, '2026-07-28');
     }
+
+    public function test_material_stock_card_renders_and_calculates_movements_correctly()
+    {
+        $mat = MasterListMaterial::firstOrCreate([
+            'item_code' => 'MAT-STOCKCARD-01',
+        ], [
+            'item_description' => 'RESIN ABS NATURAL HI-IMPACT',
+            'purchasing_uom'   => 'KG',
+        ]);
+
+        $pallet = MwhPallet::create([
+            'pallet_id'   => 'MPLT-SC-001',
+            'item_code'   => 'MAT-STOCKCARD-01',
+            'initial_qty' => 1000.00,
+            'current_qty' => 750.00,
+            'uom'         => 'KG',
+            'status'      => 'PARTIAL',
+        ]);
+
+        \App\Models\MwhOutgoing::create([
+            'outgoing_code' => 'OUT-SC-001',
+            'pallet_id'     => 'MPLT-SC-001',
+            'item_code'     => 'MAT-STOCKCARD-01',
+            'qty_taken'     => 250.00,
+            'uom'           => 'KG',
+            'outgoing_date' => now()->toDateString(),
+            'issued_to'     => 'PRODUKSI MOLDING 01',
+        ]);
+
+        $role = \App\Models\Role::firstOrCreate(['name' => 'ADMIN']);
+        $user = User::create([
+            'name'     => 'StockCard User',
+            'email'    => 'stockcard_' . uniqid() . '@example.com',
+            'role_id'  => $role->id,
+            'password' => bcrypt('password'),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(\App\Livewire\MaterialWarehouse\MaterialStockCard::class)
+            ->set('selectedItemCode', 'MAT-STOCKCARD-01')
+            ->assertSee('MAT-STOCKCARD-01')
+            ->assertSee('RESIN ABS NATURAL HI-IMPACT')
+            ->assertSee('MPLT-SC-001')
+            ->assertSee('OUT-SC-001');
+    }
 }
