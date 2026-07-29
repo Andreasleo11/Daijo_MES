@@ -62,6 +62,22 @@ class WmsSapSyncService extends BaseSapService
             $pallet->sap_sync_at = now();
             $pallet->save();
 
+            $logStatus = $allSynced ? 'success' : ($hasError ? 'failed' : 'pending');
+            $logMsg    = $allSynced 
+                ? "Pallet {$palletId} is fully synced (All items verified)" 
+                : ($hasError ? "Pallet {$palletId} has failed items" : "Pallet {$palletId} sync pending");
+
+            $this->saveApiLog(
+                'InventoryTransfer',
+                'POST',
+                $endpoint,
+                ['pallet_id' => $palletId, 'note' => 'All items already synced or ignored'],
+                ['pallet_id' => $palletId, 'sap_sync_status' => $pallet->sap_sync_status, 'all_synced' => $allSynced],
+                200,
+                $logStatus,
+                $logMsg
+            );
+
             Log::info("Pallet {$palletId} skipped: All items are already synced or ignored. Updated header status to {$pallet->sap_sync_status}");
             return ['status' => $allSynced, 'message' => $allSynced ? 'Success' : 'Already synced or ignored'];
         }
