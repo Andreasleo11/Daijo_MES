@@ -65,9 +65,11 @@ class SapSyncMonitor extends Component
     /**
      * Retry syncing a pallet
      */
-    public function retrySync($palletId)
+    public function retrySync($palletId, ?WmsSapSyncService $sapService = null)
     {
-        // Reset status to pending (0) to trigger UI polling
+        $sapService = $sapService ?? app(WmsSapSyncService::class);
+
+        // Reset status to pending (0)
         WmsPalletForm::where('pallet_id', $palletId)->update([
             'sap_sync_status' => 0,
             'updated_at'      => now()
@@ -81,16 +83,20 @@ class SapSyncMonitor extends Component
                 'sap_error_msg'   => null
             ]);
 
-        SyncPalletToSapJob::dispatch($palletId);
+        // Execute sync immediately so API call & API log are generated live
+        $res = $sapService->syncPalletInventoryTransfer($palletId);
         
-        session()->flash('message', "Pallet {$palletId} re-queued for synchronization.");
+        $msg = $res['status'] ? "Pallet {$palletId} berhasil disinkronkan ke SAP." : "Pallet {$palletId} dicoba ulang (Status: " . ($res['message'] ?? 'Proses selesai') . ").";
+        session()->flash($res['status'] ? 'message' : 'error', $msg);
     }
 
     /**
      * Retry syncing a specific SPK in a pallet
      */
-    public function retrySpk($palletId, $spkNo)
+    public function retrySpk($palletId, $spkNo, ?WmsSapSyncService $sapService = null)
     {
+        $sapService = $sapService ?? app(WmsSapSyncService::class);
+
         WmsPalletForm::where('pallet_id', $palletId)->update([
             'sap_sync_status' => 0,
             'updated_at'      => now()
@@ -104,11 +110,13 @@ class SapSyncMonitor extends Component
                 'sap_error_msg'   => null
             ]);
 
-        SyncPalletToSapJob::dispatch($palletId);
+        // Execute sync immediately so API call & API log are generated live
+        $res = $sapService->syncPalletInventoryTransfer($palletId);
 
         $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $palletId)->get();
 
-        session()->flash('message', "SPK {$spkNo} in Pallet {$palletId} re-queued for synchronization.");
+        $msg = $res['status'] ? "SPK {$spkNo} di Pallet {$palletId} berhasil disinkronkan ke SAP." : "SPK {$spkNo} dicoba ulang (Status: " . ($res['message'] ?? 'Proses selesai') . ").";
+        session()->flash($res['status'] ? 'message' : 'error', $msg);
     }
 
     /**

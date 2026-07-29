@@ -11,24 +11,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SyncPalletToSapJob implements ShouldQueue, ShouldBeUnique
+class SyncPalletToSapJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $palletId;
-    
-    /**
-     * The number of seconds after which the job's unique lock will be released.
-     */
-    public $uniqueFor = 3600; 
-
-    /**
-     * Get the unique ID for the job.
-     */
-    public function uniqueId(): string
-    {
-        return (string) $this->palletId;
-    }
 
     /**
      * Create a new job instance.
