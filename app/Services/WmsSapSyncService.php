@@ -81,13 +81,14 @@ class WmsSapSyncService extends BaseSapService
             $response = $this->post($endpoint, $payload);
             $rawBody = $response->body();
             $json = $response->json();
+            $statusCode = $response->status();
             
-            Log::info("SAP Sync (Inventory Transfer) Response for Pallet {$palletId}: " . $rawBody);
+            Log::info("SAP Sync (Inventory Transfer) Response for Pallet {$palletId} [HTTP {$statusCode}]: " . $rawBody);
 
             $success = $response->successful() && isset($json['status']) && $json['status'] === true;
 
             // Handle SAP Idempotency: Jika SAP bilang sudah ada/duplicate, anggap SUKSES
-            $errorMsg = $json['message'] ?? $rawBody ?: "SAP rejected Pallet {$palletId}";
+            $errorMsg = $json['message'] ?? ($rawBody ?: "SAP HTTP {$statusCode} error for Pallet {$palletId}");
             $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false);
 
             if ($success || $isDuplicate) {
@@ -101,18 +102,19 @@ class WmsSapSyncService extends BaseSapService
                 
                 $logMsg = $isDuplicate ? "Pallet {$palletId} marked as success (Duplicate/Already Exists)" : "Pallet {$palletId} synced successfully";
                 Log::info("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | " . $logMsg);
-                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json, 200, 'success', $logMsg);
+                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json ?? ['body' => $rawBody], $statusCode, 'success', $logMsg);
             } else {
+                $displayError = "SAP API Error: " . $statusCode . ($errorMsg ? " - " . $errorMsg : "");
                 WmsPalletFormDetail::whereIn('id', $currentItemIds)
                     ->whereNotIn('sap_sync_status', [1, 4])
                     ->update([
                         'sap_sync_status' => 2,
-                        'sap_error_msg'   => $errorMsg,
+                        'sap_error_msg'   => $displayError,
                         'sap_sync_at'     => now(),
                     ]);
 
-                Log::warning("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | FAILED: " . $errorMsg);
-                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json, 400, 'failed', $errorMsg);
+                Log::warning("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | FAILED [HTTP {$statusCode}]: " . $errorMsg);
+                $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json ?? ['body' => $rawBody], $statusCode, 'failed', $displayError);
             }
         } catch (\Exception $e) {
             WmsPalletFormDetail::whereIn('id', $currentItemIds)
@@ -175,5 +177,10 @@ class WmsSapSyncService extends BaseSapService
                 'message' => 'Error Koneksi SAP API: ' . $e->getMessage(),
             ];
         }
+    }
+
+    public function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
+    {
+        parent::saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message);
     }
 }

@@ -153,16 +153,12 @@ class BaseSapService
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept'        => 'application/json',
-                    'Content-Type'  => 'application/json',  // ← tambah ini
+                    'Content-Type'  => 'application/json',
                     'Host'          => 'localhost',
                 ])
                 ->timeout(30)
                 ->post($this->baseUrl . $endpoint, $payload);
                 
-            if ($response->successful()) {
-                return $response;
-            }
-            
             if ($response->status() === 401) {
                 Log::warning('SAP token expired during POST, refreshing...');
                 Cache::forget('sap_token');
@@ -170,18 +166,16 @@ class BaseSapService
                 
                 $token = $this->getToken();
                 $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $token,  // ← fix typo ini
+                        'Authorization' => 'Bearer ' . $token,
                         'Accept'        => 'application/json',
-                        'Content-Type'  => 'application/json',  // ← tambah ini
+                        'Content-Type'  => 'application/json',
                         'Host'          => 'localhost',
                     ])
                     ->timeout(30)
                     ->post($this->baseUrl . $endpoint, $payload);
-                    
-                return $response;
             }
             
-            throw new \Exception('SAP API Error: ' . $response->status());
+            return $response;
             
         } catch (\Exception $e) {
             Log::error('SAP POST request error: ' . $e->getMessage());
@@ -199,14 +193,18 @@ class BaseSapService
         return $this->post($this->endpoint, []);
     }
 
-    protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
+    public function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
     {
+        try {
+            Cache::forget('api_log_names');
+        } catch (\Throwable $e) {}
+
         \Illuminate\Support\Facades\DB::table('api_logs')->insert([
             'api_name'        => $apiName,
             'method'          => $method,
             'endpoint'        => $endpoint,
-            'request_payload' => json_encode($request, JSON_PRETTY_PRINT),
-            'response_payload'=> json_encode($response, JSON_PRETTY_PRINT),
+            'request_payload' => is_string($request) ? $request : json_encode($request, JSON_PRETTY_PRINT),
+            'response_payload'=> is_string($response) ? $response : json_encode($response, JSON_PRETTY_PRINT),
             'status_code'     => $statusCode,
             'status'          => $status,
             'message'         => $message,
