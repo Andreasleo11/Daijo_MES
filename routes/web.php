@@ -6,6 +6,7 @@ use App\Http\Controllers\DailyItemCodeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FirstPieceInspectionController;
 use App\Http\Controllers\SecondProcessReportController;
+use App\Http\Controllers\SecondProcessDashboardController;
 use App\Http\Controllers\Production\BillOfMaterialController;
 use App\Http\Controllers\Production\WorkshopController;
 use App\Http\Controllers\Production\ForecastProductionController;
@@ -766,11 +767,17 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
+    // Second Process Reports
+    Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
     Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
     Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
     Route::post('second-process-reports/{id}/sign/{role}', [SecondProcessReportController::class, 'sign'])->name('second-process-reports.sign');
     Route::post('second-process-reports/{id}/reject', [SecondProcessReportController::class, 'reject'])->name('second-process-reports.reject');
     Route::resource('second-process-reports', SecondProcessReportController::class);
+
+    // IPQC Inspections (standalone)
+    Route::get('ipqc-inspections/search-items', [\App\Http\Controllers\IpqcInspectionController::class, 'searchItems'])->name('ipqc-inspections.search-items');
+    Route::resource('ipqc-inspections', \App\Http\Controllers\IpqcInspectionController::class);
 
     // First Piece Inspection routes
     Route::get('first-piece-inspections/check-approval', [FirstPieceInspectionController::class, 'checkApproval'])->name('first-piece-inspections.check-approval');

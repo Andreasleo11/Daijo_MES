@@ -535,33 +535,32 @@
                         </div>
                     </div>
 
-                    <!-- IPQC Inspection Section (Secondary Process) -->
-                    @if($report->ipqcRecords->count() > 0 || $report->ipqc_lot_color)
+                    <!-- Linked IPQC Inspection -->
+                    @if($ipqcInspection)
                         <div class="pt-6 border-t-2 border-black mt-6">
                             <div class="text-center font-bold text-sm uppercase underline mb-3">IPQC INSPECTION REPORT (SECONDARY PROCESS)</div>
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-3 no-print">
+                                <div class="flex items-center space-x-3">
+                                    <div class="p-2 rounded-full {{ $ipqcInspection->overall_judgement === 'NG' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-bold text-purple-800">IPQC Inspection Linked</div>
+                                        <div class="text-[11px] text-gray-600">
+                                            Status: <span class="font-bold {{ $ipqcInspection->status === 'completed' ? 'text-green-700' : 'text-blue-700' }} uppercase">{{ $ipqcInspection->status }}</span>
+                                            &middot; Overall: <span class="font-bold {{ $ipqcInspection->overall_judgement === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $ipqcInspection->overall_judgement ?? 'OK' }}</span>
+                                            &middot; {{ $ipqcInspection->records->count() }} period(s) recorded
+                                        </div>
+                                    </div>
+                                </div>
+                                <a href="{{ route('ipqc-inspections.show', $ipqcInspection->id) }}" target="_blank"
+                                    class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded text-xs transition inline-block">
+                                    View Full Inspection &rarr;
+                                </a>
+                            </div>
 
-                            <table class="w-full border-collapse border border-black text-[11px] mb-3">
-                                <tbody>
-                                    <tr>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">LOT COLOR</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_lot_color ?? '-' }}</td>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD GLOSSY</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_glossy ?? '-' }}</td>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD VISCOCITY</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_viscosity ?? '-' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">PRODUCT COLOR</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_product_color ?? '-' }}</td>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">STD OVEN TEMP</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_std_oven_temp ?? '-' }}</td>
-                                        <td class="border border-black p-1.5 font-bold bg-gray-50">APP SAMPLE</td>
-                                        <td class="border border-black p-1.5">{{ $report->ipqc_app_sample ?? 'YES' }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-
-                            <div class="overflow-x-auto">
+                            <!-- Inline summary table (print-friendly) -->
+                            <div class="mt-3 overflow-x-auto">
                                 <table class="w-full border-collapse border border-black text-[10px] text-center">
                                     <thead>
                                         <tr class="bg-gray-100 font-bold">
@@ -578,49 +577,42 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($report->ipqcRecords as $ipqcRec)
+                                        @foreach($ipqcInspection->records->sortBy('hour_ke') as $rec)
                                             <tr>
-                                                <td class="border border-black p-1 font-bold">Hour {{ $ipqcRec->hour_ke }}</td>
-                                                <td class="border border-black p-1">{{ $ipqcRec->fitting_test ?? 'OK' }}</td>
-                                                <td class="border border-black p-1 font-bold {{ $ipqcRec->tape_test_judgement === 'NG' ? 'text-red-600' : 'text-green-700' }}">{{ $ipqcRec->tape_test_judgement ?? 'OK' }}</td>
-                                                <td class="border border-black p-1 font-bold">{{ number_format($ipqcRec->output_qty) }}</td>
-                                                <td class="border border-black p-1">{{ number_format($ipqcRec->sample_qty) }}</td>
-                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($ipqcRec->reject_sample_qty) }}</td>
-                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($ipqcRec->reject_rate, 2) }}%</td>
-                                                <td class="border border-black p-1 text-green-700 font-bold">{{ number_format($ipqcRec->pass_qty) }}</td>
-                                                <td class="border border-black p-1 text-red-700 font-bold">{{ number_format($ipqcRec->reject_qty) }}</td>
-                                                <td class="border border-black p-1 font-extrabold {{ $ipqcRec->judgement === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $ipqcRec->judgement ?? 'OK' }}</td>
+                                                <td class="border border-black p-1 font-bold">Hour {{ $rec->hour_ke }}</td>
+                                                <td class="border border-black p-1">{{ $rec->fitting_test ?? 'OK' }}</td>
+                                                <td class="border border-black p-1 font-bold {{ ($rec->tape_test_judgement ?? '') === 'NG' ? 'text-red-600' : 'text-green-700' }}">{{ $rec->tape_test_judgement ?? 'OK' }}</td>
+                                                <td class="border border-black p-1 font-bold">{{ number_format($rec->output_qty) }}</td>
+                                                <td class="border border-black p-1">{{ number_format($rec->sample_qty) }}</td>
+                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($rec->reject_sample_qty) }}</td>
+                                                <td class="border border-black p-1 font-bold text-red-600">{{ number_format($rec->reject_rate, 2) }}%</td>
+                                                <td class="border border-black p-1 text-green-700 font-bold">{{ number_format($rec->pass_qty) }}</td>
+                                                <td class="border border-black p-1 text-red-700 font-bold">{{ number_format($rec->reject_qty) }}</td>
+                                                <td class="border border-black p-1 font-extrabold {{ ($rec->judgement ?? '') === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $rec->judgement ?? 'OK' }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-gray-100 font-bold">
                                             <td colspan="3" class="border border-black p-1 text-right">TOTAL / OVERALL:</td>
-                                            <td class="border border-black p-1 font-black">{{ number_format($report->ipqc_total_output) }}</td>
-                                            <td class="border border-black p-1 font-black">{{ number_format($report->ipqc_total_sample) }}</td>
-                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($report->ipqc_total_reject_sample) }}</td>
-                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($report->ipqc_total_reject_rate, 2) }}%</td>
-                                            <td class="border border-black p-1 font-black text-green-700">{{ number_format($report->ipqc_total_pass) }}</td>
-                                            <td class="border border-black p-1 font-black text-red-700">{{ number_format($report->ipqc_total_reject) }}</td>
-                                            <td class="border border-black p-1 font-black {{ $report->ipqc_overall_judgement === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $report->ipqc_overall_judgement ?? 'OK' }}</td>
+                                            <td class="border border-black p-1 font-black">{{ number_format($ipqcInspection->total_output) }}</td>
+                                            <td class="border border-black p-1 font-black">{{ number_format($ipqcInspection->total_sample) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($ipqcInspection->total_reject_sample) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-600">{{ number_format($ipqcInspection->total_reject_rate, 2) }}%</td>
+                                            <td class="border border-black p-1 font-black text-green-700">{{ number_format($ipqcInspection->total_pass) }}</td>
+                                            <td class="border border-black p-1 font-black text-red-700">{{ number_format($ipqcInspection->total_reject) }}</td>
+                                            <td class="border border-black p-1 font-black {{ ($ipqcInspection->overall_judgement ?? '') === 'NG' ? 'text-red-700' : 'text-green-700' }}">{{ $ipqcInspection->overall_judgement ?? 'OK' }}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
-
-                            @if($report->qcAttachments->count() > 0)
-                                <div class="mt-3">
-                                    <div class="text-[10px] font-bold uppercase mb-1">QC Physical Proof Attachments:</div>
-                                    <div class="grid grid-cols-4 gap-2">
-                                        @foreach($report->qcAttachments as $att)
-                                            <div class="border border-black p-1 text-center text-[9px]">
-                                                <img src="{{ $att->url }}" class="h-16 object-cover mx-auto">
-                                                <div class="truncate mt-0.5">{{ $att->label ?? $att->original_name }}</div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
+                        </div>
+                    @else
+                        <div class="pt-4 border-t border-gray-300 mt-4">
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-xs text-gray-500 no-print">
+                                <p class="font-bold text-gray-600 mb-1">No IPQC Inspection Linked</p>
+                                <p>No IPQC inspection found for this report's date ({{ $report->date }}), part ({{ $report->part_number }}), shift ({{ $report->shift }}), and line ({{ $report->unit_line }}).</p>
+                            </div>
                         </div>
                     @endif
 
