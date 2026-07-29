@@ -246,23 +246,26 @@
                                                         @php
                                                             $isMatched = in_array($pos->id, $matchingPositionIds);
                                                             $isSelected = $selectedPositionId == $pos->id;
-
-                                                            $totalQty = $pos->pallets ? (float) $pos->pallets->sum('current_qty') : 0;
+                                                            $activePallets = $pos->pallets ? $pos->pallets->where('current_qty', '>', 0) : collect();
+                                                            $totalQty = (float) $activePallets->sum('current_qty');
                                                             $maxCap = (float) ($pos->max_capacity > 0 ? $pos->max_capacity : 1000.0);
+
                                                             if (round($totalQty, 2) >= round($maxCap, 2)) {
                                                                 $effectiveStatus = 'FULL';
                                                             } elseif (round($totalQty, 2) > 0) {
                                                                 $effectiveStatus = 'PARTIAL';
                                                             } else {
-                                                                $effectiveStatus = ($pos->status === 'FULL') ? 'FULL' : 'EMPTY';
+                                                                $effectiveStatus = 'EMPTY';
                                                             }
 
                                                             $statusColor = 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700';
-                                                            if($effectiveStatus == 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
-                                                            if($effectiveStatus == 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
-                                                            
-                                                            if ($isMatched) {
+                                                            if ($effectiveStatus === 'PARTIAL') $statusColor = 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900';
+                                                            if ($effectiveStatus === 'FULL') $statusColor = 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300 text-emerald-900';
+                                                             
+                                                            if ($isMatched && $effectiveStatus !== 'EMPTY') {
                                                                 $statusColor = 'bg-yellow-200 hover:bg-yellow-300 border-amber-500 text-amber-950 font-black shadow-md ring-4 ring-yellow-400/80 animate-pulse';
+                                                            } elseif ($isMatched && $effectiveStatus === 'EMPTY') {
+                                                                $statusColor = 'bg-gray-100 border-amber-400 text-gray-700 ring-2 ring-amber-400/60';
                                                             }
 
                                                             if ($isSelected) {
