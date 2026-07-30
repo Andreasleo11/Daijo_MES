@@ -89,85 +89,90 @@
             </div>
         </div>
 
-        @if ($selectedMaterial)
-            <!-- Summary Metric Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                
-                <!-- Current Stock Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">SISA STOK AKHIR (LIVE)</div>
-                        <div class="text-2xl font-black text-emerald-600 mt-1">
-                            {{ number_format($summary['current_stock'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">Tersedia di Rak Gudang</div>
+        <!-- Summary Metric Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            <!-- Current Stock Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">SISA STOK AKHIR (LIVE)</div>
+                    <div class="text-2xl font-black text-emerald-600 mt-1">
+                        {{ number_format($summary['current_stock'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
                     </div>
-                    <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                    </div>
+                    <div class="text-[10px] text-slate-400 font-medium mt-0.5">Tersedia di Rak Gudang</div>
                 </div>
-
-                <!-- Active Pallets Count Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">PALLET AKTIF</div>
-                        <div class="text-2xl font-black text-blue-600 mt-1">
-                            {{ number_format($summary['active_pallets']) }} <span class="text-xs text-slate-500 font-bold">Pallet</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">Pallet dengan Stok > 0</div>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    </div>
-                </div>
-
-                <!-- Total Incoming Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">TOTAL MASUK (INCOMING)</div>
-                        <div class="text-2xl font-black text-indigo-600 mt-1">
-                            {{ number_format($summary['total_incoming'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">Akumulasi Kedatangan</div>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-                    </div>
-                </div>
-
-                <!-- Total Outgoing Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">TOTAL KELUAR (OUTGOING)</div>
-                        <div class="text-2xl font-black text-rose-600 mt-1">
-                            {{ number_format($summary['total_outgoing'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">Akumulasi Pengambilan</div>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    </div>
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                 </div>
             </div>
 
-            <!-- Selected Material Header Info Box -->
-            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <!-- Active Pallets Count Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400">DETAIL MATERIAL DIHIMPUN</div>
-                    <h2 class="text-xl font-black tracking-tight mt-0.5">{{ $selectedMaterial->item_code }}</h2>
-                    <p class="text-sm text-slate-300 font-medium mt-0.5">{{ $selectedMaterial->item_description }}</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-300">
-                    <div class="bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700">
-                        <span class="text-slate-400 font-normal">Satuan (UOM):</span>
-                        <strong class="text-white ml-1 font-bold">{{ $selectedMaterial->purchasing_uom ?: 'KG' }}</strong>
+                    <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">PALLET AKTIF</div>
+                    <div class="text-2xl font-black text-blue-600 mt-1">
+                        {{ number_format($summary['active_pallets']) }} <span class="text-xs text-slate-500 font-bold">Pallet</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-medium mt-0.5">Pallet dengan Stok > 0</div>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </div>
+            </div>
+
+            <!-- Total Incoming Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">TOTAL MASUK (INCOMING)</div>
+                    <div class="text-2xl font-black text-indigo-600 mt-1">
+                        {{ number_format($summary['total_incoming'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-medium mt-0.5">Akumulasi Kedatangan</div>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                </div>
+            </div>
+
+            <!-- Total Outgoing Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                    <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">TOTAL KELUAR (OUTGOING)</div>
+                    <div class="text-2xl font-black text-rose-600 mt-1">
+                        {{ number_format($summary['total_outgoing'], 2) }} <span class="text-xs text-slate-500 font-bold">{{ $summary['uom'] }}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-medium mt-0.5">Akumulasi Pengambilan</div>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Material Header Info Box -->
+        <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400">DETAIL MATERIAL DIHIMPUN</div>
+                <h2 class="text-xl font-black tracking-tight mt-0.5">
+                    {{ $selectedMaterial ? $selectedMaterial->item_code : 'SEMUA MATERIAL (ALL MATERIALS)' }}
+                </h2>
+                <p class="text-sm text-slate-300 font-medium mt-0.5">
+                    {{ $selectedMaterial ? $selectedMaterial->item_description : 'Riwayat Mutasi & Pergerakan Seluruh Jenis Material' }}
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-300">
+                <div class="bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700">
+                    <span class="text-slate-400 font-normal">Satuan (UOM):</span>
+                    <strong class="text-white ml-1 font-bold">{{ $summary['uom'] }}</strong>
+                </div>
+                @if($selectedMaterial)
                     <div class="bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700">
                         <span class="text-slate-400 font-normal">Supplier Utama:</span>
                         <strong class="text-white ml-1 font-bold">{{ $selectedMaterial->preferred_supplier ?: 'N/A' }}</strong>
                     </div>
-                </div>
+                @endif
             </div>
+        </div>
 
             <!-- Movement History Table (Kartu Stok) -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -284,16 +289,6 @@
                     </table>
                 </div>
             </div>
-        @else
-            <!-- Empty State when no material is selected -->
-            <div class="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-100">
-                <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mx-auto mb-4">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-                </div>
-                <h3 class="text-base font-bold text-slate-800">Silakan Pilih Material</h3>
-                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Pilih material dari dropdown di atas untuk melihat kartu stok dan riwayat mutasi masuk/keluar secara lengkap.</p>
-            </div>
-        @endif
 
     </div>
 </div>
