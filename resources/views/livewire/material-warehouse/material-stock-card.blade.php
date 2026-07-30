@@ -191,12 +191,13 @@
                             <tr>
                                 <th class="px-5 py-3.5">Tanggal & Jam</th>
                                 <th class="px-5 py-3.5">Jenis</th>
+                                <th class="px-5 py-3.5">Material (Kode & Nama)</th>
                                 <th class="px-5 py-3.5">Kode Ref / Pallet</th>
                                 <th class="px-5 py-3.5">Supplier / Tujuan</th>
                                 <th class="px-5 py-3.5">Slot Rak</th>
                                 <th class="px-5 py-3.5 text-right text-emerald-700">Masuk (+)</th>
                                 <th class="px-5 py-3.5 text-right text-rose-700">Keluar (-)</th>
-                                <th class="px-5 py-3.5 text-right text-slate-900">Sisa Stok</th>
+                                <th class="px-5 py-3.5 text-right text-slate-900">Sisa Stok Material</th>
                                 <th class="px-5 py-3.5">Keterangan</th>
                             </tr>
                         </thead>
@@ -226,6 +227,14 @@
                                                 OUTGOING
                                             </span>
                                         @endif
+                                    </td>
+
+                                    <!-- Material (Kode & Nama) -->
+                                    <td class="px-5 py-3.5">
+                                        <div class="font-extrabold text-slate-900 font-mono">{{ $m['item_code'] }}</div>
+                                        <div class="text-[10px] text-slate-500 font-semibold truncate max-w-[180px]" title="{{ $m['item_description'] }}">
+                                            {{ $m['item_description'] }}
+                                        </div>
                                     </td>
 
                                     <!-- Kode Ref / Pallet -->

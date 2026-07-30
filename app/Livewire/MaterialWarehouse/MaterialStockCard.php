@@ -89,6 +89,7 @@ class MaterialStockCard extends Component
     {
         $materials = $this->activeMaterials;
         $selectedMaterial = !empty($this->selectedItemCode) ? $materials->firstWhere('item_code', $this->selectedItemCode) : null;
+        $masterMaterials = MasterListMaterial::all()->keyBy('item_code');
 
         $summary = [
             'current_stock'  => 0.0,
@@ -118,15 +119,18 @@ class MaterialStockCard extends Component
             $incomingsQuery->where('item_code', $this->selectedItemCode);
         }
 
-        $incomings = $incomingsQuery->get()->map(function ($pallet) {
+        $incomings = $incomingsQuery->get()->map(function ($pallet) use ($masterMaterials) {
             $dt = $pallet->created_at ?: ($pallet->incomingHeader?->arrival_date ? Carbon::parse($pallet->incomingHeader->arrival_date) : null);
+            $master = $masterMaterials->get($pallet->item_code);
             return [
                 'id'                 => 'IN-' . $pallet->id,
                 'timestamp'          => $dt,
                 'date_formatted'     => $dt ? $dt->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
                 'type'               => 'INCOMING',
+                'item_code'          => $pallet->item_code,
+                'item_description'   => $master?->item_description ?: 'Material ' . $pallet->item_code,
                 'ref_code'           => $pallet->pallet_id,
-                'sub_ref'            => 'Item: ' . $pallet->item_code . ' | Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'),
+                'sub_ref'            => 'Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'),
                 'source_destination' => $pallet->incomingHeader?->supplier_name ?: 'Internal Supplier',
                 'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
                 'qty_in'             => (float) $pallet->initial_qty,
@@ -142,15 +146,18 @@ class MaterialStockCard extends Component
             $outgoingsQuery->where('item_code', $this->selectedItemCode);
         }
 
-        $outgoings = $outgoingsQuery->get()->map(function ($out) {
+        $outgoings = $outgoingsQuery->get()->map(function ($out) use ($masterMaterials) {
             $dt = $out->created_at ?: ($out->outgoing_date ? Carbon::parse($out->outgoing_date) : null);
+            $master = $masterMaterials->get($out->item_code);
             return [
                 'id'                 => 'OUT-' . $out->id,
                 'timestamp'          => $dt,
                 'date_formatted'     => $dt ? $dt->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
                 'type'               => 'OUTGOING',
+                'item_code'          => $out->item_code,
+                'item_description'   => $master?->item_description ?: 'Material ' . $out->item_code,
                 'ref_code'           => $out->outgoing_code,
-                'sub_ref'            => 'Item: ' . $out->item_code . ' | Pallet: ' . $out->pallet_id,
+                'sub_ref'            => 'Pallet: ' . $out->pallet_id,
                 'source_destination' => 'Tujuan: ' . ($out->issued_to ?: 'Produksi'),
                 'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
                 'qty_in'             => 0.0,
@@ -160,37 +167,44 @@ class MaterialStockCard extends Component
             ];
         });
 
-        // 4. Merge and sort chronologically (oldest to newest for calculating running balance)
+        // 4. Merge and sort chronologically
         $allMovements = $incomings->concat($outgoings)->sortBy('timestamp')->values();
 
-        // 5. Calculate Running Balance & Opening Balance for Date Filter
-        $runningBalance = 0.0;
+        // 5. Calculate Running Balance & Opening Balance per Material
         $fromCarbon = $this->fromDate ? Carbon::parse($this->fromDate)->startOfDay() : null;
         $toCarbon   = $this->toDate ? Carbon::parse($this->toDate)->endOfDay() : null;
-        $openingBalance = 0.0;
+
+        $openingBalances = [];
+        $runningBalances = [];
 
         $calculatedMovements = collect();
 
         foreach ($allMovements as $item) {
-            $itemDt = $item['timestamp'];
-            
-            // If transaction happened BEFORE fromDate, accumulate to openingBalance
+            $itemCode = $item['item_code'];
+            $itemDt   = $item['timestamp'];
+
+            if (!isset($runningBalances[$itemCode])) {
+                $runningBalances[$itemCode] = 0.0;
+                $openingBalances[$itemCode] = 0.0;
+            }
+
+            // If transaction happened BEFORE fromDate, accumulate to openingBalances
             if ($fromCarbon && $itemDt && $itemDt->lt($fromCarbon)) {
                 if ($item['type'] === 'INCOMING') {
-                    $openingBalance += $item['qty_in'];
+                    $openingBalances[$itemCode] += $item['qty_in'];
                 } else {
-                    $openingBalance -= $item['qty_out'];
+                    $openingBalances[$itemCode] -= $item['qty_out'];
                 }
-                $runningBalance = max(0.0, $openingBalance);
+                $runningBalances[$itemCode] = max(0.0, $openingBalances[$itemCode]);
                 continue;
             }
 
             if ($item['type'] === 'INCOMING') {
-                $runningBalance += $item['qty_in'];
+                $runningBalances[$itemCode] += $item['qty_in'];
             } else {
-                $runningBalance -= $item['qty_out'];
+                $runningBalances[$itemCode] -= $item['qty_out'];
             }
-            $item['balance'] = max(0.0, $runningBalance);
+            $item['balance'] = max(0.0, $runningBalances[$itemCode]);
 
             // Check toDate limit
             if ($toCarbon && $itemDt && $itemDt->gt($toCarbon)) {
@@ -200,25 +214,30 @@ class MaterialStockCard extends Component
             $calculatedMovements->push($item);
         }
 
-        // 6. Prepend Opening Balance row if fromDate filter is active and openingBalance > 0
-        if ($fromCarbon && $openingBalance > 0) {
-            $openingRow = [
-                'id'                 => 'OPENING-BAL',
-                'timestamp'          => $fromCarbon,
-                'date_formatted'     => $fromCarbon->timezone('Asia/Jakarta')->format('d M Y') . ' (00:00)',
-                'type'               => 'OPENING_BALANCE',
-                'ref_code'           => 'SALDO AWAL',
-                'sub_ref'            => 'Akumulasi Sebelum ' . $fromCarbon->format('d M Y'),
-                'source_destination' => 'Stok Bawaan Periode Sebelumnya',
-                'slot_code'          => '-',
-                'qty_in'             => $openingBalance,
-                'qty_out'            => 0.0,
-                'uom'                => $selectedMaterial?->purchasing_uom ?? 'KG',
-                'balance'            => $openingBalance,
-                'remarks'            => 'Saldo awal per tanggal ' . $fromCarbon->format('d M Y'),
-            ];
+        // 6. Prepend Opening Balance row ONLY IF a single specific material is selected
+        if (!empty($this->selectedItemCode) && $fromCarbon) {
+            $openingBalance = $openingBalances[$this->selectedItemCode] ?? 0.0;
+            if ($openingBalance > 0) {
+                $openingRow = [
+                    'id'                 => 'OPENING-BAL',
+                    'timestamp'          => $fromCarbon,
+                    'date_formatted'     => $fromCarbon->timezone('Asia/Jakarta')->format('d M Y') . ' (00:00)',
+                    'type'               => 'OPENING_BALANCE',
+                    'item_code'          => $this->selectedItemCode,
+                    'item_description'   => $selectedMaterial?->item_description ?: '',
+                    'ref_code'           => 'SALDO AWAL',
+                    'sub_ref'            => 'Akumulasi Sebelum ' . $fromCarbon->format('d M Y'),
+                    'source_destination' => 'Stok Bawaan Periode Sebelumnya',
+                    'slot_code'          => '-',
+                    'qty_in'             => $openingBalance,
+                    'qty_out'            => 0.0,
+                    'uom'                => $selectedMaterial?->purchasing_uom ?? 'KG',
+                    'balance'            => $openingBalance,
+                    'remarks'            => 'Saldo awal per tanggal ' . $fromCarbon->format('d M Y'),
+                ];
 
-            $calculatedMovements->prepend($openingRow);
+                $calculatedMovements->prepend($openingRow);
+            }
         }
 
         // 7. Apply Search and Type Filters
@@ -233,7 +252,9 @@ class MaterialStockCard extends Component
         if (!empty($this->search)) {
             $term = strtolower(trim($this->search));
             $movements = $movements->filter(function ($item) use ($term) {
-                return str_contains(strtolower($item['ref_code']), $term)
+                return str_contains(strtolower($item['item_code']), $term)
+                    || str_contains(strtolower($item['item_description']), $term)
+                    || str_contains(strtolower($item['ref_code']), $term)
                     || str_contains(strtolower($item['sub_ref']), $term)
                     || str_contains(strtolower($item['source_destination']), $term)
                     || str_contains(strtolower($item['slot_code']), $term)
