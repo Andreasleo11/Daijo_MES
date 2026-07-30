@@ -8,15 +8,53 @@
                 <p class="text-gray-500 text-sm">Monitoring Hunian Rak Gudang J06 (Highly Marelli)</p>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
-                <!-- Item / Pallet / SPK Search Input -->
-                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 min-w-[240px]">
+                <!-- Item / Pallet / SPK Search Input with Dropdown Suggestions -->
+                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 min-w-[280px] relative" x-data="{ open: true }" @click.outside="open = false">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Search Item</span>
                     <div class="relative w-full">
-                        <input type="text" wire:model.live.debounce.300ms="searchItem"
+                        <input type="text" wire:model.live.debounce.250ms="searchItem"
+                               @focus="open = true"
+                               @input="open = true"
                                placeholder="Cari Item, SPK, Pallet ID..."
-                               class="bg-white border border-gray-200 rounded-lg text-xs font-bold px-2.5 py-1 w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                               class="bg-white border border-gray-200 rounded-lg text-xs font-bold px-2.5 py-1.5 w-full focus:ring-2 focus:ring-blue-500 outline-none">
                         @if(!empty($searchItem))
                             <button wire:click="$set('searchItem', '')" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 font-bold text-xs">✕</button>
+                        @endif
+
+                        {{-- Dropdown Suggestions --}}
+                        @if(!empty($searchSuggestions) && count($searchSuggestions) > 0)
+                            <div x-show="open" class="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-gray-100 min-w-[320px]">
+                                <div class="px-3 py-1.5 bg-gray-50 text-[9px] font-extrabold text-gray-400 uppercase tracking-wider flex justify-between">
+                                    <span>Item di Gudang (Stok > 0)</span>
+                                    <span>Posisi Rak</span>
+                                </div>
+                                @foreach($searchSuggestions as $s)
+                                    <div wire:click="selectSearchSuggestion('{{ $s['part_no'] }}')"
+                                         @click="open = false"
+                                         class="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between gap-3 group">
+                                        <div class="overflow-hidden">
+                                            <div class="text-xs font-extrabold text-gray-900 group-hover:text-blue-700 truncate">
+                                                {{ $s['part_no'] }}
+                                            </div>
+                                            <div class="text-[10px] font-semibold text-gray-500 truncate">
+                                                {{ $s['model_name'] }}
+                                            </div>
+                                            <div class="text-[10px] font-bold text-emerald-600 mt-0.5">
+                                                Stok: {{ number_format($s['total_qty']) }} Pcs ({{ $s['pallet_count'] }} Pallet)
+                                            </div>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 block truncate max-w-[120px]">
+                                                📍 {{ $s['positions'] ?: 'Non-Rak' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @elseif(!empty(trim($searchItem)) && empty($searchSuggestions))
+                            <div x-show="open" class="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-3 text-center text-xs font-semibold text-gray-400 min-w-[280px]">
+                                Tidak ada item dengan stok > 0 ditemukan di rak.
+                            </div>
                         @endif
                     </div>
                 </div>

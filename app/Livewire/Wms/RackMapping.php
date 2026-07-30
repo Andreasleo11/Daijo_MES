@@ -185,8 +185,9 @@ class RackMapping extends Component
                 ->orWhere('last_item_code', 'like', $term)
                 ->pluck('id');
 
-            // 2. Pallet forms header fields
+            // 2. Pallet forms header fields (qty > 0)
             $posIds2 = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->where('total_pallet_qty', '>', 0)
                 ->where(function($q) use ($term) {
                     $q->where('pallet_id', 'like', $term)
                       ->orWhere('part_no', 'like', $term)
@@ -195,18 +196,58 @@ class RackMapping extends Component
                 })
                 ->pluck('position_id');
 
-            // 3. Pallet form details
-            $posIds3 = \App\Models\WmsPalletFormDetail::whereHas('header', fn($q) => $q->whereNotNull('position_id'))
-                ->where(function($q) use ($term) {
+            // 3. Pallet form details (qty > 0)
+            $posIds3 = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->where('total_pallet_qty', '>', 0)
+                ->whereHas('details', function($q) use ($term) {
                     $q->where('part_no', 'like', $term)
                       ->orWhere('model_name', 'like', $term)
                       ->orWhere('spk_no', 'like', $term)
                       ->orWhere('label', 'like', $term);
                 })
-                ->join('wms_pallet_forms', 'wms_pallet_forms.pallet_id', '=', 'wms_pallet_form_details.pallet_form_id')
-                ->pluck('wms_pallet_forms.position_id');
+                ->pluck('position_id');
 
             $matchingPositionIds = $posIds1->merge($posIds2)->merge($posIds3)->unique()->filter()->values()->toArray();
+        }
+
+        // Live autocomplete suggestions for items in warehouse with QTY > 0
+        $searchSuggestions = [];
+        if (strlen($searchTerm) >= 1) {
+            $term = '%' . $searchTerm . '%';
+
+            $rawPallets = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->where('total_pallet_qty', '>', 0)
+                ->where(function($q) use ($term) {
+                    $q->where('part_no', 'like', $term)
+                      ->orWhere('model_name', 'like', $term)
+                      ->orWhere('pallet_id', 'like', $term)
+                      ->orWhereHas('details', function($dq) use ($term) {
+                          $dq->where('part_no', 'like', $term)
+                             ->orWhere('model_name', 'like', $term)
+                             ->orWhere('spk_no', 'like', $term);
+                      });
+                })
+                ->with('position')
+                ->get();
+
+            $searchSuggestions = $rawPallets->groupBy('part_no')
+                ->map(function($group, $partNo) {
+                    $first = $group->first();
+                    $totalQty = $group->sum('total_pallet_qty');
+                    $palletCount = $group->count();
+                    $positions = $group->map(fn($p) => $p->position?->position_code)->filter()->unique()->values()->all();
+
+                    return [
+                        'part_no'      => $partNo ?: $first->part_no,
+                        'model_name'   => $first->model_name ?: 'No Model Name',
+                        'total_qty'    => $totalQty,
+                        'pallet_count' => $palletCount,
+                        'positions'    => implode(', ', array_slice($positions, 0, 3)) . (count($positions) > 3 ? '...' : ''),
+                    ];
+                })
+                ->values()
+                ->take(8)
+                ->toArray();
         }
 
         $selectedPosRelations = ['palletForms.details'];
@@ -233,7 +274,13 @@ class RackMapping extends Component
             'customers'           => $customers,
             'unassignedPallets'   => $unassignedPallets,
             'matchingPositionIds' => $matchingPositionIds,
+            'searchSuggestions'   => $searchSuggestions,
         ]);
+    }
+
+    public function selectSearchSuggestion($itemCode)
+    {
+        $this->searchItem = $itemCode;
     }
 
     public function assignPalletToSelectedSlot($palletId, WmsService $wmsService)
