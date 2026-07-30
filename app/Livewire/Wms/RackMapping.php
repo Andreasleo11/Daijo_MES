@@ -15,9 +15,10 @@ class RackMapping extends Component
     public $editMaxCapacity;
     public $editCustomerCode;
     
-    // Filtering State
+    // Filtering & Search State
     public $filterCustomer = '';
-    protected $queryString = ['filterCustomer'];
+    public $searchItem = '';
+    protected $queryString = ['filterCustomer', 'searchItem'];
     
     // UI State
     public $showDetail = false;
@@ -166,12 +167,49 @@ class RackMapping extends Component
             if ($hasCustomerTable) {
                 $query->with('customer');
             }
-            $query->withCount('palletForms')
-                  ->orderBy('level_no', 'desc')
-                  ->orderBy('slot_no', 'asc');
+            $query->with(['palletForms' => function($q) {
+                $q->with('details');
+            }])
+            ->withCount('palletForms')
+            ->orderBy('level_no', 'desc')
+            ->orderBy('slot_no', 'asc');
         }])->get();
 
-        $selectedPosRelations = ['palletForms'];
+        $matchingPositionIds = [];
+        $searchTerm = trim($this->searchItem);
+        if (!empty($searchTerm)) {
+            $term = '%' . $searchTerm . '%';
+
+            // 1. Position code or last_item_code
+            $posIds1 = WmsPosition::where('position_code', 'like', $term)
+                ->orWhere('last_item_code', 'like', $term)
+                ->pluck('id');
+
+            // 2. Pallet forms header fields
+            $posIds2 = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->where(function($q) use ($term) {
+                    $q->where('pallet_id', 'like', $term)
+                      ->orWhere('part_no', 'like', $term)
+                      ->orWhere('model_name', 'like', $term)
+                      ->orWhere('lot_no', 'like', $term);
+                })
+                ->pluck('position_id');
+
+            // 3. Pallet form details
+            $posIds3 = \App\Models\WmsPalletFormDetail::whereHas('header', fn($q) => $q->whereNotNull('position_id'))
+                ->where(function($q) use ($term) {
+                    $q->where('part_no', 'like', $term)
+                      ->orWhere('model_name', 'like', $term)
+                      ->orWhere('spk_no', 'like', $term)
+                      ->orWhere('label', 'like', $term);
+                })
+                ->join('wms_pallet_forms', 'wms_pallet_forms.pallet_id', '=', 'wms_pallet_form_details.pallet_form_id')
+                ->pluck('wms_pallet_forms.position_id');
+
+            $matchingPositionIds = $posIds1->merge($posIds2)->merge($posIds3)->unique()->filter()->values()->toArray();
+        }
+
+        $selectedPosRelations = ['palletForms.details'];
         if ($hasCustomerTable) {
             $selectedPosRelations[] = 'customer';
         }
@@ -190,10 +228,11 @@ class RackMapping extends Component
             ->get();
 
         return view('livewire.wms.rack-mapping', [
-            'racks'             => $racks,
-            'selectedPosData'   => $selectedPosData,
-            'customers'         => $customers,
-            'unassignedPallets' => $unassignedPallets,
+            'racks'               => $racks,
+            'selectedPosData'     => $selectedPosData,
+            'customers'           => $customers,
+            'unassignedPallets'   => $unassignedPallets,
+            'matchingPositionIds' => $matchingPositionIds,
         ]);
     }
 

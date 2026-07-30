@@ -7,7 +7,20 @@
                 <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Warehouse Mapping</h1>
                 <p class="text-gray-500 text-sm">Monitoring Hunian Rak Gudang J06 (Highly Marelli)</p>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-wrap">
+                <!-- Item / Pallet / SPK Search Input -->
+                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 min-w-[240px]">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Search Item</span>
+                    <div class="relative w-full">
+                        <input type="text" wire:model.live.debounce.300ms="searchItem"
+                               placeholder="Cari Item, SPK, Pallet ID..."
+                               class="bg-white border border-gray-200 rounded-lg text-xs font-bold px-2.5 py-1 w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                        @if(!empty($searchItem))
+                            <button wire:click="$set('searchItem', '')" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 font-bold text-xs">✕</button>
+                        @endif
+                    </div>
+                </div>
+
                 <!-- Customer Filter -->
                 <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Filter Customer</span>
@@ -42,6 +55,25 @@
             </div>
         @endif
 
+        @if (!empty(trim($searchItem)))
+            <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl shadow-sm flex items-center justify-between animate-in fade-in duration-200">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">🔍</span>
+                    <div>
+                        <p class="text-blue-900 text-xs font-extrabold uppercase tracking-wide">
+                            Pencarian Item / SPK / Pallet: "<span class="text-blue-700 underline">{{ $searchItem }}</span>"
+                        </p>
+                        <p class="text-blue-700 text-xs mt-0.5">
+                            Ditemukan <span class="font-black text-blue-900">{{ count($matchingPositionIds) }} slot rak</span> yang menyimpan item ini. Slot terkait disorot dengan **animasi biru menyala**.
+                        </p>
+                    </div>
+                </div>
+                <button wire:click="$set('searchItem', '')" class="text-xs text-blue-600 font-bold hover:underline">
+                    Reset Pencarian ✕
+                </button>
+            </div>
+        @endif
+
         <div class="flex flex-col lg:flex-row gap-6">
             <!-- Grid Container -->
             <div class="flex-grow flex flex-wrap gap-6 items-start" id="mapping-grid">
@@ -71,16 +103,30 @@
                                                 if($pos->status == 'PARTIAL') $statusColor = 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300';
                                                 if($pos->status == 'FULL') $statusColor = 'bg-red-100 hover:bg-red-200 border-red-300';
 
+                                                $isMatchedBySearch = !empty(trim($searchItem)) && in_array($pos->id, $matchingPositionIds);
+
                                                 $isHighlighted = true;
                                                 if ($filterCustomer && $pos->customer_code !== $filterCustomer) {
                                                     $isHighlighted = false;
                                                 }
-                                                $opacityClass = $isHighlighted ? 'opacity-100' : 'opacity-25 grayscale';
+                                                if (!empty(trim($searchItem)) && !$isMatchedBySearch) {
+                                                    $isHighlighted = false;
+                                                }
+
+                                                $opacityClass = $isHighlighted ? 'opacity-100' : 'opacity-20 grayscale';
+                                                $searchGlowClass = $isMatchedBySearch ? 'ring-4 ring-blue-500 scale-105 border-blue-600 bg-blue-100 shadow-lg z-10' : '';
                                             @endphp
                                             <button wire:click="selectPosition({{ $pos->id }})" 
-                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
+                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} {{ $searchGlowClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
                                                     title="{{ $pos->position_code }} @if($pos->customer_code) (Customer: {{ $pos->customer_code }}) @endif">
                                                 
+                                                @if($isMatchedBySearch)
+                                                    <div class="absolute inset-0 bg-blue-400/20 animate-pulse pointer-events-none rounded-lg"></div>
+                                                    <div class="absolute top-0.5 left-0.5 bg-blue-600 text-white rounded-full px-1 text-[7px] font-black shadow-sm z-20">
+                                                        MATCH
+                                                    </div>
+                                                @endif
+
                                                 <div class="text-[8px] font-black text-gray-400 group-hover:text-gray-600 text-center uppercase leading-none">
                                                     S{{ $pos->slot_no }}
                                                 </div>
@@ -92,7 +138,7 @@
                                                 @endif
  
                                                 @if($pos->pallet_forms_count > 0)
-                                                    <div class="absolute top-1 right-1">
+                                                    <div class="absolute top-1 right-1 z-20">
                                                         <span class="flex h-1.5 w-1.5">
                                                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $pos->status == 'FULL' ? 'bg-red-400' : 'bg-yellow-400' }}"></span>
                                                             <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $pos->status == 'FULL' ? 'bg-red-500' : 'bg-yellow-500' }}"></span>
