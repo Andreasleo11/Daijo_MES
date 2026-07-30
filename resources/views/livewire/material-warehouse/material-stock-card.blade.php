@@ -189,16 +189,17 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100">
                             <tr>
-                                <th class="px-5 py-3.5">Tanggal & Jam</th>
-                                <th class="px-5 py-3.5">Jenis</th>
-                                <th class="px-5 py-3.5">Material (Kode & Nama)</th>
-                                <th class="px-5 py-3.5">Kode Ref / Pallet</th>
-                                <th class="px-5 py-3.5">Supplier / Tujuan</th>
-                                <th class="px-5 py-3.5">Slot Rak</th>
-                                <th class="px-5 py-3.5 text-right text-emerald-700">Masuk (+)</th>
-                                <th class="px-5 py-3.5 text-right text-rose-700">Keluar (-)</th>
-                                <th class="px-5 py-3.5 text-right text-slate-900">Sisa Stok Material</th>
-                                <th class="px-5 py-3.5">Keterangan</th>
+                                <th class="px-4 py-3.5">Tanggal & Jam</th>
+                                <th class="px-4 py-3.5">Jenis</th>
+                                <th class="px-4 py-3.5">Material (Kode & Nama)</th>
+                                <th class="px-4 py-3.5">Kode Ref / Pallet</th>
+                                <th class="px-4 py-3.5">Supplier / Tujuan</th>
+                                <th class="px-4 py-3.5">Slot Rak</th>
+                                <th class="px-4 py-3.5 text-right text-emerald-700">Masuk (+)</th>
+                                <th class="px-4 py-3.5 text-right text-rose-700">Keluar (-)</th>
+                                <th class="px-4 py-3.5 text-right text-amber-700" title="Sisa stok fisik aktual di Pallet / Slot Rak ini">Sisa Stok Pallet</th>
+                                <th class="px-4 py-3.5 text-right text-slate-900" title="Total stok material ini di seluruh gudang">Total Stok Material</th>
+                                <th class="px-4 py-3.5">Keterangan</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
@@ -206,23 +207,23 @@
                                 <tr class="hover:bg-slate-50/80 transition-colors">
                                     
                                     <!-- Tanggal & Jam -->
-                                    <td class="px-5 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
                                         {{ $m['date_formatted'] }}
                                     </td>
 
                                     <!-- Jenis Transaksi -->
-                                    <td class="px-5 py-3.5">
+                                    <td class="px-4 py-3.5">
                                         @if($m['type'] === 'OPENING_BALANCE')
-                                            <span class="px-2.5 py-1 bg-amber-100 text-amber-800 font-black text-[10px] rounded-lg border border-amber-200 inline-flex items-center">
+                                            <span class="px-2 py-1 bg-amber-100 text-amber-800 font-black text-[10px] rounded-lg border border-amber-200 inline-flex items-center">
                                                 📦 SALDO AWAL
                                             </span>
                                         @elseif($m['type'] === 'INCOMING')
-                                            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-lg border border-emerald-200 inline-flex items-center">
+                                            <span class="px-2 py-1 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-lg border border-emerald-200 inline-flex items-center">
                                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                                 INCOMING
                                             </span>
                                         @else
-                                            <span class="px-2.5 py-1 bg-rose-100 text-rose-800 font-black text-[10px] rounded-lg border border-rose-200 inline-flex items-center">
+                                            <span class="px-2 py-1 bg-rose-100 text-rose-800 font-black text-[10px] rounded-lg border border-rose-200 inline-flex items-center">
                                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                                                 OUTGOING
                                             </span>
@@ -230,28 +231,28 @@
                                     </td>
 
                                     <!-- Material (Kode & Nama) -->
-                                    <td class="px-5 py-3.5">
-                                        <div class="font-extrabold text-slate-900 font-mono">{{ $m['item_code'] }}</div>
-                                        <div class="text-[10px] text-slate-500 font-semibold truncate max-w-[180px]" title="{{ $m['item_description'] }}">
+                                    <td class="px-4 py-3.5">
+                                        <div class="font-extrabold text-slate-900 font-mono text-[11px]">{{ $m['item_code'] }}</div>
+                                        <div class="text-[10px] text-slate-500 font-semibold truncate max-w-[160px]" title="{{ $m['item_description'] }}">
                                             {{ $m['item_description'] }}
                                         </div>
                                     </td>
 
                                     <!-- Kode Ref / Pallet -->
-                                    <td class="px-5 py-3.5">
-                                        <div class="font-bold text-slate-900 font-mono">{{ $m['ref_code'] }}</div>
+                                    <td class="px-4 py-3.5">
+                                        <div class="font-bold text-slate-900 font-mono text-[11px]">{{ $m['ref_code'] }}</div>
                                         <div class="text-[10px] text-slate-400 font-medium">{{ $m['sub_ref'] }}</div>
                                     </td>
 
                                     <!-- Supplier / Tujuan -->
-                                    <td class="px-5 py-3.5 font-medium text-slate-700">
+                                    <td class="px-4 py-3.5 font-medium text-slate-700">
                                         {{ $m['source_destination'] }}
                                     </td>
 
                                     <!-- Slot Rak -->
-                                    <td class="px-5 py-3.5">
+                                    <td class="px-4 py-3.5">
                                         @if($m['slot_code'] !== 'UNASSIGNED' && $m['slot_code'] !== '-')
-                                            <span class="px-2 py-0.5 bg-slate-800 text-white font-mono font-bold text-[11px] rounded uppercase">
+                                            <span class="px-2 py-0.5 bg-slate-800 text-white font-mono font-bold text-[10px] rounded uppercase">
                                                 {{ $m['slot_code'] }}
                                             </span>
                                         @else
@@ -260,7 +261,7 @@
                                     </td>
 
                                     <!-- Masuk (+) -->
-                                    <td class="px-5 py-3.5 text-right font-black text-emerald-600">
+                                    <td class="px-4 py-3.5 text-right font-black text-emerald-600">
                                         @if($m['qty_in'] > 0)
                                             +{{ number_format($m['qty_in'], 2) }}
                                         @else
@@ -269,7 +270,7 @@
                                     </td>
 
                                     <!-- Keluar (-) -->
-                                    <td class="px-5 py-3.5 text-right font-black text-rose-600">
+                                    <td class="px-4 py-3.5 text-right font-black text-rose-600">
                                         @if($m['qty_out'] > 0)
                                             -{{ number_format($m['qty_out'], 2) }}
                                         @else
@@ -277,8 +278,13 @@
                                         @endif
                                     </td>
 
-                                    <!-- Sisa Stok (Running Balance) -->
-                                    <td class="px-5 py-3.5 text-right font-black text-slate-900 bg-slate-50/50">
+                                    <!-- Sisa Stok Pallet (Aktual di Slot ini) -->
+                                    <td class="px-4 py-3.5 text-right font-black text-amber-700 bg-amber-50/40">
+                                        {{ number_format($m['pallet_qty'], 2) }} <span class="text-[10px] text-amber-600 font-semibold">{{ $m['uom'] }}</span>
+                                    </td>
+
+                                    <!-- Total Stok Material (Seluruh Gudang) -->
+                                    <td class="px-4 py-3.5 text-right font-black text-slate-900 bg-slate-50/50">
                                         {{ number_format($m['balance'], 2) }} <span class="text-[10px] text-slate-400 font-semibold">{{ $m['uom'] }}</span>
                                     </td>
 

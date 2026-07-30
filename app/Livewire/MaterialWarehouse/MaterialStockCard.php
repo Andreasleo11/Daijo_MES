@@ -135,6 +135,7 @@ class MaterialStockCard extends Component
                 'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
                 'qty_in'             => (float) $pallet->initial_qty,
                 'qty_out'            => 0.0,
+                'pallet_qty'         => (float) $pallet->current_qty, // Sisa stok aktual di pallet / slot ini
                 'uom'                => $pallet->uom ?? 'KG',
                 'remarks'            => 'Penerimaan Material (' . number_format($pallet->current_qty, 2) . ' KG sisa)',
             ];
@@ -162,6 +163,7 @@ class MaterialStockCard extends Component
                 'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
                 'qty_in'             => 0.0,
                 'qty_out'            => (float) $out->qty_taken,
+                'pallet_qty'         => (float) ($out->pallet?->current_qty ?? 0.0), // Sisa stok aktual di pallet / slot ini
                 'uom'                => $out->uom ?? 'KG',
                 'remarks'            => $out->remarks ?: 'Pengambilan Material',
             ];
@@ -231,6 +233,7 @@ class MaterialStockCard extends Component
                     'slot_code'          => '-',
                     'qty_in'             => $openingBalance,
                     'qty_out'            => 0.0,
+                    'pallet_qty'         => $openingBalance,
                     'uom'                => $selectedMaterial?->purchasing_uom ?? 'KG',
                     'balance'            => $openingBalance,
                     'remarks'            => 'Saldo awal per tanggal ' . $fromCarbon->format('d M Y'),
