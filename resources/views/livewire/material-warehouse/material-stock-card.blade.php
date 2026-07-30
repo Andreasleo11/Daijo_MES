@@ -176,12 +176,39 @@
 
             <!-- Movement History Table (Kartu Stok) -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
                     <div class="flex items-center space-x-2">
                         <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">📋 Mutasi Stok Material (Stock Card Table)</h3>
                         <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded-full">
-                            {{ $movements->count() }} Transaksi
+                            {{ $totalMovementsCount }} Total Transaksi
                         </span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Sort Direction Toggle -->
+                        <button wire:click="toggleSortDirection" class="py-1.5 px-3 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-800 shadow-sm transition-all flex items-center space-x-1.5">
+                            <span class="text-slate-400">🕒 Urutan:</span>
+                            @if($sortDirection === 'DESC')
+                                <span class="text-emerald-700 font-extrabold flex items-center">
+                                    Terbaru &rarr; Terlama <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </span>
+                            @else
+                                <span class="text-blue-700 font-extrabold flex items-center">
+                                    Terlama &rarr; Terbaru <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                </span>
+                            @endif
+                        </button>
+
+                        <!-- Per Page Selector -->
+                        <div class="flex items-center space-x-1.5 text-xs">
+                            <span class="text-slate-400 font-bold">Baris:</span>
+                            <select wire:model.live="perPage" class="py-1.5 px-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 shadow-sm outline-none">
+                                <option value="15">15 / hal</option>
+                                <option value="25">25 / hal</option>
+                                <option value="50">50 / hal</option>
+                                <option value="100">100 / hal</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -189,7 +216,16 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100">
                             <tr>
-                                <th class="px-4 py-3.5">Tanggal & Jam</th>
+                                <th wire:click="toggleSortDirection" class="px-4 py-3.5 cursor-pointer hover:bg-slate-100/80 transition-colors select-none">
+                                    <div class="flex items-center space-x-1">
+                                        <span>Tanggal & Jam</span>
+                                        @if($sortDirection === 'DESC')
+                                            <span class="text-emerald-600 font-black">⬇️</span>
+                                        @else
+                                            <span class="text-blue-600 font-black">⬆️</span>
+                                        @endif
+                                    </div>
+                                </th>
                                 <th class="px-4 py-3.5">Jenis</th>
                                 <th class="px-4 py-3.5">Material (Kode & Nama)</th>
                                 <th class="px-4 py-3.5">Kode Ref / Pallet</th>
@@ -295,14 +331,20 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-6 py-12 text-center text-slate-400 italic">
-                                        Belum ada riwayat pergerakan (mutasi stok) untuk material ini.
+                                    <td colspan="11" class="px-6 py-12 text-center text-slate-400 italic">
+                                        Belum ada riwayat pergerakan (mutasi stok) untuk kriteria filter ini.
                                     </td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+
+                @if($movements->hasPages())
+                    <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                        {{ $movements->links() }}
+                    </div>
+                @endif
             </div>
 
     </div>

@@ -8,6 +8,7 @@ use App\Models\MwhOutgoing;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class MaterialStockCard extends Component
 {
@@ -18,6 +19,8 @@ class MaterialStockCard extends Component
     public string $filterType = 'ALL'; // ALL, INCOMING, OUTGOING
     public ?string $fromDate = null;
     public ?string $toDate = null;
+    public string $sortDirection = 'DESC'; // DESC (Terbaru -> Terlama), ASC (Terlama -> Terbaru)
+    public int $perPage = 25;
 
     protected $queryString = [
         'selectedItemCode' => ['except' => ''],
@@ -25,6 +28,8 @@ class MaterialStockCard extends Component
         'filterType'       => ['except' => 'ALL'],
         'fromDate'         => ['except' => ''],
         'toDate'           => ['except' => ''],
+        'sortDirection'    => ['except' => 'DESC'],
+        'perPage'          => ['except' => 25],
     ];
 
     public function getActiveMaterialsProperty()
@@ -77,9 +82,25 @@ class MaterialStockCard extends Component
         $this->resetPage();
     }
 
+    public function updatingSortDirection(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function toggleSortDirection(): void
+    {
+        $this->sortDirection = $this->sortDirection === 'DESC' ? 'ASC' : 'DESC';
+        $this->resetPage();
+    }
+
     public function resetFilters(): void
     {
-        $this->reset(['search', 'filterType']);
+        $this->reset(['search', 'filterType', 'sortDirection', 'perPage']);
         $this->fromDate = now()->format('Y-m-d');
         $this->toDate = now()->format('Y-m-d');
         $this->resetPage();
@@ -135,7 +156,7 @@ class MaterialStockCard extends Component
                 'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
                 'qty_in'             => (float) $pallet->initial_qty,
                 'qty_out'            => 0.0,
-                'pallet_qty'         => (float) $pallet->current_qty, // Sisa stok aktual di pallet / slot ini
+                'pallet_qty'         => (float) $pallet->current_qty,
                 'uom'                => $pallet->uom ?? 'KG',
                 'remarks'            => 'Penerimaan Material (' . number_format($pallet->current_qty, 2) . ' KG sisa)',
             ];
@@ -163,13 +184,13 @@ class MaterialStockCard extends Component
                 'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
                 'qty_in'             => 0.0,
                 'qty_out'            => (float) $out->qty_taken,
-                'pallet_qty'         => (float) ($out->pallet?->current_qty ?? 0.0), // Sisa stok aktual di pallet / slot ini
+                'pallet_qty'         => (float) ($out->pallet?->current_qty ?? 0.0),
                 'uom'                => $out->uom ?? 'KG',
                 'remarks'            => $out->remarks ?: 'Pengambilan Material',
             ];
         });
 
-        // 4. Merge and sort chronologically
+        // 4. Merge and sort chronologically for balance calculation
         $allMovements = $incomings->concat($outgoings)->sortBy('timestamp')->values();
 
         // 5. Calculate Running Balance & Opening Balance per Material
@@ -265,14 +286,32 @@ class MaterialStockCard extends Component
             });
         }
 
-        // Keep chronological order (oldest to newest, top-to-bottom)
-        $movements = $movements->values();
+        // 8. Apply Sorting (ASC vs DESC)
+        if ($this->sortDirection === 'DESC') {
+            $movements = $movements->sortByDesc('timestamp')->values();
+        } else {
+            $movements = $movements->sortBy('timestamp')->values();
+        }
+
+        // 9. Paginate Collection
+        $totalCount = $movements->count();
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $perPage = $this->perPage;
+
+        $paginatedMovements = new LengthAwarePaginator(
+            $movements->slice(($page - 1) * $perPage, $perPage)->values(),
+            $totalCount,
+            $perPage,
+            $page,
+            ['path' => LengthAwarePaginator::resolveCurrentPath()]
+        );
 
         return view('livewire.material-warehouse.material-stock-card', [
-            'materials'        => $materials,
-            'selectedMaterial' => $selectedMaterial,
-            'movements'        => $movements,
-            'summary'          => $summary,
+            'materials'           => $materials,
+            'selectedMaterial'    => $selectedMaterial,
+            'movements'           => $paginatedMovements,
+            'totalMovementsCount' => $totalCount,
+            'summary'             => $summary,
         ]);
     }
 }
