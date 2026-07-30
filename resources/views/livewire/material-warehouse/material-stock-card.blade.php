@@ -32,7 +32,7 @@
                         📦 Pilih Jenis Material:
                     </label>
                     <select wire:model.live="selectedItemCode" class="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                        <option value="">-- Pilih Material --</option>
+                        <option value="">-- Semua Material (All Transactions) --</option>
                         @foreach ($materials as $mat)
                             <option value="{{ $mat->item_code }}">
                                 {{ $mat->item_code }} — {{ $mat->item_description }}
