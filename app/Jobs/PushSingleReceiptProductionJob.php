@@ -38,9 +38,27 @@ class PushSingleReceiptProductionJob implements ShouldQueue
                 ->where('id', $this->summaryId)
                 ->first();
 
-            if (!$summary) {
-                Log::channel('single')->warning("[JOB] Summary ID {$this->summaryId} not found in DB.");
+            if ($summary->sap_sent == 1) {
+                Log::channel('single')->info("[JOB] Summary ID {$this->summaryId} skipped: Already successfully sent to SAP (sap_sent = 1).");
                 return;
+            }
+
+            if ($summary->sap_sent == 99) {
+                Log::channel('single')->info("[JOB] Summary ID {$this->summaryId} skipped: Marked as ignored (sap_sent = 99).");
+                return;
+            }
+
+            // If not in processing status (2), attempt atomic lock from 0/3 to 2
+            if ($summary->sap_sent != 2) {
+                $locked = DB::table('production_summary')
+                    ->where('id', $this->summaryId)
+                    ->whereIn('sap_sent', [0, 3])
+                    ->update(['sap_sent' => 2, 'updated_at' => now()]);
+
+                if (!$locked) {
+                    Log::channel('single')->warning("[JOB] Summary ID {$this->summaryId} skipped: Locked or processed by another worker.");
+                    return;
+                }
             }
 
             // Cari scanned data
@@ -57,7 +75,7 @@ class PushSingleReceiptProductionJob implements ShouldQueue
                 return;
             }
 
-            // Push to SAP (passing true for $alreadyLocked)
+            // Push to SAP
             $response = $service->pushSingleRecord($summary, $scannedData, true);
             
             if ($response['success']) {

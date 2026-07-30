@@ -500,19 +500,19 @@ class ReceiptProductionLogs extends Component
             ->paginate($this->perPage);
 
         // Lazy load item_code untuk 50 baris yang sedang ditampilkan
-        $spkCodes = $paginatedLogs->pluck('spk_code')->unique()->toArray();
+        $summaryIds = $paginatedLogs->pluck('id')->toArray();
         $itemCodesMap = [];
-        if (!empty($spkCodes)) {
+        if (!empty($summaryIds)) {
             $itemCodesMap = DB::table('production_scanned_data')
-                ->whereIn('spk_code', $spkCodes)
-                ->groupBy('spk_code')
-                ->select('spk_code', DB::raw('MIN(item_code) as item_code'))
-                ->pluck('item_code', 'spk_code')
+                ->whereIn('summary_id', $summaryIds)
+                ->groupBy('summary_id')
+                ->select('summary_id', DB::raw('MIN(item_code) as item_code'))
+                ->pluck('item_code', 'summary_id')
                 ->toArray();
         }
 
         foreach ($paginatedLogs->items() as $item) {
-            $item->item_code = $itemCodesMap[$item->spk_code] ?? '—';
+            $item->item_code = $itemCodesMap[$item->id] ?? '—';
         }
 
         return $paginatedLogs;
