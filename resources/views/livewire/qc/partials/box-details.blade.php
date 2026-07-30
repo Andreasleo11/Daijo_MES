@@ -86,7 +86,8 @@
                                         @if($log['ok_sap_status'] == 1)
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-100 text-green-700">OK: SUKSES</span>
                                         @elseif($log['ok_sap_status'] == 2)
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700" title="{{ $log['ok_sap_error'] }}">OK: GAGAL ⚠</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700">OK: GAGAL ⚠</span>
+                                            <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[140px] leading-tight text-center">{{ $log['ok_sap_error'] }}</div>
                                         @else
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-700">OK: PENDING</span>
                                         @endif
@@ -96,7 +97,8 @@
                                         @if($log['ng_sap_status'] == 1)
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-100 text-green-700">NG: SUKSES</span>
                                         @elseif($log['ng_sap_status'] == 2)
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700" title="{{ $log['ng_sap_error'] }}">NG: GAGAL ⚠</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700">NG: GAGAL ⚠</span>
+                                            <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[140px] leading-tight text-center">{{ $log['ng_sap_error'] }}</div>
                                         @else
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-700">NG: PENDING</span>
                                         @endif
@@ -199,12 +201,20 @@
                             @endif
                         @endif
                     </div>
-                    <div>
+                    <div class="text-right">
                         @if($isInspected)
                             @if($log['ok_sap_status'] == 1)
-                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700">SAP: OK</span>
+                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700">OK: SUKSES</span>
                             @elseif($log['ok_sap_status'] == 2)
-                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700">SAP: GAGAL</span>
+                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700">OK: GAGAL ⚠</span>
+                                <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[150px] leading-tight text-right">{{ $log['ok_sap_error'] }}</div>
+                            @endif
+
+                            @if($log['ng_sap_status'] == 1)
+                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700 ml-1">NG: SUKSES</span>
+                            @elseif($log['ng_sap_status'] == 2)
+                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700 ml-1">NG: GAGAL ⚠</span>
+                                <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[150px] leading-tight text-right">{{ $log['ng_sap_error'] }}</div>
                             @endif
                         @endif
                     </div>

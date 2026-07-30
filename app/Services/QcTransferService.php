@@ -70,9 +70,14 @@ class QcTransferService extends BaseSapService
             // 3. Recalculate summary qc_status
             $this->updateSummaryQcStatus($summary->id);
 
+            $sapSuccess = ($transferResult['ok_success'] ?? true) && ($transferResult['ng_success'] ?? true);
+            $msg = $sapSuccess
+                ? "Inspeksi box {$scannedData->label} berhasil diproses & terkirim ke SAP."
+                : "Inspeksi box {$scannedData->label} tersimpan, namun SAP Transfer Gagal: " . implode(', ', $transferResult['messages'] ?? []);
+
             return [
-                'success' => true,
-                'message' => "Inspeksi box {$scannedData->label} berhasil diproses.",
+                'success' => $sapSuccess,
+                'message' => $msg,
                 'log'     => $log->fresh(),
                 'sap'     => $transferResult,
             ];
