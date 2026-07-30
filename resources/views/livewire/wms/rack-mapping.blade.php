@@ -233,20 +233,68 @@
                                             <span class="text-[10px] text-gray-400 uppercase font-black italic">Pallet(s)</span>
                                         </div>
 
-                                        <!-- Pallet List -->
-                                        <div class="mt-6 space-y-2">
-                                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 italic border-b border-gray-100 pb-1">Stored Pallets</div>
+                                        <!-- Pallet List with Full Mixed Item Breakdown -->
+                                        <div class="mt-6 space-y-3">
+                                            <div class="flex items-center justify-between text-[9px] font-black text-gray-400 uppercase tracking-widest italic border-b border-gray-100 pb-1">
+                                                <span>Stored Pallets & Item Details</span>
+                                                <span>{{ count($selectedPosData->palletForms->where('status', 'STORED')) }} Pallet(s)</span>
+                                            </div>
                                             @foreach($selectedPosData->palletForms->where('status', 'STORED') as $pf)
-                                                <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm text-[10px]">
-                                                    <div class="truncate pr-2">
-                                                        <div class="font-black text-gray-700 leading-tight">{{ $pf->pallet_id }}</div>
-                                                        <div class="text-gray-400 font-bold">{{ $pf->part_no ?: 'NO LABEL' }}</div>
+                                                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-3 space-y-2 text-left">
+                                                    <!-- Pallet Header Info -->
+                                                    <div class="flex justify-between items-start border-b border-gray-100 pb-2">
+                                                        <div>
+                                                            <div class="font-black text-xs text-gray-900 flex items-center gap-1.5">
+                                                                📦 {{ $pf->pallet_id }}
+                                                                @if($pf->details->count() > 1)
+                                                                    <span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-100 text-purple-700">MIXED</span>
+                                                                @endif
+                                                            </div>
+                                                            <div class="text-[10px] text-gray-500 font-semibold">
+                                                                Lot: {{ $pf->lot_no ?: '-' }} | Deliv: {{ $pf->delivery_name ?: '-' }}
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-right shrink-0">
+                                                            <span class="text-xs font-black text-blue-600 block">{{ number_format($pf->total_pallet_qty, 0) }} Pcs</span>
+                                                            <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="inline-block p-1 text-gray-400 hover:text-blue-600 transition" title="Print Barcode">
+                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                            </a>
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center gap-1">
-                                                        <span class="font-black text-blue-600 whitespace-nowrap">{{ number_format($pf->total_pallet_qty, 0) }}</span>
-                                                        <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="p-1.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-all">
-                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                        </a>
+
+                                                    <!-- Itemized Box Details Breakdown -->
+                                                    <div class="bg-gray-50 p-2 rounded-lg space-y-1.5 border border-gray-100">
+                                                        <div class="text-[9px] font-black text-gray-400 uppercase tracking-wider flex justify-between">
+                                                            <span>Rincian Item dalam Pallet</span>
+                                                            <span>Qty</span>
+                                                        </div>
+                                                        @forelse($pf->details as $detail)
+                                                            @php
+                                                                $isMatchedDetail = !empty(trim($searchItem)) && (stripos($detail->part_no, trim($searchItem)) !== false || stripos($detail->model_name, trim($searchItem)) !== false || stripos($detail->spk_no, trim($searchItem)) !== false);
+                                                            @endphp
+                                                            <div class="flex justify-between items-center text-[11px] p-1.5 rounded border transition-all {{ $isMatchedDetail ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300 font-extrabold' : 'bg-white border-gray-100' }}">
+                                                                <div class="truncate pr-2">
+                                                                    <div class="font-extrabold text-gray-900 leading-tight flex items-center gap-1">
+                                                                        {{ $detail->part_no }}
+                                                                        @if($isMatchedDetail)
+                                                                            <span class="bg-amber-500 text-white text-[7px] px-1 rounded font-black uppercase">SEARCH MATCH</span>
+                                                                        @endif
+                                                                    </div>
+                                                                    <div class="text-[9px] text-gray-500 truncate">{{ $detail->model_name ?: 'No Model' }}</div>
+                                                                    @if($detail->spk_no)
+                                                                        <div class="text-[8px] font-semibold text-blue-600">SPK: {{ $detail->spk_no }}</div>
+                                                                    @endif
+                                                                </div>
+                                                                <div class="text-right shrink-0">
+                                                                    <span class="font-black text-xs text-gray-900 block">{{ number_format($detail->qty, 0) }}</span>
+                                                                    <span class="text-[8px] text-gray-400 font-semibold uppercase">Pcs</span>
+                                                                </div>
+                                                            </div>
+                                                        @empty
+                                                            <div class="text-[10px] text-gray-400 italic text-center py-1">
+                                                                Main Item: {{ $pf->part_no ?: 'NO LABEL' }} ({{ number_format($pf->total_pallet_qty) }} Pcs)
+                                                            </div>
+                                                        @endforelse
                                                     </div>
                                                 </div>
                                             @endforeach

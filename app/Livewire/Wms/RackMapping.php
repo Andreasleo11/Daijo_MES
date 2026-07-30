@@ -185,7 +185,7 @@ class RackMapping extends Component
                 ->orWhere('last_item_code', 'like', $term)
                 ->pluck('id');
 
-            // 2. Pallet forms header fields (qty > 0)
+            // 2. Pallet forms header fields (pallet_id, part_no, model_name, lot_no) with qty > 0
             $posIds2 = \App\Models\WmsPalletForm::whereNotNull('position_id')
                 ->where('total_pallet_qty', '>', 0)
                 ->where(function($q) use ($term) {
@@ -196,52 +196,51 @@ class RackMapping extends Component
                 })
                 ->pluck('position_id');
 
-            // 3. Pallet form details (qty > 0)
+            // 3. Pallet form details (item box level inside mixed pallets) with qty > 0
             $posIds3 = \App\Models\WmsPalletForm::whereNotNull('position_id')
-                ->where('total_pallet_qty', '>', 0)
                 ->whereHas('details', function($q) use ($term) {
-                    $q->where('part_no', 'like', $term)
-                      ->orWhere('model_name', 'like', $term)
-                      ->orWhere('spk_no', 'like', $term)
-                      ->orWhere('label', 'like', $term);
+                    $q->where('qty', '>', 0)
+                      ->where(function($dq) use ($term) {
+                          $dq->where('part_no', 'like', $term)
+                             ->orWhere('model_name', 'like', $term)
+                             ->orWhere('spk_no', 'like', $term)
+                             ->orWhere('label', 'like', $term);
+                      });
                 })
                 ->pluck('position_id');
 
             $matchingPositionIds = $posIds1->merge($posIds2)->merge($posIds3)->unique()->filter()->values()->toArray();
         }
 
-        // Live autocomplete suggestions for items in warehouse with QTY > 0
+        // Live autocomplete suggestions querying WmsPalletFormDetail directly for items with QTY > 0
         $searchSuggestions = [];
         if (strlen($searchTerm) >= 1) {
             $term = '%' . $searchTerm . '%';
 
-            $rawPallets = \App\Models\WmsPalletForm::whereNotNull('position_id')
-                ->where('total_pallet_qty', '>', 0)
-                ->where(function($q) use ($term) {
-                    $q->where('part_no', 'like', $term)
-                      ->orWhere('model_name', 'like', $term)
-                      ->orWhere('pallet_id', 'like', $term)
-                      ->orWhereHas('details', function($dq) use ($term) {
-                          $dq->where('part_no', 'like', $term)
-                             ->orWhere('model_name', 'like', $term)
-                             ->orWhere('spk_no', 'like', $term);
-                      });
-                })
-                ->with('position')
-                ->get();
+            $detailsQuery = \App\Models\WmsPalletFormDetail::whereHas('header', function($q) {
+                $q->whereNotNull('position_id');
+            })
+            ->where('qty', '>', 0)
+            ->where(function($q) use ($term) {
+                $q->where('part_no', 'like', $term)
+                  ->orWhere('model_name', 'like', $term)
+                  ->orWhere('spk_no', 'like', $term)
+                  ->orWhere('label', 'like', $term);
+            })
+            ->with(['header.position'])
+            ->get();
 
-            $searchSuggestions = $rawPallets->groupBy('part_no')
+            $searchSuggestions = $detailsQuery->groupBy('part_no')
                 ->map(function($group, $partNo) {
                     $first = $group->first();
-                    $totalQty = $group->sum('total_pallet_qty');
-                    $palletCount = $group->count();
-                    $positions = $group->map(fn($p) => $p->position?->position_code)->filter()->unique()->values()->all();
+                    $totalQty = $group->sum('qty');
+                    $positions = $group->map(fn($d) => $d->header?->position?->position_code)->filter()->unique()->values()->all();
 
                     return [
                         'part_no'      => $partNo ?: $first->part_no,
                         'model_name'   => $first->model_name ?: 'No Model Name',
                         'total_qty'    => $totalQty,
-                        'pallet_count' => $palletCount,
+                        'pallet_count' => count($positions),
                         'positions'    => implode(', ', array_slice($positions, 0, 3)) . (count($positions) > 3 ? '...' : ''),
                     ];
                 })
