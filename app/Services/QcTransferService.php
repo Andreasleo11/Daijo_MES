@@ -22,8 +22,8 @@ class QcTransferService extends BaseSapService
                 return ['success' => false, 'message' => 'Data box tidak ditemukan.'];
             }
 
-            // Check if already inspected
-            $existingLog = QcTransferLog::where('scanned_data_id', $scannedDataId)->first();
+            // Check if already inspected (with lockForUpdate for strict concurrency control)
+            $existingLog = QcTransferLog::where('scanned_data_id', $scannedDataId)->lockForUpdate()->first();
             if ($existingLog) {
                 return ['success' => false, 'message' => "Box label {$scannedData->label} sudah pernah diinspeksi (Log #{$existingLog->id}). Hasil inspeksi final dan tidak dapat diubah."];
             }
@@ -183,8 +183,22 @@ class QcTransferService extends BaseSapService
         string $errorCol,
         string $timeCol
     ): array {
-        // Atomic status lock
-        $log->update([$statusCol => 3, $errorCol => "Sending {$type} Transfer to SAP..."]);
+        // Atomic status lock check: Only lock if status is 0 (Pending) or 2 (Failed).
+        // If status is 3 (Processing) or 1 (Success), abort immediately to prevent duplicate SAP calls!
+        $locked = QcTransferLog::where('id', $log->id)
+            ->whereIn($statusCol, [0, 2])
+            ->update([
+                $statusCol => 3,
+                $errorCol  => "Sending {$type} Transfer to SAP...",
+            ]);
+
+        if (!$locked) {
+            $currentStatus = DB::table('qc_transfer_logs')->where('id', $log->id)->value($statusCol);
+            if ($currentStatus == 1) {
+                return ['success' => true, 'message' => "Transfer {$type} sudah sukses sebelumnya."];
+            }
+            return ['success' => false, 'message' => "Transfer {$type} sedang diproses oleh request lain."];
+        }
 
         $payload = [
             'docDate' => now()->format('Y-m-d'),

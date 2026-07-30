@@ -5,8 +5,8 @@
             📦 Rincian Box SPK {{ $item->spk_code }} (Gudang: {{ $item->warehouse }})
         </div>
         @if($qcStatus != 1)
-            <button onclick="if(confirm('Kirim inspeksi untuk SEMUA box yang diisi pada summary ini? Log hasil inspeksi akan FINAL dan tidak dapat diubah.')) { @this.submitWholeSummary({{ $item->id }}) }"
-                    class="w-full sm:w-auto bg-[#D97706] text-white border-none px-3.5 py-2 rounded text-xs font-extrabold cursor-pointer shadow-sm active:scale-95 transition">
+            <button wire:loading.attr="disabled" onclick="if(confirm('Kirim inspeksi untuk SEMUA box yang diisi pada summary ini? Log hasil inspeksi akan FINAL dan tidak dapat diubah.')) { @this.submitWholeSummary({{ $item->id }}) }"
+                    class="w-full sm:w-auto bg-[#D97706] disabled:opacity-50 text-white border-none px-3.5 py-2 rounded text-xs font-extrabold cursor-pointer shadow-sm active:scale-95 transition">
                 ⚡ Submit Semua Box Summary
             </button>
         @endif
@@ -111,15 +111,15 @@
                         <td class="p-2 text-center">
                             @if($isInspected)
                                 @if($log['ok_sap_status'] == 2 || $log['ng_sap_status'] == 2)
-                                    <button wire:click="retryTransfer({{ $log['id'] }})" class="bg-red-600 text-white border-none px-2 py-1 rounded text-[10px] font-bold cursor-pointer">
+                                    <button wire:click="retryTransfer({{ $log['id'] }})" wire:loading.attr="disabled" class="bg-red-600 disabled:opacity-50 text-white border-none px-2 py-1 rounded text-[10px] font-bold cursor-pointer">
                                         Retry SAP
                                     </button>
                                 @else
                                     <span class="text-green-600 font-extrabold text-xs">✓ Selesai</span>
                                 @endif
                             @else
-                                <button onclick="if(confirm('Kirim hasil inspeksi untuk Box Label {{ $box['label'] }}? (OK: {{ $okVal }} pcs, NG: {{ $ngVal }} pcs). Hasil inspeksi akan FINAL dan tidak dapat diubah.')) { @this.submitSingleBox({{ $boxId }}, {{ $item->id }}) }"
-                                        class="bg-blue-600 text-white border-none px-2.5 py-1 rounded text-xs font-bold cursor-pointer">
+                                <button wire:loading.attr="disabled" onclick="if(confirm('Kirim hasil inspeksi untuk Box Label {{ $box['label'] }}? (OK: {{ $okVal }} pcs, NG: {{ $ngVal }} pcs). Hasil inspeksi akan FINAL dan tidak dapat diubah.')) { @this.submitSingleBox({{ $boxId }}, {{ $item->id }}) }"
+                                        class="bg-blue-600 disabled:opacity-50 text-white border-none px-2.5 py-1 rounded text-xs font-bold cursor-pointer">
                                     Submit Box
                                 </button>
                             @endif
