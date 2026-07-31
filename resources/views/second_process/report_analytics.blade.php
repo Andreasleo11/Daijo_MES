@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h2 class="font-bold text-2xl text-gray-800 dark:text-gray-200 leading-tight">
-                    📊 {{ __('Second Process Daily Reports Analytics') }}
+                <h2 class="font-bold text-2xl text-gray-800 leading-tight">
+                    {{ __('Second Process Daily Reports Analytics') }}
                 </h2>
                 <p class="text-xs text-gray-500 mt-1">
                     Historical performance analysis, defect breakdown, and line comparison
@@ -11,10 +11,10 @@
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('second-process-reports.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded shadow-sm text-xs transition flex items-center gap-1">
-                    ← Back to Reports List
+                    Back to Reports List
                 </a>
                 <a href="{{ route('second-process.dashboard') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded shadow-sm text-xs transition flex items-center gap-1">
-                    ⚡ Floor Live Dashboard
+                    Floor Live Dashboard
                 </a>
             </div>
         </div>
@@ -24,24 +24,24 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             {{-- Filter Bar --}}
-            <form method="GET" action="{{ route('second-process.report-analytics') }}" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <form method="GET" action="{{ route('second-process.report-analytics') }}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {{-- Date From --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">From Date</label>
                         <input type="date" name="date_from" value="{{ $dateFrom }}"
-                            class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     {{-- Date To --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">To Date</label>
                         <input type="date" name="date_to" value="{{ $dateTo }}"
-                            class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     {{-- Unit / Line --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Unit / Line</label>
-                        <select name="unit_line" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <select name="unit_line" class="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="">All Lines</option>
                             @foreach($lines as $l)
                                 <option value="{{ $l }}" {{ request('unit_line') == $l ? 'selected' : '' }}>{{ $l }}</option>
@@ -51,7 +51,7 @@
                     {{-- Shift --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Shift</label>
-                        <select name="shift" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <select name="shift" class="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="">All Shifts</option>
                             <option value="1" {{ request('shift') == '1' ? 'selected' : '' }}>Shift 1</option>
                             <option value="2" {{ request('shift') == '2' ? 'selected' : '' }}>Shift 2</option>
@@ -61,7 +61,7 @@
                     {{-- Process --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Process</label>
-                        <select name="process_prod" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <select name="process_prod" class="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="">All Processes</option>
                             @foreach($processes as $p)
                                 <option value="{{ $p }}" {{ request('process_prod') == $p ? 'selected' : '' }}>{{ $p }}</option>
@@ -82,10 +82,10 @@
 
             {{-- Summary KPI Cards --}}
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                     <div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Reports</div>
-                        <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">{{ number_format($summary->total_reports) }}</div>
+                        <div class="text-3xl font-black text-gray-900 mt-1">{{ number_format($summary->total_reports) }}</div>
                         <div class="text-[11px] text-gray-400 mt-0.5">Submitted & recorded</div>
                     </div>
                     <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -93,10 +93,10 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                     <div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Production</div>
-                        <div class="text-3xl font-black text-blue-600 dark:text-blue-400 mt-1">{{ number_format($summary->total_output) }}</div>
+                        <div class="text-3xl font-black text-blue-600 mt-1">{{ number_format($summary->total_output) }}</div>
                         <div class="text-[11px] text-gray-400 mt-0.5">Total units produced</div>
                     </div>
                     <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -104,10 +104,10 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                     <div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wide">Total OK Qty</div>
-                        <div class="text-3xl font-black text-green-600 dark:text-green-400 mt-1">{{ number_format($summary->total_ok) }}</div>
+                        <div class="text-3xl font-black text-green-600 mt-1">{{ number_format($summary->total_ok) }}</div>
                         <div class="text-[11px] text-gray-400 mt-0.5">Good quality output</div>
                     </div>
                     <div class="p-3 bg-green-50 text-green-600 rounded-xl">
@@ -115,10 +115,10 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                     <div>
                         <div class="text-xs font-bold text-gray-500 uppercase tracking-wide">Total NG & Rate</div>
-                        <div class="text-3xl font-black text-red-600 dark:text-red-400 mt-1 flex items-baseline gap-2">
+                        <div class="text-3xl font-black text-red-600 mt-1 flex items-baseline gap-2">
                             {{ number_format($summary->total_ng) }}
                             <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $avgNgRate >= 3 ? 'bg-red-100 text-red-800' : ($avgNgRate >= 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800') }}">
                                 {{ $avgNgRate }}%
@@ -135,9 +135,9 @@
             {{-- Charts Row 1: Daily Production Trend & Daily NG Rate --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Chart 1: Daily Output Stacked --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">📅 Daily Production Volume (OK vs NG)</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Daily Production Volume (OK vs NG)</h3>
                         <span class="text-xs text-gray-400">Stacked Bar</span>
                     </div>
                     <div class="relative h-72">
@@ -146,9 +146,9 @@
                 </div>
 
                 {{-- Chart 2: Daily NG Rate Trend --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">📈 Daily NG Rate Trend (%)</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Daily NG Rate Trend (%)</h3>
                         <span class="text-xs text-gray-400">Target Line: 2%</span>
                     </div>
                     <div class="relative h-72">
@@ -160,9 +160,9 @@
             {{-- Charts Row 2: Output by Line & Top NG Categories (Pareto) --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Chart 3: Line Output Comparison --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">🏭 Output & Quality by Line / Area</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Output & Quality by Line / Area</h3>
                         <span class="text-xs text-gray-400">Grouped Bar</span>
                     </div>
                     <div class="relative h-72">
@@ -171,9 +171,9 @@
                 </div>
 
                 {{-- Chart 4: NG Defects Pareto --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">🔍 Top NG Defects (Pareto Analysis)</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Top NG Defects (Pareto Analysis)</h3>
                         <span class="text-xs text-gray-400">Defect Qty & Cumulative %</span>
                     </div>
                     <div class="relative h-72">
@@ -185,9 +185,9 @@
             {{-- Charts Row 3: Output by Shift & Downtime by Category --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Chart 5: Output by Shift --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">⏱️ Production Share by Shift</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Production Share by Shift</h3>
                         <span class="text-xs text-gray-400">Doughnut</span>
                     </div>
                     <div class="relative h-72 flex justify-center">
@@ -196,9 +196,9 @@
                 </div>
 
                 {{-- Chart 6: Downtime by Category --}}
-                <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">⚠️ Process Downtime (Loss Minutes)</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Process Downtime (Loss Minutes)</h3>
                         <span class="text-xs text-gray-400">Horizontal Bar</span>
                     </div>
                     <div class="relative h-72">
@@ -208,16 +208,16 @@
             </div>
 
             {{-- Section 4: Top 5 Highest Production Parts Table --}}
-            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-gray-200 flex justify-between items-center">
                     <div>
-                        <h3 class="font-bold text-gray-800 dark:text-gray-200 text-sm">🏆 Top Production Parts in Selected Range</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">Top Production Parts in Selected Range</h3>
                         <p class="text-xs text-gray-400 mt-0.5">Ranked by total output volume</p>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-900">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Rank</th>
                                 <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Part Number</th>
@@ -229,17 +229,17 @@
                                 <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">NG Rate</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        <tbody class="divide-y divide-gray-200 bg-white">
                             @forelse($topProductsRaw as $index => $prod)
                                 @php
                                     $pNgRate = $prod->total_output > 0 ? round(($prod->total_ng / $prod->total_output) * 100, 2) : 0;
                                 @endphp
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                <tr class="hover:bg-gray-50 transition">
                                     <td class="px-5 py-3 text-sm font-bold text-gray-400">#{{ $index + 1 }}</td>
-                                    <td class="px-5 py-3 text-sm font-bold text-blue-600 dark:text-blue-400">{{ $prod->part_number }}</td>
-                                    <td class="px-5 py-3 text-sm text-gray-800 dark:text-gray-200">{{ $prod->part_name }}</td>
+                                    <td class="px-5 py-3 text-sm font-bold text-blue-600">{{ $prod->part_number }}</td>
+                                    <td class="px-5 py-3 text-sm text-gray-800">{{ $prod->part_name }}</td>
                                     <td class="px-5 py-3 text-sm text-gray-500">{{ $prod->customer }}</td>
-                                    <td class="px-5 py-3 text-sm text-right font-black text-gray-900 dark:text-gray-100">{{ number_format($prod->total_output) }}</td>
+                                    <td class="px-5 py-3 text-sm text-right font-black text-gray-900">{{ number_format($prod->total_output) }}</td>
                                     <td class="px-5 py-3 text-sm text-right font-bold text-green-600">{{ number_format($prod->total_ok) }}</td>
                                     <td class="px-5 py-3 text-sm text-right font-bold text-red-600">{{ number_format($prod->total_ng) }}</td>
                                     <td class="px-5 py-3 text-sm text-right font-bold {{ $pNgRate >= 3 ? 'text-red-500' : ($pNgRate >= 1 ? 'text-yellow-600' : 'text-green-600') }}">
