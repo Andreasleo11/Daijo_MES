@@ -65,30 +65,33 @@
                         </div>
 
                         {{-- Customer --}}
-                        <div>
+                        <div class="relative">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Customer Name *</label>
-                            <input type="text" name="customer" value="{{ old('customer') }}" placeholder="e.g. Toyota, Daihatsu" required
+                            <input type="text" name="customer" id="customer" value="{{ old('customer') }}" placeholder="Search or enter Customer..." required autocomplete="off"
                                 class="w-full border-gray-300 rounded-lg text-sm">
+                            <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Part Number --}}
-                        <div>
+                        <div class="relative">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Number *</label>
-                            <input type="text" name="part_number" id="part_number" value="{{ old('part_number') }}" placeholder="e.g. ABC-123" required
+                            <input type="text" name="part_number" id="part_number" value="{{ old('part_number') }}" placeholder="Search Part Number..." required autocomplete="off"
                                 class="w-full border-gray-300 rounded-lg text-sm">
+                            <div id="part-number-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Part Name --}}
-                        <div>
+                        <div class="relative">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Name *</label>
-                            <input type="text" name="part_name" id="part_name" value="{{ old('part_name') }}" placeholder="e.g. Panel Assembly Right" required
+                            <input type="text" name="part_name" id="part_name" value="{{ old('part_name') }}" placeholder="Search or enter Part Name..." required autocomplete="off"
                                 class="w-full border-gray-300 rounded-lg text-sm">
+                            <div id="part-name-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Model --}}
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Model Code (Optional)</label>
-                            <input type="text" name="model" value="{{ old('model') }}" placeholder="e.g. D01D"
+                            <input type="text" name="model" id="model" value="{{ old('model') }}" placeholder="e.g. D01D"
                                 class="w-full border-gray-300 rounded-lg text-sm">
                         </div>
 
@@ -114,4 +117,88 @@
             </div>
         </div>
     </div>
+
+    {{-- Autocomplete Suggestions Script --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function setupAutocomplete(inputId, dropdownId, url, onSelect) {
+                const input = document.getElementById(inputId);
+                const dropdown = document.getElementById(dropdownId);
+                if (!input || !dropdown) return;
+
+                let debounceTimer;
+                input.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    const query = this.value.trim();
+                    if (query.length < 1) {
+                        dropdown.classList.add('hidden');
+                        return;
+                    }
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`${url}?query=${encodeURIComponent(query)}`)
+                            .then(res => res.json())
+                            .then(data => {
+                                dropdown.innerHTML = '';
+                                if (!data || data.length === 0) {
+                                    dropdown.classList.add('hidden');
+                                    return;
+                                }
+
+                                data.forEach(item => {
+                                    const div = document.createElement('div');
+                                    div.className = 'px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-b-0 text-gray-800 transition flex justify-between items-center';
+                                    if (item.item_code) {
+                                        div.innerHTML = `
+                                            <div>
+                                                <span class="font-bold text-blue-700">${item.item_code}</span> 
+                                                <span class="text-gray-600 font-medium ml-1">${item.item_name || item.item_description || ''}</span>
+                                            </div>
+                                            <span class="text-[10px] text-gray-400 uppercase font-mono">${item.customer_name || ''}</span>
+                                        `;
+                                    } else if (item.name || item.customer_name) {
+                                        div.textContent = item.name || item.customer_name;
+                                    }
+
+                                    div.addEventListener('click', () => {
+                                        onSelect(item);
+                                        dropdown.classList.add('hidden');
+                                    });
+                                    dropdown.appendChild(div);
+                                });
+                                dropdown.classList.remove('hidden');
+                            })
+                            .catch(err => console.error(err));
+                    }, 300);
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (e.target !== input && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Populate form when item is selected
+            function populateFromItem(item) {
+                if (item.item_code) document.getElementById('part_number').value = item.item_code;
+                if (item.item_name || item.item_description) {
+                    document.getElementById('part_name').value = item.item_name || item.item_description;
+                }
+                if (item.project_code) {
+                    document.getElementById('model').value = item.project_code;
+                }
+                if (item.customer_name) {
+                    document.getElementById('customer').value = item.customer_name;
+                }
+            }
+
+            // Bind Autocompletes
+            setupAutocomplete('part_number', 'part-number-dropdown', '{{ route('second-process-reports.search-items') }}', populateFromItem);
+            setupAutocomplete('part_name', 'part-name-dropdown', '{{ route('second-process-reports.search-items') }}', populateFromItem);
+            setupAutocomplete('customer', 'customer-dropdown', '{{ route('second-process-reports.search-customers') }}', function(item) {
+                document.getElementById('customer').value = item.customer_name || item.name || '';
+            });
+        });
+    </script>
 </x-app-layout>

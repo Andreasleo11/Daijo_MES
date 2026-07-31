@@ -9,6 +9,7 @@ use App\Models\SpProductionSession;
 use App\Models\SpRejectEntry;
 use App\Models\SpReworkEntry;
 use App\Models\SpWorkOrder;
+use App\Models\FirstPieceInspection;
 use App\Services\SecondProcessReportSyncBridge;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -33,6 +34,21 @@ class SpProductionSessionController extends Controller
         if ($existingSession) {
             return redirect()->route('app.sp-sessions.show', $existingSession->id)
                 ->with('info', 'Resuming active production session.');
+        }
+
+        // Validate QC-Approved First Piece Inspection before starting session
+        $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
+            ->whereDate('date', now()->format('Y-m-d'))
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$firstPiece || !$firstPiece->isApproved()) {
+            $reason = !$firstPiece 
+                ? "No First Piece Inspection record found for today." 
+                : ($firstPiece->overall_judgement !== 'OK' ? "Overall judgement is {$firstPiece->overall_judgement}." : "Pending QC signature.");
+
+            return redirect()->route('sp-work-orders.show', $workOrderId)
+                ->with('error', "Cannot start production: First Piece Inspection for Part {$workOrder->part_number} is not approved by QC ({$reason}).");
         }
 
         $session = SpProductionSession::create([

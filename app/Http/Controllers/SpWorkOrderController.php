@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MasterListItem;
 use App\Models\SpWorkOrder;
+use App\Models\FirstPieceInspection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -86,7 +87,12 @@ class SpWorkOrderController extends Controller
     {
         $workOrder = SpWorkOrder::with(['creator', 'sessions.operator', 'sessions.productionEntries'])->findOrFail($id);
 
-        return view('sp_work_orders.show', compact('workOrder'));
+        $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
+            ->whereDate('date', now()->format('Y-m-d'))
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return view('sp_work_orders.show', compact('workOrder', 'firstPiece'));
     }
 
     public function edit($id)

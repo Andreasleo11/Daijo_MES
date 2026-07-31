@@ -133,6 +133,7 @@
                             
                             @php
                                 $activeSession = $workOrder->sessions->where('status', 'running')->first();
+                                $isFpiApproved = isset($firstPiece) && $firstPiece && $firstPiece->isApproved();
                             @endphp
 
                             @if($activeSession)
@@ -147,13 +148,47 @@
                                     RESUME SESSION
                                 </a>
                             @else
-                                <p class="text-xs text-blue-600 mb-4 font-semibold">Ready to start tracking production for this work order?</p>
-                                <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST">
-                                    @csrf
-                                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-xl shadow-lg transition-transform transform hover:scale-105 flex justify-center items-center gap-2">
-                                        START PRODUCTION
+                                {{-- First Piece Inspection Status Box --}}
+                                <div class="mb-5 p-4 rounded-xl text-left border {{ $isFpiApproved ? 'bg-green-50 border-green-200 text-green-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900' }}">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-500">QC First Piece Inspection</span>
+                                        @if($isFpiApproved)
+                                            <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-green-200 text-green-800 uppercase">APPROVED (OK)</span>
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-yellow-200 text-yellow-800 uppercase">{{ $firstPiece->overall_judgement ?: 'PENDING' }}</span>
+                                        @else
+                                            <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-red-200 text-red-800 uppercase">NOT STARTED</span>
+                                        @endif
+                                    </div>
+                                    <p class="text-xs font-bold mt-1">
+                                        @if($isFpiApproved)
+                                            First Piece inspected & signed by <span class="font-black">{{ $firstPiece->checked_by ?: 'QC Inspector' }}</span>.
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            Inspection logged, awaiting QC verification/signature.
+                                        @else
+                                            First Piece Inspection must be completed & approved by QC before production can start today.
+                                        @endif
+                                    </p>
+                                    <div class="mt-3">
+                                        <a href="{{ route('first-piece-inspections.index') }}" target="_blank" class="inline-block text-xs font-black underline hover:no-underline {{ $isFpiApproved ? 'text-green-700' : 'text-yellow-800' }}">
+                                            Open First Piece Inspection Module &rarr;
+                                        </a>
+                                    </div>
+                                </div>
+
+                                @if($isFpiApproved)
+                                    <p class="text-xs text-blue-600 mb-4 font-semibold">QC Approved! Ready to start production for this work order?</p>
+                                    <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-xl shadow-lg transition-transform transform hover:scale-105 flex justify-center items-center gap-2">
+                                            START PRODUCTION
+                                        </button>
+                                    </form>
+                                @else
+                                    <button type="button" disabled class="w-full bg-gray-300 text-gray-500 cursor-not-allowed font-black py-4 px-6 rounded-xl text-xs uppercase tracking-wider">
+                                        START PRODUCTION (QC Approval Required)
                                     </button>
-                                </form>
+                                @endif
                             @endif
                         </div>
                     @else

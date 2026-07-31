@@ -64,6 +64,16 @@ class SpProductionSessionTest extends TestCase
             'planned_date' => now()->toDateString(),
         ]);
 
+        \App\Models\FirstPieceInspection::create([
+            'date' => now()->format('Y-m-d'),
+            'model' => 'Model X',
+            'part_name' => 'Another Part',
+            'part_number' => 'PN-999',
+            'overall_judgement' => 'OK',
+            'checked_by' => 'Inspector QC',
+            'checked_at' => now(),
+        ]);
+
         $response = $this->actingAs($this->user)->post(route('sp-sessions.start', $newWorkOrder->id));
         $response->assertRedirect();
         
