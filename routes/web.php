@@ -789,6 +789,8 @@ Route::middleware('auth')->group(function (){
         Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
         Route::post('sp-sessions/{session}/downtime', [\App\Http\Controllers\SpProductionSessionController::class, 'addDowntime'])->name('sp-sessions.add-downtime');
         Route::post('sp-sessions/{session}/input', [\App\Http\Controllers\SpProductionSessionController::class, 'addInput'])->name('sp-sessions.add-input');
+        Route::post('sp-sessions/{session}/manpower', [\App\Http\Controllers\SpProductionSessionController::class, 'addManpower'])->name('sp-sessions.add-manpower');
+        Route::delete('sp-sessions/{session}/manpower/{manpower}', [\App\Http\Controllers\SpProductionSessionController::class, 'removeManpower'])->name('sp-sessions.remove-manpower');
     });
 
     Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');

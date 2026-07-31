@@ -52,6 +52,13 @@ class SpProductionSyncBridgeTest extends TestCase
             'total_scrap' => 2,
         ]);
 
+        // Add a production entry (15 minutes into the session)
+        $session->productionEntries()->create([
+            'recorded_at' => $session->started_at->copy()->addMinutes(15),
+            'good_qty' => 480,
+            'reject_qty' => 20,
+        ]);
+
         // Add a reject entry
         $session->rejectEntries()->create([
             'defect_type' => 'Flash',
@@ -89,6 +96,15 @@ class SpProductionSyncBridgeTest extends TestCase
 
         $legacyReport = SecondProcessReport::where('part_number', 'PN-SYNC-100')->first();
         $this->assertNotNull($legacyReport);
+
+        // Assert Hourly Productions synced
+        $this->assertDatabaseHas('second_process_hourly_productions', [
+            'report_id' => $legacyReport->id,
+            'hour_ke' => '1',
+            'ok_qty' => 480,
+            'ng_qty' => 20,
+            'acumulasi_qty' => 480,
+        ]);
 
         // Assert NG records synced
         $this->assertDatabaseHas('second_process_ng_records', [

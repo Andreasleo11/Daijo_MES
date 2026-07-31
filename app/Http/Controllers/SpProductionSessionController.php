@@ -9,6 +9,7 @@ use App\Models\SpProductionSession;
 use App\Models\SpRejectEntry;
 use App\Models\SpReworkEntry;
 use App\Models\SpWorkOrder;
+use App\Services\SecondProcessReportSyncBridge;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -284,6 +285,55 @@ class SpProductionSessionController extends Controller
         return redirect()->back()->with('success', 'Input quantity recorded successfully.');
     }
 
+    public function addManpower(Request $request, $id)
+    {
+        $session = SpProductionSession::findOrFail($id);
+
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Session is not running.'], 422);
+        }
+
+        $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'operator_name' => 'required|string|max:255',
+            'employee_no' => 'nullable|string|max:100',
+            'role' => 'required|string|max:100',
+        ]);
+
+        $entry = $session->manpowerEntries()->create($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Team member added successfully.',
+                'entry' => $entry
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Team member added successfully.');
+    }
+
+    public function removeManpower(Request $request, $id, $manpowerId)
+    {
+        $session = SpProductionSession::findOrFail($id);
+
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Session is not running.'], 422);
+        }
+
+        $manpower = $session->manpowerEntries()->findOrFail($manpowerId);
+        $manpower->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Team member removed successfully.'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Team member removed successfully.');
+    }
+
     public function finish(Request $request, $id)
     {
         $session = SpProductionSession::with('workOrder')->findOrFail($id);
@@ -305,7 +355,7 @@ class SpProductionSessionController extends Controller
             ->with('success', 'Production session completed successfully.');
     }
 
-    public function approve(Request $request, $id)
+    public function approve(Request $request, $id, SecondProcessReportSyncBridge $bridge)
     {
         $session = SpProductionSession::findOrFail($id);
 
@@ -317,6 +367,9 @@ class SpProductionSessionController extends Controller
             'approved_by' => auth()->id(),
             'approved_at' => now(),
         ]);
+
+        // Trigger Sync Bridge to legacy SecondProcessReport schema
+        $bridge->syncSessionToLegacyReport($session);
 
         return back()->with('success', 'Session approved successfully by supervisor.');
     }

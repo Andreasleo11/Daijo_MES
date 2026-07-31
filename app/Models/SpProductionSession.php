@@ -74,6 +74,11 @@ class SpProductionSession extends Model
         return $this->hasMany(SpInputEntry::class, 'session_id');
     }
 
+    public function manpowerEntries()
+    {
+        return $this->hasMany(SpSessionManpower::class, 'session_id');
+    }
+
     public function getYieldAttribute(): float
     {
         $totalOutput = $this->total_good + $this->total_reject;

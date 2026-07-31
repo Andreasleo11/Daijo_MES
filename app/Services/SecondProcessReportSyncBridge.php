@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\SecondProcessReport;
 use App\Models\SecondProcessNgRecord;
 use App\Models\SecondProcessTrouble;
+use App\Models\SecondProcessHourlyProduction;
+use App\Models\SecondProcessManpower;
 use App\Models\SpProductionSession;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -24,7 +26,8 @@ class SecondProcessReportSyncBridge
                 'rejectEntries',
                 'downtimeEntries',
                 'reworkEntries',
-                'inputEntries'
+                'inputEntries',
+                'manpowerEntries'
             ]);
 
             $wo = $session->workOrder;
@@ -58,6 +61,9 @@ class SecondProcessReportSyncBridge
                     'jml_ng_lebur' => $session->total_scrap,
                     'leader_name' => $session->operator->name ?? null,
                     'leader_signed_at' => $session->finished_at,
+                    'created_by_name' => $session->operator->name ?? null,
+                    'created_by_signed_at' => $session->finished_at,
+                    'production_notes' => $session->remarks,
                     'acknowledged_by_name' => $session->approvedBy->name ?? null,
                     'acknowledged_signed_at' => $session->approved_at,
                 ]
@@ -95,6 +101,54 @@ class SecondProcessReportSyncBridge
                     'penyebab' => $dt->remarks ?: $dt->reason,
                     'loss_time_minutes' => $duration,
                     'category' => 'Downtime',
+                ]);
+            }
+
+            // Sync Hourly Production Breakdown
+            $report->hourlyProductions()->delete();
+            $productionEntries = $session->productionEntries->sortBy(function($e) {
+                return $e->recorded_at ?: $e->created_at;
+            });
+            $hourlyData = [];
+            $startTime = $session->started_at ?: now();
+
+            foreach ($productionEntries as $entry) {
+                $entryTime = $entry->recorded_at ?: $entry->created_at;
+                $diffMinutes = max(0, $startTime->diffInMinutes($entryTime));
+                $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
+
+                if (!isset($hourlyData[$hourNum])) {
+                    $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
+                }
+                $hourlyData[$hourNum]['ok'] += $entry->good_qty;
+                $hourlyData[$hourNum]['ng'] += $entry->reject_qty;
+            }
+
+            $runningAccumulation = 0;
+            for ($h = 1; $h <= 8; $h++) {
+                $ok = $hourlyData[$h]['ok'] ?? 0;
+                $ng = $hourlyData[$h]['ng'] ?? 0;
+
+                if ($ok > 0 || $ng > 0 || $h === 1) {
+                    $runningAccumulation += $ok;
+                    SecondProcessHourlyProduction::create([
+                        'report_id' => $report->id,
+                        'hour_ke' => (string) $h,
+                        'ok_qty' => $ok,
+                        'ng_qty' => $ng,
+                        'acumulasi_qty' => $runningAccumulation,
+                    ]);
+                }
+            }
+
+            // Sync Manpower Breakdown
+            $report->manpowers()->delete();
+            foreach ($session->manpowerEntries as $index => $mp) {
+                SecondProcessManpower::create([
+                    'report_id' => $report->id,
+                    'role' => $mp->role,
+                    'no' => $index + 1,
+                    'name' => $mp->operator_name,
                 ]);
             }
 

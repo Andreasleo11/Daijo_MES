@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sp_production_sessions', function (Blueprint $table) {
-            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('approved_at')->nullable();
+            if (!Schema::hasColumn('sp_production_sessions', 'approved_by')) {
+                $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('sp_production_sessions', 'approved_at')) {
+                $table->timestamp('approved_at')->nullable();
+            }
         });
     }
 

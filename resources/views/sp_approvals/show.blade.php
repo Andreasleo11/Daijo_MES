@@ -130,6 +130,9 @@
                             <button @click="tab = 'input'" :class="tab === 'input' ? 'text-blue-600 border-blue-600 font-black' : 'text-gray-500 border-transparent hover:text-gray-800'" class="py-3 text-sm border-b-2 tracking-wide uppercase transition-colors">
                                 Input WIP ({{ $session->inputEntries->count() }})
                             </button>
+                            <button @click="tab = 'manpower'" :class="tab === 'manpower' ? 'text-blue-600 border-blue-600 font-black' : 'text-gray-500 border-transparent hover:text-gray-800'" class="py-3 text-sm border-b-2 tracking-wide uppercase transition-colors">
+                                Line Team ({{ $session->manpowerEntries->count() }})
+                            </button>
                         </div>
 
                         {{-- Tab: Defects --}}
@@ -243,6 +246,32 @@
                                     @empty
                                         <tr>
                                             <td colspan="4" class="px-6 py-8 text-center text-gray-400">No input WIP recorded.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {{-- Tab: Line Team / Manpower --}}
+                        <div x-show="tab === 'manpower'" style="display: none;" class="p-0">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-400 uppercase bg-gray-50 border-b border-gray-100">
+                                    <tr>
+                                        <th class="px-6 py-3">Role / Position</th>
+                                        <th class="px-6 py-3">Operator Name</th>
+                                        <th class="px-6 py-3">Employee NIK</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @forelse($session->manpowerEntries as $mp)
+                                        <tr>
+                                            <td class="px-6 py-4 font-bold text-purple-700 uppercase tracking-wide">{{ $mp->role }}</td>
+                                            <td class="px-6 py-4 font-bold text-gray-800">{{ $mp->operator_name }}</td>
+                                            <td class="px-6 py-4 font-mono text-gray-600">{{ $mp->employee_no ?: '-' }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="px-6 py-8 text-center text-gray-400">No additional line team members recorded.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

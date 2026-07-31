@@ -177,7 +177,7 @@
             @if($session->status === 'running')
                 <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Event Recording</h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         <button onclick="document.getElementById('modalProduction').showModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
                             <span class="text-sm font-black tracking-widest uppercase">Output</span>
                         </button>
@@ -194,8 +194,12 @@
                             <span class="text-sm font-black tracking-widest uppercase">Downtime</span>
                         </button>
 
-                        <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1 col-span-2 sm:col-span-1">
+                        <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
                             <span class="text-sm font-black tracking-widest uppercase">Input WIP</span>
+                        </button>
+
+                        <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1 col-span-2 sm:col-span-1">
+                            <span class="text-sm font-black tracking-widest uppercase">+ Team</span>
                         </button>
                     </div>
                 </div>
@@ -218,6 +222,9 @@
                     </button>
                     <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'input', 'text-gray-500': tab !== 'input' }" class="py-2 text-sm border-b-2 font-semibold">
                         Input WIP (<span x-text="inputEntries.length"></span>)
+                    </button>
+                    <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'manpower', 'text-gray-500': tab !== 'manpower' }" class="py-2 text-sm border-b-2 font-semibold">
+                        Line Team ({{ $session->manpowerEntries->count() }})
                     </button>
                 </div>
 
@@ -335,25 +342,66 @@
                 <div x-show="tab === 'input'" class="p-5" style="display: none;">
                     <table class="min-w-full divide-y divide-gray-200 ">
                         <thead class="bg-gray-50 ">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Input Qty</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Timestamp</th>
+                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Quantity</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Pallet Number</th>
                                 <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Source</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Pallet No.</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Remarks</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 ">
-                            <template x-for="entry in inputEntries" :key="entry.id">
+                        <tbody class="divide-y divide-gray-200">
+                            @forelse($session->inputEntries as $entry)
                                 <tr>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-blue-600" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm font-semibold uppercase text-gray-700" x-text="entry.source"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-800 font-mono" x-text="entry.pallet_number || '-'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.remarks || '-'"></td>
+                                    <td class="px-4 py-3 text-sm text-gray-900 font-mono">{{ $entry->created_at->format('H:i:s') }}</td>
+                                    <td class="px-4 py-3 text-sm font-bold text-blue-600 text-right">+{{ number_format($entry->quantity) }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700 font-mono">{{ $entry->pallet_number ?: '-' }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500 uppercase">{{ $entry->source }}</td>
                                 </tr>
-                            </template>
-                            <tr x-show="inputEntries.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No WIP input logged yet.</td>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">No input WIP recorded.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Line Team / Manpower Logs --}}
+                <div x-show="tab === 'manpower'" class="p-5" style="display: none;">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Role / Position</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Operator Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Employee NIK</th>
+                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Action</th>
                             </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @forelse($session->manpowerEntries as $mp)
+                                <tr>
+                                    <td class="px-4 py-3 text-sm font-bold text-purple-700 uppercase tracking-wide">{{ $mp->role }}</td>
+                                    <td class="px-4 py-3 text-sm font-bold text-gray-800">{{ $mp->operator_name }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-600 font-mono">{{ $mp->employee_no ?: '-' }}</td>
+                                    <td class="px-4 py-3 text-sm text-right">
+                                        @if($session->status === 'running')
+                                            <form action="{{ route('app.sp-sessions.remove-manpower', [$session->id, $mp->id]) }}" method="POST" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" onclick="return confirm('Remove worker from line team?')" class="text-xs text-red-600 hover:text-red-800 font-bold uppercase">
+                                                    Remove
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">No extra line team members added yet. Click "+ Team" to assign operators.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -610,7 +658,45 @@
         </div>
     </dialog>
 
-    {{-- Modal 6: Finish Production --}}
+    {{-- Modal 6: Manage Line Team / Manpower --}}
+    <dialog id="modalManpower" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
+        <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
+            <div class="bg-purple-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-black text-white">+ Add Line Team Member</h3>
+                <button type="button" onclick="document.getElementById('modalManpower').close()" class="text-purple-200 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            <form action="{{ route('app.sp-sessions.add-manpower', $session->id) }}" method="POST" class="p-6">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Worker Role / Position *</label>
+                        <select name="role" required class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white font-bold text-purple-700">
+                            <option value="Main Operator">Main Operator</option>
+                            <option value="Quality Inspector">Quality Inspector</option>
+                            <option value="Assembly Operator">Assembly Operator</option>
+                            <option value="Buffing Operator">Buffing Operator</option>
+                            <option value="Packing Operator">Packing Operator</option>
+                            <option value="Helper">Helper / Material Feeder</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Operator Name *</label>
+                        <input type="text" name="operator_name" placeholder="Full Employee Name" required class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Employee ID / NIK (Optional)</label>
+                        <input type="text" name="employee_no" placeholder="e.g. EMP-1045" class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white font-mono">
+                    </div>
+                </div>
+                <div class="mt-6 pt-4 border-t border-gray-100 flex gap-3">
+                    <button type="button" onclick="document.getElementById('modalManpower').close()" class="w-1/3 bg-gray-200 active:bg-gray-300 text-gray-800 py-4 rounded-xl text-lg font-bold">Cancel</button>
+                    <button type="submit" class="w-2/3 bg-purple-600 active:bg-purple-700 text-white py-4 rounded-xl text-xl font-black shadow-lg">ADD MEMBER</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    {{-- Modal 7: Finish Production --}}
     <dialog id="modalFinish" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
         <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
             <div class="bg-red-600 px-6 py-4 flex justify-between items-center">
