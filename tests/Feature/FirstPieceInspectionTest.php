@@ -65,6 +65,26 @@ class FirstPieceInspectionTest extends TestCase
         $response->assertRedirect(route('first-piece-inspections.show', $inspection->id));
     }
 
+    public function test_can_create_first_piece_inspection_without_model(): void
+    {
+        $payload = [
+            'date' => '2026-07-27',
+            'model' => null, // Nullable model test
+            'part_name' => 'Molding Side REF',
+            'part_number' => '401-41019967',
+            'check_results' => [
+                ['check_point' => 'Dirty Spray', 'method' => 'Visual', 'result' => 'OK', 'judgement' => 'OK'],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->post(route('first-piece-inspections.store'), $payload);
+
+        $inspection = FirstPieceInspection::latest('id')->first();
+        $this->assertNotNull($inspection);
+        $this->assertNull($inspection->model);
+        $this->assertEquals('OK', $inspection->overall_judgement);
+    }
+
     public function test_first_piece_inspection_evaluates_ng_when_any_check_fails(): void
     {
         $payload = [

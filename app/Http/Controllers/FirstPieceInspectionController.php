@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FirstPieceInspection;
+use App\Models\SpWorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -55,20 +56,37 @@ class FirstPieceInspectionController extends Controller
             'model' => $request->get('model', ''),
         ]);
 
+        $workOrderId = $request->get('work_order_id');
+        $workOrder = $workOrderId ? SpWorkOrder::find($workOrderId) : null;
         $defaultCheckPoints = self::DEFAULT_CHECK_POINTS;
 
-        return view('first_piece.create', compact('inspection', 'defaultCheckPoints'));
+        return view('first_piece.create', compact('inspection', 'defaultCheckPoints', 'workOrderId', 'workOrder'));
     }
 
     public function store(Request $request)
     {
         $validated = $this->validateInspection($request);
 
+        if ($request->boolean('auto_approve')) {
+            $validated['checked_by'] = auth()->user()->name;
+            $validated['checked_at'] = now();
+            // Automatically set prepared_by if empty
+            if (empty($validated['prepared_by'])) {
+                $validated['prepared_by'] = auth()->user()->name;
+                $validated['prepared_at'] = now();
+            }
+        }
+
         DB::transaction(function () use ($request, $validated, &$inspection) {
             $inspection = FirstPieceInspection::create($validated);
 
             $this->handleAttachments($request, $inspection);
         });
+
+        if ($request->filled('work_order_id')) {
+            return redirect()->route('sp-work-orders.show', $request->get('work_order_id'))
+                ->with('success', 'First Piece Inspection logged & approved! Production is now ready to start.');
+        }
 
         return redirect()->route('first-piece-inspections.show', $inspection->id)
             ->with('success', 'First Piece Inspection created successfully.');
@@ -220,7 +238,7 @@ class FirstPieceInspectionController extends Controller
     {
         $validated = $request->validate([
             'date' => 'required|date',
-            'model' => 'required|string',
+            'model' => 'nullable|string',
             'part_name' => 'required|string',
             'part_number' => 'required|string',
             'paint_code' => 'nullable|string',

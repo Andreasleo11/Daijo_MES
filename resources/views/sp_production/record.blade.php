@@ -91,6 +91,23 @@
                                 else if (type === 'input') this.inputEntries.unshift(data.entry);
 
                                 form.reset();
+
+                                // Reset Alpine reactive variables on form submit
+                                if (form._x_dataStack) {
+                                    const alpineData = form._x_dataStack[0];
+                                    if (alpineData) {
+                                        if ('good_qty' in alpineData) alpineData.good_qty = 0;
+                                        if ('reject_qty' in alpineData) alpineData.reject_qty = 0;
+                                        if ('quantity' in alpineData) alpineData.quantity = 1;
+                                        if ('input_qty' in alpineData) alpineData.input_qty = 0;
+                                        if ('recovered_qty' in alpineData) alpineData.recovered_qty = 0;
+                                        if ('scrapped_qty' in alpineData) alpineData.scrapped_qty = 0;
+                                        if ('qty' in alpineData) alpineData.qty = 0;
+                                        if ('defect' in alpineData) alpineData.defect = '';
+                                        if ('reason' in alpineData) alpineData.reason = '';
+                                    }
+                                }
+
                                 form.closest('dialog').close();
                             }
                         } catch (error) {
@@ -340,8 +357,6 @@
 
                 {{-- Input WIP --}}
                 <div x-show="tab === 'input'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -352,18 +367,17 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            @forelse($session->inputEntries as $entry)
+                            <template x-for="entry in inputEntries" :key="entry.id">
                                 <tr>
-                                    <td class="px-4 py-3 text-sm text-gray-900 font-mono">{{ $entry->created_at->format('H:i:s') }}</td>
-                                    <td class="px-4 py-3 text-sm font-bold text-blue-600 text-right">+{{ number_format($entry->quantity) }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700 font-mono">{{ $entry->pallet_number ?: '-' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500 uppercase">{{ $entry->source }}</td>
+                                    <td class="px-4 py-2.5 text-sm text-gray-500 font-mono" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
+                                    <td class="px-4 py-2.5 text-sm font-bold text-blue-600 text-right" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
+                                    <td class="px-4 py-2.5 text-sm text-gray-700 font-mono" x-text="entry.pallet_number || '-'"></td>
+                                    <td class="px-4 py-2.5 text-sm text-gray-500 uppercase" x-text="entry.source || 'WIP'"></td>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">No input WIP recorded.</td>
-                                </tr>
-                            @endforelse
+                            </template>
+                            <tr x-show="inputEntries.length === 0">
+                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No input WIP entries recorded.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -428,7 +442,7 @@
                             <button type="button" @click="good_qty = Math.max(0, good_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="good_qty" x-model="good_qty" required class="flex-1 text-center text-5xl font-black text-green-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <input type="number" name="good_qty" value="0" x-model.number="good_qty" @focus="$event.target.select()" @blur="if (!good_qty && good_qty !== 0) good_qty = 0" required class="flex-1 text-center text-5xl font-black text-green-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                             <button type="button" @click="good_qty += 1" class="w-24 flex items-center justify-center bg-green-100 hover:bg-green-200 active:bg-green-300 transition text-green-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>
@@ -450,7 +464,7 @@
                             <button type="button" @click="reject_qty = Math.max(0, reject_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="reject_qty" x-model="reject_qty" class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <input type="number" name="reject_qty" value="0" x-model.number="reject_qty" @focus="$event.target.select()" @blur="if (!reject_qty && reject_qty !== 0) reject_qty = 0" class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                             <button type="button" @click="reject_qty += 1" class="w-24 flex items-center justify-center bg-red-100 hover:bg-red-200 active:bg-red-300 transition text-red-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>
@@ -496,7 +510,7 @@
                             <button type="button" @click="quantity = Math.max(1, quantity - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="quantity" x-model="quantity" min="1" required class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <input type="number" name="quantity" value="1" x-model.number="quantity" @focus="$event.target.select()" @blur="if (!quantity && quantity !== 0) quantity = 1" min="1" required class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                             <button type="button" @click="quantity += 1" class="w-24 flex items-center justify-center bg-red-100 hover:bg-red-200 active:bg-red-300 transition text-red-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>
@@ -578,7 +592,7 @@
                             <button type="button" @click="input_qty = Math.max(0, input_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="input_qty" x-model="input_qty" required class="flex-1 text-center text-5xl font-black text-gray-800 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <input type="number" name="input_qty" value="0" x-model.number="input_qty" @focus="$event.target.select()" @blur="if (!input_qty && input_qty !== 0) input_qty = 0" required class="flex-1 text-center text-5xl font-black text-gray-800 border-0 focus:ring-0 w-full bg-transparent p-0">
                             <button type="button" @click="input_qty += 1" class="w-24 flex items-center justify-center bg-gray-200 hover:bg-gray-300 active:bg-gray-400 transition text-gray-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>
@@ -592,7 +606,7 @@
                                 <button type="button" @click="recovered_qty = Math.max(0, recovered_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                     -
                                 </button>
-                                <input type="number" name="recovered_qty" x-model="recovered_qty" class="flex-1 text-center text-5xl font-black text-green-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                                <input type="number" name="recovered_qty" value="0" x-model.number="recovered_qty" @focus="$event.target.select()" @blur="if (!recovered_qty && recovered_qty !== 0) recovered_qty = 0" class="flex-1 text-center text-5xl font-black text-green-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                                 <button type="button" @click="recovered_qty += 1" class="w-24 flex items-center justify-center bg-green-100 hover:bg-green-200 active:bg-green-300 transition text-green-700 text-4xl font-black border-l border-gray-300">
                                     +
                                 </button>
@@ -604,7 +618,7 @@
                                 <button type="button" @click="scrapped_qty = Math.max(0, scrapped_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                     -
                                 </button>
-                                <input type="number" name="scrapped_qty" x-model="scrapped_qty" class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                                <input type="number" name="scrapped_qty" value="0" x-model.number="scrapped_qty" @focus="$event.target.select()" @blur="if (!scrapped_qty && scrapped_qty !== 0) scrapped_qty = 0" class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                                 <button type="button" @click="scrapped_qty += 1" class="w-24 flex items-center justify-center bg-red-100 hover:bg-red-200 active:bg-red-300 transition text-red-700 text-4xl font-black border-l border-gray-300">
                                     +
                                 </button>
@@ -635,7 +649,7 @@
                             <button type="button" @click="qty = Math.max(0, qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="quantity" x-model="qty" required class="flex-1 text-center text-5xl font-black text-blue-600 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <input type="number" name="quantity" value="0" x-model.number="qty" @focus="$event.target.select()" @blur="if (!qty && qty !== 0) qty = 0" required class="flex-1 text-center text-5xl font-black text-blue-600 border-0 focus:ring-0 w-full bg-transparent p-0">
                             <button type="button" @click="qty += 1" class="w-24 flex items-center justify-center bg-blue-100 hover:bg-blue-200 active:bg-blue-300 transition text-blue-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>

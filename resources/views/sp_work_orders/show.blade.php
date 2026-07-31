@@ -169,10 +169,20 @@
                                             First Piece Inspection must be completed & approved by QC before production can start today.
                                         @endif
                                     </p>
-                                    <div class="mt-3">
-                                        <a href="{{ route('first-piece-inspections.index') }}" target="_blank" class="inline-block text-xs font-black underline hover:no-underline {{ $isFpiApproved ? 'text-green-700' : 'text-yellow-800' }}">
-                                            Open First Piece Inspection Module &rarr;
-                                        </a>
+                                    <div class="mt-3 flex items-center gap-2">
+                                        @if($isFpiApproved)
+                                            <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" target="_blank" class="inline-block text-xs font-black underline hover:no-underline text-green-700">
+                                                View Inspection Details #{{ $firstPiece->id }} &rarr;
+                                            </a>
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition shadow-sm">
+                                                Sign QC Approval #{{ $firstPiece->id }} &rarr;
+                                            </a>
+                                        @else
+                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $workOrder->id, 'part_number' => $workOrder->part_number, 'part_name' => $workOrder->part_name, 'model' => $workOrder->model]) }}" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm">
+                                                ➕ Perform First Piece Inspection
+                                            </a>
+                                        @endif
                                     </div>
                                 </div>
 

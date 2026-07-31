@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('first_piece_inspections', function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->string('model');
+            $table->string('model')->nullable();
             $table->string('part_name');
             $table->string('part_number');
             $table->string('paint_code')->nullable();
