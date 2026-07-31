@@ -60,31 +60,35 @@
                         <div class="bg-white rounded-lg shadow-md border-t-4 border-green-500 overflow-hidden flex flex-col transition hover:shadow-lg">
                             <div class="bg-green-50 px-4 py-3 border-b border-green-100 flex justify-between items-center">
                                 <h3 class="font-black text-green-900 tracking-tight">{{ $lineName }}</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-green-800 uppercase animate-pulse">Running</span>
+                                @if($report->status === 'running')
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-green-800 uppercase animate-pulse">Running</span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-800 uppercase">Completed</span>
+                                @endif
                             </div>
                             <div class="p-4 flex-grow flex flex-col gap-2">
                                 <div>
                                     <div class="text-[10px] font-bold text-gray-500 uppercase">Part Number</div>
-                                    <div class="font-bold text-sm text-gray-800">{{ $report->part_number ?? '-' }}</div>
+                                    <div class="font-bold text-sm text-gray-800">{{ $report->workOrder->part_number ?? '-' }}</div>
                                 </div>
                                 <div>
                                     <div class="text-[10px] font-bold text-gray-500 uppercase">Part Name</div>
-                                    <div class="text-xs text-gray-700 truncate" title="{{ $report->part_name }}">{{ $report->part_name ?? '-' }}</div>
+                                    <div class="text-xs text-gray-700 truncate" title="{{ $report->workOrder->part_name }}">{{ $report->workOrder->part_name ?? '-' }}</div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-100">
                                     <div>
                                         <div class="text-[10px] font-bold text-gray-500 uppercase">Total Output</div>
-                                        <div class="font-black text-lg text-blue-600">{{ number_format($report->jumlah_output) }}</div>
+                                        <div class="font-black text-lg text-blue-600">{{ number_format($report->total_good + $report->total_reject) }}</div>
                                     </div>
                                     <div>
                                         <div class="text-[10px] font-bold text-gray-500 uppercase">NG Rate</div>
-                                        <div class="font-bold text-sm {{ $report->ng_prosentase > 0 ? 'text-red-500' : 'text-green-500' }}">{{ $report->ng_prosentase }}%</div>
+                                        <div class="font-bold text-sm {{ $report->ng_rate > 0 ? 'text-red-500' : 'text-green-500' }}">{{ $report->ng_rate }}%</div>
                                     </div>
                                 </div>
                             </div>
                             <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex gap-2">
-                                <a href="{{ route('second-process-reports.edit', $report->id) }}" class="w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded shadow text-xs transition">
-                                    Log Hourly Production
+                                <a href="{{ route('app.sp-sessions.show', $report->id) }}" class="w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded shadow text-xs transition">
+                                    View Session
                                 </a>
                             </div>
                         </div>
@@ -101,8 +105,8 @@
                                 <p class="text-[10px] text-gray-400">for this shift</p>
                             </div>
                             <div class="px-4 py-3 bg-white border-t border-gray-100 flex gap-2">
-                                <a href="{{ route('second-process-reports.create', ['unit_line' => $lineName, 'shift' => $shift]) }}" class="w-full text-center bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded shadow text-xs transition">
-                                    Start Production
+                                <a href="{{ route('sp-work-orders.index') }}" class="w-full text-center bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded shadow text-xs transition">
+                                    Open Work Orders
                                 </a>
                             </div>
                         </div>

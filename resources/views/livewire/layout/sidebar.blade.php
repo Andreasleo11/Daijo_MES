@@ -99,6 +99,8 @@ new class extends Component {
 
                 <!-- Dropdown: Second Process -->
                 <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
+                    ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                    ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
                     ['name' => 'second-process.dashboard', 'label' => 'Second Process Floor Dashboard'],
                     ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
                     ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],

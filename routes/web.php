@@ -768,7 +768,29 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
-    // Second Process Reports
+    // Second Process Reports & Work Orders
+    Route::resource('sp-work-orders', \App\Http\Controllers\SpWorkOrderController::class);
+
+    // Second Process Approvals
+    Route::prefix('sp-approvals')->name('sp-approvals.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SpProductionApprovalController::class, 'index'])->name('index');
+        Route::get('/{session}', [\App\Http\Controllers\SpProductionApprovalController::class, 'show'])->name('show');
+        Route::post('/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('approve');
+        Route::post('/{session}/reject', [\App\Http\Controllers\SpProductionApprovalController::class, 'reject'])->name('reject');
+    });
+
+    Route::post('sp-sessions/{workOrder}/start', [\App\Http\Controllers\SpProductionSessionController::class, 'start'])->name('sp-sessions.start');
+    Route::prefix('app')->name('app.')->group(function () {
+        Route::get('sp-sessions/{session}', [\App\Http\Controllers\SpProductionSessionController::class, 'show'])->name('sp-sessions.show');
+        Route::post('sp-sessions/{session}/finish', [\App\Http\Controllers\SpProductionSessionController::class, 'finish'])->name('sp-sessions.finish');
+        Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionSessionController::class, 'approve'])->name('sp-sessions.approve');
+        Route::post('sp-sessions/{session}/production', [\App\Http\Controllers\SpProductionSessionController::class, 'addProduction'])->name('sp-sessions.add-production');
+        Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');
+        Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
+        Route::post('sp-sessions/{session}/downtime', [\App\Http\Controllers\SpProductionSessionController::class, 'addDowntime'])->name('sp-sessions.add-downtime');
+        Route::post('sp-sessions/{session}/input', [\App\Http\Controllers\SpProductionSessionController::class, 'addInput'])->name('sp-sessions.add-input');
+    });
+
     Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
     Route::get('second-process-report-analytics', [\App\Http\Controllers\SecondProcessReportAnalyticsController::class, 'index'])->name('second-process.report-analytics');
     Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');

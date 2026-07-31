@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SecondProcessReport;
+use App\Models\SpProductionSession;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -31,11 +31,11 @@ class SecondProcessDashboardController extends Controller
             'Area Assy',
         ];
 
-        // 2. Fetch running reports (status = 'draft' or 'running') for this date and shift
-        $reports = SecondProcessReport::with(['hourlyProductions'])
-            ->where('date', $date)
+        // 2. Fetch running reports from SpProductionSession for this date and shift
+        $reports = SpProductionSession::with(['workOrder'])
+            ->whereDate('started_at', $date)
             ->where('shift', $shift)
-            ->whereIn('status', ['draft', 'running'])
+            ->whereIn('status', ['running', 'completed'])
             ->get()
             ->keyBy('unit_line');
 
