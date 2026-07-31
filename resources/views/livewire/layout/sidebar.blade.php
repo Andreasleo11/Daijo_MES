@@ -162,12 +162,14 @@ new class extends Component {
                     ['name' => 'receipt-production-logs', 'label' => 'Cek Data masuk ke SAP'],
                     ['name' => 'production-summary-monitor', 'label' => 'Cek Stock Program ke SAP'],
                     ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor'],
+                    ['name' => 'qc-stock-transfer', 'label' => 'QC Stock Transfer (FFI → FG/RJCT)'],
                 ]" />
             @else
                 @if (
                     !auth()->user()->can('view-store-links') &&
                         !auth()->user()->can('view-business-links') &&
-                        !auth()->user()->can('view-production-links'))
+                        !auth()->user()->can('view-production-links') &&
+                        !auth()->user()->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                         wire:navigate />
 
@@ -326,12 +328,14 @@ new class extends Component {
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
-                @if (auth()->user()->can('view-second-process-links'))
+                @if (auth()->user()->can('view-second-process-links') && !auth()->user()->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('second-process-reports.index') }}"
                         label="Daily Production Report" :active="request()->routeIs('second-process-reports.*')" wire:navigate />
                 @endif
 
                 @if (auth()->user()->can('view-quality-links'))
+                    <livewire:sidebar-link href="{{ route('qc-stock-transfer') }}" label="QC Stock Transfer"
+                        :active="request()->routeIs('qc-stock-transfer')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
                         :active="request()->routeIs('ipqc-inspections.*')" wire:navigate />
                 @endif

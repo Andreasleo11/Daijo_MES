@@ -145,28 +145,30 @@
                                         <th class="px-6 py-3 text-[10px] font-black text-gray-400 uppercase">SPK / Label</th>
                                         <th class="px-6 py-3 text-[10px] font-black text-gray-400 uppercase text-right">Qty</th>
                                         <th class="px-6 py-3 text-[10px] font-black text-gray-400 uppercase">Warehouse</th>
+                                        <th class="px-6 py-3 text-[10px] font-black text-gray-400 uppercase">Status / Tgl Keluar</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
                                     @foreach($palletForm->details as $item)
                                         @php
-                                            $isOut = $item->deleted_at !== null;
+                                            $isOut = $item->deleted_at !== null || $palletForm->status === 'OUT';
+                                            $outDate = $item->deleted_at ?? ($palletForm->status === 'OUT' ? $palletForm->updated_at : null);
                                         @endphp
-                                        <tr class="hover:bg-blue-50/30 transition-colors {{ $isOut ? 'opacity-40 bg-gray-50/50 line-through text-gray-400' : '' }}">
+                                        <tr class="hover:bg-blue-50/30 transition-colors {{ $isOut ? 'opacity-75 bg-gray-50/50 text-gray-500' : '' }}">
                                             <td class="px-6 py-4">
                                                 <div class="flex items-center">
-                                                    <div class="font-black text-sm {{ $isOut ? 'text-gray-400' : 'text-gray-900' }}">{{ $item->part_no }}</div>
+                                                    <div class="font-black text-sm {{ $isOut ? 'text-gray-500 line-through' : 'text-gray-900' }}">{{ $item->part_no }}</div>
                                                     @if($isOut)
                                                         <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-[10px] font-bold rounded uppercase">OUT</span>
                                                     @endif
                                                 </div>
-                                                <div class="text-xs font-bold {{ $isOut ? 'text-gray-400' : 'text-gray-600' }}">{{ $item->model_name }}</div>
+                                                <div class="text-xs font-bold {{ $isOut ? 'text-gray-400 line-through' : 'text-gray-600' }}">{{ $item->model_name }}</div>
                                             </td>
                                             <td class="px-6 py-4">
                                                 @if($item->is_no_label)
                                                     <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-black rounded uppercase border border-orange-200">No Label</span>
                                                 @else
-                                                    <div class="text-sm font-black {{ $isOut ? 'text-gray-400' : 'text-gray-900' }}">{{ $item->spk_no }}</div>
+                                                    <div class="text-sm font-black {{ $isOut ? 'text-gray-500' : 'text-gray-900' }}">{{ $item->spk_no }}</div>
                                                     <div class="text-xs font-mono font-bold {{ $isOut ? 'text-gray-400' : 'text-gray-500' }}">{{ $item->label }}</div>
                                                 @endif
                                             </td>
@@ -175,6 +177,20 @@
                                             </td>
                                             <td class="px-6 py-4">
                                                 <span class="px-3 py-1 bg-slate-100 text-slate-800 text-sm font-black rounded-xl border border-slate-200">{{ $item->warehouse }}</span>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                @if($isOut && $outDate)
+                                                    <div class="flex flex-col">
+                                                        <span class="text-xs font-bold text-red-600">
+                                                            {{ \Carbon\Carbon::parse($outDate)->format('d M Y') }}
+                                                        </span>
+                                                        <span class="text-[10px] font-medium text-red-400">
+                                                            {{ \Carbon\Carbon::parse($outDate)->format('H:i:s') }}
+                                                        </span>
+                                                    </div>
+                                                @else
+                                                    <span class="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold rounded uppercase">STORED</span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -186,14 +202,15 @@
                         <div class="block md:hidden space-y-4">
                             @foreach($palletForm->details as $item)
                                 @php
-                                    $isOut = $item->deleted_at !== null;
+                                    $isOut = $item->deleted_at !== null || $palletForm->status === 'OUT';
+                                    $outDate = $item->deleted_at ?? ($palletForm->status === 'OUT' ? $palletForm->updated_at : null);
                                 @endphp
-                                <div class="p-4 bg-white rounded-xl border {{ $isOut ? 'border-gray-200 opacity-50 bg-gray-50 line-through' : 'border-gray-200 shadow-sm' }} space-y-2">
+                                <div class="p-4 bg-white rounded-xl border {{ $isOut ? 'border-gray-200 bg-gray-50' : 'border-gray-200 shadow-sm' }} space-y-2">
                                     <div class="flex justify-between items-start">
                                         <div>
                                             <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Part & Model</span>
-                                            <span class="font-black text-gray-800 text-sm block">{{ $item->part_no }}</span>
-                                            <span class="text-[10px] text-gray-500 block leading-tight">{{ $item->model_name }}</span>
+                                            <span class="font-black text-gray-800 text-sm block {{ $isOut ? 'line-through text-gray-400' : '' }}">{{ $item->part_no }}</span>
+                                            <span class="text-[10px] text-gray-500 block leading-tight {{ $isOut ? 'line-through text-gray-400' : '' }}">{{ $item->model_name }}</span>
                                         </div>
                                         <div class="text-right">
                                             <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Kuantitas</span>
@@ -216,6 +233,12 @@
                                             <span class="px-2 py-0.5 bg-slate-100 text-slate-800 font-bold rounded uppercase inline-block border border-slate-200 mt-1">{{ $item->warehouse }}</span>
                                         </div>
                                     </div>
+                                    @if($isOut && $outDate)
+                                        <div class="mt-2 pt-2 border-t border-red-100 flex justify-between items-center text-xs">
+                                            <span class="text-[9px] font-bold text-red-500 uppercase">Tgl Keluar:</span>
+                                            <span class="font-bold text-red-600">{{ \Carbon\Carbon::parse($outDate)->format('d M Y H:i:s') }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

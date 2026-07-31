@@ -15,9 +15,10 @@ class RackMapping extends Component
     public $editMaxCapacity;
     public $editCustomerCode;
     
-    // Filtering State
+    // Filtering & Search State
     public $filterCustomer = '';
-    protected $queryString = ['filterCustomer'];
+    public $searchItem = '';
+    protected $queryString = ['filterCustomer', 'searchItem'];
     
     // UI State
     public $showDetail = false;
@@ -166,12 +167,89 @@ class RackMapping extends Component
             if ($hasCustomerTable) {
                 $query->with('customer');
             }
-            $query->withCount('palletForms')
-                  ->orderBy('level_no', 'desc')
-                  ->orderBy('slot_no', 'asc');
+            $query->with(['palletForms' => function($q) {
+                $q->with('details');
+            }])
+            ->withCount('palletForms')
+            ->orderBy('level_no', 'desc')
+            ->orderBy('slot_no', 'asc');
         }])->get();
 
-        $selectedPosRelations = ['palletForms'];
+        $matchingPositionIds = [];
+        $searchTerm = trim($this->searchItem);
+        if (!empty($searchTerm)) {
+            $term = '%' . $searchTerm . '%';
+
+            // 1. Position code or last_item_code
+            $posIds1 = WmsPosition::where('position_code', 'like', $term)
+                ->orWhere('last_item_code', 'like', $term)
+                ->pluck('id');
+
+            // 2. Pallet forms header fields (pallet_id, part_no, model_name, lot_no) with qty > 0
+            $posIds2 = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->where('total_pallet_qty', '>', 0)
+                ->where(function($q) use ($term) {
+                    $q->where('pallet_id', 'like', $term)
+                      ->orWhere('part_no', 'like', $term)
+                      ->orWhere('model_name', 'like', $term)
+                      ->orWhere('lot_no', 'like', $term);
+                })
+                ->pluck('position_id');
+
+            // 3. Pallet form details (item box level inside mixed pallets) with qty > 0
+            $posIds3 = \App\Models\WmsPalletForm::whereNotNull('position_id')
+                ->whereHas('details', function($q) use ($term) {
+                    $q->where('qty', '>', 0)
+                      ->where(function($dq) use ($term) {
+                          $dq->where('part_no', 'like', $term)
+                             ->orWhere('model_name', 'like', $term)
+                             ->orWhere('spk_no', 'like', $term)
+                             ->orWhere('label', 'like', $term);
+                      });
+                })
+                ->pluck('position_id');
+
+            $matchingPositionIds = $posIds1->merge($posIds2)->merge($posIds3)->unique()->filter()->values()->toArray();
+        }
+
+        // Live autocomplete suggestions querying WmsPalletFormDetail directly for items with QTY > 0
+        $searchSuggestions = [];
+        if (strlen($searchTerm) >= 1) {
+            $term = '%' . $searchTerm . '%';
+
+            $detailsQuery = \App\Models\WmsPalletFormDetail::whereHas('header', function($q) {
+                $q->whereNotNull('position_id');
+            })
+            ->where('qty', '>', 0)
+            ->where(function($q) use ($term) {
+                $q->where('part_no', 'like', $term)
+                  ->orWhere('model_name', 'like', $term)
+                  ->orWhere('spk_no', 'like', $term)
+                  ->orWhere('label', 'like', $term);
+            })
+            ->with(['header.position'])
+            ->get();
+
+            $searchSuggestions = $detailsQuery->groupBy('part_no')
+                ->map(function($group, $partNo) {
+                    $first = $group->first();
+                    $totalQty = $group->sum('qty');
+                    $positions = $group->map(fn($d) => $d->header?->position?->position_code)->filter()->unique()->values()->all();
+
+                    return [
+                        'part_no'      => $partNo ?: $first->part_no,
+                        'model_name'   => $first->model_name ?: 'No Model Name',
+                        'total_qty'    => $totalQty,
+                        'pallet_count' => count($positions),
+                        'positions'    => implode(', ', array_slice($positions, 0, 3)) . (count($positions) > 3 ? '...' : ''),
+                    ];
+                })
+                ->values()
+                ->take(8)
+                ->toArray();
+        }
+
+        $selectedPosRelations = ['palletForms.details'];
         if ($hasCustomerTable) {
             $selectedPosRelations[] = 'customer';
         }
@@ -190,11 +268,18 @@ class RackMapping extends Component
             ->get();
 
         return view('livewire.wms.rack-mapping', [
-            'racks'             => $racks,
-            'selectedPosData'   => $selectedPosData,
-            'customers'         => $customers,
-            'unassignedPallets' => $unassignedPallets,
+            'racks'               => $racks,
+            'selectedPosData'     => $selectedPosData,
+            'customers'           => $customers,
+            'unassignedPallets'   => $unassignedPallets,
+            'matchingPositionIds' => $matchingPositionIds,
+            'searchSuggestions'   => $searchSuggestions,
         ]);
+    }
+
+    public function selectSearchSuggestion($itemCode)
+    {
+        $this->searchItem = $itemCode;
     }
 
     public function assignPalletToSelectedSlot($palletId, WmsService $wmsService)

@@ -98,25 +98,29 @@ class ReceiptProductionService extends BaseSapService
             try {
                 $response = $this->post($this->endpoint, $payload);
 
+                $rawBody = $response->body();
                 $json   = $response->json();
                 $status = $response->successful() && isset($json['status']) && $json['status'] === true;
+                $errorMsg = $json['message'] ?? ($rawBody ?: "SAP HTTP " . $response->status() . " error");
+                $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false || stripos($errorMsg, 'sudah ada') !== false);
                 
-                if ($status) {
+                if ($status || $isDuplicate) {
                     // Update dari status PROCESSING (2) ke SUCCESS (1)
                     DB::table('production_summary')
                         ->where('id', $summary->id)
-                        ->where('sap_sent', 2) // Hanya update dari status processing
                         ->update([
                             'sap_sent'    => 1,
                             'sap_sent_at' => now(),
                             'updated_at'  => now(),
                         ]);
 
+                    $logMsg = $isDuplicate ? "SPK {$summary->spk_code} marked as success (Duplicate/Already Exists)" : 'SPK ' . $summary->spk_code . ' sent to SAP successfully';
                     Log::info("SAP Push SUCCESS", [
                         'summary_id' => $summary->id,
                         'spk_code' => $summary->spk_code,
                         'payload'  => $payload,
                         'response' => $json,
+                        'is_duplicate' => $isDuplicate,
                     ]);
 
                     $this->saveApiLog(
@@ -127,7 +131,7 @@ class ReceiptProductionService extends BaseSapService
                         $json,
                         $response->status(),
                         'success',
-                        'SPK ' . $summary->spk_code . ' sent to SAP successfully'
+                        $logMsg
                     );
                 } else {
                     Log::error("SAP Push FAILED", [
@@ -204,6 +208,13 @@ class ReceiptProductionService extends BaseSapService
             }
         }
 
+        // Double check in DB right before POSTing to SAP to prevent race condition
+        $currentStatus = DB::table('production_summary')->where('id', $summary->id)->value('sap_sent');
+        if ($currentStatus == 1) {
+            Log::info("[SAP Push Single] SPK {$summary->spk_code} skipped: Already sent to SAP (sap_sent = 1).");
+            return ['success' => true, 'message' => 'Sudah terkirim ke SAP'];
+        }
+
         try {
             $payload = [
                 [
@@ -217,25 +228,29 @@ class ReceiptProductionService extends BaseSapService
             ];
  
             $response = $this->post($this->endpoint, $payload);
+            $rawBody = $response->body();
             $json = $response->json();
             $status = $response->successful() && isset($json['status']) && $json['status'] === true;
+            $errorMsg = $json['message'] ?? ($rawBody ?: "SAP HTTP " . $response->status() . " error");
+            $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false || stripos($errorMsg, 'sudah ada') !== false);
  
-            if ($status) {
+            if ($status || $isDuplicate) {
                 // Update dari PROCESSING (2) ke SUCCESS (1)
                 DB::table('production_summary')
                     ->where('id', $summary->id)
-                    ->where('sap_sent', 2)
                     ->update([
                         'sap_sent'    => 1,
                         'sap_sent_at' => now(),
                         'updated_at'  => now(),
                     ]);
  
+                $logMsg = $isDuplicate ? "SPK {$summary->spk_code} marked as success (Duplicate/Already Exists)" : 'SPK ' . $summary->spk_code . ' sent to SAP successfully (Manual)';
                 Log::info("SAP Push SUCCESS (Manual)", [
                     'summary_id' => $summary->id,
                     'spk_code' => $summary->spk_code,
                     'payload'  => $payload,
                     'response' => $json,
+                    'is_duplicate' => $isDuplicate,
                 ]);
  
                 $this->saveApiLog(
@@ -246,7 +261,7 @@ class ReceiptProductionService extends BaseSapService
                     $json,
                     $response->status(),
                     'success',
-                    'SPK ' . $summary->spk_code . ' sent to SAP successfully (Manual)'
+                    $logMsg
                 );
  
                 return [
@@ -319,7 +334,7 @@ class ReceiptProductionService extends BaseSapService
     }
     
 
-    protected function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
+    public function saveApiLog($apiName, $method, $endpoint, $request, $response, $statusCode, $status, $message)
     {
         DB::table('api_logs')->insert([
             'api_name'        => $apiName,

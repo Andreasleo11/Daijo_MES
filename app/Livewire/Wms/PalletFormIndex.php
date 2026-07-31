@@ -48,9 +48,7 @@ class PalletFormIndex extends Component
     public function saveAssignSlot(WmsService $wmsService)
     {
         $this->validate([
-            'assignPositionId' => 'required|exists:wms_positions,id',
-        ], [
-            'assignPositionId.required' => 'Pilih slot rak yang akan di-assign.',
+            'assignPositionId' => 'nullable|exists:wms_positions,id',
         ]);
 
         try {
@@ -63,7 +61,7 @@ class PalletFormIndex extends Component
             }
 
             $oldPositionId = $pallet->position_id;
-            $newPositionId = (int) $this->assignPositionId;
+            $newPositionId = !empty($this->assignPositionId) ? (int) $this->assignPositionId : null;
 
             $pallet->update([
                 'position_id' => $newPositionId,
@@ -73,13 +71,21 @@ class PalletFormIndex extends Component
             if ($oldPositionId && $oldPositionId !== $newPositionId) {
                 $wmsService->updatePositionStatus($oldPositionId);
             }
-            $wmsService->updatePositionStatus($newPositionId);
+            if ($newPositionId) {
+                $wmsService->updatePositionStatus($newPositionId);
+            }
 
             // Log Store transaction
-            $wmsService->logTransaction($pallet->pallet_id, 'ASSIGN_SLOT', $newPositionId, auth()->id(), "Assigned by Store to slot");
+            $action = $newPositionId ? 'ASSIGN_SLOT' : 'UNASSIGN_SLOT';
+            $notes  = $newPositionId ? "Assigned by Store to slot" : "Set to TEMPORARY (Belum ada tempat) by Store";
+            $wmsService->logTransaction($pallet->pallet_id, $action, $newPositionId, auth()->id(), $notes);
 
-            $newPos = \App\Models\WmsPosition::find($newPositionId);
-            session()->flash('success', "Pallet {$pallet->pallet_id} berhasil di-assign ke slot rak {$newPos->position_code} oleh Store.");
+            if ($newPositionId) {
+                $newPos = \App\Models\WmsPosition::find($newPositionId);
+                session()->flash('success', "Pallet {$pallet->pallet_id} berhasil di-assign ke slot rak {$newPos->position_code} oleh Store.");
+            } else {
+                session()->flash('success', "Pallet {$pallet->pallet_id} berhasil di-set ke TEMPORARY (Belum ada tempat).");
+            }
 
             $this->showAssignModal = false;
         } catch (\Exception $e) {

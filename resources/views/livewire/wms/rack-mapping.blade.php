@@ -7,7 +7,58 @@
                 <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Warehouse Mapping</h1>
                 <p class="text-gray-500 text-sm">Monitoring Hunian Rak Gudang J06 (Highly Marelli)</p>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-wrap">
+                <!-- Item / Pallet / SPK Search Input with Dropdown Suggestions -->
+                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 min-w-[280px] relative" x-data="{ open: true }" @click.outside="open = false">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Search Item</span>
+                    <div class="relative w-full">
+                        <input type="text" wire:model.live.debounce.250ms="searchItem"
+                               @focus="open = true"
+                               @input="open = true"
+                               placeholder="Cari Item, SPK, Pallet ID..."
+                               class="bg-white border border-gray-200 rounded-lg text-xs font-bold px-2.5 py-1.5 w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                        @if(!empty($searchItem))
+                            <button wire:click="$set('searchItem', '')" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 font-bold text-xs">✕</button>
+                        @endif
+
+                        {{-- Dropdown Suggestions --}}
+                        @if(!empty($searchSuggestions) && count($searchSuggestions) > 0)
+                            <div x-show="open" class="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-gray-100 min-w-[320px]">
+                                <div class="px-3 py-1.5 bg-gray-50 text-[9px] font-extrabold text-gray-400 uppercase tracking-wider flex justify-between">
+                                    <span>Item di Gudang (Stok > 0)</span>
+                                    <span>Posisi Rak</span>
+                                </div>
+                                @foreach($searchSuggestions as $s)
+                                    <div wire:click="selectSearchSuggestion('{{ $s['part_no'] }}')"
+                                         @click="open = false"
+                                         class="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between gap-3 group">
+                                        <div class="overflow-hidden">
+                                            <div class="text-xs font-extrabold text-gray-900 group-hover:text-blue-700 truncate">
+                                                {{ $s['part_no'] }}
+                                            </div>
+                                            <div class="text-[10px] font-semibold text-gray-500 truncate">
+                                                {{ $s['model_name'] }}
+                                            </div>
+                                            <div class="text-[10px] font-bold text-emerald-600 mt-0.5">
+                                                Stok: {{ number_format($s['total_qty']) }} Pcs ({{ $s['pallet_count'] }} Pallet)
+                                            </div>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 block truncate max-w-[120px]">
+                                                📍 {{ $s['positions'] ?: 'Non-Rak' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @elseif(!empty(trim($searchItem)) && empty($searchSuggestions))
+                            <div x-show="open" class="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-3 text-center text-xs font-semibold text-gray-400 min-w-[280px]">
+                                Tidak ada item dengan stok > 0 ditemukan di rak.
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
                 <!-- Customer Filter -->
                 <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Filter Customer</span>
@@ -42,6 +93,25 @@
             </div>
         @endif
 
+        @if (!empty(trim($searchItem)))
+            <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl shadow-sm flex items-center justify-between animate-in fade-in duration-200">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">🔍</span>
+                    <div>
+                        <p class="text-blue-900 text-xs font-extrabold uppercase tracking-wide">
+                            Pencarian Item / SPK / Pallet: "<span class="text-blue-700 underline">{{ $searchItem }}</span>"
+                        </p>
+                        <p class="text-blue-700 text-xs mt-0.5">
+                            Ditemukan <span class="font-black text-blue-900">{{ count($matchingPositionIds) }} slot rak</span> yang menyimpan item ini. Slot terkait disorot dengan **animasi biru menyala**.
+                        </p>
+                    </div>
+                </div>
+                <button wire:click="$set('searchItem', '')" class="text-xs text-blue-600 font-bold hover:underline">
+                    Reset Pencarian ✕
+                </button>
+            </div>
+        @endif
+
         <div class="flex flex-col lg:flex-row gap-6">
             <!-- Grid Container -->
             <div class="flex-grow flex flex-wrap gap-6 items-start" id="mapping-grid">
@@ -71,16 +141,30 @@
                                                 if($pos->status == 'PARTIAL') $statusColor = 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300';
                                                 if($pos->status == 'FULL') $statusColor = 'bg-red-100 hover:bg-red-200 border-red-300';
 
+                                                $isMatchedBySearch = !empty(trim($searchItem)) && in_array($pos->id, $matchingPositionIds);
+
                                                 $isHighlighted = true;
                                                 if ($filterCustomer && $pos->customer_code !== $filterCustomer) {
                                                     $isHighlighted = false;
                                                 }
-                                                $opacityClass = $isHighlighted ? 'opacity-100' : 'opacity-25 grayscale';
+                                                if (!empty(trim($searchItem)) && !$isMatchedBySearch) {
+                                                    $isHighlighted = false;
+                                                }
+
+                                                $opacityClass = $isHighlighted ? 'opacity-100' : 'opacity-20 grayscale';
+                                                $searchGlowClass = $isMatchedBySearch ? 'ring-4 ring-blue-500 scale-105 border-blue-600 bg-blue-100 shadow-lg z-10' : '';
                                             @endphp
                                             <button wire:click="selectPosition({{ $pos->id }})" 
-                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
+                                                    class="w-full aspect-square border-2 {{ $statusColor }} {{ $opacityClass }} {{ $searchGlowClass }} rounded-lg p-1 transition-all group relative overflow-hidden flex flex-col justify-between items-center"
                                                     title="{{ $pos->position_code }} @if($pos->customer_code) (Customer: {{ $pos->customer_code }}) @endif">
                                                 
+                                                @if($isMatchedBySearch)
+                                                    <div class="absolute inset-0 bg-blue-400/20 animate-pulse pointer-events-none rounded-lg"></div>
+                                                    <div class="absolute top-0.5 left-0.5 bg-blue-600 text-white rounded-full px-1 text-[7px] font-black shadow-sm z-20">
+                                                        MATCH
+                                                    </div>
+                                                @endif
+
                                                 <div class="text-[8px] font-black text-gray-400 group-hover:text-gray-600 text-center uppercase leading-none">
                                                     S{{ $pos->slot_no }}
                                                 </div>
@@ -92,7 +176,7 @@
                                                 @endif
  
                                                 @if($pos->pallet_forms_count > 0)
-                                                    <div class="absolute top-1 right-1">
+                                                    <div class="absolute top-1 right-1 z-20">
                                                         <span class="flex h-1.5 w-1.5">
                                                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $pos->status == 'FULL' ? 'bg-red-400' : 'bg-yellow-400' }}"></span>
                                                             <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $pos->status == 'FULL' ? 'bg-red-500' : 'bg-yellow-500' }}"></span>
@@ -149,20 +233,68 @@
                                             <span class="text-[10px] text-gray-400 uppercase font-black italic">Pallet(s)</span>
                                         </div>
 
-                                        <!-- Pallet List -->
-                                        <div class="mt-6 space-y-2">
-                                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 italic border-b border-gray-100 pb-1">Stored Pallets</div>
+                                        <!-- Pallet List with Full Mixed Item Breakdown -->
+                                        <div class="mt-6 space-y-3">
+                                            <div class="flex items-center justify-between text-[9px] font-black text-gray-400 uppercase tracking-widest italic border-b border-gray-100 pb-1">
+                                                <span>Stored Pallets & Item Details</span>
+                                                <span>{{ count($selectedPosData->palletForms->where('status', 'STORED')) }} Pallet(s)</span>
+                                            </div>
                                             @foreach($selectedPosData->palletForms->where('status', 'STORED') as $pf)
-                                                <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm text-[10px]">
-                                                    <div class="truncate pr-2">
-                                                        <div class="font-black text-gray-700 leading-tight">{{ $pf->pallet_id }}</div>
-                                                        <div class="text-gray-400 font-bold">{{ $pf->part_no ?: 'NO LABEL' }}</div>
+                                                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-3 space-y-2 text-left">
+                                                    <!-- Pallet Header Info -->
+                                                    <div class="flex justify-between items-start border-b border-gray-100 pb-2">
+                                                        <div>
+                                                            <div class="font-black text-xs text-gray-900 flex items-center gap-1.5">
+                                                                📦 {{ $pf->pallet_id }}
+                                                                @if($pf->details->count() > 1)
+                                                                    <span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-100 text-purple-700">MIXED</span>
+                                                                @endif
+                                                            </div>
+                                                            <div class="text-[10px] text-gray-500 font-semibold">
+                                                                Lot: {{ $pf->lot_no ?: '-' }} | Deliv: {{ $pf->delivery_name ?: '-' }}
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-right shrink-0">
+                                                            <span class="text-xs font-black text-blue-600 block">{{ number_format($pf->total_pallet_qty, 0) }} Pcs</span>
+                                                            <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="inline-block p-1 text-gray-400 hover:text-blue-600 transition" title="Print Barcode">
+                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                            </a>
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center gap-1">
-                                                        <span class="font-black text-blue-600 whitespace-nowrap">{{ number_format($pf->total_pallet_qty, 0) }}</span>
-                                                        <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="p-1.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-all">
-                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                        </a>
+
+                                                    <!-- Itemized Box Details Breakdown -->
+                                                    <div class="bg-gray-50 p-2 rounded-lg space-y-1.5 border border-gray-100">
+                                                        <div class="text-[9px] font-black text-gray-400 uppercase tracking-wider flex justify-between">
+                                                            <span>Rincian Item dalam Pallet</span>
+                                                            <span>Qty</span>
+                                                        </div>
+                                                        @forelse($pf->details as $detail)
+                                                            @php
+                                                                $isMatchedDetail = !empty(trim($searchItem)) && (stripos($detail->part_no, trim($searchItem)) !== false || stripos($detail->model_name, trim($searchItem)) !== false || stripos($detail->spk_no, trim($searchItem)) !== false);
+                                                            @endphp
+                                                            <div class="flex justify-between items-center text-[11px] p-1.5 rounded border transition-all {{ $isMatchedDetail ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300 font-extrabold' : 'bg-white border-gray-100' }}">
+                                                                <div class="truncate pr-2">
+                                                                    <div class="font-extrabold text-gray-900 leading-tight flex items-center gap-1">
+                                                                        {{ $detail->part_no }}
+                                                                        @if($isMatchedDetail)
+                                                                            <span class="bg-amber-500 text-white text-[7px] px-1 rounded font-black uppercase">SEARCH MATCH</span>
+                                                                        @endif
+                                                                    </div>
+                                                                    <div class="text-[9px] text-gray-500 truncate">{{ $detail->model_name ?: 'No Model' }}</div>
+                                                                    @if($detail->spk_no)
+                                                                        <div class="text-[8px] font-semibold text-blue-600">SPK: {{ $detail->spk_no }}</div>
+                                                                    @endif
+                                                                </div>
+                                                                <div class="text-right shrink-0">
+                                                                    <span class="font-black text-xs text-gray-900 block">{{ number_format($detail->qty, 0) }}</span>
+                                                                    <span class="text-[8px] text-gray-400 font-semibold uppercase">Pcs</span>
+                                                                </div>
+                                                            </div>
+                                                        @empty
+                                                            <div class="text-[10px] text-gray-400 italic text-center py-1">
+                                                                Main Item: {{ $pf->part_no ?: 'NO LABEL' }} ({{ number_format($pf->total_pallet_qty) }} Pcs)
+                                                            </div>
+                                                        @endforelse
                                                     </div>
                                                 </div>
                                             @endforeach

@@ -35,6 +35,7 @@
             </div>
 
             <!-- Search Bar, Dropdown Filter & Actions -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <!-- Dropdown Filter Area / Blok Rak (A, B, C...) -->
                 <div class="sm:w-44">
                     <select wire:model.live="selectedAreaFilter" class="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-gray-800">
