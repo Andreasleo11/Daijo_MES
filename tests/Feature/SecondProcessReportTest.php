@@ -280,5 +280,66 @@ class SecondProcessReportTest extends TestCase
                 'customer_name' => 'Daijo Motor Supply',
             ]);
     }
+
+    /**
+     * Test storing freeform materials in second process report.
+     */
+    public function test_store_freeform_materials_for_painting_process(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => '2026-08-03',
+            'shift' => '1',
+            'unit_line' => 'Painting Line A',
+            'process_prod' => 'Painting',
+            'part_number' => 'FREEFORM-PART-01',
+            'part_name' => 'Custom Painted Cover',
+            'model' => 'MODEL-FREEFORM',
+            'target_per_hour' => 100,
+            'materials' => [
+                [
+                    'type' => 'paint',
+                    'item_name' => 'Custom Epoxy Primer Black',
+                    'lot_number' => 'LOT-EP-001',
+                    'visco' => '16s',
+                    'mixing_ratio' => '2:1',
+                    'qty' => 10,
+                ],
+                [
+                    'type' => 'part',
+                    'item_name' => 'Custom WIP Sub-assembly',
+                    'lot_number' => 'WIP-LOT-99',
+                    'qty' => 50,
+                ],
+            ],
+            'hourly' => [
+                [
+                    'hour_ke' => 1,
+                    'ok_qty' => 50,
+                    'ng_qty' => 0,
+                    'acumulasi_qty' => 50,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+
+        $response->assertRedirect(route('second-process-reports.index'));
+        $this->assertDatabaseHas('second_process_materials', [
+            'type' => 'paint',
+            'item_name' => 'Custom Epoxy Primer Black',
+            'lot_number' => 'LOT-EP-001',
+            'visco' => '16s',
+            'mixing_ratio' => '2:1',
+            'qty' => 10,
+        ]);
+        $this->assertDatabaseHas('second_process_materials', [
+            'type' => 'part',
+            'item_name' => 'Custom WIP Sub-assembly',
+            'lot_number' => 'WIP-LOT-99',
+            'qty' => 50,
+        ]);
+    }
 }
 

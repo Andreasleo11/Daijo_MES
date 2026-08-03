@@ -373,145 +373,170 @@
         <!-- TAB 2: MATERIALS -->
         <div id="tab-content-materials" class="tab-pane hidden space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                @php
+                    $materialGlobalIndex = 0;
+                    $paintMaterials = $report->materials ? $report->materials->where('type', 'paint')->values() : collect();
+                    if ($paintMaterials->isEmpty() && !$report->exists) {
+                        $defaultPaints = [
+                            'Paint Primer',
+                            'Hardener',
+                            'Paint Basecoat',
+                            'Hardener',
+                            'Paint Topcoat',
+                            'Hardener',
+                        ];
+                        foreach ($defaultPaints as $pName) {
+                            $paintMaterials->push((object)[
+                                'item_name' => $pName,
+                                'lot_number' => '',
+                                'visco' => '',
+                                'mixing_ratio' => '',
+                                'qty' => '',
+                            ]);
+                        }
+                    }
+                @endphp
+
                 <!-- Item Paint Table -->
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                    <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-                        <h4 class="text-sm font-bold text-gray-700">Item Paint (Viscosity & Mixing
-                            Ratio)</h4>
-                        <span class="text-[10px] text-gray-500">Filled during prep stage</span>
-                    </div>
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600">Item Paint</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600 w-1/4">Lot
-                                    Number</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600">Visco</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600 w-1/4">Mixing
-                                    Ratio</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600">Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @php
-                                $defaultPaints = [
-                                    'Paint Primer',
-                                    'Hardener',
-                                    'Paint Basecoat',
-                                    'Hardener',
-                                    'Paint Topcoat',
-                                    'Hardener',
-                                ];
-                            @endphp
-                            @foreach ($defaultPaints as $index => $paint)
-                                @php
-                                    $match =
-                                        $report->materials
-                                            ->where('type', 'paint')
-                                            ->where('item_name', $paint)
-                                            ->values()
-                                            ->get($index) ??
-                                        $report->materials->where('type', 'paint')->where('item_name', $paint)->first();
-                                    if ($paint == 'Hardener') {
-                                        $hardeners = $report->materials
-                                            ->where('type', 'paint')
-                                            ->where('item_name', 'Hardener')
-                                            ->values();
-                                        if ($index == 1) {
-                                            $match = $hardeners->get(0);
-                                        }
-                                        if ($index == 3) {
-                                            $match = $hardeners->get(1);
-                                        }
-                                        if ($index == 5) {
-                                            $match = $hardeners->get(2);
-                                        }
-                                    }
-                                @endphp
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                            <h4 class="text-sm font-bold text-gray-700">Item Paint (Viscosity & Mixing Ratio)</h4>
+                            <span class="text-[10px] text-gray-500">Filled during prep stage</span>
+                        </div>
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50">
                                 <tr>
-                                    <td class="px-4 py-2">
-                                        <span class="text-gray-700 font-semibold">{{ $paint }}</span>
-                                        <input type="hidden" name="materials[{{ $index }}][type]"
-                                            value="paint">
-                                        <input type="hidden" name="materials[{{ $index }}][item_name]"
-                                            value="{{ $paint }}">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="text" name="materials[{{ $index }}][lot_number]"
-                                            value="{{ $match ? $match->lot_number : '' }}" placeholder="Lot"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="text" name="materials[{{ $index }}][visco]"
-                                            value="{{ $match ? $match->visco : '' }}" placeholder="Visco"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="text" name="materials[{{ $index }}][mixing_ratio]"
-                                            value="{{ $match ? $match->mixing_ratio : '' }}"
-                                            placeholder="Ratio (e.g. 1:1.5)"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="number" name="materials[{{ $index }}][qty]"
-                                            value="{{ $match ? $match->qty : '' }}" placeholder="Qty"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
+                                    <th class="px-3 py-2 text-left font-bold text-gray-600">Item Paint</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/5">Lot Number</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/6">Visco</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/5">Mixing Ratio</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/6">Qty</th>
+                                    <th class="px-1 py-2 text-center font-bold text-gray-600 w-8"></th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody id="paint-materials-tbody" class="divide-y divide-gray-200">
+                                @foreach ($paintMaterials as $mat)
+                                    @php $currIdx = $materialGlobalIndex++; @endphp
+                                    <tr>
+                                        <td class="px-3 py-2">
+                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="paint">
+                                            <input type="text" name="materials[{{ $currIdx }}][item_name]"
+                                                value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
+                                                placeholder="Paint Item Name"
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][lot_number]"
+                                                value="{{ old('materials.' . $currIdx . '.lot_number', $mat->lot_number ?? '') }}"
+                                                placeholder="Lot"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][visco]"
+                                                value="{{ old('materials.' . $currIdx . '.visco', $mat->visco ?? '') }}"
+                                                placeholder="Visco"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][mixing_ratio]"
+                                                value="{{ old('materials.' . $currIdx . '.mixing_ratio', $mat->mixing_ratio ?? '') }}"
+                                                placeholder="Ratio (e.g. 1:1.5)"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="number" name="materials[{{ $currIdx }}][qty]"
+                                                value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
+                                                placeholder="Qty"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-1 py-2 text-center">
+                                            <button type="button" onclick="removeMaterialRow(this)"
+                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition"
+                                                title="Remove Row">&times;</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-gray-50 border-t border-gray-200">
+                        <button type="button" onclick="addPaintMaterialRow()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition">
+                            + Add Paint Item
+                        </button>
+                    </div>
                 </div>
 
+                @php
+                    $partMaterials = $report->materials ? $report->materials->where('type', 'part')->values() : collect();
+                    if ($partMaterials->isEmpty() && !$report->exists) {
+                        $defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
+                        foreach ($defaultParts as $pName) {
+                            $partMaterials->push((object)[
+                                'item_name' => $pName,
+                                'lot_number' => '',
+                                'qty' => '',
+                            ]);
+                        }
+                    }
+                @endphp
+
                 <!-- Item Parts Table -->
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                    <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-                        <h4 class="text-sm font-bold text-gray-700">Item Parts / WIP Lots</h4>
-                        <span class="text-[10px] text-gray-500">Lot values from Plastic/FG IQC</span>
-                    </div>
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600">Item Parts</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600 w-1/3">Lot
-                                    Number</th>
-                                <th class="px-4 py-2 text-left font-bold text-gray-600">Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @php
-                                $defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
-                            @endphp
-                            @foreach ($defaultParts as $index => $part)
-                                @php
-                                    $ptIndex = count($defaultPaints) + $index;
-                                    $match = $report->materials
-                                        ->where('type', 'part')
-                                        ->where('item_name', $part)
-                                        ->first();
-                                @endphp
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                            <h4 class="text-sm font-bold text-gray-700">Item Parts / WIP Lots</h4>
+                            <span class="text-[10px] text-gray-500">Lot values from Plastic/FG IQC</span>
+                        </div>
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50">
                                 <tr>
-                                    <td class="px-4 py-2">
-                                        <span class="text-gray-700 font-semibold">{{ $part }}</span>
-                                        <input type="hidden" name="materials[{{ $ptIndex }}][type]"
-                                            value="part">
-                                        <input type="hidden" name="materials[{{ $ptIndex }}][item_name]"
-                                            value="{{ $part }}">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="text" name="materials[{{ $ptIndex }}][lot_number]"
-                                            value="{{ $match ? $match->lot_number : '' }}" placeholder="Lot"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="number" name="materials[{{ $ptIndex }}][qty]"
-                                            value="{{ $match ? $match->qty : '' }}" placeholder="Qty"
-                                            class="w-full text-xs rounded border-gray-300 py-1">
-                                    </td>
+                                    <th class="px-3 py-2 text-left font-bold text-gray-600">Item Parts</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/3">Lot Number</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/4">Qty</th>
+                                    <th class="px-1 py-2 text-center font-bold text-gray-600 w-8"></th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody id="part-materials-tbody" class="divide-y divide-gray-200">
+                                @foreach ($partMaterials as $mat)
+                                    @php $currIdx = $materialGlobalIndex++; @endphp
+                                    <tr>
+                                        <td class="px-3 py-2">
+                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="part">
+                                            <input type="text" name="materials[{{ $currIdx }}][item_name]"
+                                                value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
+                                                placeholder="Part / WIP Item Name"
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][lot_number]"
+                                                value="{{ old('materials.' . $currIdx . '.lot_number', $mat->lot_number ?? '') }}"
+                                                placeholder="Lot"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="number" name="materials[{{ $currIdx }}][qty]"
+                                                value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
+                                                placeholder="Qty"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-1 py-2 text-center">
+                                            <button type="button" onclick="removeMaterialRow(this)"
+                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition"
+                                                title="Remove Row">&times;</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-gray-50 border-t border-gray-200">
+                        <button type="button" onclick="addPartMaterialRow()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition">
+                            + Add Part / WIP Item
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -2005,4 +2030,66 @@
 
     // Initial check on load
     setTimeout(checkFirstPieceGate, 300);
+
+    // Tab 2 Materials Dynamic Rows Logic
+    let materialRowIndex = {{ $materialGlobalIndex ?? 100 }};
+
+    window.addPaintMaterialRow = function() {
+        const tbody = document.getElementById('paint-materials-tbody');
+        if (!tbody) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-3 py-2">
+                <input type="hidden" name="materials[${materialRowIndex}][type]" value="paint">
+                <input type="text" name="materials[${materialRowIndex}][item_name]" value="" placeholder="Paint Item Name" class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][lot_number]" value="" placeholder="Lot" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][visco]" value="" placeholder="Visco" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][mixing_ratio]" value="" placeholder="Ratio (e.g. 1:1.5)" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="number" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-1 py-2 text-center">
+                <button type="button" onclick="removeMaterialRow(this)" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition" title="Remove Row">&times;</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        materialRowIndex++;
+    };
+
+    window.addPartMaterialRow = function() {
+        const tbody = document.getElementById('part-materials-tbody');
+        if (!tbody) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-3 py-2">
+                <input type="hidden" name="materials[${materialRowIndex}][type]" value="part">
+                <input type="text" name="materials[${materialRowIndex}][item_name]" value="" placeholder="Part / WIP Item Name" class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][lot_number]" value="" placeholder="Lot" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="number" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-1 py-2 text-center">
+                <button type="button" onclick="removeMaterialRow(this)" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition" title="Remove Row">&times;</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        materialRowIndex++;
+    };
+
+    window.removeMaterialRow = function(btn) {
+        const tr = btn.closest('tr');
+        if (tr) {
+            tr.remove();
+        }
+    };
 </script>
