@@ -79,6 +79,16 @@ class SpProductionSession extends Model
         return $this->hasMany(SpSessionManpower::class, 'session_id');
     }
 
+    public function defectEntries()
+    {
+        return $this->rejectEntries();
+    }
+
+    public function manpowers()
+    {
+        return $this->manpowerEntries();
+    }
+
     public function getYieldAttribute(): float
     {
         $totalOutput = $this->total_good + $this->total_reject;

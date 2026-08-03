@@ -1,42 +1,49 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-bold text-2xl text-gray-800 leading-tight">
-                {{ __('Edit Work Order') }}: {{ $workOrder->wo_number }}
-            </h2>
-            <a href="{{ route('sp-work-orders.show', $workOrder->id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm text-xs transition">
-                ← Back to Details
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h2 class="font-black text-xl text-gray-800 uppercase tracking-wide">
+                    {{ __('Edit Work Order') }}: {{ $workOrder->wo_number }}
+                </h2>
+                <p class="text-xs font-semibold text-gray-500 mt-0.5">Modify planned production order parameters</p>
+            </div>
+            <a href="{{ route('sp-work-orders.show', $workOrder->id) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                &larr; Back to Details
             </a>
         </div>
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                
+    <div class="py-6 space-y-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <div class="mb-4 pb-3 border-b border-gray-100">
+                    <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Update Parameters</h3>
+                    <p class="text-xs text-gray-500 font-medium">Modify line, shift, product specifications, or target quantity</p>
+                </div>
+
                 <form action="{{ route('sp-work-orders.update', $workOrder->id) }}" method="POST" class="space-y-6">
                     @csrf
                     @method('PUT')
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {{-- WO Number --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Work Order No. (Readonly)</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Work Order No. (Readonly)</label>
                             <input type="text" name="wo_number" value="{{ $workOrder->wo_number }}" readonly
-                                class="w-full bg-gray-100 border-gray-300 rounded-lg text-sm font-bold text-blue-600 cursor-not-allowed">
+                                class="w-full rounded-xl bg-gray-100 border-gray-300 text-sm font-black text-blue-700 cursor-not-allowed">
                         </div>
 
                         {{-- Planned Date --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Planned Date *</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Planned Date *</label>
                             <input type="date" name="planned_date" value="{{ old('planned_date', $workOrder->planned_date) }}" required
-                                class="w-full border-gray-300 rounded-lg text-sm">
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                         </div>
 
                         {{-- Unit / Line --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Production Line *</label>
-                            <select name="unit_line" required class="w-full border-gray-300 rounded-lg text-sm">
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Production Line *</label>
+                            <select name="unit_line" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                                 <option value="">-- Select Line --</option>
                                 @foreach($lines as $l)
                                     <option value="{{ $l }}" {{ old('unit_line', $workOrder->unit_line) == $l ? 'selected' : '' }}>{{ $l }}</option>
@@ -46,8 +53,8 @@
 
                         {{-- Shift --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Shift *</label>
-                            <select name="shift" required class="w-full border-gray-300 rounded-lg text-sm">
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Shift *</label>
+                            <select name="shift" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                                 <option value="1" {{ old('shift', $workOrder->shift) == '1' ? 'selected' : '' }}>Shift 1 (07:30 - 15:30)</option>
                                 <option value="2" {{ old('shift', $workOrder->shift) == '2' ? 'selected' : '' }}>Shift 2 (15:30 - 23:30)</option>
                                 <option value="3" {{ old('shift', $workOrder->shift) == '3' ? 'selected' : '' }}>Shift 3 (23:30 - 07:30)</option>
@@ -56,8 +63,8 @@
 
                         {{-- Process --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Second Process Type *</label>
-                            <select name="process_prod" required class="w-full border-gray-300 rounded-lg text-sm">
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Second Process Type *</label>
+                            <select name="process_prod" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                                 <option value="">-- Select Process --</option>
                                 @foreach($processes as $p)
                                     <option value="{{ $p }}" {{ old('process_prod', $workOrder->process_prod) == $p ? 'selected' : '' }}>{{ $p }}</option>
@@ -67,48 +74,48 @@
 
                         {{-- Customer --}}
                         <div class="relative">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Customer Name *</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Customer Name *</label>
                             <input type="text" name="customer" id="customer" value="{{ old('customer', $workOrder->customer) }}" placeholder="Search or enter Customer..." required autocomplete="off"
-                                class="w-full border-gray-300 rounded-lg text-sm">
-                            <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                            <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Part Number --}}
                         <div class="relative">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Number *</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Part Number *</label>
                             <input type="text" name="part_number" id="part_number" value="{{ old('part_number', $workOrder->part_number) }}" placeholder="Search Part Number..." required autocomplete="off"
-                                class="w-full border-gray-300 rounded-lg text-sm">
-                            <div id="part-number-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                            <div id="part-number-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Part Name --}}
                         <div class="relative">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Name *</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Part Name *</label>
                             <input type="text" name="part_name" id="part_name" value="{{ old('part_name', $workOrder->part_name) }}" placeholder="Search or enter Part Name..." required autocomplete="off"
-                                class="w-full border-gray-300 rounded-lg text-sm">
-                            <div id="part-name-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"></div>
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                            <div id="part-name-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
                         </div>
 
                         {{-- Model --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Model Code (Optional)</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Model Code (Optional)</label>
                             <input type="text" name="model" id="model" value="{{ old('model', $workOrder->model) }}" placeholder="e.g. D01D"
-                                class="w-full border-gray-300 rounded-lg text-sm">
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                         </div>
 
                         {{-- Target Qty --}}
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Target Production Qty (Pcs) *</label>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Target Production Qty (Pcs) *</label>
                             <input type="number" name="target_qty" value="{{ old('target_qty', $workOrder->target_qty) }}" min="1" required
-                                class="w-full border-gray-300 rounded-lg text-sm font-bold text-green-600">
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-emerald-700">
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-3 border-t border-gray-200 pt-4">
-                        <a href="{{ route('sp-work-orders.show', $workOrder->id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg text-sm transition">
+                    <div class="flex justify-end gap-2 border-t border-gray-100 pt-4">
+                        <a href="{{ route('sp-work-orders.show', $workOrder->id) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
                             Cancel
                         </a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-sm shadow transition">
+                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                             Update Work Order
                         </button>
                     </div>

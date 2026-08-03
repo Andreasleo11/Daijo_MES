@@ -44,10 +44,16 @@ class SpWorkOrderController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $partNumbers = $workOrders->pluck('part_number')->filter()->unique();
+        $firstPieceMap = FirstPieceInspection::whereIn('part_number', $partNumbers)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->groupBy('part_number');
+
         $lines = ['Line A', 'Line B', 'Line C', 'Line D', 'Area Buffing', 'Area Amplas/Treatment', 'Area Packing', 'Area Assy'];
         $processes = ['Assembly', 'Painting', 'Buffing', 'Amplas', 'Trimming', 'Printing', 'Packing', 'Rework', 'Repair'];
 
-        return view('sp_work_orders.index', compact('workOrders', 'lines', 'processes'));
+        return view('sp_work_orders.index', compact('workOrders', 'firstPieceMap', 'lines', 'processes'));
     }
 
     public function create()
@@ -85,12 +91,18 @@ class SpWorkOrderController extends Controller
 
     public function show($id)
     {
-        $workOrder = SpWorkOrder::with(['creator', 'sessions.operator', 'sessions.productionEntries'])->findOrFail($id);
+        $workOrder = SpWorkOrder::with(['creator', 'sessions.operator', 'sessions.productionEntries', 'sessions.rejectEntries', 'sessions.downtimeEntries', 'sessions.manpowerEntries'])->findOrFail($id);
 
         $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
-            ->whereDate('date', now()->format('Y-m-d'))
+            ->whereDate('date', $workOrder->planned_date)
             ->orderBy('id', 'desc')
             ->first();
+
+        if (!$firstPiece) {
+            $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
+                ->orderBy('id', 'desc')
+                ->first();
+        }
 
         return view('sp_work_orders.show', compact('workOrder', 'firstPiece'));
     }

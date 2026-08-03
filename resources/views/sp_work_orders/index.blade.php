@@ -1,200 +1,209 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h2 class="font-bold text-2xl text-gray-800 leading-tight">
+                <h2 class="font-black text-xl text-gray-800 uppercase tracking-wide">
                     {{ __('Second Process Work Orders') }}
                 </h2>
-                <p class="text-xs text-gray-500 mt-1">Manage, release, and track production Work Orders</p>
+                <p class="text-xs font-semibold text-gray-500 mt-0.5">Manage, release, and track production Work Orders & QC Gate status</p>
             </div>
-            <a href="{{ route('sp-work-orders.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm text-sm transition flex items-center gap-1">
+            <a href="{{ route('sp-work-orders.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center gap-1">
                 + New Work Order
             </a>
         </div>
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="py-6 space-y-6">
+        <div class="max-w-7xl mx-auto space-y-6">
 
             @if(session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-sm" role="alert">
+                <div class="bg-emerald-50 border border-emerald-300 text-emerald-900 px-5 py-4 rounded-2xl text-xs font-bold shadow-sm" role="alert">
                     {{ session('success') }}
                 </div>
             @endif
 
             @if(session('error'))
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm" role="alert">
+                <div class="bg-red-50 border border-red-300 text-red-900 px-5 py-4 rounded-2xl text-xs font-bold shadow-sm" role="alert">
                     {{ session('error') }}
                 </div>
             @endif
 
             {{-- Filter Bar --}}
-            <form method="GET" action="{{ route('sp-work-orders.index') }}" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">From Date</label>
-                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">To Date</label>
-                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Line / Area</label>
-                        <select name="unit_line" class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">All Lines</option>
-                            @foreach($lines as $l)
-                                <option value="{{ $l }}" {{ request('unit_line') == $l ? 'selected' : '' }}>{{ $l }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
-                        <select name="status" class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">All Status</option>
-                            <option value="planned" {{ request('status') == 'planned' ? 'selected' : '' }}>Planned</option>
-                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Search</label>
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="WO#, part..." class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div class="flex items-end gap-2">
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">Filter</button>
-                        <a href="{{ route('sp-work-orders.index') }}" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg text-xs transition">Reset</a>
+                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Filter & Search Work Orders</h3>
+                        <p class="text-xs text-gray-500 font-medium">Refine planned and active Work Orders by line, shift, status, or search terms</p>
                     </div>
                 </div>
-            </form>
 
-            {{-- Data Display --}}
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                
-                {{-- TABLET / MOBILE VIEW (Card Layout) --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 lg:hidden bg-gray-50">
-                    @forelse($workOrders as $wo)
-                        <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm flex flex-col gap-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="text-base font-black text-blue-600 hover:underline">
-                                        {{ $wo->wo_number }}
-                                    </a>
-                                    <div class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($wo->planned_date)->format('d M Y') }}</div>
-                                </div>
-                                @switch($wo->status)
-                                    @case('planned') <span class="px-2 py-1 text-[10px] font-bold rounded bg-blue-100 text-blue-800 uppercase">Planned</span> @break
-                                    @case('in_progress') <span class="px-2 py-1 text-[10px] font-bold rounded bg-green-100 text-green-800 uppercase animate-pulse">Running</span> @break
-                                    @case('completed') <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-100 text-gray-800 uppercase">Completed</span> @break
-                                    @case('cancelled') <span class="px-2 py-1 text-[10px] font-bold rounded bg-red-100 text-red-800 uppercase">Cancelled</span> @break
-                                @endswitch
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-2 text-xs">
-                                <div><span class="text-gray-400 font-bold uppercase block text-[9px]">Part No</span> <span class="font-bold">{{ $wo->part_number }}</span></div>
-                                <div><span class="text-gray-400 font-bold uppercase block text-[9px]">Line/Shift</span> <span class="font-bold">{{ $wo->unit_line }} (S{{ $wo->shift }})</span></div>
-                            </div>
-
-                            <div>
-                                <div class="flex justify-between text-[10px] font-bold mb-1">
-                                    <span class="text-gray-500">PROGRESS</span>
-                                    <span class="{{ $wo->progress_percentage >= 100 ? 'text-green-600' : 'text-blue-600' }}">{{ $wo->progress_percentage }}% ({{ number_format($wo->total_good) }} / {{ number_format($wo->target_qty) }})</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                    <div class="{{ $wo->progress_percentage >= 100 ? 'bg-green-500' : 'bg-blue-500' }} h-2 rounded-full" style="width: {{ $wo->progress_percentage }}%"></div>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-end gap-2 mt-1 pt-3 border-t border-gray-100">
-                                @if($wo->status === 'planned')
-                                    <a href="{{ route('sp-work-orders.edit', $wo->id) }}" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200">Edit</a>
-                                @endif
-                                <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700">Open Details</a>
-                            </div>
+                <form method="GET" action="{{ route('sp-work-orders.index') }}" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
+                        <div>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">From Date</label>
+                            <input type="date" name="date_from" value="{{ request('date_from') }}"
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                         </div>
-                    @empty
-                        <div class="text-center text-gray-400 p-6 w-full col-span-full font-bold">
-                            <div class="text-4xl mb-2">📄</div>
-                            No Work Orders found.
+
+                        <div>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">To Date</label>
+                            <input type="date" name="date_to" value="{{ request('date_to') }}"
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
                         </div>
-                    @endforelse
+
+                        <div>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Line / Area</label>
+                            <select name="unit_line" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                                <option value="">All Lines</option>
+                                @foreach($lines as $l)
+                                    <option value="{{ $l }}" {{ request('unit_line') == $l ? 'selected' : '' }}>{{ $l }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                            <select name="status" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                                <option value="">All Status</option>
+                                <option value="planned" {{ request('status') == 'planned' ? 'selected' : '' }}>Planned</option>
+                                <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+                                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Search Keyword</label>
+                            <input type="text" name="search" value="{{ request('search') }}" placeholder="WO#, Part, Customer..."
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                            Reset Filters
+                        </a>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                            Apply Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{-- Table Display Card --}}
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Work Orders Dispatch List</h3>
+                        <p class="text-xs text-gray-500 font-medium">Production planning and real-time execution status</p>
+                    </div>
                 </div>
 
-                {{-- DESKTOP VIEW (Table Layout) --}}
-                <div class="hidden lg:block overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
-                            <tr>
-                                <th class="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">WO Number</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Planned Date</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Line / Shift</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Part Info</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Production Progress</th>
-                                <th class="px-5 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                                <th class="px-5 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                                <th class="px-6 py-3">WO Number</th>
+                                <th class="px-6 py-3">Planned Date</th>
+                                <th class="px-6 py-3">Line / Shift</th>
+                                <th class="px-6 py-3">Part Info</th>
+                                <th class="px-6 py-3 text-right">Target Qty</th>
+                                <th class="px-6 py-3 text-center">QC First Piece Gate</th>
+                                <th class="px-6 py-3 text-center">Status</th>
+                                <th class="px-6 py-3 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 bg-white ">
+                        <tbody class="divide-y divide-gray-100 text-xs">
                             @forelse($workOrders as $wo)
-                                <tr class="hover:bg-blue-50/50 :bg-gray-700/50 transition cursor-pointer" onclick="window.location='{{ route('sp-work-orders.show', $wo->id) }}'">
-                                    <td class="px-5 py-3 text-sm font-black text-blue-600 whitespace-nowrap">
-                                        {{ $wo->wo_number }}
+                                @php
+                                    $fpList = $firstPieceMap->get($wo->part_number) ?? collect();
+                                    $fp = $fpList->first();
+                                    $fpApproved = $fp && $fp->checked_at && $fp->overall_judgement === 'OK';
+                                    $runningSession = $wo->sessions->where('status', 'running')->first();
+                                @endphp
+                                <tr class="hover:bg-gray-50/50 transition">
+                                    <td class="px-6 py-4 font-black text-blue-700 whitespace-nowrap">
+                                        <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="hover:underline">
+                                            {{ $wo->wo_number }}
+                                        </a>
                                     </td>
-                                    <td class="px-5 py-3 text-sm font-bold text-gray-600 whitespace-nowrap">
+                                    <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
                                         {{ \Carbon\Carbon::parse($wo->planned_date)->format('d M Y') }}
                                     </td>
-                                    <td class="px-5 py-3 text-sm whitespace-nowrap">
-                                        <div class="font-bold text-gray-800">{{ $wo->unit_line }}</div>
-                                        <div class="text-xs font-semibold text-gray-400">Shift {{ $wo->shift }}</div>
+                                    <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
+                                        <div>{{ $wo->unit_line }}</div>
+                                        <div class="text-[10px] text-gray-400 font-medium">Shift {{ $wo->shift }}</div>
                                     </td>
-                                    <td class="px-5 py-3 text-sm">
-                                        <div class="font-bold text-gray-900">{{ $wo->part_number }}</div>
-                                        <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ $wo->part_name }}</div>
+                                    <td class="px-6 py-4">
+                                        <div class="font-bold text-gray-900">{{ $wo->part_name }}</div>
+                                        <div class="text-[10px] text-gray-400 font-mono">{{ $wo->part_number }}</div>
                                     </td>
-                                    <td class="px-5 py-3 whitespace-nowrap w-48">
-                                        <div class="flex justify-between text-[10px] font-bold mb-1">
-                                            <span class="text-gray-500">{{ number_format($wo->total_good) }} / {{ number_format($wo->target_qty) }}</span>
-                                            <span class="{{ $wo->progress_percentage >= 100 ? 'text-green-600' : 'text-blue-600' }}">{{ $wo->progress_percentage }}%</span>
-                                        </div>
-                                        <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                            <div class="{{ $wo->progress_percentage >= 100 ? 'bg-green-500' : 'bg-blue-500' }} h-1.5 rounded-full" style="width: {{ $wo->progress_percentage }}%"></div>
-                                        </div>
+                                    <td class="px-6 py-4 text-right font-black text-gray-900 whitespace-nowrap">
+                                        {{ number_format($wo->target_qty) }} Pcs
                                     </td>
-                                    <td class="px-5 py-3 text-center whitespace-nowrap">
-                                        @switch($wo->status)
-                                            @case('planned') <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 uppercase">Planned</span> @break
-                                            @case('in_progress') <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-green-100 text-green-800 uppercase animate-pulse shadow-sm shadow-green-200">Running</span> @break
-                                            @case('completed') <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">Completed</span> @break
-                                            @case('cancelled') <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-red-100 text-red-800 uppercase">Cancelled</span> @break
-                                        @endswitch
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        @if($fpApproved)
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider border border-emerald-200">
+                                                QC Approved
+                                            </span>
+                                        @elseif($fp)
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider border border-amber-200">
+                                                Pending Sign-off
+                                            </span>
+                                        @else
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 uppercase tracking-wider border border-red-200">
+                                                Gate Required
+                                            </span>
+                                        @endif
                                     </td>
-                                    <td class="px-5 py-3 text-right text-sm font-bold whitespace-nowrap space-x-3">
-                                        <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="text-blue-600 hover:text-blue-800" onclick="event.stopPropagation()">View</a>
-                                        @if($wo->status === 'planned')
-                                            <a href="{{ route('sp-work-orders.edit', $wo->id) }}" class="text-gray-400 hover:text-gray-800" onclick="event.stopPropagation()">Edit</a>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border
+                                            {{ $wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-200' }}">
+                                            {{ str_replace('_', ' ', $wo->status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right space-x-1 whitespace-nowrap">
+                                        <a href="{{ route('sp-work-orders.show', $wo->id) }}"
+                                            class="inline-block px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-lg border border-gray-300 transition uppercase tracking-wider">
+                                            Details
+                                        </a>
+
+                                        @if($runningSession)
+                                            <a href="{{ route('app.sp-sessions.show', $runningSession->id) }}"
+                                                class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                Open Screen
+                                            </a>
+                                        @elseif($wo->status === 'planned' && $fpApproved)
+                                            <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                    Start Production
+                                                </button>
+                                            </form>
+                                        @elseif($wo->status === 'planned')
+                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
+                                                class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                Perform Inspection
+                                            </a>
                                         @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-5 py-12 text-center text-gray-400">
-                                        <div class="text-5xl mb-3">📄</div>
-                                        <div class="font-bold text-lg">No Work Orders Found</div>
-                                        <div class="text-sm mt-1 mb-4">Create a new work order to get started.</div>
-                                        <a href="{{ route('sp-work-orders.create') }}" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm text-sm">
-                                            + New Work Order
-                                        </a>
+                                    <td colspan="8" class="px-6 py-8 text-center text-gray-400 font-medium">
+                                        No Work Orders found matching criteria.
                                     </td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-            </div>
 
-            <div class="mt-4">
-                {{ $workOrders->links() }}
+                @if($workOrders->hasPages())
+                    <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100">
+                        {{ $workOrders->links() }}
+                    </div>
+                @endif
             </div>
 
         </div>
