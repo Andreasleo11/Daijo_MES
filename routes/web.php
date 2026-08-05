@@ -380,6 +380,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->middleware('store.access')->name('upload.spk.history');
 
     Route::prefix('wms')->name('wms.')->middleware('store.access')->group(function () {
+        Route::get('/dashboard', \App\Livewire\Wms\WmsDashboard::class)->name('dashboard');
         Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
         Route::get('/mapping', \App\Livewire\Wms\RackMapping::class)->name('mapping');
         Route::get('/pallet-logs', \App\Livewire\Wms\PalletLogIndex::class)->name('logs');

@@ -27,4 +27,9 @@ class WmsPalletLog extends Model
     {
         return $this->belongsTo(WmsPalletForm::class, 'pallet_id', 'pallet_id')->withTrashed();
     }
+
+    public function palletForm()
+    {
+        return $this->belongsTo(WmsPalletForm::class, 'pallet_id', 'pallet_id')->withTrashed();
+    }
 }

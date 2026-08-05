@@ -46,31 +46,39 @@
                     <thead class="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider border-b border-gray-100">
                         <tr>
                             <th class="px-6 py-4">Pallet ID</th>
-                            <th class="px-6 py-4">Date & Delivery</th>
+                            <th class="px-6 py-4">Delivery & Masuk Rak</th>
                             <th class="px-6 py-4">Part No / Model</th>
                             <th class="px-6 py-4">Customer</th>
                             <th class="px-6 py-4">Qty</th>
+                            <th class="px-6 py-4">Putaway Lead Time</th>
                             <th class="px-6 py-4">Rack Position (Store)</th>
                             <th class="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @forelse ($palletForms as $form)
-                            <tr class="hover:bg-gray-50 transition-colors">
+                            <tr class="hover:bg-gray-50 transition-colors {{ $form->is_overaged ? 'bg-rose-50/40' : '' }}">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center space-x-2">
-                                        <div class="font-bold text-gray-800">{{ $form->pallet_id }}</div>
+                                        <div class="font-bold text-gray-800 font-mono">{{ $form->pallet_id }}</div>
                                         @if($form->status === 'OUT')
                                             <span class="px-2 py-0.5 bg-red-100 text-red-800 text-[10px] font-bold rounded">OUT</span>
+                                        @elseif($form->is_overaged)
+                                            <span class="px-2 py-0.5 bg-rose-600 text-white text-[10px] font-black rounded uppercase tracking-wider animate-pulse" title="Tersimpan selama {{ $form->age_days }} Hari di Gudang">
+                                                ⚠️ {{ $form->age_days }} HARI DI GUDANG
+                                            </span>
                                         @else
                                             <span class="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold rounded">STORED</span>
                                         @endif
                                     </div>
                                     <div class="text-xs text-gray-400">#{{ $form->lot_no ?: 'No Lot' }}</div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    <div class="font-bold text-gray-800">{{ $form->created_at->timezone('Asia/Jakarta')->format('d M Y') }}</div>
-                                    <div class="text-xs text-gray-400 font-mono">{{ $form->delivery_name ?: 'Delivery' }} (Shift {{ $form->delivery_shift ?: '-' }})</div>
+                                <td class="px-6 py-4 text-xs text-gray-600 space-y-0.5">
+                                    <div class="font-bold text-gray-800">Scan: {{ $form->created_at->timezone('Asia/Jakarta')->format('d/m/Y H:i') }}</div>
+                                    <div class="text-[11px] text-indigo-700 font-semibold">
+                                        Rak: {{ $form->assigned_at ? $form->assigned_at->timezone('Asia/Jakarta')->format('d/m/Y H:i') : 'Belum Assign' }}
+                                    </div>
+                                    <div class="text-[10px] text-gray-400 font-mono">{{ $form->delivery_name ?: 'Delivery' }} (Shift {{ $form->delivery_shift ?: '-' }})</div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-gray-800">{{ $form->part_no }}</div>
@@ -95,6 +103,11 @@
                                 <td class="px-6 py-4">
                                     <div class="font-bold text-blue-600">{{ number_format($form->total_pallet_qty, 0) }} pcs</div>
                                     <div class="text-xs text-gray-400">{{ $form->box_qty }} Boxes</div>
+                                </td>
+                                <td class="px-6 py-4 text-xs font-mono">
+                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-800 font-black rounded-lg inline-block border border-indigo-200">
+                                        ⏱️ {{ $form->putaway_lead_time }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4">
                                      @if($form->position && $form->total_pallet_qty > 0 && $form->status !== 'OUT')

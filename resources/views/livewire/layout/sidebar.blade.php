@@ -110,6 +110,7 @@ new class extends Component {
                 @if (in_array(strtoupper(auth()->user()?->role?->name ?? ''), ['ADMIN', 'SUPER-ADMIN', 'STORE', 'WAREHOUSE']))
                     <!-- 4. Dropdown: WMS & Warehouse -->
                     <livewire:parent-dropdown label="WMS & Warehouse" :initiallyOpen="false" :childRoutes="[
+                        ['name' => 'wms.dashboard', 'label' => 'WMS Rack Availability Dashboard'],
                         ['name' => 'wms.pallet-form.create-delivery', 'label' => 'Scan Delivery FG (Program Warehouse)'],
                         ['name' => 'wms.pallet-form.index', 'label' => 'Assign Slot & Riwayat Pallet'],
                         ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
@@ -283,6 +284,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data masuk ke SAP"
                         :active="request()->routeIs('receipt-production-logs')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('wms.dashboard') }}"
+                        label="WMS Rack Availability Dashboard" :active="request()->routeIs('wms.dashboard')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('wms.pallet-form.create-delivery') }}"
                         label="Scan Delivery FG" :active="request()->routeIs('wms.pallet-form.create-delivery')" wire:navigate />
