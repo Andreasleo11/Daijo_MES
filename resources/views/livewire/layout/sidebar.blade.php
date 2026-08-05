@@ -107,29 +107,31 @@ new class extends Component {
                     ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
                 ]" />
 
-                <!-- 4. Dropdown: WMS & Warehouse -->
-                <livewire:parent-dropdown label="WMS & Warehouse" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'wms.pallet-form.create-delivery', 'label' => 'Scan Delivery FG'],
-                    ['name' => 'wms.pallet-form.create', 'label' => 'Program Warehouse (Normal)'],
-                    ['name' => 'wms.pallet-form.index', 'label' => 'Assign Slot & Riwayat Pallet'],
-                    ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
-                    ['name' => 'wms.pallet-form.sorting', 'label' => 'Pallet Sorting and Consolidation'],
-                    ['name' => 'wms.pallet-form.picking-guide', 'label' => 'Delivery Picking Guide (FIFO)'],
-                    ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping (FG)'],
-                    ['name' => 'wms.logs', 'label' => 'Audit Trail Logs'],
-                    ['name' => 'updated.barcode.item.position', 'label' => 'Detailed Item List'],
-                ]" />
+                @if (in_array(strtoupper(auth()->user()?->role?->name ?? ''), ['ADMIN', 'SUPER-ADMIN', 'STORE', 'WAREHOUSE']))
+                    <!-- 4. Dropdown: WMS & Warehouse -->
+                    <livewire:parent-dropdown label="WMS & Warehouse" :initiallyOpen="false" :childRoutes="[
+                        ['name' => 'wms.pallet-form.create-delivery', 'label' => 'Scan Delivery FG (Program Warehouse)'],
+                        ['name' => 'wms.pallet-form.index', 'label' => 'Assign Slot & Riwayat Pallet'],
+                        ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
+                        ['name' => 'wms.pallet-form.sorting', 'label' => 'Pallet Sorting and Consolidation'],
+                        ['name' => 'wms.pallet-form.picking-guide', 'label' => 'Delivery Picking Guide (FIFO)'],
+                        ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping (FG)'],
+                        ['name' => 'wms.logs', 'label' => 'Audit Trail Logs'],
+                        ['name' => 'updated.barcode.item.position', 'label' => 'Detailed Item List'],
+                    ]" />
 
-                <!-- 5. Dropdown: Material Warehouse -->
-                <livewire:parent-dropdown label="Material Warehouse" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'mwh.master-list.index', 'label' => 'Master List Material'],
-                    ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
-                    ['name' => 'mwh.incoming.create', 'label' => 'Penerimaan Material (Incoming)'],
-                    ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
-                    ['name' => 'mwh.stock-card.index', 'label' => 'Kartu Stok Material (Stock Card)'],
-                    ['name' => 'mwh.pallets.index', 'label' => 'Stock & Pallet Material'],
-                    ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],
-                ]" />
+                    <!-- 5. Dropdown: Material Warehouse -->
+                    <livewire:parent-dropdown label="Material Warehouse" :initiallyOpen="false" :childRoutes="[
+                        ['name' => 'mwh.master-list.index', 'label' => 'Master List Material'],
+                        ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
+                        ['name' => 'mwh.incoming.create', 'label' => 'Penerimaan Material (Incoming)'],
+                        ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
+                        ['name' => 'mwh.outgoing.history', 'label' => 'Riwayat Outgoing Material'],
+                        ['name' => 'mwh.stock-card.index', 'label' => 'Kartu Stok Material (Stock Card)'],
+                        ['name' => 'mwh.pallets.index', 'label' => 'Stock & Pallet Material'],
+                        ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],
+                    ]" />
+                @endif
 
                 <!-- 5. Dropdown: Delivery & Business -->
                 <livewire:parent-dropdown label="Delivery & Business" :initiallyOpen="false" :childRoutes="[
@@ -288,9 +290,6 @@ new class extends Component {
                     <livewire:sidebar-link href="{{ route('wms.pallet-form.index') }}"
                         label="Assign Slot & Riwayat Pallet" :active="request()->routeIs('wms.pallet-form.index')" wire:navigate />
 
-                    <livewire:sidebar-link href="{{ route('wms.pallet-form.create') }}" label="Program Warehouse"
-                        :active="request()->routeIs('wms.pallet-form.create')" wire:navigate />
-
                     <livewire:sidebar-link href="{{ route('wms.pallet-form.lookup') }}" label="Pallet Detail Check"
                         :active="request()->routeIs('wms.pallet-form.lookup')" wire:navigate />
 
@@ -305,6 +304,7 @@ new class extends Component {
                         ['name' => 'mwh.mapping', 'label' => 'Material Warehouse Mapping'],
                         ['name' => 'mwh.incoming.create', 'label' => 'Penerimaan Material (Incoming)'],
                         ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
+                        ['name' => 'mwh.outgoing.history', 'label' => 'Riwayat Outgoing Material'],
                         ['name' => 'mwh.stock-card.index', 'label' => 'Kartu Stok Material (Stock Card)'],
                         ['name' => 'mwh.pallets.index', 'label' => 'Stock & Pallet Material'],
                         ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],

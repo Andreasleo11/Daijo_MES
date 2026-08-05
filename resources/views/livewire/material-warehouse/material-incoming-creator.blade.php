@@ -44,7 +44,22 @@
 
             <!-- Section 1: Header Dokumen -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                <h3 class="text-xs font-black text-emerald-800 uppercase tracking-widest border-b border-gray-100 pb-2">1. Header Dokumen Kedatangan</h3>
+                <div class="flex flex-wrap justify-between items-center border-b border-gray-100 pb-3 gap-2">
+                    <h3 class="text-xs font-black text-emerald-800 uppercase tracking-widest">1. Header Dokumen Penerimaan / Retur</h3>
+                    
+                    <!-- Incoming Type Selector Toggle -->
+                    <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                        <label class="px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center space-x-1.5 {{ $incoming_type === 'SUPPLIER' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                            <input type="radio" wire:model.live="incoming_type" value="SUPPLIER" class="sr-only">
+                            <span>📦 Kedatangan Supplier</span>
+                        </label>
+
+                        <label class="px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center space-x-1.5 {{ $incoming_type === 'RETURN_PRODUCTION' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                            <input type="radio" wire:model.live="incoming_type" value="RETURN_PRODUCTION" class="sr-only">
+                            <span>🔄 Retur Sisa Produksi</span>
+                        </label>
+                    </div>
+                </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
@@ -53,25 +68,47 @@
                     </div>
 
                     <div>
-                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tanggal Kedatangan *</label>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tanggal Entry *</label>
                         <input type="date" wire:model="arrival_date" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-emerald-500">
                         @error('arrival_date') <span class="text-[10px] text-rose-500 font-bold block mt-1">{{ $message }}</span> @enderror
                     </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Supplier (Opsional)</label>
-                        <input type="text" wire:model="supplier_name" placeholder="Misal: PT. Material Abadi" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
-                    </div>
+                    @if($incoming_type === 'SUPPLIER')
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Supplier (Opsional)</label>
+                            <input type="text" wire:model="supplier_name" placeholder="Misal: PT. Material Abadi" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
+                        </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No. PO / Surat Jalan (Opsional)</label>
-                        <input type="text" wire:model="po_number" placeholder="Misal: PO-2026-0881" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-500">
-                    </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No. PO / Surat Jalan (Opsional)</label>
+                            <input type="text" wire:model="po_number" placeholder="Misal: PO-2026-0881" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                    @else
+                        <div>
+                            <label class="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Dikembalikan Oleh / Asal Produksi *</label>
+                            <input type="text" wire:model="returned_from" placeholder="Misal: Produksi Line 1 / Shift A" class="w-full px-3 py-2 bg-amber-50 border border-amber-300 rounded-xl text-xs font-bold text-amber-900 focus:ring-2 focus:ring-amber-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">
+                                No. Outgoing Ref
+                                @if($is_prefilled_from_outgoing)
+                                    <span class="text-[9px] text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded font-black ml-1">🔒 TERKUNCI (AUTO)</span>
+                                @else
+                                    (Opsional)
+                                @endif
+                            </label>
+                            <input type="text" wire:model="original_outgoing_code"
+                                   {{ $is_prefilled_from_outgoing ? 'readonly' : '' }}
+                                   placeholder="Misal: OUT-20260803-0001"
+                                   class="w-full px-3 py-2 bg-amber-50 border border-amber-300 rounded-xl text-xs font-mono font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 {{ $is_prefilled_from_outgoing ? 'bg-amber-100/90 cursor-not-allowed border-amber-400 shadow-inner' : '' }}">
+                        </div>
+                    @endif
                 </div>
 
                 <div>
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Catatan Dokumen (Opsional)</label>
-                    <input type="text" wire:model="remarks" placeholder="Catatan tambahan kedatangan..." class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" wire:model="remarks" placeholder="Catatan tambahan kedatangan/retur..." class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
                 </div>
             </div>
 
@@ -87,7 +124,7 @@
                         <div class="p-4 bg-gray-50/70 rounded-2xl border border-gray-200/80 relative space-y-3">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-black text-gray-500 uppercase tracking-wider">Item #{{ $index + 1 }}</span>
-                                @if (count($items) > 1)
+                                @if (count($items) > 1 && !($is_prefilled_from_outgoing && $index === 0))
                                     <button type="button" wire:click="removeItemRow({{ $index }})" class="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center space-x-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         <span>Hapus Row</span>
@@ -98,10 +135,18 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
                                 <!-- Part Code Autocomplete -->
                                 <div class="sm:col-span-2 md:col-span-4 relative">
-                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Part Code Material *</label>
-                                    <input type="text" wire:model.live="items.{{ $index }}.item_code" placeholder="Cari Part Code / Nama..." class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500">
+                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                        Part Code Material *
+                                        @if($is_prefilled_from_outgoing && $index === 0)
+                                            <span class="text-[9px] text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded font-black ml-1">🔒 TERKUNCI (AUTO)</span>
+                                        @endif
+                                    </label>
+                                    <input type="text" wire:model.live="items.{{ $index }}.item_code"
+                                           {{ ($is_prefilled_from_outgoing && $index === 0) ? 'readonly' : '' }}
+                                           placeholder="Cari Part Code / Nama..."
+                                           class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-emerald-500 {{ ($is_prefilled_from_outgoing && $index === 0) ? 'bg-slate-100 cursor-not-allowed border-slate-300 font-extrabold text-slate-800 shadow-inner' : '' }}">
                                     
-                                    @if (!empty($row['searchResults']))
+                                    @if (empty($is_prefilled_from_outgoing && $index === 0) && !empty($row['searchResults']))
                                         <div class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 z-30 max-h-48 overflow-y-auto">
                                             @foreach ($row['searchResults'] as $result)
                                                 <button type="button" wire:click="selectMaterial({{ $index }}, '{{ $result['item_code'] }}', '{{ addslashes($result['item_description'] ?? '') }}')" class="w-full text-left px-3 py-2 hover:bg-emerald-50 transition border-b border-gray-50 flex flex-col">

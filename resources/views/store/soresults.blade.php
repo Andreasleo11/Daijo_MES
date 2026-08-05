@@ -502,7 +502,7 @@
                                     onclick="closeEditModal()"
                                     class="px-4 py-2 bg-gray-400 text-white rounded">
                                 Cancel
-                            </button>
+                            </button>http://116.254.114.93:8000/wms/pallet-form/create
 
                             <button type="submit"
                                     class="px-4 py-2 bg-green-600 text-white rounded">

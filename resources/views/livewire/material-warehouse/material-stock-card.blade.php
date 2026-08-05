@@ -253,10 +253,15 @@
                                             <span class="px-2 py-1 bg-amber-100 text-amber-800 font-black text-[10px] rounded-lg border border-amber-200 inline-flex items-center">
                                                 📦 SALDO AWAL
                                             </span>
+                                        @elseif($m['type'] === 'RETURN_PRODUCTION')
+                                            <span class="px-2 py-1 bg-amber-100 text-amber-900 font-black text-[10px] rounded-lg border border-amber-300 inline-flex items-center shadow-xs">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                RETUR PRODUKSI
+                                            </span>
                                         @elseif($m['type'] === 'INCOMING')
                                             <span class="px-2 py-1 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-lg border border-emerald-200 inline-flex items-center">
                                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                                INCOMING
+                                                INCOMING (SUPPLIER)
                                             </span>
                                         @else
                                             <span class="px-2 py-1 bg-rose-100 text-rose-800 font-black text-[10px] rounded-lg border border-rose-200 inline-flex items-center">

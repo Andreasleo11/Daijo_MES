@@ -180,4 +180,32 @@ class MaterialWarehouseService
             return $outgoing;
         });
     }
+
+    /**
+     * Cancel / revert an outgoing picking transaction and restore pallet stock.
+     */
+    public function cancelOutgoingPicking(int $outgoingId): void
+    {
+        DB::transaction(function () use ($outgoingId) {
+            $outgoing = MwhOutgoing::findOrFail($outgoingId);
+            $pallet = MwhPallet::where('pallet_id', $outgoing->pallet_id)->first();
+
+            if ($pallet) {
+                $newQty = (float) $pallet->current_qty + (float) $outgoing->qty_taken;
+                $targetPositionId = $pallet->position_id ?: $outgoing->position_id;
+
+                $pallet->update([
+                    'current_qty' => $newQty,
+                    'status'      => 'PARTIAL',
+                    'position_id' => $targetPositionId,
+                ]);
+
+                if ($targetPositionId) {
+                    $this->updatePositionStatus($targetPositionId);
+                }
+            }
+
+            $outgoing->delete();
+        });
+    }
 }

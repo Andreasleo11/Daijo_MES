@@ -61,7 +61,7 @@ class PalletFormCreator extends Component
     public function mount(bool $isDelivery = null): void
     {
         $this->prod_date = now()->format('Y-m-d');
-        $this->isDelivery = $isDelivery ?? request()->routeIs('wms.pallet-form.create-delivery');
+        $this->isDelivery = $isDelivery ?? true;
     }
 
 

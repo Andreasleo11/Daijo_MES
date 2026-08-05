@@ -143,22 +143,36 @@ class MaterialStockCard extends Component
         $incomings = $incomingsQuery->get()->map(function ($pallet) use ($masterMaterials) {
             $dt = $pallet->created_at ?: ($pallet->incomingHeader?->arrival_date ? Carbon::parse($pallet->incomingHeader->arrival_date) : null);
             $master = $masterMaterials->get($pallet->item_code);
+            $isRetur = ($pallet->incomingHeader?->incoming_type === 'RETURN_PRODUCTION');
+
+            $sourceDest = $isRetur
+                ? ('Retur dari: ' . ($pallet->incomingHeader?->returned_from ?: 'Produksi'))
+                : ($pallet->incomingHeader?->supplier_name ?: 'Internal Supplier');
+
+            $subRef = $isRetur
+                ? ('Ref Outgoing: ' . ($pallet->incomingHeader?->original_outgoing_code ?: '-') . ' | Lot: ' . ($pallet->lot_no ?: '-'))
+                : ('Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'));
+
+            $remarks = $isRetur
+                ? ('Retur Sisa Produksi (' . number_format($pallet->current_qty, 2) . ' KG sisa)')
+                : ('Penerimaan Supplier (' . number_format($pallet->current_qty, 2) . ' KG sisa)');
+
             return [
                 'id'                 => 'IN-' . $pallet->id,
                 'timestamp'          => $dt,
                 'date_formatted'     => $dt ? $dt->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
-                'type'               => 'INCOMING',
+                'type'               => $isRetur ? 'RETURN_PRODUCTION' : 'INCOMING',
                 'item_code'          => $pallet->item_code,
                 'item_description'   => $master?->item_description ?: 'Material ' . $pallet->item_code,
                 'ref_code'           => $pallet->pallet_id,
-                'sub_ref'            => 'Lot: ' . ($pallet->lot_no ?: '-') . ' | PO: ' . ($pallet->incomingHeader?->po_number ?: '-'),
-                'source_destination' => $pallet->incomingHeader?->supplier_name ?: 'Internal Supplier',
+                'sub_ref'            => $subRef,
+                'source_destination' => $sourceDest,
                 'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
                 'qty_in'             => (float) $pallet->initial_qty,
                 'qty_out'            => 0.0,
                 'pallet_qty'         => (float) $pallet->current_qty,
                 'uom'                => $pallet->uom ?? 'KG',
-                'remarks'            => 'Penerimaan Material (' . number_format($pallet->current_qty, 2) . ' KG sisa)',
+                'remarks'            => $pallet->incomingHeader?->remarks ?: $remarks,
             ];
         });
 
@@ -268,7 +282,7 @@ class MaterialStockCard extends Component
         $movements = $calculatedMovements;
 
         if ($this->filterType === 'INCOMING') {
-            $movements = $movements->filter(fn($i) => in_array($i['type'], ['INCOMING', 'OPENING_BALANCE']));
+            $movements = $movements->filter(fn($i) => in_array($i['type'], ['INCOMING', 'RETURN_PRODUCTION', 'OPENING_BALANCE']));
         } elseif ($this->filterType === 'OUTGOING') {
             $movements = $movements->filter(fn($i) => in_array($i['type'], ['OUTGOING', 'OPENING_BALANCE']));
         }

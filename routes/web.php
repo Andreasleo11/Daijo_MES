@@ -377,15 +377,14 @@ Route::middleware('auth')->group(function (){
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
 
     //untuk upload spk history di program store 
-    Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->name('upload.spk.history');
+    Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->middleware('store.access')->name('upload.spk.history');
 
-    Route::prefix('wms')->name('wms.')->group(function () {
+    Route::prefix('wms')->name('wms.')->middleware('store.access')->group(function () {
         Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
         Route::get('/mapping', \App\Livewire\Wms\RackMapping::class)->name('mapping');
         Route::get('/pallet-logs', \App\Livewire\Wms\PalletLogIndex::class)->name('logs');
         Route::get('/pallet-form/lookup', \App\Livewire\Wms\PalletFormLookup::class)->name('pallet-form.lookup');
         Route::get('/pallet-form/history', \App\Livewire\Wms\PalletFormIndex::class)->name('pallet-form.index');
-        Route::get('/pallet-form/create', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create');
         Route::get('/pallet-form/create-delivery', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create-delivery');
         Route::get('/pallet-form/sorting', \App\Livewire\Wms\PalletSorting::class)->name('pallet-form.sorting');
         Route::get('/pallet-form/picking-guide', \App\Livewire\Wms\PickingGuide::class)->name('pallet-form.picking-guide');
@@ -397,12 +396,13 @@ Route::middleware('auth')->group(function (){
         })->name('pallet-form.print');
     });
 
-    Route::prefix('material-warehouse')->name('mwh.')->group(function () {
+    Route::prefix('material-warehouse')->name('mwh.')->middleware('store.access')->group(function () {
         Route::get('/mapping', \App\Livewire\MaterialWarehouse\RackMapping::class)->name('mapping');
         Route::get('/master-list', \App\Livewire\MaterialWarehouse\MasterListMaterialIndex::class)->name('master-list.index');
         Route::get('/incoming/create', \App\Livewire\MaterialWarehouse\MaterialIncomingCreator::class)->name('incoming.create');
         Route::get('/pallets', \App\Livewire\MaterialWarehouse\MaterialPalletIndex::class)->name('pallets.index');
         Route::get('/outgoing/create', \App\Livewire\MaterialWarehouse\MaterialOutgoingCreator::class)->name('outgoing.create');
+        Route::get('/outgoing/history', \App\Livewire\MaterialWarehouse\MaterialOutgoingHistory::class)->name('outgoing.history');
         Route::get('/stock-card', \App\Livewire\MaterialWarehouse\MaterialStockCard::class)->name('stock-card.index');
         Route::get('/qr-lookup', \App\Livewire\MaterialWarehouse\MaterialQrLookup::class)->name('qr-lookup');
         Route::get('/pallet/print/{palletId}', function ($palletId) {

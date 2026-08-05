@@ -14,8 +14,11 @@ class MwhIncomingHeader extends Model
 
     protected $fillable = [
         'document_no',
+        'incoming_type',
         'supplier_name',
+        'returned_from',
         'po_number',
+        'original_outgoing_code',
         'arrival_date',
         'remarks',
         'created_at',
