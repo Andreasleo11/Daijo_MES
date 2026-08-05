@@ -65,6 +65,7 @@ class PalletFormIndex extends Component
 
             $pallet->update([
                 'position_id' => $newPositionId,
+                'assigned_at' => $newPositionId ? ($pallet->assigned_at ?? now()) : null,
             ]);
 
             // Update old & new position tracking
@@ -115,7 +116,23 @@ class PalletFormIndex extends Component
 
     public function render(WmsService $wmsService)
     {
-        // Self-healing: Ensure any pallet with total_pallet_qty <= 0 or status == OUT has position_id cleared
+        // Self-healing 1: Backfill assigned_at for any pallet with position_id but assigned_at IS NULL
+        $unassignedAtPallets = WmsPalletForm::whereNotNull('position_id')
+            ->whereNull('assigned_at')
+            ->get();
+
+        foreach ($unassignedAtPallets as $p) {
+            $firstLog = \App\Models\WmsPalletLog::where('pallet_id', $p->pallet_id)
+                ->whereIn('transaction_type', ['ASSIGN_SLOT', 'IN'])
+                ->whereNotNull('position_id')
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            $assignedTime = $firstLog ? $firstLog->created_at : $p->created_at;
+            $p->update(['assigned_at' => $assignedTime]);
+        }
+
+        // Self-healing 2: Ensure any pallet with total_pallet_qty <= 0 or status == OUT has position_id cleared
         $stalePallets = WmsPalletForm::whereNotNull('position_id')
             ->where(function($q) {
                 $q->where('total_pallet_qty', '<=', 0)
@@ -126,7 +143,7 @@ class PalletFormIndex extends Component
         if ($stalePallets->isNotEmpty()) {
             $affectedPosIds = $stalePallets->pluck('position_id')->filter()->unique();
             WmsPalletForm::whereIn('id', $stalePallets->pluck('id'))
-                ->update(['position_id' => null]);
+                ->update(['position_id' => null, 'assigned_at' => null]);
 
             foreach ($affectedPosIds as $posId) {
                 $wmsService->updatePositionStatus($posId);
