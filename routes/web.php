@@ -365,6 +365,7 @@ Route::middleware('auth')->group(function (){
     // Machine Daily Production Report
     Route::get('/operator/daily-report', \App\Livewire\Report\MachineDailyReport::class)->name('operator.daily-report');
     Route::get('/ppic/machine-daily-report', \App\Livewire\Report\MachineDailyReport::class)->name('ppic.machine-daily-report');
+    Route::get('/ppic/machine-daily-report/export', [\App\Http\Controllers\PpicReportExportController::class, 'exportDailyProduction'])->name('ppic.machine-daily-report.export');
 
     Route::get('/user-role-manager', function () {
         if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
