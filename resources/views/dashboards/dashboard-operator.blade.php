@@ -641,6 +641,7 @@
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
                                             <th class="py-1 px-2 text-gray-700">Lot Material</th>
+                                            <th class="py-1 px-2 text-gray-700">Lot Accessories</th>
                                             <th class="py-1 px-2 text-gray-700">Berat Purging</th>
                                             <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
@@ -693,6 +694,21 @@
                                                     @endif
                                                 </td>
                                                 <td class="py-1 px-2">
+                                                    @if ($data->accessoryLots && $data->accessoryLots->isNotEmpty())
+                                                        <div class="flex flex-col gap-1 items-center">
+                                                            @foreach($data->accessoryLots as $acc)
+                                                                <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                                    {{ $acc->accessory_name }}: {{ $acc->accessory_lot }}
+                                                                </span>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <span class="bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full text-sm italic">
+                                                            -
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-1 px-2">
                                                     @if ($data->resin_usage)
                                                         <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-semibold">
                                                             {{ $data->resin_usage }} KG
@@ -734,6 +750,14 @@
                                                         onclick="openMaterialLotModal('{{ $data->id }}', '{{ $data->material_lot ?? '' }}')"
                                                     >
                                                         Set Lot Material
+                                                    </button>
+
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-purple-700 hover:bg-purple-800 text-white rounded mt-1 font-bold"
+                                                        onclick="openAccessoryLotOpModal('{{ $data->id }}')"
+                                                    >
+                                                        Set Lot Accessories
                                                     </button>
 
                                                     <button 
@@ -809,6 +833,47 @@
                                                 <button type="submit" class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700">Submit</button>
                                             </div>
                                         </form>
+                                    </div>
+                                </div>
+
+                                <div id="accessoryLotOpModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative text-left">
+                                        <h2 class="text-lg font-semibold mb-3 text-purple-900 flex items-center justify-between">
+                                            <span>Kelola Lot Accessories</span>
+                                            <button type="button" onclick="closeAccessoryLotOpModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+                                        </h2>
+                                        
+                                        <!-- Form add accessory -->
+                                        <div class="bg-purple-50 p-3 rounded mb-4 border border-purple-200">
+                                            <span class="block text-xs font-bold text-purple-900 mb-2">Tambah Accessory Baru</span>
+                                            <div class="space-y-2 text-xs">
+                                                <div>
+                                                    <label class="block text-gray-600 font-semibold mb-0.5">Jenis Accessories (Alphanumeric)</label>
+                                                    <input type="text" id="accOpName" placeholder="Contoh: Screw / Label / Box" class="w-full border rounded p-1.5 bg-white text-xs">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-600 font-semibold mb-0.5">Kode Lot Accessories (Alphanumeric + Symbol)</label>
+                                                    <input type="text" id="accOpLot" placeholder="Contoh: LOT-ACC#123/B" class="w-full border rounded p-1.5 bg-white text-xs">
+                                                </div>
+                                                <div class="text-right pt-1">
+                                                    <button type="button" onclick="submitAddAccessoryLotOp()" class="bg-purple-700 hover:bg-purple-800 text-white px-3 py-1 rounded font-bold text-xs">
+                                                        + Tambah
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- List existing accessories -->
+                                        <div>
+                                            <span class="block text-xs font-bold text-gray-700 mb-1">Daftar Accessories Terdaftar:</span>
+                                            <div id="accOpListContainer" class="space-y-1 max-h-40 overflow-y-auto pr-1 text-xs">
+                                                <div class="text-gray-400 italic text-center py-2">Loading...</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex justify-end mt-4 pt-2 border-t">
+                                            <button type="button" onclick="closeAccessoryLotOpModal()" class="bg-gray-400 text-white px-3 py-1 rounded text-xs">Tutup</button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -2683,6 +2748,123 @@
 
             function closeMaterialLotModal() {
                 document.getElementById('materialLotModal').classList.add('hidden');
+            }
+
+            let currentDicIdForAcc = null;
+
+            function openAccessoryLotOpModal(dicId) {
+                currentDicIdForAcc = dicId;
+                document.getElementById('accOpName').value = '';
+                document.getElementById('accOpLot').value = '';
+                document.getElementById('accessoryLotOpModal').classList.remove('hidden');
+                fetchAccessoryLotsOp(dicId);
+            }
+
+            function closeAccessoryLotOpModal() {
+                document.getElementById('accessoryLotOpModal').classList.add('hidden');
+                currentDicIdForAcc = null;
+            }
+
+            function fetchAccessoryLotsOp(dicId) {
+                const container = document.getElementById('accOpListContainer');
+                if (!container) return;
+                container.innerHTML = `<div class="text-gray-400 italic text-center py-2">Loading...</div>`;
+                
+                fetch(`/daily-item-codes/${dicId}/accessory-lots`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderAccessoryLotsOp(data.accessory_lots);
+                    } else {
+                        container.innerHTML = `<div class="text-red-500 text-center py-2">Gagal memuat data.</div>`;
+                    }
+                })
+                .catch(() => {
+                    container.innerHTML = `<div class="text-red-500 text-center py-2">Gagal memuat data.</div>`;
+                });
+            }
+
+            function renderAccessoryLotsOp(lots) {
+                const container = document.getElementById('accOpListContainer');
+                if (!container) return;
+                if (!lots || lots.length === 0) {
+                    container.innerHTML = `<div class="text-gray-400 italic text-center py-3 bg-gray-50 rounded">Belum ada accessory lot.</div>`;
+                    return;
+                }
+                
+                let html = '';
+                lots.forEach(lot => {
+                    html += `
+                        <div class="flex items-center justify-between bg-gray-100 p-2 rounded border">
+                            <div>
+                                <span class="font-bold text-gray-800">${lot.accessory_name}:</span>
+                                <span class="font-semibold text-purple-900 ml-1">${lot.accessory_lot}</span>
+                            </div>
+                            <button type="button" onclick="deleteAccessoryLotOp(${lot.id})" class="text-red-600 font-bold hover:text-red-800 text-xs px-1">
+                                ✕
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+
+            function submitAddAccessoryLotOp() {
+                if (!currentDicIdForAcc) return;
+                
+                const name = document.getElementById('accOpName').value.trim();
+                const lot = document.getElementById('accOpLot').value.trim();
+                
+                if (!name || !lot) {
+                    alert('Harap isi Jenis Accessories dan Kode Lot Accessories!');
+                    return;
+                }
+                
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+                
+                fetch(`/daily-item-codes/${currentDicIdForAcc}/accessory-lots`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ accessory_name: name, accessory_lot: lot })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('accOpName').value = '';
+                        document.getElementById('accOpLot').value = '';
+                        fetchAccessoryLotsOp(currentDicIdForAcc);
+                    } else {
+                        alert('Gagal menambahkan Lot Accessory.');
+                    }
+                })
+                .catch(() => alert('Terjadi kesalahan koneksi.'));
+            }
+
+            function deleteAccessoryLotOp(id) {
+                if (!confirm('Yakin ingin menghapus Lot Accessory ini?')) return;
+                
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+                
+                fetch(`/accessory-lots/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && currentDicIdForAcc) {
+                        fetchAccessoryLotsOp(currentDicIdForAcc);
+                    }
+                })
+                .catch(() => alert('Gagal menghapus Lot Accessory.'));
             }
 
             function openProductionModal(slotId, currentValue = 0) {

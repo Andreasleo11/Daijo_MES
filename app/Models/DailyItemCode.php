@@ -50,6 +50,11 @@ class DailyItemCode extends Model
         return $this->hasOne(MasterListItem::class, 'item_code', 'item_code');
     }
 
+    public function accessoryLots()
+    {
+        return $this->hasMany(DicAccessoryLot::class, 'dic_id', 'id');
+    }
+
     public function machinerelation()
     {
         return $this->hasOne(MachineJob::class, 'user_id', 'user_id');

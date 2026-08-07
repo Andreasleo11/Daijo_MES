@@ -463,6 +463,12 @@ Route::middleware('auth')->group(function (){
     ->name('daily-item-codes.updateCycleTime');
     Route::put('/daily-item-codes/{id}/material-lot', [DashboardController::class, 'updateMaterialLot'])
     ->name('daily-item-codes.updateMaterialLot');
+    Route::get('/daily-item-codes/{id}/accessory-lots', [DashboardController::class, 'getAccessoryLots'])
+    ->name('daily-item-codes.getAccessoryLots');
+    Route::post('/daily-item-codes/{id}/accessory-lots', [DashboardController::class, 'storeAccessoryLot'])
+    ->name('daily-item-codes.storeAccessoryLot');
+    Route::delete('/accessory-lots/{id}', [DashboardController::class, 'deleteAccessoryLot'])
+    ->name('accessory-lots.destroy');
     Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
     Route::post('/production-output-log', [DashboardController::class, 'storeOutputLog'])->name('production.output-log.store');
     Route::get('/production-output-log/print/{id}', [DashboardController::class, 'printOutputLog'])->name('production.output-log.print');

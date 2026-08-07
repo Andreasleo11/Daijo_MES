@@ -28,6 +28,7 @@ use App\Models\ApiLog;
 
 use App\Models\ProductionNgDetail;
 use App\Models\ProductionNgType;
+use App\Models\DicAccessoryLot;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -2349,6 +2350,55 @@ class DashboardController extends Controller
         }
 
         return back()->with('success', 'Lot Material updated successfully.');
+    }
+
+    // Get accessory lots for a DIC
+    public function getAccessoryLots($dicId)
+    {
+        $lots = DicAccessoryLot::where('dic_id', $dicId)->orderBy('created_at', 'asc')->get();
+        return response()->json([
+            'success' => true,
+            'accessory_lots' => $lots,
+        ]);
+    }
+
+    // Store accessory lot for a DIC
+    public function storeAccessoryLot(Request $request, $dicId)
+    {
+        $request->validate([
+            'accessory_name' => 'required|string|max:255',
+            'accessory_lot' => 'required|string|max:255',
+        ]);
+
+        $dic = DailyItemCode::findOrFail($dicId);
+
+        $lot = DicAccessoryLot::create([
+            'dic_id' => $dic->id,
+            'accessory_name' => trim($request->accessory_name),
+            'accessory_lot' => trim($request->accessory_lot),
+        ]);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lot Accessories berhasil ditambahkan.',
+                'accessory_lot' => $lot,
+            ]);
+        }
+
+        return back()->with('success', 'Lot Accessories berhasil ditambahkan.');
+    }
+
+    // Delete accessory lot
+    public function deleteAccessoryLot($id)
+    {
+        $lot = DicAccessoryLot::findOrFail($id);
+        $lot->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lot Accessories berhasil dihapus.',
+        ]);
     }
 
     // function untuk update actual produksi yang didapat operator perjam 

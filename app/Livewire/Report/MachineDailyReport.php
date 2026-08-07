@@ -27,6 +27,11 @@ class MachineDailyReport extends Component
     public $editingPlanId = null;
     public $editingMaterialLot = '';
 
+    public bool $showAccessoryModal = false;
+    public $selectedPlanIdForAcc = null;
+    public $newAccName = '';
+    public $newAccLot = '';
+
     public function openLotModal($planId)
     {
         $plan = DailyItemCode::find($planId);
@@ -55,6 +60,49 @@ class MachineDailyReport extends Component
         }
 
         $this->closeLotModal();
+    }
+
+    public function openAccessoryModal($planId)
+    {
+        $this->selectedPlanIdForAcc = $planId;
+        $this->newAccName = '';
+        $this->newAccLot = '';
+        $this->showAccessoryModal = true;
+    }
+
+    public function closeAccessoryModal()
+    {
+        $this->showAccessoryModal = false;
+        $this->selectedPlanIdForAcc = null;
+        $this->newAccName = '';
+        $this->newAccLot = '';
+    }
+
+    public function addAccessoryLot()
+    {
+        $this->validate([
+            'newAccName' => 'required|string|max:255',
+            'newAccLot' => 'required|string|max:255',
+        ]);
+
+        if ($this->selectedPlanIdForAcc) {
+            \App\Models\DicAccessoryLot::create([
+                'dic_id' => $this->selectedPlanIdForAcc,
+                'accessory_name' => trim($this->newAccName),
+                'accessory_lot' => trim($this->newAccLot),
+            ]);
+        }
+
+        $this->newAccName = '';
+        $this->newAccLot = '';
+    }
+
+    public function deleteAccessoryLot($accId)
+    {
+        $acc = \App\Models\DicAccessoryLot::find($accId);
+        if ($acc) {
+            $acc->delete();
+        }
     }
 
     // Query string support for easy bookmarking and state preservation
@@ -175,7 +223,7 @@ class MachineDailyReport extends Component
             $dailyPlans = DailyItemCode::where('user_id', $this->selectedMachineId)
                 ->whereDate('schedule_date', $this->selectedDate)
                 ->whereHas('hourlyRemarks')
-                ->with(['masterItem.customer', 'scannedData'])
+                ->with(['masterItem.customer', 'scannedData', 'accessoryLots'])
                 ->orderBy('shift', 'asc')
                 ->get();
                 

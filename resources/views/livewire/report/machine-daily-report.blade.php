@@ -137,6 +137,7 @@
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Part Name</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Cycle Time</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Lot Material</th>
+                                <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Lot Accessories</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Target</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Scanned (OK)</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Actual Qty</th>
@@ -182,6 +183,20 @@
                                             @endif
                                             <button wire:click="openLotModal({{ $plan->id }})" title="Set Lot Material" class="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
                                                 ✏️
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-6 text-xs text-center">
+                                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                            @forelse($plan->accessoryLots as $acc)
+                                                <span class="inline-block px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 font-extrabold rounded-lg text-[10px] tracking-tight">
+                                                    {{ $acc->accessory_name }}: {{ $acc->accessory_lot }}
+                                                </span>
+                                            @empty
+                                                <span class="text-gray-300 italic text-[11px]">-</span>
+                                            @endforelse
+                                            <button wire:click="openAccessoryModal({{ $plan->id }})" title="Kelola Lot Accessories" class="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors">
+                                                ⚙️
                                             </button>
                                         </div>
                                     </td>
@@ -641,6 +656,84 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal Kelola Lot Accessories -->
+    @if($showAccessoryModal && $selectedPlanIdForAcc)
+        @php
+            $targetPlan = $dailyPlans->firstWhere('id', $selectedPlanIdForAcc);
+        @endphp
+        <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity" wire:click="closeAccessoryModal"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
+                    <div class="bg-purple-900 text-white px-6 py-4 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">⚙️</span>
+                            <div>
+                                <h3 class="text-sm font-black uppercase tracking-wider">Kelola Lot Accessories</h3>
+                                <p class="text-[11px] text-purple-300">Item: {{ $targetPlan?->item_code }} (Shift {{ $targetPlan?->shift }})</p>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeAccessoryModal" class="text-purple-300 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-5">
+                        <!-- Form Tambah Baru -->
+                        <form wire:submit.prevent="addAccessoryLot" class="bg-purple-50/60 p-4 rounded-2xl border border-purple-100 space-y-3">
+                            <span class="text-xs font-black uppercase text-purple-900 tracking-wider block">Tambah Lot Accessory Baru</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-gray-500 mb-1">Jenis Accessories</label>
+                                    <input type="text" wire:model="newAccName" placeholder="e.g. Screw / Label / Box" class="w-full text-xs font-bold rounded-xl border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-2xs">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-gray-500 mb-1">Kode Lot Accessories</label>
+                                    <input type="text" wire:model="newAccLot" placeholder="e.g. LOT-ACC#123/B" class="w-full text-xs font-bold rounded-xl border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-2xs">
+                                </div>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-4 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-black text-xs rounded-xl shadow-2xs transition-colors">
+                                    + Tambah Accessory
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- List Accessories Terdaftar -->
+                        <div>
+                            <span class="text-xs font-black uppercase text-gray-600 tracking-wider block mb-2">Daftar Lot Accessories ({{ count($targetPlan?->accessoryLots ?? []) }})</span>
+                            <div class="space-y-2 max-h-48 overflow-y-auto">
+                                @forelse($targetPlan?->accessoryLots ?? [] as $acc)
+                                    <div class="flex items-center justify-between bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-200/80 text-xs">
+                                        <div>
+                                            <span class="font-black text-gray-800">{{ $acc->accessory_name }}:</span>
+                                            <span class="font-extrabold text-purple-800 ml-1">{{ $acc->accessory_lot }}</span>
+                                        </div>
+                                        <button type="button" wire:click="deleteAccessoryLot({{ $acc->id }})" class="text-red-500 hover:text-red-700 font-bold text-xs p-1">
+                                            ✕ Hapus
+                                        </button>
+                                    </div>
+                                @empty
+                                    <div class="py-6 text-center text-gray-400 font-semibold text-xs italic bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                        Belum ada lot accessories yang ditambahkan.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-2 border-t border-gray-100">
+                            <button type="button" wire:click="closeAccessoryModal" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition-colors">
+                                Selesai
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
