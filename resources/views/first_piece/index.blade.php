@@ -8,8 +8,8 @@
                 <p class="text-xs font-semibold text-gray-500 mt-0.5">QC Gate-Check records before production start • Document DI-F-P/PR/07/SP-013</p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('second-process-reports.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
-                    &larr; Second Process Reports
+                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                    &larr; Floor Overview Dashboard
                 </a>
                 <a href="{{ route('first-piece-inspections.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                     + New First Piece Inspection
