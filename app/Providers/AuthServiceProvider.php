@@ -84,5 +84,18 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('view-quality-links', function($user){
             return $user->hasRoleAccess('QUALITY');
         });
+
+        // Second Process Specific Action Gates
+        Gate::define('manage-sp-work-orders', function ($user) {
+            return $user->hasRoleAccess('PPIC') || $user->hasRoleAccess('SECONDPROCESS') || $user->hasRoleAccess('ADMIN');
+        });
+
+        Gate::define('execute-qc-inspections', function ($user) {
+            return $user->hasRoleAccess('QUALITY') || $user->hasRoleAccess('ADMIN');
+        });
+
+        Gate::define('approve-sp-sessions', function ($user) {
+            return $user->hasRoleAccess('SECONDPROCESS') || $user->hasRoleAccess('ADMIN');
+        });
     }
 }

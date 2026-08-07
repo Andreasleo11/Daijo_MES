@@ -97,15 +97,23 @@ new class extends Component {
                     ['name' => 'invlinelist', 'label' => 'Machine List'],
                 ]" />
 
-                <!-- Dropdown: Second Process -->
-                <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
+                <!-- Dropdown 1: Second Process — Planning & QC -->
+                <livewire:parent-dropdown label="Second Process — Planning & QC" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
                     ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
                     ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
+                ]" />
+
+                <!-- Dropdown 2: Second Process — Shop Floor Ops -->
+                <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
                     ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
-                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                ]" />
+
+                <!-- Dropdown 3: Second Process — Reports & Analytics -->
+                <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
                 ]" />
 
                 <!-- 4. Dropdown: WMS & Warehouse -->

@@ -6,6 +6,7 @@ use App\Models\SpProductionSession;
 use App\Services\SecondProcessReportSyncBridge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class SpProductionApprovalController extends Controller
 {
@@ -63,6 +64,10 @@ class SpProductionApprovalController extends Controller
      */
     public function approve(Request $request, SpProductionSession $session, SecondProcessReportSyncBridge $bridge)
     {
+        if (Gate::allows('approve-sp-sessions') === false && !Auth::user()?->hasRole('SUPER-ADMIN')) {
+            abort(403, 'Unauthorized action. Only Supervisors and Admins can approve production sessions.');
+        }
+
         if ($session->status !== 'completed' || $session->approved_at !== null) {
             return redirect()->back()->with('error', 'Session cannot be approved.');
         }
@@ -83,6 +88,9 @@ class SpProductionApprovalController extends Controller
      */
     public function reject(Request $request, SpProductionSession $session, SecondProcessReportSyncBridge $bridge)
     {
+        if (Gate::allows('approve-sp-sessions') === false && !Auth::user()?->hasRole('SUPER-ADMIN')) {
+            abort(403, 'Unauthorized action. Only Supervisors and Admins can reject production sessions.');
+        }
         if ($session->status !== 'completed' || $session->approved_at !== null) {
             return redirect()->back()->with('error', 'Session cannot be returned.');
         }
