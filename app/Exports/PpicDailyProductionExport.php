@@ -72,17 +72,17 @@ class PpicDailyProductionExport implements FromView, WithTitle, ShouldAutoSize, 
 
             $totalShift = $shift1Qty + $shift2Qty + $shift3Qty;
 
-            // Extract Cycle Time (seconds)
-            $cycleTimeSec = $plan->temporal_cycletime ?: ($masterItem?->cycle_time ?: null);
+            // Extract Cycle Time (seconds) - Priority 1: DailyItemCode.temporal_cycle_time -> Priority 2: MasterListItem.cycle_time
+            $cycleTimeSec = (!empty($plan->temporal_cycle_time) && $plan->temporal_cycle_time > 0)
+                ? (float) $plan->temporal_cycle_time
+                : (!empty($masterItem?->cycle_time) && $masterItem->cycle_time > 0 ? (float) $masterItem->cycle_time : null);
 
-            // Target per hour (from hourly remark target or standard or 3600 / cycleTime)
-            $avgTargetRemark = (int) $plan->hourlyRemarks->avg('target');
-            if ($avgTargetRemark > 0) {
-                $targetPerHour = $avgTargetRemark;
-            } elseif ($cycleTimeSec && $cycleTimeSec > 0) {
+            // Target per hour: Priority 1: Calculated from cycle time (3600 / cycleTime) -> Priority 2: Hourly remark average -> Priority 3: 80
+            if ($cycleTimeSec && $cycleTimeSec > 0) {
                 $targetPerHour = (int) round(3600 / $cycleTimeSec);
             } else {
-                $targetPerHour = 80;
+                $avgTargetRemark = (int) $plan->hourlyRemarks->avg('target');
+                $targetPerHour = $avgTargetRemark > 0 ? $avgTargetRemark : 80;
             }
 
             // 1. Plan Hours: Default 24 Jam per hari, atau jam slot terencana
