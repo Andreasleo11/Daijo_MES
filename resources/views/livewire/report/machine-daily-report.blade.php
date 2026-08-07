@@ -39,6 +39,17 @@
                     </div>
                 @endif
 
+                {{-- Item Code Selector Dropdown --}}
+                <div class="flex flex-col">
+                    <span class="text-[9px] font-black uppercase text-gray-400 tracking-wider mb-1">Filter Item Code</span>
+                    <select wire:model.live="selectedItemCode" class="bg-gray-50 border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]">
+                        <option value="">-- Semua Item --</option>
+                        @foreach($availableItems as $code => $name)
+                            <option value="{{ $code }}">{{ $code }} ({{ Str::limit($name, 20) }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 {{-- Export Excel Button --}}
                 <div class="flex flex-col justify-end">
                     <span class="text-[9px] font-black uppercase text-gray-400 tracking-wider mb-1">&nbsp;</span>
@@ -107,11 +118,17 @@
             </div>
 
             {{-- 1. Daily Production Plan --}}
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                    <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest">Rencana Kerja Harian (Daily Plan)</h2>
+            <div x-data="{ openPlan: true }" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div @click="openPlan = !openPlan" class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between cursor-pointer select-none hover:bg-gray-100/80 transition-colors">
+                    <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                        <span>📋 Rencana Kerja Harian (Daily Plan)</span>
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" x-text="openPlan ? 'Tutup' : 'Buka'"></span>
+                        <svg :class="openPlan ? 'rotate-180' : ''" class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
+                <div x-show="openPlan" class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50/50 border-b border-gray-100">
@@ -120,6 +137,7 @@
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Part Name</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Target</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Scanned (OK)</th>
+                                <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Actual Qty</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Achievement</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                             </tr>
@@ -128,6 +146,10 @@
                             @forelse($dailyPlans as $plan)
                                 @php
                                     $scannedOk = $plan->scannedData->sum('quantity');
+                                    $hourlySum = (int) $plan->hourlyRemarks->sum('actual_production');
+                                    $actualQty = $hourlySum > 0
+                                        ? $hourlySum
+                                        : ((!empty($plan->actual_quantity) && $plan->actual_quantity > 0) ? (int)$plan->actual_quantity : (int)$scannedOk);
                                     $achievePercent = $plan->quantity > 0 ? round(($scannedOk / $plan->quantity) * 100) : 0;
                                 @endphp
                                 <tr class="hover:bg-gray-50/30 transition-colors">
@@ -136,6 +158,7 @@
                                     <td class="py-4 px-6 text-xs font-semibold text-gray-500">{{ optional($plan->masterItem)->item_name ?? '-' }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-gray-700 text-center">{{ number_format($plan->quantity) }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-green-600 text-center">{{ number_format($scannedOk) }}</td>
+                                    <td class="py-4 px-6 text-xs font-bold text-blue-600 text-center">{{ number_format($actualQty) }}</td>
                                     <td class="py-4 px-6 text-center">
                                         <div class="flex items-center justify-center gap-2">
                                             <div class="w-24 bg-gray-100 h-2 rounded-full overflow-hidden">
@@ -156,7 +179,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-8 text-center text-xs font-bold text-gray-400">Tidak ada rencana produksi untuk tanggal ini.</td>
+                                    <td colspan="8" class="py-8 text-center text-xs font-bold text-gray-400">Tidak ada rencana produksi untuk tanggal ini.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -164,12 +187,143 @@
                 </div>
             </div>
 
-            {{-- 2. Defective Analysis --}}
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                    <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest">Plastic Part Defective Analysis (NG Matrix)</h2>
+            {{-- 2. Detail Jam Produksi & Breakdown NG per Item --}}
+            <div x-data="{ openSection: true }" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div @click="openSection = !openSection" class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 cursor-pointer select-none hover:bg-gray-100/80 transition-colors">
+                    <div>
+                        <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                            <span>⏱️ Rincian Jam Produksi & Breakdown NG per Item</span>
+                        </h2>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Detail per jam operasional, target, hasil actual OK, PIC, serta rincian jenis NG</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        @if($selectedItemCode)
+                            <div class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-blue-100">
+                                Item Filter: <span class="font-black">{{ $selectedItemCode }}</span>
+                            </div>
+                        @endif
+                        <div class="flex items-center gap-1.5 text-gray-500">
+                            <span class="text-[10px] font-bold uppercase tracking-wider" x-text="openSection ? 'Tutup' : 'Buka'"></span>
+                            <svg :class="openSection ? 'rotate-180' : ''" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
+
+                <div x-show="openSection" class="p-6 space-y-6">
+                    @forelse($itemDetailRows as $itemGroup)
+                        <div x-data="{ openCard: true }" class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                            {{-- Header Item --}}
+                            <div @click="openCard = !openCard" class="bg-gray-100/70 px-5 py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none hover:bg-gray-200/60 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-blue-600 text-white font-black text-[10px] uppercase px-3 py-1 rounded-lg">
+                                        Shift {{ $itemGroup['shift'] }}
+                                    </span>
+                                    <div>
+                                        <span class="font-black text-sm text-gray-900 tracking-tight">{{ $itemGroup['item_code'] }}</span>
+                                        <span class="text-xs font-bold text-gray-500 ml-2">({{ $itemGroup['part_name'] }})</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-xs font-bold text-gray-500">
+                                        Customer: <span class="text-gray-800 font-bold">{{ $itemGroup['customer'] }}</span>
+                                    </div>
+                                    <svg :class="openCard ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+
+                            {{-- Table Rincian Jam --}}
+                            <div x-show="openCard" class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse min-w-[900px]">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200">
+                                            <th class="py-3 px-4 w-[160px]">Jam Operasional</th>
+                                            <th class="py-3 px-3 text-center w-[90px]">Target</th>
+                                            <th class="py-3 px-3 text-center w-[100px]">Actual (OK)</th>
+                                            <th class="py-3 px-3 text-center w-[90px]">Total NG</th>
+                                            <th class="py-3 px-4">Rincian Jenis Defect / NG</th>
+                                            <th class="py-3 px-4 w-[160px]">Operator PIC</th>
+                                            <th class="py-3 px-4">Kendala / Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100 text-xs">
+                                        @forelse($itemGroup['slots'] as $slot)
+                                            <tr class="hover:bg-blue-50/20 transition-colors">
+                                                <td class="py-3 px-4 font-black text-gray-800 tracking-tight">
+                                                    <span class="inline-flex items-center gap-1.5">
+                                                        <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                        {{ $slot['time'] }}
+                                                    </span>
+                                                </td>
+                                                <td class="py-3 px-3 text-center font-bold text-gray-600">
+                                                    {{ number_format($slot['target']) }}
+                                                </td>
+                                                <td class="py-3 px-3 text-center font-black text-blue-600">
+                                                    {{ number_format($slot['actual']) }}
+                                                </td>
+                                                <td class="py-3 px-3 text-center">
+                                                    @if($slot['ng'] > 0)
+                                                        <span class="bg-red-100 text-red-700 font-black px-2.5 py-1 rounded-full text-xs inline-block">
+                                                            {{ $slot['ng'] }}
+                                                        </span>
+                                                    @else
+                                                        <span class="text-gray-400 font-bold">0</span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-3 px-4">
+                                                    @if(!empty($slot['ng_list']))
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            @foreach($slot['ng_list'] as $ngDetail)
+                                                                <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 font-bold text-[11px] px-2 py-1 rounded-md shadow-2xs">
+                                                                    <span>{{ $ngDetail['type'] }}:</span>
+                                                                    <span class="font-black text-red-800">{{ $ngDetail['qty'] }} Pcs</span>
+                                                                    @if(!empty($ngDetail['remarks']))
+                                                                        <span class="text-[10px] text-red-500 font-normal">({{ $ngDetail['remarks'] }})</span>
+                                                                    @endif
+                                                                </span>
+                                                            @endforeach
+                                                        </div>
+                                                    @elseif($slot['ng'] > 0)
+                                                        <span class="text-red-500 font-bold italic text-[11px]">Ada {{ $slot['ng'] }} NG (Tipe belum dirinci)</span>
+                                                    @else
+                                                        <span class="text-gray-400 text-[11px] font-medium">-</span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-3 px-4 font-bold text-gray-700">
+                                                    {{ $slot['pic'] }}
+                                                </td>
+                                                <td class="py-3 px-4 text-gray-600 font-medium">
+                                                    {{ $slot['remark'] ?: '-' }}
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="7" class="py-4 text-center text-xs font-bold text-gray-400 italic">Belum ada rincian jam kerja terinput.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="py-8 text-center text-xs font-bold text-gray-400">
+                            Tidak ada data rincian item untuk filter saat ini.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- 3. Defective Analysis --}}
+            <div x-data="{ openDefect: true }" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div @click="openDefect = !openDefect" class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between cursor-pointer select-none hover:bg-gray-100/80 transition-colors">
+                    <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                        <span>📊 Plastic Part Defective Analysis (NG Matrix)</span>
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" x-text="openDefect ? 'Tutup' : 'Buka'"></span>
+                        <svg :class="openDefect ? 'rotate-180' : ''" class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div x-show="openDefect" class="overflow-x-auto">
                     <table class="w-full text-left border-collapse min-w-[1200px]">
                         <thead>
                             <tr class="bg-gray-50/50 border-b border-gray-100">

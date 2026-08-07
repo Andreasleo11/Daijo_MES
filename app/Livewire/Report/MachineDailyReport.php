@@ -16,12 +16,14 @@ class MachineDailyReport extends Component
 {
     public $selectedDate;
     public $selectedMachineId;
+    public $selectedItemCode = '';
     public bool $isPpicView = false;
     
     // Query string support for easy bookmarking and state preservation
     protected $queryString = [
         'selectedDate' => ['except' => ''],
         'selectedMachineId' => ['except' => ''],
+        'selectedItemCode' => ['except' => ''],
     ];
 
     public static $shiftSlots = [
@@ -110,22 +112,30 @@ class MachineDailyReport extends Component
         $selectedMachine = User::find($this->selectedMachineId);
 
         // 2. Fetch daily plans (DailyItemCodes) for that date and machine
-        $dailyPlans = [];
+        $dailyPlans = collect();
         $dicIds = collect();
         if ($this->selectedMachineId) {
             $dailyPlans = DailyItemCode::where('user_id', $this->selectedMachineId)
                 ->whereDate('schedule_date', $this->selectedDate)
                 ->whereHas('hourlyRemarks')
-                ->with(['masterItem', 'scannedData'])
+                ->with(['masterItem.customer', 'scannedData'])
                 ->orderBy('shift', 'asc')
                 ->get();
                 
             $dicIds = $dailyPlans->pluck('id');
         }
 
-        // 3. Fetch hourly remarks
+        // Available distinct item codes for dropdown filter
+        $availableItems = $dailyPlans->mapWithKeys(function($plan) {
+            $name = optional($plan->masterItem)->item_name ?? optional($plan->masterItem)->part_name ?? $plan->item_code;
+            return [$plan->item_code => $name];
+        })->all();
+
+        // 3. Fetch hourly remarks with NG Details
         $hourlyRemarks = $dicIds->isNotEmpty()
-            ? HourlyRemark::whereIn('dic_id', $dicIds)->with('dailyItemCode')->get()
+            ? HourlyRemark::whereIn('dic_id', $dicIds)
+                ->with(['dailyItemCode.masterItem', 'ngDetails.ngType'])
+                ->get()
             : collect();
 
         // 4. Map Hourly Output per Shift (I, II, III) matching paper form layout
@@ -150,7 +160,54 @@ class MachineDailyReport extends Component
             }
         }
 
-        // 5. Operator names per shift (derived from unique HourlyRemark PICs)
+        // 5. Build Item Detail Rows (Shift, Time Slots, Target, Actual, NG & Detailed NG Types)
+        $itemDetailRows = [];
+        foreach ($dailyPlans as $plan) {
+            if ($this->selectedItemCode && $plan->item_code !== $this->selectedItemCode) {
+                continue;
+            }
+
+            $itemMaster = $plan->masterItem;
+            $partName = $itemMaster?->part_name ?? $itemMaster?->item_name ?? '-';
+            $custName = $itemMaster?->customer?->customer_name ?? $itemMaster?->customer_code ?? '-';
+
+            $remarks = $hourlyRemarks->where('dic_id', $plan->id)->sortBy('start_time');
+
+            $slots = [];
+            foreach ($remarks as $r) {
+                $ngList = [];
+                foreach ($r->ngDetails as $ng) {
+                    if ($ng->ng_quantity > 0) {
+                        $ngList[] = [
+                            'type' => $ng->ngType?->ng_type ?? 'NG',
+                            'qty' => $ng->ng_quantity,
+                            'remarks' => $ng->ng_remarks,
+                        ];
+                    }
+                }
+
+                $slots[] = [
+                    'time' => substr($r->start_time, 0, 5) . ' - ' . substr($r->end_time, 0, 5),
+                    'target' => $r->target ?? 0,
+                    'actual' => $r->actual_production ?? 0,
+                    'ng' => $r->NG ?? 0,
+                    'ng_list' => $ngList,
+                    'pic' => $r->pic ?? '-',
+                    'remark' => $r->remark ?? '',
+                ];
+            }
+
+            $itemDetailRows[] = [
+                'plan_id' => $plan->id,
+                'shift' => $plan->shift,
+                'item_code' => $plan->item_code,
+                'part_name' => $partName,
+                'customer' => $custName,
+                'slots' => $slots,
+            ];
+        }
+
+        // 6. Operator names per shift (derived from unique HourlyRemark PICs)
         $operatorNames = [1 => '-', 2 => '-', 3 => '-'];
         foreach ([1, 2, 3] as $shift) {
             $pics = $hourlyRemarks->filter(fn($r) => $r->dailyItemCode->shift == $shift)
@@ -162,7 +219,7 @@ class MachineDailyReport extends Component
             }
         }
 
-        // 6. Plastic Part Defective Analysis Matrix
+        // 7. Plastic Part Defective Analysis Matrix
         $ngTypes = ProductionNgType::all();
         $defectMatrix = [1 => [], 2 => [], 3 => []];
         foreach ([1, 2, 3] as $shift) {
@@ -184,11 +241,14 @@ class MachineDailyReport extends Component
             }
         }
 
-        // 7. Calculate aggregate actual metrics for OK and NG
+        // 8. Calculate aggregate actual metrics for OK and NG
+        $filteredPlans = $this->selectedItemCode ? $dailyPlans->where('item_code', $this->selectedItemCode) : $dailyPlans;
+        $filteredRemarks = $this->selectedItemCode ? $hourlyRemarks->filter(fn($r) => $r->dailyItemCode?->item_code === $this->selectedItemCode) : $hourlyRemarks;
+
         $totals = [
-            'planned_target' => $dailyPlans->sum('quantity'),
-            'actual_ok' => $dailyPlans->flatMap(fn($p) => $p->scannedData)->sum('quantity'),
-            'actual_ng' => $hourlyRemarks->sum('NG'),
+            'planned_target' => $filteredPlans->sum('quantity'),
+            'actual_ok' => $filteredRemarks->sum('actual_production'),
+            'actual_ng' => $filteredRemarks->sum('NG'),
         ];
         $totals['total_produced'] = $totals['actual_ok'] + $totals['actual_ng'];
 
@@ -196,6 +256,8 @@ class MachineDailyReport extends Component
             'machines' => $machines,
             'selectedMachine' => $selectedMachine,
             'dailyPlans' => $dailyPlans,
+            'availableItems' => $availableItems,
+            'itemDetailRows' => $itemDetailRows,
             'hourlyOutput' => $hourlyOutput,
             'operatorNames' => $operatorNames,
             'ngTypes' => $ngTypes,

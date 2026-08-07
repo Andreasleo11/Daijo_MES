@@ -115,7 +115,7 @@
                     $totActual   += $row['actual'];
                     $totDowntime += $row['downtime'];
                 @endphp
-                <tr>
+                <tr style="{{ !empty($row['is_pair_sub']) ? 'background-color: #F8FAFC; font-style: italic;' : '' }}">
                     <td>{{ $row['no'] }}</td>
                     <td>{{ $row['date'] }}</td>
                     <td class="text-left" style="font-weight: bold;">{{ $row['customer'] }}</td>

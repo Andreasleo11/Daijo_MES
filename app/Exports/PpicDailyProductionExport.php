@@ -32,6 +32,7 @@ class PpicDailyProductionExport implements FromView, WithTitle, ShouldAutoSize, 
     public function view(): View
     {
         $query = DailyItemCode::whereDate('schedule_date', $this->date)
+            ->whereHas('hourlyRemarks')
             ->with(['user', 'masterItem.customer', 'hourlyRemarks', 'scannedData']);
 
         if ($this->machineId) {
@@ -57,68 +58,115 @@ class PpicDailyProductionExport implements FromView, WithTitle, ShouldAutoSize, 
             preg_match('/(\d+)/', $machineCode, $matches);
             $mct = !empty($matches[1]) ? $matches[1] . 'T' : '100T';
 
-            // Calculate shift 1, 2, 3 quantities from hourly remarks
-            $shift1Qty = $plan->hourlyRemarks->where('dailyItemCode.shift', 1)->sum('actual_production');
-            $shift2Qty = $plan->hourlyRemarks->where('dailyItemCode.shift', 2)->sum('actual_production');
-            $shift3Qty = $plan->hourlyRemarks->where('dailyItemCode.shift', 3)->sum('actual_production');
+            // Find distinct item_codes from ProductionScannedData for this DIC
+            $scannedItemCodes = \App\Models\ProductionScannedData::where('dic_id', $plan->id)
+                ->whereNotNull('item_code')
+                ->where('item_code', '!=', '')
+                ->select('item_code')
+                ->distinct()
+                ->pluck('item_code')
+                ->toArray();
 
-            // If hourlyRemarks actual_production is empty, fallback to scanned data
-            if ($shift1Qty + $shift2Qty + $shift3Qty == 0) {
-                $totalOkScanned = $plan->scannedData->sum('quantity');
-                if ($plan->shift == 1) $shift1Qty = $totalOkScanned;
-                elseif ($plan->shift == 2) $shift2Qty = $totalOkScanned;
-                elseif ($plan->shift == 3) $shift3Qty = $totalOkScanned;
+            // Ensure plan's main item_code is included as the primary item
+            $distinctItemCodes = array_values(array_unique(array_filter(array_merge([$plan->item_code], $scannedItemCodes))));
+            $isPair = count($distinctItemCodes) > 1;
+
+            $primaryNo = $no++;
+
+            foreach ($distinctItemCodes as $index => $itemCode) {
+                $isPrimary = ($index === 0);
+
+                // Lookup item details from MasterListItem or fallback
+                $itemMaster = \App\Models\MasterListItem::where('item_code', $itemCode)
+                    ->with('customer')
+                    ->first() ?? ($isPrimary ? $masterItem : null);
+
+                $custName = $itemMaster?->customer?->customer_name ?? $itemMaster?->customer_code ?? ($isPrimary ? $customer : '-');
+                $itemPartNo = $itemMaster?->part_no ?? $itemCode;
+                $itemPartName = $itemMaster?->part_name ?? $itemMaster?->item_name ?? ($isPrimary ? $partName : '-');
+
+                // Extract Cycle Time for this item
+                $itemCycleTimeSec = $isPrimary
+                    ? ((!empty($plan->temporal_cycle_time) && $plan->temporal_cycle_time > 0)
+                        ? (float) $plan->temporal_cycle_time
+                        : (!empty($itemMaster?->cycle_time) && $itemMaster->cycle_time > 0 ? (float) $itemMaster->cycle_time : null))
+                    : (!empty($itemMaster?->cycle_time) && $itemMaster->cycle_time > 0 ? (float) $itemMaster->cycle_time : null);
+
+                // Target per hour
+                if ($itemCycleTimeSec && $itemCycleTimeSec > 0) {
+                    $itemTargetPerHour = (int) round(3600 / $itemCycleTimeSec);
+                } else {
+                    $avgTargetRemark = (int) $plan->hourlyRemarks->avg('target');
+                    $itemTargetPerHour = $avgTargetRemark > 0 ? $avgTargetRemark : 80;
+                }
+
+                // Determine Shift 1, 2, 3 actual quantities based on DIC's assigned shift ($plan->shift)
+                $planShift = (int) ($plan->shift ?? 1);
+                // Determine actual production quantity (Actual Qty) for this DIC
+                $hourlySum = (int) $plan->hourlyRemarks->sum('actual_production');
+                if ($hourlySum > 0) {
+                    $dicActualTotal = $hourlySum;
+                } elseif (!empty($plan->actual_quantity) && $plan->actual_quantity > 0) {
+                    $dicActualTotal = (int) $plan->actual_quantity;
+                } else {
+                    $dicActualTotal = (int) $plan->scannedData->sum('quantity');
+                }
+
+                // If DIC has pair items (multiple distinct item codes), divide Actual Qty by number of pair items
+                $pairCount = count($distinctItemCodes);
+                if ($isPair && $pairCount > 1) {
+                    $itemQty = (int) round($dicActualTotal / $pairCount);
+                } else {
+                    $itemQty = $dicActualTotal;
+                }
+
+                $shift1Qty = ($planShift === 1) ? $itemQty : 0;
+                $shift2Qty = ($planShift === 2) ? $itemQty : 0;
+                $shift3Qty = ($planShift === 3) ? $itemQty : 0;
+
+                $totalShift = $shift1Qty + $shift2Qty + $shift3Qty;
+
+                // Time calculation:
+                // Primary item holds planned, actual, and downtime.
+                // Pair item MUST BE 0 as requested by user ("untuk planned actual time dan downtime isi 0 karena ini pair")
+                if ($isPrimary) {
+                    $filledSlotsCount = $plan->hourlyRemarks->count();
+                    $rowPlanHours = $filledSlotsCount > 0 ? $filledSlotsCount : 24;
+
+                    $rowActualHours = 0.0;
+                    if ($itemTargetPerHour > 0 && $totalShift > 0) {
+                        $rowActualHours = round($totalShift / $itemTargetPerHour, 2);
+                    } else {
+                        $rowActualHours = (float) $plan->hourlyRemarks->filter(fn($r) => $r->actual_production > 0)->count();
+                    }
+
+                    $rowDowntimeHours = round(max(0, $rowPlanHours - $rowActualHours), 2);
+                } else {
+                    $rowPlanHours = 0;
+                    $rowActualHours = 0;
+                    $rowDowntimeHours = 0;
+                }
+
+                $reportData[] = [
+                    'no'           => $isPrimary ? $primaryNo : '',
+                    'date'         => Carbon::parse($plan->schedule_date)->format('d-M-y'),
+                    'customer'     => strtoupper($custName),
+                    'mc'           => $machineCode,
+                    'part_no'      => $itemPartNo,
+                    'part_name'    => $itemPartName,
+                    'shift_1'      => $shift1Qty,
+                    'shift_2'      => $shift2Qty,
+                    'shift_3'      => $shift3Qty,
+                    'total_shift'  => $totalShift,
+                    'mct'          => $mct,
+                    'cycle_time'   => $itemCycleTimeSec ? round($itemCycleTimeSec, 1) : '-',
+                    'target_h'     => $itemTargetPerHour,
+                    'plan'         => $rowPlanHours,
+                    'actual'       => $rowActualHours,
+                    'downtime'     => $rowDowntimeHours,
+                    'is_pair_sub'  => !$isPrimary,
+                ];
             }
-
-            $totalShift = $shift1Qty + $shift2Qty + $shift3Qty;
-
-            // Extract Cycle Time (seconds) - Priority 1: DailyItemCode.temporal_cycle_time -> Priority 2: MasterListItem.cycle_time
-            $cycleTimeSec = (!empty($plan->temporal_cycle_time) && $plan->temporal_cycle_time > 0)
-                ? (float) $plan->temporal_cycle_time
-                : (!empty($masterItem?->cycle_time) && $masterItem->cycle_time > 0 ? (float) $masterItem->cycle_time : null);
-
-            // Target per hour: Priority 1: Calculated from cycle time (3600 / cycleTime) -> Priority 2: Hourly remark average -> Priority 3: 80
-            if ($cycleTimeSec && $cycleTimeSec > 0) {
-                $targetPerHour = (int) round(3600 / $cycleTimeSec);
-            } else {
-                $avgTargetRemark = (int) $plan->hourlyRemarks->avg('target');
-                $targetPerHour = $avgTargetRemark > 0 ? $avgTargetRemark : 80;
-            }
-
-            // 1. Plan Hours: Default 24 Jam per hari, atau jam slot terencana
-            $filledSlotsCount = $plan->hourlyRemarks->count();
-            $planHours = $filledSlotsCount > 0 ? $filledSlotsCount : 24;
-
-            // 2. Actual Hours: Jam Actual Berjalan (Running Hours) = Total Qty / Target per Jam
-            $actualHours = 0.0;
-            if ($targetPerHour > 0 && $totalShift > 0) {
-                $actualHours = round($totalShift / $targetPerHour, 2);
-            } else {
-                // Fallback: hitung jam slot yang memiliki output > 0
-                $actualHours = (float) $plan->hourlyRemarks->filter(fn($r) => $r->actual_production > 0)->count();
-            }
-
-            // 3. Downtime Hours: Selisih Jam Plan dengan Jam Actual (atau jam kendala)
-            $downtimeHours = round(max(0, $planHours - $actualHours), 2);
-
-            $reportData[] = [
-                'no'           => $no++,
-                'date'         => Carbon::parse($plan->schedule_date)->format('d-M-y'),
-                'customer'     => strtoupper($customer),
-                'mc'           => $machineCode,
-                'part_no'      => $partNo,
-                'part_name'    => $partName,
-                'shift_1'      => $shift1Qty,
-                'shift_2'      => $shift2Qty,
-                'shift_3'      => $shift3Qty,
-                'total_shift'  => $totalShift,
-                'mct'          => $mct,
-                'cycle_time'   => $cycleTimeSec ? round($cycleTimeSec, 1) : '-',
-                'target_h'     => $targetPerHour,
-                'plan'         => $planHours,
-                'actual'       => $actualHours,
-                'downtime'     => $downtimeHours,
-            ];
         }
 
         return view('exports.ppic_daily_production', [
