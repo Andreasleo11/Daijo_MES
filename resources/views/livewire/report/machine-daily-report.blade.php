@@ -136,6 +136,7 @@
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Item Code</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Part Name</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Cycle Time</th>
+                                <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Lot Material</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Target</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Scanned (OK)</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Actual Qty</th>
@@ -169,6 +170,20 @@
                                         @else
                                             <span class="text-gray-400 italic text-[11px]">-</span>
                                         @endif
+                                    </td>
+                                    <td class="py-4 px-6 text-xs text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            @if(!empty($plan->material_lot))
+                                                <span class="inline-block px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 font-extrabold rounded-lg text-xs tracking-tight uppercase">
+                                                    {{ $plan->material_lot }}
+                                                </span>
+                                            @else
+                                                <span class="text-gray-300 italic text-[11px]">-</span>
+                                            @endif
+                                            <button wire:click="openLotModal({{ $plan->id }})" title="Set Lot Material" class="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
+                                                ✏️
+                                            </button>
+                                        </div>
                                     </td>
                                     <td class="py-4 px-6 text-xs font-bold text-gray-700 text-center">{{ number_format($plan->quantity) }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-green-600 text-center">{{ number_format($scannedOk) }}</td>
@@ -227,8 +242,12 @@
                     @forelse($itemDetailRows as $itemGroup)
                         <div x-data="{ openCard: true }" class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                             {{-- Header Item --}}
+                            @php
+                                $totalActual = collect($itemGroup['slots'])->sum('actual');
+                                $totalNg = collect($itemGroup['slots'])->sum('ng');
+                            @endphp
                             <div @click="openCard = !openCard" class="bg-gray-100/70 px-5 py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none hover:bg-gray-200/60 transition-colors">
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-3 flex-wrap">
                                     <span class="bg-blue-600 text-white font-black text-[10px] uppercase px-3 py-1 rounded-lg">
                                         Shift {{ $itemGroup['shift'] }}
                                     </span>
@@ -237,8 +256,18 @@
                                         <span class="text-xs font-bold text-gray-500 ml-2">({{ $itemGroup['part_name'] }})</span>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="text-xs font-bold text-gray-500">
+                                <div class="flex items-center gap-3 flex-wrap">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-3 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 font-black text-xs inline-flex items-center gap-1 shadow-2xs">
+                                            <span>Total Actual:</span>
+                                            <span class="text-blue-800 font-extrabold">{{ number_format($totalActual) }}</span>
+                                        </span>
+                                        <span class="px-3 py-1 rounded-xl {{ $totalNg > 0 ? 'bg-red-600 text-white font-black animate-pulse shadow-sm' : 'bg-gray-100 text-gray-600 border border-gray-200 font-bold' }} text-xs inline-flex items-center gap-1">
+                                            <span>Total NG:</span>
+                                            <span class="font-extrabold">{{ number_format($totalNg) }}</span>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs font-bold text-gray-500 border-l border-gray-300 pl-3">
                                         Customer: <span class="text-gray-800 font-bold">{{ $itemGroup['customer'] }}</span>
                                     </div>
                                     <svg :class="openCard ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -573,6 +602,45 @@
                         </button>
                     </div>
 
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal Set Lot Material -->
+    @if($showLotModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity" wire:click="closeLotModal"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-100">
+                    <div class="bg-amber-600 text-white px-6 py-4 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🏷️</span>
+                            <h3 class="text-sm font-black uppercase tracking-wider">Set Kode Lot Material</h3>
+                        </div>
+                        <button type="button" wire:click="closeLotModal" class="text-amber-100 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <form wire:submit.prevent="saveMaterialLot" class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-black uppercase text-gray-500 mb-1">Kode Lot Material (Alphanumeric)</label>
+                            <input type="text" wire:model="editingMaterialLot" placeholder="Contoh: LOT-2026-A123" class="w-full text-sm font-bold uppercase rounded-xl border-gray-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-2xs">
+                            <p class="text-[11px] text-gray-400 font-medium mt-1">Masukkan kode lot bahan baku material yang digunakan.</p>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-2">
+                            <button type="button" wire:click="closeLotModal" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors">
+                                Batal
+                            </button>
+                            <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-xs transition-colors">
+                                Simpan Lot Material
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

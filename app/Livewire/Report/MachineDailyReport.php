@@ -23,6 +23,40 @@ class MachineDailyReport extends Component
     public $checklistHeader = null;
     public $checklistItems = [];
 
+    public bool $showLotModal = false;
+    public $editingPlanId = null;
+    public $editingMaterialLot = '';
+
+    public function openLotModal($planId)
+    {
+        $plan = DailyItemCode::find($planId);
+        if ($plan) {
+            $this->editingPlanId = $plan->id;
+            $this->editingMaterialLot = $plan->material_lot ?? '';
+            $this->showLotModal = true;
+        }
+    }
+
+    public function closeLotModal()
+    {
+        $this->showLotModal = false;
+        $this->editingPlanId = null;
+        $this->editingMaterialLot = '';
+    }
+
+    public function saveMaterialLot()
+    {
+        if ($this->editingPlanId) {
+            $plan = DailyItemCode::find($this->editingPlanId);
+            if ($plan) {
+                $plan->material_lot = $this->editingMaterialLot ? strtoupper(trim($this->editingMaterialLot)) : null;
+                $plan->save();
+            }
+        }
+
+        $this->closeLotModal();
+    }
+
     // Query string support for easy bookmarking and state preservation
     protected $queryString = [
         'selectedDate' => ['except' => ''],

@@ -2329,6 +2329,28 @@ class DashboardController extends Controller
         return back()->with('success', 'Temporal cycle time updated successfully.');
     }
 
+    // function untuk update lot material per shift (per item code)
+    public function updateMaterialLot(Request $request, $id)
+    {
+        $request->validate([
+            'material_lot' => 'nullable|string|max:255',
+        ]);
+
+        $record = DailyItemCode::findOrFail($id);
+        $record->material_lot = $request->material_lot ? strtoupper(trim($request->material_lot)) : null;
+        $record->save();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lot Material updated successfully.',
+                'material_lot' => $record->material_lot,
+            ]);
+        }
+
+        return back()->with('success', 'Lot Material updated successfully.');
+    }
+
     // function untuk update actual produksi yang didapat operator perjam 
     public function updateActualProduction(Request $request, $id)
     {

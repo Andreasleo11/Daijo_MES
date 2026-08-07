@@ -28,6 +28,7 @@ class DailyItemCode extends Model
         'start_date',
         'end_date',
         'remark',
+        'material_lot',
         'temporal_cycle_time',
         'temporal_cycletime',
         'temporal_cavity',

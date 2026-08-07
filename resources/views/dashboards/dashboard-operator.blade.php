@@ -640,6 +640,7 @@
                                             <th class="py-1 px-2 text-gray-700">Quantity</th>
                                             <th class="py-1 px-2 text-gray-700">Status</th>
                                             <th class="py-1 px-2 text-gray-700">Cycle Time</th>
+                                            <th class="py-1 px-2 text-gray-700">Lot Material</th>
                                             <th class="py-1 px-2 text-gray-700">Berat Purging</th>
                                             <th class="py-1 px-2 text-gray-700">Remark</th>
                                             <!-- <th class="py-1 px-2 text-gray-700">Loss Package Quantity</th> -->
@@ -681,6 +682,17 @@
                                                     @endif
                                                 </td>
                                                 <td class="py-1 px-2">
+                                                    @if ($data->material_lot)
+                                                        <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-sm font-black uppercase">
+                                                            {{ $data->material_lot }}
+                                                        </span>
+                                                    @else
+                                                        <span class="bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full text-sm italic">
+                                                            -
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-1 px-2">
                                                     @if ($data->resin_usage)
                                                         <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-semibold">
                                                             {{ $data->resin_usage }} KG
@@ -714,6 +726,14 @@
                                                             onclick="openCycleTimeModal('{{ $data->id }}', '{{ $data->temporal_cycle_time ?? '' }}')"
                                                         >
                                                             Set Cycle Time
+                                                    </button>
+
+                                                    <button 
+                                                        type="button" 
+                                                        class="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded mt-1 font-bold"
+                                                        onclick="openMaterialLotModal('{{ $data->id }}', '{{ $data->material_lot ?? '' }}')"
+                                                    >
+                                                        Set Lot Material
                                                     </button>
 
                                                     <button 
@@ -770,6 +790,23 @@
                                             <div class="flex justify-end gap-2">
                                                 <button type="button" onclick="closeCycleTimeModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
                                                 <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Submit</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div id="materialLotModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+                                    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+                                        <h2 class="text-lg font-semibold mb-4">Set Lot Material</h2>
+                                        <form id="materialLotForm" method="POST">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="data_id" id="mlDataIdInput">
+                                            <label for="material_lot" class="block text-sm font-medium text-gray-700 mb-1">Kode Lot Material (Alphanumeric)</label>
+                                            <input type="text" id="materialLotInput" name="material_lot" placeholder="Contoh: LOT-2026-A123" class="w-full border rounded p-2 mb-4 uppercase" oninput="this.value = this.value.toUpperCase()">
+                                            <div class="flex justify-end gap-2">
+                                                <button type="button" onclick="closeMaterialLotModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+                                                <button type="submit" class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700">Submit</button>
                                             </div>
                                         </form>
                                     </div>
@@ -2633,6 +2670,19 @@
 
             function closeCycleTimeModal() {
                 document.getElementById('cycleTimeModal').classList.add('hidden');
+            }
+
+            function openMaterialLotModal(dataId, existingValue = '') {
+                document.getElementById('materialLotModal').classList.remove('hidden');
+                document.getElementById('mlDataIdInput').value = dataId;
+                document.getElementById('materialLotInput').value = existingValue;
+
+                // Set form action dynamically
+                document.getElementById('materialLotForm').action = `/daily-item-codes/${dataId}/material-lot`;
+            }
+
+            function closeMaterialLotModal() {
+                document.getElementById('materialLotModal').classList.add('hidden');
             }
 
             function openProductionModal(slotId, currentValue = 0) {

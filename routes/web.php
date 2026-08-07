@@ -461,6 +461,8 @@ Route::middleware('auth')->group(function (){
     Route::delete('/spk-scan/{id}', [DashboardController::class, 'deleteScanData'])->name('spk-scan.destroy');
     Route::put('/daily-item-codes/{id}/temporal-cycle-time', [DashboardController::class, 'updateCycleTime'])
     ->name('daily-item-codes.updateCycleTime');
+    Route::put('/daily-item-codes/{id}/material-lot', [DashboardController::class, 'updateMaterialLot'])
+    ->name('daily-item-codes.updateMaterialLot');
     Route::post('/hourly-remarks', [DashboardController::class, 'storeHourlyRemark'])->name('hourly-remarks.store');
     Route::post('/production-output-log', [DashboardController::class, 'storeOutputLog'])->name('production.output-log.store');
     Route::get('/production-output-log/print/{id}', [DashboardController::class, 'printOutputLog'])->name('production.output-log.print');
