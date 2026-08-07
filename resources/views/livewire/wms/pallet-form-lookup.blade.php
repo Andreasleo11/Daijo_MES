@@ -7,7 +7,7 @@
                 <p class="text-gray-500 text-sm">Scan barcode ID palet untuk melihat rincian isi dan lokasi.</p>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ route('wms.pallet-form.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold flex items-center transition-all shadow-lg shadow-blue-100">
+                <a href="{{ route('wms.pallet-form.create-delivery') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold flex items-center transition-all shadow-lg shadow-blue-100">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     NEW PALLET
                 </a>
@@ -102,9 +102,43 @@
 
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Warehouse Location</label>
-                                <div class="flex items-center p-3 bg-slate-800 rounded-xl text-white">
-                                    <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                    <span class="font-bold text-lg">{{ $palletForm->position?->position_code ?? 'NOT MAPPED' }}</span>
+                                <div class="flex items-center p-3 bg-slate-800 rounded-xl text-white justify-between">
+                                    <div class="flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        <span class="font-bold text-lg">{{ $palletForm->position?->position_code ?? 'NOT MAPPED' }}</span>
+                                    </div>
+                                    @if($palletForm->is_overaged)
+                                        <span class="px-2.5 py-1 bg-rose-600 text-white font-black text-[10px] rounded-lg animate-pulse" title="Tersimpan selama {{ $palletForm->age_days }} Hari di Gudang">
+                                            ⚠️ {{ $palletForm->age_days }} HARI DI GUDANG
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Lead Time Timeline Widget -->
+                            <div class="p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl space-y-2">
+                                <span class="text-[10px] font-black text-indigo-900 uppercase tracking-widest block">⏱️ Putaway Timeline & Lead Time</span>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span class="text-[10px] text-gray-400 font-bold block uppercase">Scan Delivery:</span>
+                                        <span class="font-bold text-gray-800">{{ $palletForm->created_at ? $palletForm->created_at->format('d M Y H:i') : '-' }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[10px] text-gray-400 font-bold block uppercase">Masuk Rak:</span>
+                                        <span class="font-bold text-gray-800">{{ $palletForm->assigned_at ? $palletForm->assigned_at->format('d M Y H:i') : 'Belum Assign' }}</span>
+                                    </div>
+                                </div>
+                                <div class="pt-2 border-t border-indigo-200/60 flex justify-between items-center text-xs font-bold">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-indigo-900">Lead Time:</span>
+                                        <span class="px-2 py-0.5 bg-indigo-600 text-white font-black rounded-md font-mono text-[11px]">
+                                            {{ $palletForm->putaway_lead_time }}
+                                        </span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-slate-500 font-normal text-[10px]">Umur Stok: </span>
+                                        <span class="font-black {{ $palletForm->is_overaged ? 'text-rose-600' : 'text-slate-800' }}">{{ $palletForm->age_days }} Hari</span>
+                                    </div>
                                 </div>
                             </div>
 

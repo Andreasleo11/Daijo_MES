@@ -14,8 +14,12 @@ class MaterialIncomingCreator extends Component
 {
     // Header Fields
     public string $document_no = '';
+    public string $incoming_type = 'SUPPLIER'; // SUPPLIER vs RETURN_PRODUCTION
     public string $supplier_name = '';
+    public string $returned_from = '';
     public string $po_number = '';
+    public string $original_outgoing_code = '';
+    public bool $is_prefilled_from_outgoing = false;
     public string $arrival_date = '';
     public string $remarks = '';
 
@@ -31,8 +35,35 @@ class MaterialIncomingCreator extends Component
         $this->arrival_date = now()->format('Y-m-d');
         $this->document_no  = $mwhService->generateDocumentNo();
 
+        // Handle pre-filled query parameters from Outgoing History for Retur Produksi
+        $reqType         = request()->query('type');
+        $reqOutgoingCode = request()->query('outgoing_code');
+        $reqReturnedFrom = request()->query('returned_from');
+        $reqItemCode     = request()->query('item_code');
+
+        if ($reqType === 'RETURN_PRODUCTION') {
+            $this->incoming_type = 'RETURN_PRODUCTION';
+        }
+
+        if ($reqOutgoingCode) {
+            $this->original_outgoing_code = trim($reqOutgoingCode);
+            $this->is_prefilled_from_outgoing = true;
+        }
+
+        if ($reqReturnedFrom) {
+            $this->returned_from = trim($reqReturnedFrom);
+        }
+
         // Add 1 initial row
         $this->addItemRow();
+
+        if ($reqItemCode) {
+            $mat = MasterListMaterial::where('item_code', trim($reqItemCode))->first();
+            if ($mat) {
+                $this->items[0]['item_code']        = $mat->item_code;
+                $this->items[0]['item_description'] = $mat->item_description ?? '';
+            }
+        }
     }
 
     public function addItemRow(): void
@@ -86,14 +117,17 @@ class MaterialIncomingCreator extends Component
     public function saveIncoming(MaterialWarehouseService $mwhService): void
     {
         $this->validate([
-            'arrival_date'         => 'required|date',
-            'supplier_name'        => 'nullable|string|max:255',
-            'po_number'            => 'nullable|string|max:255',
-            'remarks'              => 'nullable|string',
-            'items'                => 'required|array|min:1',
-            'items.*.item_code'    => 'required|string|exists:master_list_materials,item_code',
-            'items.*.qty'          => 'required|numeric|min:0.01',
-            'items.*.position_id'  => 'required|exists:mwh_positions,id',
+            'incoming_type'          => 'required|in:SUPPLIER,RETURN_PRODUCTION',
+            'arrival_date'           => 'required|date',
+            'supplier_name'          => 'nullable|string|max:255',
+            'returned_from'          => 'nullable|string|max:255',
+            'po_number'              => 'nullable|string|max:255',
+            'original_outgoing_code' => 'nullable|string|max:255',
+            'remarks'                => 'nullable|string',
+            'items'                  => 'required|array|min:1',
+            'items.*.item_code'      => 'required|string|exists:master_list_materials,item_code',
+            'items.*.qty'            => 'required|numeric|min:0.01',
+            'items.*.position_id'    => 'required|exists:mwh_positions,id',
         ], [
             'items.*.item_code.required'   => 'Part Code material harus diisi.',
             'items.*.item_code.exists'     => 'Part Code material tidak ada di Master List.',
@@ -105,11 +139,14 @@ class MaterialIncomingCreator extends Component
             DB::beginTransaction();
 
             $header = MwhIncomingHeader::create([
-                'document_no'   => $mwhService->generateDocumentNo(),
-                'supplier_name' => trim($this->supplier_name) ?: null,
-                'po_number'     => trim($this->po_number) ?: null,
-                'arrival_date'  => $this->arrival_date,
-                'remarks'       => trim($this->remarks) ?: null,
+                'document_no'             => $mwhService->generateDocumentNo(),
+                'incoming_type'           => $this->incoming_type,
+                'supplier_name'           => $this->incoming_type === 'SUPPLIER' ? (trim($this->supplier_name) ?: null) : null,
+                'returned_from'           => $this->incoming_type === 'RETURN_PRODUCTION' ? (trim($this->returned_from) ?: null) : null,
+                'po_number'               => trim($this->po_number) ?: null,
+                'original_outgoing_code' => trim($this->original_outgoing_code) ?: null,
+                'arrival_date'            => $this->arrival_date,
+                'remarks'                 => trim($this->remarks) ?: null,
             ]);
 
             $this->createdPallets = [];
@@ -190,7 +227,8 @@ class MaterialIncomingCreator extends Component
             DB::commit();
 
             $this->showSuccessModal = true;
-            session()->flash('success', 'Transaksi Kedatangan Material & Palletizing berhasil disimpan.');
+            $typeLabel = $this->incoming_type === 'RETURN_PRODUCTION' ? 'Retur Sisa Material Produksi' : 'Kedatangan Supplier';
+            session()->flash('success', "Transaksi Penerimaan Material ({$typeLabel}) & Palletizing berhasil disimpan.");
         } catch (\Illuminate\Database\QueryException $qe) {
             DB::rollBack();
             if (str_contains($qe->getMessage(), '1062 Duplicate entry')) {
@@ -206,9 +244,10 @@ class MaterialIncomingCreator extends Component
 
     public function resetForm(MaterialWarehouseService $mwhService): void
     {
-        $this->reset(['supplier_name', 'po_number', 'remarks', 'items', 'createdPallets', 'showSuccessModal']);
-        $this->arrival_date = now()->format('Y-m-d');
-        $this->document_no  = $mwhService->generateDocumentNo();
+        $this->reset(['incoming_type', 'supplier_name', 'returned_from', 'po_number', 'original_outgoing_code', 'is_prefilled_from_outgoing', 'remarks', 'items', 'createdPallets', 'showSuccessModal']);
+        $this->incoming_type = 'SUPPLIER';
+        $this->arrival_date  = now()->format('Y-m-d');
+        $this->document_no   = $mwhService->generateDocumentNo();
         $this->addItemRow();
     }
 

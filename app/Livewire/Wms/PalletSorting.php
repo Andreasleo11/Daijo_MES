@@ -374,6 +374,7 @@ class PalletSorting extends Component
                     WmsPalletForm::create([
                         'pallet_id' => $palletId,
                         'position_id' => $positionId,
+                        'assigned_at' => $positionId ? now() : null,
                         'part_no' => $headerPartNo,
                         'model_name' => $headerModelName,
                         'prod_date' => $pallet['prod_date'],
@@ -390,8 +391,10 @@ class PalletSorting extends Component
                     // Log IN Transaction
                     $wmsService->logTransaction($palletId, 'IN', $positionId, 'Pallet created during sorting');
                 } else {
+                    $existingP = WmsPalletForm::where('pallet_id', $palletId)->first();
                     WmsPalletForm::where('pallet_id', $palletId)->update([
                         'position_id' => $positionId,
+                        'assigned_at' => $positionId ? ($existingP?->assigned_at ?? now()) : null,
                         'part_no' => $headerPartNo,
                         'model_name' => $headerModelName,
                         'box_qty' => $boxesCount,

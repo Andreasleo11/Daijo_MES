@@ -299,7 +299,10 @@ class RackMapping extends Component
             }
 
             $oldPosId = $pallet->position_id;
-            $pallet->update(['position_id' => $pos->id]);
+            $pallet->update([
+                'position_id' => $pos->id,
+                'assigned_at' => $pallet->assigned_at ?? now(),
+            ]);
 
             if ($oldPosId) {
                 $wmsService->updatePositionStatus($oldPosId);
