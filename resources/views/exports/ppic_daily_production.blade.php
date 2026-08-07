@@ -59,12 +59,12 @@
     <table>
         <!-- Banner Title -->
         <tr>
-            <td colspan="15" class="header-title" style="font-size: 14px; font-weight: bold; text-align: left;">
+            <td colspan="16" class="header-title" style="font-size: 14px; font-weight: bold; text-align: left;">
                 LAPORAN PRODUKSI HARIAN (DAILY PRODUCTION REPORT) - PPIC INJECTION
             </td>
         </tr>
         <tr>
-            <td colspan="15" style="text-align: left; font-weight: bold; font-size: 10px; border: none; padding-bottom: 10px;">
+            <td colspan="16" style="text-align: left; font-weight: bold; font-size: 10px; border: none; padding-bottom: 10px;">
                 TANGGAL PRODUKSI: {{ $date }}
             </td>
         </tr>
@@ -80,6 +80,7 @@
                 <th rowspan="2" class="header-bg" style="width: 220px;">PART NAME</th>
                 <th colspan="4" class="header-bg">PRODUCTION</th>
                 <th rowspan="2" class="header-bg" style="width: 55px;">MCT</th>
+                <th rowspan="2" class="header-bg" style="width: 65px;">C/T (SEC)</th>
                 <th rowspan="2" class="header-bg" style="width: 65px;">TARGET/H</th>
                 <th rowspan="2" class="header-bg" style="width: 80px;">PLANNED TIME (HRS)</th>
                 <th rowspan="2" class="header-bg" style="width: 80px;">ACTUAL TIME (HRS)</th>
@@ -126,6 +127,7 @@
                     <td class="text-right">{{ number_format($row['shift_3']) }}</td>
                     <td class="text-right" style="font-weight: bold; background-color: #FFF0F0;">{{ number_format($row['total_shift']) }}</td>
                     <td style="font-weight: bold;">{{ $row['mct'] }}</td>
+                    <td class="text-right">{{ $row['cycle_time'] }}</td>
                     <td class="text-right">{{ number_format($row['target_h']) }}</td>
                     <td class="text-right">{{ number_format($row['plan']) }}</td>
                     <td class="text-right">{{ number_format($row['actual']) }}</td>
@@ -135,7 +137,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="15" style="text-align: center; padding: 20px; font-style: italic; color: #718096;">
+                    <td colspan="16" style="text-align: center; padding: 20px; font-style: italic; color: #718096;">
                         Tidak ada data produksi mesin untuk tanggal ini.
                     </td>
                 </tr>
@@ -149,7 +151,7 @@
                     <td class="text-right" style="font-weight: bold;">{{ number_format($totShift2) }}</td>
                     <td class="text-right" style="font-weight: bold;">{{ number_format($totShift3) }}</td>
                     <td class="text-right" style="font-weight: bold; background-color: #FFD8D8;">{{ number_format($totAllShift) }}</td>
-                    <td colspan="2"></td>
+                    <td colspan="3"></td>
                     <td class="text-right" style="font-weight: bold;">{{ number_format($totPlan) }}</td>
                     <td class="text-right" style="font-weight: bold;">{{ number_format($totActual) }}</td>
                     <td class="text-right text-danger" style="font-weight: bold;">{{ number_format($totDowntime, 2) }}</td>
