@@ -29,10 +29,31 @@
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            {{-- Flash Messages --}}
             @if(session('error'))
                 <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm">
                     <p class="text-red-700 font-bold text-sm">{{ session('error') }}</p>
+                </div>
+            @endif
+
+            @if($session->is_qc_bypassed)
+                <div class="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm flex items-start justify-between gap-4">
+                    <div>
+                        <h4 class="font-black text-amber-950 text-sm uppercase tracking-wide flex items-center gap-2">
+                            <span>⚠️ Emergency QC Gate Bypassed</span>
+                        </h4>
+                        <p class="text-xs text-amber-900 font-medium mt-1">
+                            This production session was started without a pre-approved First Piece Inspection.
+                        </p>
+                        <div class="text-xs text-amber-950 font-bold mt-2 bg-amber-100/80 px-3 py-1.5 rounded-lg inline-block border border-amber-200">
+                            Reason: "{{ $session->qc_bypass_reason }}"
+                        </div>
+                    </div>
+                    @if($session->qcBypassedBy)
+                        <div class="text-right text-xs text-amber-800 shrink-0">
+                            <div>Bypassed by: <strong>{{ $session->qcBypassedBy->name }}</strong></div>
+                            <div class="font-mono text-[10px] text-amber-700">{{ $session->qc_bypassed_at?->format('Y-m-d H:i') }}</div>
+                        </div>
+                    @endif
                 </div>
             @endif
 

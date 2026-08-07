@@ -94,7 +94,7 @@
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <div>
-                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Work Orders Dispatch List</h3>
+                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Work Orders</h3>
                         <p class="text-xs text-gray-500 font-medium">Production planning and real-time execution status</p>
                     </div>
                 </div>

@@ -50,7 +50,7 @@ class SpWorkOrderController extends Controller
             ->get()
             ->groupBy('part_number');
 
-        $lines = ['Line A', 'Line B', 'Line C', 'Line D', 'Area Buffing', 'Area Amplas/Treatment', 'Area Packing', 'Area Assy'];
+        $lines = array_values(config('mes.sp_lines', []));
         $processes = ['Assembly', 'Painting', 'Buffing', 'Amplas', 'Trimming', 'Printing', 'Packing', 'Rework', 'Repair'];
 
         return view('sp_work_orders.index', compact('workOrders', 'firstPieceMap', 'lines', 'processes'));
@@ -59,7 +59,7 @@ class SpWorkOrderController extends Controller
     public function create()
     {
         $woNumber = SpWorkOrder::generateWoNumber();
-        $lines = ['Line A', 'Line B', 'Line C', 'Line D', 'Area Buffing', 'Area Amplas/Treatment', 'Area Packing', 'Area Assy'];
+        $lines = array_values(config('mes.sp_lines', []));
         $processes = ['Assembly', 'Painting', 'Buffing', 'Amplas', 'Trimming', 'Printing', 'Packing', 'Rework', 'Repair'];
 
         return view('sp_work_orders.create', compact('woNumber', 'lines', 'processes'));
@@ -116,7 +116,7 @@ class SpWorkOrderController extends Controller
                 ->with('error', 'Only planned Work Orders can be edited.');
         }
 
-        $lines = ['Line A', 'Line B', 'Line C', 'Line D', 'Area Buffing', 'Area Amplas/Treatment', 'Area Packing', 'Area Assy'];
+        $lines = array_values(config('mes.sp_lines', []));
         $processes = ['Assembly', 'Painting', 'Buffing', 'Amplas', 'Trimming', 'Printing', 'Packing', 'Rework', 'Repair'];
 
         return view('sp_work_orders.edit', compact('workOrder', 'lines', 'processes'));

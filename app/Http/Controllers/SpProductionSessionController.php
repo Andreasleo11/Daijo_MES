@@ -36,19 +36,27 @@ class SpProductionSessionController extends Controller
                 ->with('info', 'Resuming active production session.');
         }
 
-        // Validate QC-Approved First Piece Inspection before starting session
-        $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
-            ->whereDate('date', now()->format('Y-m-d'))
-            ->orderBy('id', 'desc')
-            ->first();
+        $isBypassed = false;
+        $bypassReason = null;
 
-        if (!$firstPiece || !$firstPiece->isApproved()) {
-            $reason = !$firstPiece 
-                ? "No First Piece Inspection record found for today." 
-                : ($firstPiece->overall_judgement !== 'OK' ? "Overall judgement is {$firstPiece->overall_judgement}." : "Pending QC signature.");
+        if ($request->boolean('bypass_qc')) {
+            $request->validate([
+                'bypass_reason' => 'required|string|min:3|max:255',
+            ]);
+            $isBypassed = true;
+            $bypassReason = $request->input('bypass_reason');
+        } else {
+            // Validate QC-Approved First Piece Inspection before starting session
+            $firstPiece = FirstPieceInspection::approvedForPartToday($workOrder->part_number)->first();
 
-            return redirect()->route('sp-work-orders.show', $workOrderId)
-                ->with('error', "Cannot start production: First Piece Inspection for Part {$workOrder->part_number} is not approved by QC ({$reason}).");
+            if (!$firstPiece || !$firstPiece->isApproved()) {
+                $reason = !$firstPiece 
+                    ? "No First Piece Inspection record found for today." 
+                    : ($firstPiece->overall_judgement !== 'OK' ? "Overall judgement is {$firstPiece->overall_judgement}." : "Pending QC signature.");
+
+                return redirect()->back()
+                    ->with('error', "Cannot start production: First Piece Inspection for Part {$workOrder->part_number} is not approved by QC ({$reason}).");
+            }
         }
 
         $session = SpProductionSession::create([
@@ -58,12 +66,20 @@ class SpProductionSessionController extends Controller
             'shift' => $workOrder->shift,
             'status' => 'running',
             'started_at' => now(),
+            'is_qc_bypassed' => $isBypassed,
+            'qc_bypass_reason' => $bypassReason,
+            'qc_bypassed_at' => $isBypassed ? now() : null,
+            'qc_bypassed_by' => $isBypassed ? auth()->id() : null,
         ]);
 
         $workOrder->update(['status' => 'in_progress']);
 
+        $message = $isBypassed 
+            ? "Production started with Emergency QC Bypass for Work Order {$workOrder->wo_number}."
+            : "Production started for Work Order {$workOrder->wo_number}.";
+
         return redirect()->route('app.sp-sessions.show', $session->id)
-            ->with('success', "Production started for Work Order {$workOrder->wo_number}.");
+            ->with('success', $message);
     }
 
     public function show($id)
@@ -371,22 +387,82 @@ class SpProductionSessionController extends Controller
             ->with('success', 'Production session completed successfully.');
     }
 
-    public function approve(Request $request, $id, SecondProcessReportSyncBridge $bridge)
+    /**
+     * Bookmarkable per-line gateway.
+     * Shows all assigned WOs for this line with per-WO session state.
+     */
+    public function lineGateway(Request $request, string $lineSlug)
     {
-        $session = SpProductionSession::findOrFail($id);
+        // Resolve slug -> display name from config
+        $spLines = config('mes.sp_lines', []);
+        $line = $spLines[$lineSlug] ?? null;
 
-        if ($session->status !== 'completed') {
-            return back()->with('error', 'Only completed sessions can be approved.');
+        if (!$line) {
+            // Fallback check if user passed exact line name (e.g. Line A)
+            $foundSlug = array_search($lineSlug, $spLines);
+            if ($foundSlug !== false) {
+                return redirect()->route('sp-sessions.line-gateway', ['lineSlug' => $foundSlug]);
+            }
+            abort(404, "Unknown line: {$lineSlug}");
         }
 
-        $session->update([
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
+        // Current shift (auto-detect)
+        $now = Carbon::now('Asia/Jakarta');
+        $shift = $this->getCurrentShift($now);
+        $currentShiftConfig = config("mes.shifts.{$shift}", []);
+
+        // All active/planned WOs for this line
+        $workOrders = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
+            ->where('unit_line', $line)
+            ->whereIn('status', ['draft', 'approved', 'in_progress'])
+            ->orderByDesc('id')
+            ->get();
+
+        // Fetch First Piece Inspections for today (keyed by part_number)
+        $firstPieceMap = FirstPieceInspection::whereDate('date', now()->format('Y-m-d'))
+            ->get()
+            ->keyBy('part_number');
+
+        // Fetch quick bypass reasons (default factory presets + historical DB reasons)
+        $defaultBypassPresets = collect([
+            'Urgent Delivery Run - Pre-approved by Supervisor',
+            'Supervisor Verbal Approval Given',
+            'Repeat Order - Same Machine & Tooling Setup',
+            'QC Team Walking Floor / Delayed Inspection',
         ]);
 
-        // Trigger Sync Bridge to legacy SecondProcessReport schema
-        $bridge->syncSessionToLegacyReport($session);
+        $historicalBypassReasons = SpProductionSession::where('is_qc_bypassed', true)
+            ->whereNotNull('qc_bypass_reason')
+            ->distinct()
+            ->pluck('qc_bypass_reason');
 
-        return back()->with('success', 'Session approved successfully by supervisor.');
+        $quickBypassReasons = $defaultBypassPresets->merge($historicalBypassReasons)->filter()->unique()->values();
+
+        return view('sp_production.line_gateway', compact(
+            'line', 'lineSlug', 'shift', 'currentShiftConfig',
+            'workOrders', 'firstPieceMap', 'spLines', 'quickBypassReasons'
+        ));
+    }
+
+    private function getCurrentShift(Carbon $now)
+    {
+        $shifts = config('mes.shifts', []);
+        $currentTime = $now->format('H:i');
+
+        foreach ($shifts as $shiftId => $schedule) {
+            $start = $schedule['start'];
+            $end = $schedule['end'];
+
+            if ($start > $end) {
+                if ($currentTime >= $start || $currentTime <= $end) {
+                    return $shiftId;
+                }
+            } else {
+                if ($currentTime >= $start && $currentTime <= $end) {
+                    return $shiftId;
+                }
+            }
+        }
+        return 1;
     }
 }

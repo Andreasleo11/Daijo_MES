@@ -19,6 +19,11 @@
                             COMPLETED
                         </span>
                     @endif
+                    @if($session->is_qc_bypassed)
+                        <span class="px-3 py-0.5 text-xs font-bold rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
+                            ⚠️ QC BYPASSED
+                        </span>
+                    @endif
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
                     Work Order: <strong class="text-blue-600 font-bold">{{ $session->workOrder->wo_number }}</strong> |

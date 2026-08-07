@@ -781,10 +781,11 @@ Route::middleware('auth')->group(function (){
     });
 
     Route::post('sp-sessions/{workOrder}/start', [\App\Http\Controllers\SpProductionSessionController::class, 'start'])->name('sp-sessions.start');
+    Route::get('sp-session/line/{lineSlug}', [\App\Http\Controllers\SpProductionSessionController::class, 'lineGateway'])->name('sp-sessions.line-gateway');
     Route::prefix('app')->name('app.')->group(function () {
         Route::get('sp-sessions/{session}', [\App\Http\Controllers\SpProductionSessionController::class, 'show'])->name('sp-sessions.show');
         Route::post('sp-sessions/{session}/finish', [\App\Http\Controllers\SpProductionSessionController::class, 'finish'])->name('sp-sessions.finish');
-        Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionSessionController::class, 'approve'])->name('sp-sessions.approve');
+        Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('sp-sessions.approve');
         Route::post('sp-sessions/{session}/production', [\App\Http\Controllers\SpProductionSessionController::class, 'addProduction'])->name('sp-sessions.add-production');
         Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');
         Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
@@ -795,6 +796,7 @@ Route::middleware('auth')->group(function (){
     });
 
     Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
+    Route::get('sp-line-dashboard/{line}', [SecondProcessDashboardController::class, 'lineDashboard'])->name('second-process.line-dashboard');
     Route::get('second-process-report-analytics', [\App\Http\Controllers\SecondProcessReportAnalyticsController::class, 'index'])->name('second-process.report-analytics');
     Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
     Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');

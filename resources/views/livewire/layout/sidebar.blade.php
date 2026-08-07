@@ -100,11 +100,12 @@ new class extends Component {
                 <!-- Dropdown: Second Process -->
                 <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                    ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
+                    ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
                     ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
-                    ['name' => 'second-process.dashboard', 'label' => 'Second Process Floor Dashboard'],
                     ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
                     ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
-                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
                 ]" />
 
                 <!-- 4. Dropdown: WMS & Warehouse -->

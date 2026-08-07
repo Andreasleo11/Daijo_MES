@@ -47,4 +47,15 @@ class FirstPieceInspection extends Model
     {
         return $this->overall_judgement === 'OK' && $this->checked_at !== null;
     }
+
+    /**
+     * Scope query to find inspection for a part number on a specific date (defaults to today).
+     */
+    public function scopeApprovedForPartToday($query, string $partNumber, ?string $date = null)
+    {
+        $dateStr = $date ?: now()->format('Y-m-d');
+        return $query->where('part_number', $partNumber)
+            ->whereDate('date', $dateStr)
+            ->orderBy('id', 'desc');
+    }
 }

@@ -160,6 +160,9 @@
                             <option value="Repair"
                                 {{ old('process_prod', $report->process_prod) == 'Repair' ? 'selected' : '' }}>
                                 Repair</option>
+                            <option value="Assy"
+                                {{ old('process_prod', $report->process_prod) == 'Assy' ? 'selected' : '' }}>
+                                Assy</option>
                         </select>
                     </div>
                     <input type="hidden" name="status" id="status-field"

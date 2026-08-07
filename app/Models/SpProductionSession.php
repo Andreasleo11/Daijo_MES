@@ -26,12 +26,18 @@ class SpProductionSession extends Model
         'remarks',
         'approved_by',
         'approved_at',
+        'is_qc_bypassed',
+        'qc_bypass_reason',
+        'qc_bypassed_at',
+        'qc_bypassed_by',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'approved_at' => 'datetime',
+        'is_qc_bypassed' => 'boolean',
+        'qc_bypassed_at' => 'datetime',
     ];
 
     public function workOrder()
@@ -47,6 +53,11 @@ class SpProductionSession extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function qcBypassedBy()
+    {
+        return $this->belongsTo(User::class, 'qc_bypassed_by');
     }
 
     public function productionEntries()

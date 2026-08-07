@@ -125,6 +125,8 @@
                         if ($assignedWo) {
                             $firstPiece = $firstPieceMap->get($assignedWo->part_number);
                         }
+                        $spLines = config('mes.sp_lines', []);
+                        $lineSlug = array_search($lineName, $spLines) ?: \Illuminate\Support\Str::slug($lineName);
                     @endphp
 
                     @if($report)
@@ -132,7 +134,10 @@
                         <div class="bg-white rounded-2xl border border-emerald-300 shadow-sm overflow-hidden flex flex-col justify-between">
                             <div>
                                 <div class="bg-emerald-50 px-5 py-3 border-b border-emerald-100 flex justify-between items-center">
-                                    <h4 class="font-black text-emerald-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="font-black text-emerald-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                        <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="text-[10px] font-bold text-emerald-700 hover:underline uppercase tracking-wider">Gateway &rarr;</a>
+                                    </div>
                                     @if($report->status === 'running')
                                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 uppercase tracking-widest animate-pulse border border-emerald-300">
                                             Running
@@ -183,9 +188,12 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="p-4 bg-gray-50 border-t border-gray-100">
-                                <a href="{{ route('app.sp-sessions.show', $report->id) }}" class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                    Open Operator Screen
+                            <div class="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                    Analytics
+                                </a>
+                                <a href="{{ route('app.sp-sessions.show', $report->id) }}" class="w-2/3 text-center bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                    Operator Screen
                                 </a>
                             </div>
                         </div>
@@ -200,7 +208,10 @@
                             <div class="bg-white rounded-2xl border border-blue-300 shadow-sm overflow-hidden flex flex-col justify-between">
                                 <div>
                                     <div class="bg-blue-50 px-5 py-3 border-b border-blue-100 flex justify-between items-center">
-                                        <h4 class="font-black text-blue-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-black text-blue-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                            <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="text-[10px] font-bold text-blue-700 hover:underline uppercase tracking-wider">Gateway &rarr;</a>
+                                        </div>
                                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-200 text-blue-900 uppercase tracking-widest border border-blue-300">
                                             QC Approved
                                         </span>
@@ -219,8 +230,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-4 bg-gray-50 border-t border-gray-100">
-                                    <form action="{{ route('sp-sessions.start', $assignedWo->id) }}" method="POST">
+                                <div class="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                        Analytics
+                                    </a>
+                                    <form action="{{ route('sp-sessions.start', $assignedWo->id) }}" method="POST" class="w-2/3">
                                         @csrf
                                         <button type="submit" class="w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                             Start Production
@@ -233,7 +247,10 @@
                             <div class="bg-white rounded-2xl border border-amber-300 shadow-sm overflow-hidden flex flex-col justify-between">
                                 <div>
                                     <div class="bg-amber-50 px-5 py-3 border-b border-amber-100 flex justify-between items-center">
-                                        <h4 class="font-black text-amber-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-black text-amber-950 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                            <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="text-[10px] font-bold text-amber-800 hover:underline uppercase tracking-wider">Gateway &rarr;</a>
+                                        </div>
                                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase tracking-widest border border-amber-300">
                                             QC Gate Pending
                                         </span>
@@ -251,10 +268,13 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-4 bg-gray-50 border-t border-gray-100">
+                                <div class="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                        Analytics
+                                    </a>
                                     <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $assignedWo->id, 'part_number' => $assignedWo->part_number, 'part_name' => $assignedWo->part_name, 'model' => $assignedWo->model]) }}"
-                                        class="block w-full text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                        Perform First Piece Inspection
+                                        class="block w-2/3 text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                        First Piece Inspection
                                     </a>
                                 </div>
                             </div>
@@ -265,7 +285,10 @@
                         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col justify-between">
                             <div>
                                 <div class="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-                                    <h4 class="font-black text-gray-600 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="font-black text-gray-600 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                        <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="text-[10px] font-bold text-gray-500 hover:underline uppercase tracking-wider">Gateway &rarr;</a>
+                                    </div>
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gray-100 text-gray-500 uppercase tracking-widest border border-gray-200">
                                         Idle
                                     </span>
@@ -275,8 +298,11 @@
                                     <p class="text-[11px] text-gray-500 font-medium">Line is available for assignment</p>
                                 </div>
                             </div>
-                            <div class="p-4 bg-gray-50 border-t border-gray-100">
-                                <a href="{{ route('sp-work-orders.create', ['unit_line' => $lineName]) }}" class="block w-full text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                            <div class="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                    Analytics
+                                </a>
+                                <a href="{{ route('sp-work-orders.create', ['unit_line' => $lineName]) }}" class="block w-2/3 text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black py-3 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                     Create Work Order
                                 </a>
                             </div>

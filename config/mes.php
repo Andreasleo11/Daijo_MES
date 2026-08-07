@@ -28,4 +28,23 @@ return [
             'end' => '07:30',
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Production Lines
+    |--------------------------------------------------------------------------
+    |
+    | Centralized mapping of URL slugs to display names for SP shop floor lines.
+    |
+    */
+    'sp_lines' => [
+        'line-a'   => 'Line A',
+        'line-b'   => 'Line B',
+        'line-c'   => 'Line C',
+        'line-d'   => 'Line D',
+        'buffing'  => 'Area Buffing',
+        'amplas'   => 'Area Amplas/Treatment',
+        'packing'  => 'Area Packing',
+        'assy'     => 'Area Assy',
+    ],
 ];
