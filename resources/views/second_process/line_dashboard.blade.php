@@ -20,12 +20,12 @@
                 <p class="text-xs font-semibold text-gray-500 mt-1">Dedicated shop floor line metrics, hourly performance, defect Pareto, downtime analysis, and session history</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center gap-1.5">
-                    &larr; Overview Dashboard
+                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                    Overview Dashboard
                 </a>
                 @php $currentSlug = array_search($line, config('mes.sp_lines', [])) ?: \Illuminate\Support\Str::slug($line); @endphp
                 <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $currentSlug]) }}" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
-                    Operator Gateway &rarr;
+                    Operator Gateway
                 </a>
                 @if($activeSession)
                     <a href="{{ route('app.sp-sessions.show', $activeSession->id) }}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
@@ -40,11 +40,6 @@
                                 Start Production
                             </button>
                         </form>
-                    @else
-                        <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $activeWo->id, 'part_number' => $activeWo->part_number, 'part_name' => $activeWo->part_name, 'model' => $activeWo->model]) }}"
-                            class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            QC Gate Inspection
-                        </a>
                     @endif
                 @endif
             </div>
@@ -62,15 +57,9 @@
         {{-- Filter & Line Control Bar --}}
         <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                {{-- Line Selector Dropdown --}}
-                <div class="flex items-center gap-2">
-                    <label class="font-black text-xs uppercase text-gray-500">Selected Line:</label>
-                    <select class="rounded-xl border-gray-300 text-xs font-black py-1.5 focus:ring-blue-500 bg-blue-50 text-blue-900 border-blue-200"
-                            onchange="window.location.href = '{{ route('second-process.line-dashboard', ['line' => '__LINE__']) }}'.replace('__LINE__', encodeURIComponent(this.value)) + '?date={{ $date }}&shift={{ $shift }}'">
-                        @foreach($knownLines as $l)
-                            <option value="{{ $l }}" {{ $line === $l ? 'selected' : '' }}>{{ $l }}</option>
-                        @endforeach
-                    </select>
+                <div class="flex items-center gap-2 text-xs font-bold text-gray-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+                    <span class="text-blue-400 uppercase font-black text-[10px]">Line:</span>
+                    <span class="text-blue-900 font-black">{{ $line }}</span>
                 </div>
 
                 {{-- Date & Shift Form --}}

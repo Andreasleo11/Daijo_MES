@@ -26,16 +26,20 @@
                     @endif
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
-                    Work Order: <strong class="text-blue-600 font-bold">{{ $session->workOrder->wo_number }}</strong> |
+                    Work Order: <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="text-blue-600 hover:text-blue-800 hover:underline font-bold">{{ $session->workOrder->wo_number }}</a> |
                     Line: <strong>{{ $session->unit_line }}</strong> |
                     Shift: <strong>{{ $session->shift }}</strong> |
                     Operator: <strong>{{ $session->operator?->name ?? 'Operator' }}</strong>
                 </p>
             </div>
 
+            @php
+                $lineSlug = array_search($session->unit_line, config('mes.sp_lines', [])) ?: 'line-a';
+            @endphp
+
             <div class="flex items-center gap-2">
-                <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm text-xs transition">
-                    ← WO Details
+                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm text-xs transition">
+                    Line Gateway
                 </a>
                 @if($session->status === 'running')
                     <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg shadow transition text-xs flex items-center gap-1">

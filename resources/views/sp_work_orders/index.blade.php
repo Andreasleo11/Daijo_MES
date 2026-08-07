@@ -8,9 +8,14 @@
                 <p class="text-xs font-semibold text-gray-500 mt-0.5">Manage, release, and track production Work Orders & QC Gate status</p>
             </div>
             @can('manage-sp-work-orders')
-                <a href="{{ route('sp-work-orders.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                    New Work Order
-                </a>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                        Floor Overview Dashboard
+                    </a>
+                    <a href="{{ route('sp-work-orders.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                        New Work Order
+                    </a>
+                </div>
             @endcan
         </div>
     </x-slot>

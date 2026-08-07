@@ -1,6 +1,6 @@
 <x-operator-layout>
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
                 <div class="flex items-center gap-3">
                     <h2 class="font-black text-2xl text-gray-900 uppercase tracking-wide flex items-center gap-2">
@@ -8,14 +8,34 @@
                         <span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">Operator Gateway</span>
                     </h2>
                 </div>
-                <p class="text-xs font-semibold text-gray-500 mt-1">Bookmarked line entrypoint — select an assigned Work Order to start or resume production</p>
+                <div class="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-500 font-semibold">
+                    <span>Active Shift: <strong class="text-blue-700 font-black">Shift {{ $shift }}</strong> @if(!empty($currentShiftConfig)) <span class="text-gray-400 font-mono">({{ $currentShiftConfig['start'] }} - {{ $currentShiftConfig['end'] }})</span> @endif</span>
+                    <span class="text-gray-300">•</span>
+                    <span class="flex items-center gap-1.5 text-gray-500 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Auto-refreshing 15s
+                    </span>
+                </div>
             </div>
+
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center gap-1.5">
-                    &larr; Overview Dashboard
+                @foreach(['1' => 'Shift 1', '2' => 'Shift 2', '3' => 'Shift 3', 'all' => 'All Shifts'] as $sKey => $sLabel)
+                    <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'shift' => $sKey]) }}"
+                       class="px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1 {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-600 text-white shadow-sm font-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300' }}">
+                        <span>{{ $sLabel }}</span>
+                        @if((string)$shift === (string)$sKey)
+                            <span class="text-[9px] font-black uppercase px-1 py-0.2 rounded {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-800 text-white' : 'bg-blue-100 text-blue-800' }}">Current</span>
+                        @endif
+                    </a>
+                @endforeach
+
+                <div class="h-5 w-px bg-gray-300 mx-1 hidden sm:block"></div>
+
+                <a href="{{ route('second-process.dashboard') }}" class="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                    Overview Dashboard
                 </a>
-                <a href="{{ route('second-process.line-dashboard', ['line' => $line]) }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                    Line Analytics & KPIs
+                <a href="{{ route('second-process.line-dashboard', ['line' => $line]) }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
+                    Line Analytics
                 </a>
             </div>
         </div>
@@ -29,36 +49,9 @@
             } 
         }">
 
-        {{-- Line Selector & Shift Header Bar --}}
-        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                <div class="flex items-center gap-2">
-                    <label class="font-black text-xs uppercase text-gray-500">Production Line:</label>
-                    <select class="rounded-xl border-blue-200 text-xs font-black py-1.5 focus:ring-blue-500 bg-blue-50 text-blue-900"
-                            onchange="window.location.href = '{{ route('sp-sessions.line-gateway', ['lineSlug' => '__SLUG__']) }}'.replace('__SLUG__', this.value)">
-                        @foreach($spLines as $slug => $displayName)
-                            <option value="{{ $slug }}" {{ $lineSlug === $slug ? 'selected' : '' }}>{{ $displayName }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="flex items-center gap-2 text-xs font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
-                    <span class="text-gray-400 uppercase font-black text-[10px]">Active Shift:</span>
-                    <span class="text-blue-700 font-black">Shift {{ $shift }}</span>
-                    @if(!empty($currentShiftConfig))
-                        <span class="text-gray-400 font-mono">({{ $currentShiftConfig['start'] }} - {{ $currentShiftConfig['end'] }})</span>
-                    @endif
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2 text-xs font-bold text-gray-500">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Auto-refreshing every 15s</span>
-            </div>
-        </div>
-
         {{-- Main Assigned Work Orders Section --}}
         <div class="space-y-4">
+
             <div class="flex justify-between items-center">
                 <div>
                     <h3 class="text-base font-black text-gray-900 uppercase tracking-wide">Assigned Work Orders</h3>
@@ -110,7 +103,7 @@
                             <div class="w-full lg:w-auto">
                                 <a href="{{ route('app.sp-sessions.show', $runningSession->id) }}"
                                    class="block w-full lg:w-auto text-center bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-4 px-8 rounded-xl shadow-md text-sm transition uppercase tracking-wider">
-                                    &#9654; Resume Production Screen
+                                    Resume Production Screen
                                 </a>
                             </div>
                         </div>
@@ -148,7 +141,7 @@
                                     @csrf
                                     <button type="submit"
                                             class="w-full lg:w-auto text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black py-4 px-8 rounded-xl shadow-md text-sm transition uppercase tracking-wider">
-                                        &#9654; Start Production
+                                        Start Production
                                     </button>
                                 </form>
                             </div>
@@ -183,10 +176,12 @@
                             </div>
 
                             <div class="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2" x-data="{ showBypassModal: false, selectedReason: '' }">
-                                <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
-                                   class="text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black py-3.5 px-6 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                    &#128269; Perform Inspection
-                                </a>
+                                @can('execute-qc-inspections')
+                                    <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
+                                       class="text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black py-3.5 px-6 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                        Perform Inspection
+                                    </a>
+                                @endcan
 
                                 <button type="button" @click="showBypassModal = true"
                                         class="text-center bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-900 font-bold py-3.5 px-4 rounded-xl text-xs transition uppercase tracking-wider flex items-center justify-center gap-1">
@@ -254,8 +249,8 @@
                                                         Cancel
                                                     </button>
                                                     <button type="submit"
-                                                            class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md uppercase tracking-wider flex items-center gap-1.5">
-                                                        &#9654; Confirm & Start Production
+                                                            class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md uppercase tracking-wider">
+                                                        Confirm & Start Production
                                                     </button>
                                                 </div>
                                             </form>
@@ -270,17 +265,16 @@
             @empty
                 {{-- Empty State: No Work Orders Assigned --}}
                 <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm space-y-4">
-                    <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto text-2xl font-black">
-                        &#127981;
-                    </div>
                     <div>
                         <h4 class="text-base font-black text-gray-800 uppercase tracking-wide">No Work Orders Assigned to {{ $line }}</h4>
                         <p class="text-xs text-gray-500 mt-1 max-w-md mx-auto">There are no planned or active Work Orders assigned to this line right now. Please contact your line supervisor or production planner.</p>
                     </div>
                     <div class="pt-2 flex justify-center gap-3">
-                        <a href="{{ route('sp-work-orders.create', ['unit_line' => $line]) }}" class="px-4 py-2.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Create New Work Order
-                        </a>
+                        @can('manage-sp-work-orders')
+                            <a href="{{ route('sp-work-orders.create', ['unit_line' => $line]) }}" class="px-4 py-2.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                                Create New Work Order
+                            </a>
+                        @endcan
                         <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 transition uppercase tracking-wider">
                             Return to Overview
                         </a>
