@@ -8,17 +8,18 @@ use App\Models\MachineJob;
 new class extends Component {
     public function logout(Logout $logout): void
     {
-        if (auth()->user()->role->name === 'WORKSHOP') {
-            auth()
-                ->user()
-                ->update(['username' => null]);
-        } elseif (auth()->user()->role->name === 'OPERATOR') {
-            MachineJob::where('user_id', auth()->user()->id)->update(['employee_name' => null]);
+        $user = auth()->user();
+        if ($user) {
+            if ($user->role?->name === 'WORKSHOP') {
+                $user->update(['username' => null]);
+            } elseif ($user->role?->name === 'OPERATOR') {
+                MachineJob::where('user_id', $user->id)->update(['employee_name' => null]);
+            }
         }
 
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $this->redirect('/login', navigate: true);
     }
 }; ?>
 
@@ -50,12 +51,12 @@ new class extends Component {
 
         <!-- Navigation Links -->
         <div class="space-y-2 mt-4">
-            @if (auth()->user()->can('view-admin-links'))
+            @if (auth()->user()?->can('view-admin-links'))
                 <!-- Admin Dashboard Link -->
                 <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard Home" :active="request()->routeIs('dashboard')"
                     wire:navigate />
 
-                @if (auth()->user()->can('manage-users-roles'))
+                @if (auth()->user()?->can('manage-users-roles'))
                     <livewire:sidebar-link href="{{ route('admin.user-role-manager') }}" label="User Role Management"
                         :active="request()->routeIs('admin.user-role-manager')" wire:navigate />
                 @endif
@@ -93,12 +94,23 @@ new class extends Component {
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
                     ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
                     ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
+                    ['name' => 'maintenance.checklist-report', 'label' => 'Checklist Predictive Maintenance'],
                     ['name' => 'maintenance.index', 'label' => 'Maintenance Index'],
                     ['name' => 'invlinelist', 'label' => 'Machine List'],
                 ]" />
 
-                <!-- Dropdown 1: Second Process — Planning & QC -->
-                <livewire:parent-dropdown label="Second Process — Planning & QC" :initiallyOpen="false" :childRoutes="[
+                <!-- Dropdown: Maintenance & Machine -->
+                <livewire:parent-dropdown label="Maintenance & Machine" :initiallyOpen="false" :childRoutes="[
+                    ['name' => 'maintenance.checklist-report', 'label' => 'Checklist Predictive Maintenance'],
+                    ['name' => 'maintenance.machine.index', 'label' => 'Maintenance Machine'],
+                    ['name' => 'maintenance.mould.index', 'label' => 'Maintenance Mould'],
+                    ['name' => 'maintenance.dashboard', 'label' => 'Dashboard Maintenance'],
+                    ['name' => 'machine.dashboard', 'label' => 'Dashboard Machine'],
+                    ['name' => 'mould.dashboard', 'label' => 'Dashboard Mould'],
+                ]" />
+
+                <!-- Dropdown: Second Process -->
+                <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
                     ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
                     ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
@@ -178,10 +190,10 @@ new class extends Component {
                 ]" />
             @else
                 @if (
-                    !auth()->user()->can('view-store-links') &&
-                        !auth()->user()->can('view-business-links') &&
-                        !auth()->user()->can('view-production-links') &&
-                        !auth()->user()->can('view-quality-links'))
+                    !auth()->user()?->can('view-store-links') &&
+                        !auth()->user()?->can('view-business-links') &&
+                        !auth()->user()?->can('view-production-links') &&
+                        !auth()->user()?->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('dashboard') }}" label="Dashboard" :active="request()->routeIs('dashboard')"
                         wire:navigate />
 
@@ -193,10 +205,13 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('maintenance.mould.index') }}" label="Maintenance Mould"
                         :active="request()->routeIs('maintenance.mould.index')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('maintenance.checklist-report') }}" label="Checklist Predictive Maintenance"
+                        :active="request()->routeIs('maintenance.checklist-report')" wire:navigate />
                 @endif
 
 
-                @if (auth()->user()->can('view-warehouse-links'))
+                @if (auth()->user()?->can('view-warehouse-links'))
                     <livewire:parent-dropdown label="Moulding" :childRoutes="[
                         ['name' => 'production.bom.index', 'label' => 'Production BOM'],
                         ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
@@ -215,7 +230,7 @@ new class extends Component {
                         label="Notification Recipients" :active="request()->routeIs('notification_recipients.index')" wire:navigate />
                 @endif
 
-                @if (auth()->user()->can('view-business-links'))
+                @if (auth()->user()?->can('view-business-links'))
                     <livewire:sidebar-link href="{{ route('delivery-schedule.form') }}"
                         label="Delivery Schedule Input (BARU)" :active="request()->routeIs('delivery-schedule.form')" wire:navigate />
 
@@ -228,13 +243,13 @@ new class extends Component {
 
 
                 <!-- PE Links -->
-                @if (auth()->user()->can('view-pe-links'))
+                @if (auth()->user()?->can('view-pe-links'))
                     <livewire:sidebar-link href="{{ route('master-item.index') }}" label="Master Item"
                         :active="request()->routeIs('master-item.index')" wire:navigate />
                 @endif
 
 
-                @if (auth()->user()->can('view-production-links'))
+                @if (auth()->user()?->can('view-production-links'))
                     <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data masuk ke SAP"
                         :active="request()->routeIs('receipt-production-logs')" wire:navigate />
 
@@ -247,7 +262,7 @@ new class extends Component {
 
 
                 <!-- PPIC Links -->
-                @if (auth()->user()->can('view-ppic-links'))
+                @if (auth()->user()?->can('view-ppic-links'))
                     <livewire:sidebar-link href="{{ route('daily-item-code.index') }}" label="Daily Production Plan"
                         :active="request()->routeIs('daily-item-code.index')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('ppic.machine-daily-report') }}"
@@ -260,7 +275,7 @@ new class extends Component {
                 @endif
 
                 <!-- Store Links -->
-                @if (auth()->user()->can('view-store-links'))
+                @if (auth()->user()?->can('view-store-links'))
                     {{-- Consolidated Packaging Menu --}}
                     <livewire:parent-dropdown label="Packaging Menu" :initiallyOpen="false" :childRoutes="[
                         ['name' => 'barcodeindex', 'label' => 'Generate Barcode'],
@@ -336,17 +351,19 @@ new class extends Component {
                 <hr>
 
                 <!-- Maintenance Links -->
-                @if (auth()->user()->can('view-maintenance-links'))
+                @if (auth()->user()?->can('view-maintenance-links') || auth()->user()?->role_id == 8 || auth()->user()?->role?->name === 'MAINTENANCE')
+                    <livewire:sidebar-link href="{{ route('maintenance.checklist-report') }}" label="Checklist Predictive Maintenance"
+                        :active="request()->routeIs('maintenance.checklist-report')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('maintenance.index') }}" label="Maintenance Index"
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
-                @if (auth()->user()->can('view-second-process-links') && !auth()->user()->can('view-quality-links'))
+                @if (auth()->user()?->can('view-second-process-links') && !auth()->user()?->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('second-process-reports.index') }}"
                         label="Daily Production Report" :active="request()->routeIs('second-process-reports.*')" wire:navigate />
                 @endif
 
-                @if (auth()->user()->can('view-quality-links'))
+                @if (auth()->user()?->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('qc-stock-transfer') }}" label="QC Stock Transfer"
                         :active="request()->routeIs('qc-stock-transfer')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
@@ -375,7 +392,7 @@ new class extends Component {
             </div>
 
             <div class="flex items-center space-x-1 shrink-0">
-                @if (auth()->user() && auth()->user()->can('view-admin-links'))
+                @if (auth()->user() && auth()->user()?->can('view-admin-links'))
                     <a href="{{ route('profile') }}" wire:navigate
                         class="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition"
                         title="Profile">

@@ -983,7 +983,11 @@ class DashboardController extends Controller
                 : asset('images/default_profile.jpg');
         }
 
+        $checklistProdDate = \Carbon\Carbon::now('Asia/Jakarta')->subHours(7)->subMinutes(30)->format('Y-m-d');
+        $hasMaintenanceChecklistToday = \App\Models\MaintenanceCheckHeader::where('machine_id', $userId)->where('date', $checklistProdDate)->exists();
+
         return view('dashboards.dashboard-operator', compact(
+            'hasMaintenanceChecklistToday',
             'files',
             'datas',
             'itemCode',

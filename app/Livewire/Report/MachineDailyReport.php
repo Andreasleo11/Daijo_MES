@@ -19,12 +19,35 @@ class MachineDailyReport extends Component
     public $selectedItemCode = '';
     public bool $isPpicView = false;
     
+    public bool $showChecklistModal = false;
+    public $checklistHeader = null;
+    public $checklistItems = [];
+
     // Query string support for easy bookmarking and state preservation
     protected $queryString = [
         'selectedDate' => ['except' => ''],
         'selectedMachineId' => ['except' => ''],
         'selectedItemCode' => ['except' => ''],
     ];
+
+    public function openChecklistModal()
+    {
+        if (!$this->selectedMachineId) return;
+
+        $this->checklistHeader = \App\Models\MaintenanceCheckHeader::where('machine_id', $this->selectedMachineId)
+            ->where('date', $this->selectedDate)
+            ->with(['machine', 'details.item'])
+            ->first();
+
+        $this->checklistItems = \App\Models\MaintenanceCheckItem::orderBy('sort_order')->get();
+        $this->showChecklistModal = true;
+    }
+
+    public function closeChecklistModal()
+    {
+        $this->showChecklistModal = false;
+        $this->checklistHeader = null;
+    }
 
     public static $shiftSlots = [
         1 => [

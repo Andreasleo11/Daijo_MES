@@ -90,6 +90,18 @@
 
             <!-- Right Section: Context-Relevant Buttons -->
             <div class="flex flex-wrap gap-2 items-center justify-end">
+                <button 
+                    id="btnOpenMaintenanceChecklist" 
+                    class="px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all duration-150 flex items-center gap-2 {{ ($hasMaintenanceChecklistToday ?? false) ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-700 hover:bg-slate-800 text-white border border-slate-600' }}"
+                >
+                    <span>🛠️ Maintenance Checklist</span>
+                    @if($hasMaintenanceChecklistToday ?? false)
+                        <span class="bg-emerald-800 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">Sudah Diisi</span>
+                    @else
+                        <span class="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black uppercase animate-pulse">Belum Diisi</span>
+                    @endif
+                </button>
+
                 @if($activeState === 'RUNNING')
                     <button 
                         id="startMouldChange" 
@@ -2970,5 +2982,426 @@
                 style="width:0; height:0; border:0; border:none; position:absolute; visibility:hidden;">
         </iframe>
     @endif -->
+
+<!-- Modal Maintenance Checklist (Predictive Maintenance) -->
+<div id="maintenanceChecklistModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Backdrop -->
+        <div id="maintenanceChecklistBackdrop" class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <!-- Modal Container -->
+        <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100">
+            
+            <!-- Modal Header -->
+            <div class="bg-slate-900 text-white px-6 py-5 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-xl">
+                        🛠️
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black tracking-tight uppercase italic text-white flex items-center gap-2">
+                            Checklist Pengecekan Mesin <span class="text-indigo-400 text-xs font-semibold normal-case">(Predictive Maintenance)</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 font-medium">
+                            Mesin: <span class="text-white font-bold">{{ auth()->user()?->name ?? '-' }}</span> | Tanggal Produksi: <span id="maintChecklistDisplayDate" class="text-indigo-300 font-bold">-</span>
+                        </p>
+                    </div>
+                </div>
+                <button type="button" id="closeMaintenanceChecklistModal" class="text-slate-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-slate-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Form Content -->
+            <form id="maintenanceChecklistForm" class="p-6">
+                <input type="hidden" id="maintChecklistMachineId" value="{{ auth()->id() }}">
+
+                <!-- Notice Bar -->
+                <div id="maintChecklistStatusAlert" class="mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border hidden"></div>
+
+                <!-- 17 Items Section -->
+                <div id="maintChecklistItemsContainer" class="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                    <!-- Loaded dynamically via JS -->
+                    <div class="py-12 text-center text-gray-400 font-bold text-xs">
+                        Loading item checklist...
+                    </div>
+                </div>
+
+                <!-- Bottom Signatures & Time -->
+                <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-2xl">
+                    <div>
+                        <label class="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1">
+                            Prepared BY (PIC Maintenance) <span class="text-red-500">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="maintPreparedBy" 
+                            name="prepared_by" 
+                            required 
+                            placeholder="Ketik Nama PIC..." 
+                            oninput="this.value = this.value.toUpperCase()"
+                            class="w-full px-3 py-2 text-xs font-bold uppercase rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        >
+                        <span class="text-[9px] text-gray-400 italic">Otomatis CAPS LOCK</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1">
+                            Approved BY (Atasan)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="maintApprovedBy" 
+                            name="approved_by" 
+                            placeholder="Ketik Nama Atasan..." 
+                            oninput="this.value = this.value.toUpperCase()"
+                            class="w-full px-3 py-2 text-xs font-bold uppercase rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        >
+                        <span class="text-[9px] text-gray-400 italic">Otomatis CAPS LOCK</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1">
+                            Jam Pengecekan
+                        </label>
+                        <input 
+                            type="time" 
+                            id="maintCheckTime" 
+                            name="check_time" 
+                            class="w-full px-3 py-2 text-xs font-bold rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        >
+                    </div>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button type="button" id="btnCancelMaintChecklist" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSaveMaintChecklist" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2">
+                        <span>💾 Simpan Checklist</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+window.validateNumericInput = function(input, itemName) {
+    const val = parseFloat(input.value);
+    const hintEl = input.closest('.flex-col').querySelector('.numeric-hint-tag');
+    if (!hintEl) return;
+
+    if (isNaN(val) || input.value.trim() === '') {
+        hintEl.className = 'numeric-hint-tag text-[10px] font-bold text-gray-400';
+        hintEl.textContent = itemName.toLowerCase().includes('temp') ? 'Standar: Normal (< 60)' : 'Standar: Normal (100-200Kgf)';
+        input.classList.remove('border-red-500', 'border-emerald-500');
+        return;
+    }
+
+    let isNormal = true;
+    if (itemName.toLowerCase().includes('temp')) {
+        isNormal = (val < 60);
+    } else if (itemName.toLowerCase().includes('pump')) {
+        isNormal = (val >= 100 && val <= 200);
+    }
+
+    if (isNormal) {
+        hintEl.className = 'numeric-hint-tag text-[10px] font-black text-emerald-600';
+        hintEl.textContent = '✓ Normal';
+        input.classList.remove('border-red-500');
+        input.classList.add('border-emerald-500');
+    } else {
+        hintEl.className = 'numeric-hint-tag text-[10px] font-black text-red-600 animate-pulse';
+        hintEl.textContent = '⚠️ ABNORMAL (Di luar standar)';
+        input.classList.remove('border-emerald-500');
+        input.classList.add('border-red-500');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btnOpen = document.getElementById('btnOpenMaintenanceChecklist');
+    const modal = document.getElementById('maintenanceChecklistModal');
+    const backdrop = document.getElementById('maintenanceChecklistBackdrop');
+    const btnClose = document.getElementById('closeMaintenanceChecklistModal');
+    const btnCancel = document.getElementById('btnCancelMaintChecklist');
+    const form = document.getElementById('maintenanceChecklistForm');
+    const itemsContainer = document.getElementById('maintChecklistItemsContainer');
+    const displayDateEl = document.getElementById('maintChecklistDisplayDate');
+    const alertEl = document.getElementById('maintChecklistStatusAlert');
+    const machineIdEl = document.getElementById('maintChecklistMachineId');
+    if (!machineIdEl) return;
+    const machineId = machineIdEl.value;
+
+    function openModal() {
+        modal.classList.remove('hidden');
+        loadChecklistData();
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+    }
+
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeModal);
+    if (backdrop) backdrop.addEventListener('click', closeModal);
+
+    function loadChecklistData() {
+        itemsContainer.innerHTML = `
+            <div class="py-12 text-center text-gray-400 font-bold text-xs flex flex-col items-center gap-2">
+                <svg class="animate-spin h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span>Mengambil data checklist hari ini...</span>
+            </div>
+        `;
+
+        fetch(`/maintenance-checklist/today/${machineId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    itemsContainer.innerHTML = `<div class="p-4 text-red-600 text-xs font-bold text-center">Gagal memuat data checklist.</div>`;
+                    return;
+                }
+
+                displayDateEl.textContent = data.display_date;
+
+                const header = data.header;
+                const detailsMap = {};
+                if (header && header.details) {
+                    header.details.forEach(d => {
+                        detailsMap[d.item_id] = d;
+                    });
+                }
+
+                const now = new Date();
+                const defaultTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+                document.getElementById('maintPreparedBy').value = header ? (header.prepared_by || '') : '';
+                document.getElementById('maintApprovedBy').value = header ? (header.approved_by || '') : '';
+                document.getElementById('maintCheckTime').value = header ? (header.check_time || defaultTime) : defaultTime;
+
+                if (data.is_filled) {
+                    alertEl.className = 'mb-6 p-4 rounded-2xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-between';
+                    alertEl.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span>✅ Checklist hari ini (${data.display_date}) sudah terisi. Anda dapat mengedit & menyimpan ulang.</span>
+                        </div>
+                    `;
+                    alertEl.classList.remove('hidden');
+                } else {
+                    alertEl.className = 'mb-6 p-4 rounded-2xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center justify-between';
+                    alertEl.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span>⚠️ Checklist hari ini (${data.display_date}) belum terisi. Silakan lengkapi form di bawah ini.</span>
+                        </div>
+                    `;
+                    alertEl.classList.remove('hidden');
+                }
+
+                renderItems(data.items, detailsMap);
+            })
+            .catch(err => {
+                console.error(err);
+                itemsContainer.innerHTML = `<div class="p-4 text-red-600 text-xs font-bold text-center">Terjadi kesalahan server saat memuat data.</div>`;
+            });
+    }
+
+    function renderItems(items, detailsMap) {
+        const periods = ['Daily', 'Weekly', 'Two weeks'];
+        const periodBadges = {
+            'Daily': 'bg-blue-100 text-blue-800 border-blue-200',
+            'Weekly': 'bg-purple-100 text-purple-800 border-purple-200',
+            'Two weeks': 'bg-orange-100 text-orange-800 border-orange-200',
+        };
+
+        let html = '';
+
+        periods.forEach(p => {
+            const periodItems = items.filter(i => i.period === p);
+            if (periodItems.length === 0) return;
+
+            html += `
+                <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-2xs mb-4">
+                    <div class="bg-gray-100/80 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${periodBadges[p] || 'bg-gray-100'}">${p}</span>
+                            <span>Pengecekan ${p} (${periodItems.length} Item)</span>
+                        </span>
+                    </div>
+                    <div class="divide-y divide-gray-100 text-xs">
+            `;
+
+            periodItems.forEach((item) => {
+                const detail = detailsMap[item.id];
+                const isNonDaily = (item.period === 'Weekly' || item.period === 'Two weeks');
+                const savedVal = detail ? detail.value : (item.input_type === 'numeric' ? '' : (isNonDaily ? '-' : 'OK'));
+                
+                let inputHtml = '';
+                if (item.input_type === 'ok_ng') {
+                    if (isNonDaily) {
+                        const isSkip = (!detail && savedVal === '-') || savedVal === '-';
+                        const isOk = (savedVal === 'OK');
+                        const isNg = (savedVal === 'NG');
+
+                        inputHtml = `
+                            <div class="flex items-center gap-1.5">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="items[${item.id}][value]" value="-" ${isSkip ? 'checked' : ''} class="peer sr-only">
+                                    <span class="px-3 py-1.5 rounded-xl border text-xs font-black transition-all peer-checked:bg-slate-600 peer-checked:text-white peer-checked:border-slate-600 bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100">
+                                        - (Lewati)
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="items[${item.id}][value]" value="OK" ${isOk ? 'checked' : ''} class="peer sr-only">
+                                    <span class="px-3 py-1.5 rounded-xl border text-xs font-black transition-all peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">
+                                        ✓ OK
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="items[${item.id}][value]" value="NG" ${isNg ? 'checked' : ''} class="peer sr-only">
+                                    <span class="px-3 py-1.5 rounded-xl border text-xs font-black transition-all peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-600 bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">
+                                        ✕ NG
+                                    </span>
+                                </label>
+                            </div>
+                        `;
+                    } else {
+                        const isOk = (savedVal === 'OK' || savedVal === '' || !detail);
+                        inputHtml = `
+                            <div class="flex items-center gap-2">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="items[${item.id}][value]" value="OK" ${isOk ? 'checked' : ''} class="peer sr-only">
+                                    <span class="px-4 py-1.5 rounded-xl border text-xs font-black transition-all peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">
+                                        ✓ OK
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="items[${item.id}][value]" value="NG" ${!isOk ? 'checked' : ''} class="peer sr-only">
+                                    <span class="px-4 py-1.5 rounded-xl border text-xs font-black transition-all peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-600 bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">
+                                        ✕ NG
+                                    </span>
+                                </label>
+                            </div>
+                        `;
+                    }
+                } else if (item.input_type === 'numeric') {
+                    inputHtml = `
+                        <div class="flex flex-col items-end gap-1">
+                            <div class="flex items-center gap-2">
+                                <input 
+                                    type="text" 
+                                    name="items[${item.id}][value]" 
+                                    value="${savedVal}" 
+                                    placeholder="Nilai..." 
+                                    required
+                                    oninput="validateNumericInput(this, '${item.item_name}')"
+                                    class="w-32 px-3 py-1.5 rounded-xl border border-gray-300 font-bold text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                >
+                                <span class="bg-gray-100 text-gray-700 font-black text-xs px-2.5 py-1 rounded-lg border border-gray-200">${item.unit || ''}</span>
+                            </div>
+                            <span class="numeric-hint-tag text-[10px] font-bold text-gray-400">Standar: ${item.standard}</span>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors ${isNonDaily && savedVal === '-' ? 'opacity-75' : ''}">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-black text-gray-400 text-[10px] w-5">${item.sort_order}.</span>
+                                <span class="font-bold text-gray-800 text-xs">${item.item_name}</span>
+                            </div>
+                            <div class="ml-7 text-[10px] text-gray-400 font-medium">
+                                Standar: <span class="text-gray-600 font-semibold">${item.standard}</span> | Kriteria: <span class="text-gray-600 font-semibold">${item.kriteria}</span>
+                            </div>
+                        </div>
+                        <div class="ml-7 md:ml-0">
+                            ${inputHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        itemsContainer.innerHTML = html;
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('btnSaveMaintChecklist');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span>⏳ Menyimpan...</span>`;
+
+            const formData = new FormData(form);
+            const payload = {
+                machine_id: machineId,
+                prepared_by: formData.get('prepared_by'),
+                approved_by: formData.get('approved_by'),
+                check_time: formData.get('check_time'),
+                items: {}
+            };
+
+            const radioChecked = form.querySelectorAll('input[type="radio"]:checked');
+            radioChecked.forEach(radio => {
+                const match = radio.name.match(/items\[(\d+)\]\[value\]/);
+                if (match) {
+                    payload.items[match[1]] = radio.value;
+                }
+            });
+
+            const textInputs = form.querySelectorAll('input[type="text"][name^="items"]');
+            textInputs.forEach(input => {
+                const match = input.name.match(/items\[(\d+)\]\[value\]/);
+                if (match) {
+                    payload.items[match[1]] = input.value;
+                }
+            });
+
+            fetch('/maintenance-checklist/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    closeModal();
+
+                    if (btnOpen) {
+                        btnOpen.className = 'px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all duration-150 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white';
+                        btnOpen.innerHTML = `
+                            <span>🛠️ Maintenance Checklist</span>
+                            <span class="bg-emerald-800 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">Sudah Diisi</span>
+                        `;
+                    }
+                } else {
+                    alert('✕ ' + (data.message || 'Gagal menyimpan checklist.'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('✕ Terjadi kesalahan saat menghubungi server.');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>💾 Simpan Checklist</span>`;
+            });
+        });
+    }
+});
+</script>
 
 </x-app-layout>

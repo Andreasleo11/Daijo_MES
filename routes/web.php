@@ -217,6 +217,11 @@ use App\Livewire\ManualSync;
     
     Route::get('/mould-dashboard',  DashboardMould::class)
         ->name('mould.dashboard');
+
+    // Route Maintenance Predictive Checklist Modal & Admin Report
+    Route::get('/maintenance-checklist/today/{machineId}', [\App\Http\Controllers\MaintenanceChecklistController::class, 'getTodayData'])->name('maintenance.checklist.today');
+    Route::post('/maintenance-checklist/save', [\App\Http\Controllers\MaintenanceChecklistController::class, 'store'])->name('maintenance.checklist.save');
+    Route::get('/maintenance/checklist-report', \App\Livewire\Maintenance\ChecklistReport::class)->name('maintenance.checklist-report');
     
     //Route untuk maintenance dan mould dashboard produksi 
 

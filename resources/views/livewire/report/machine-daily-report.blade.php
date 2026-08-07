@@ -135,6 +135,7 @@
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Shift</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Item Code</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest">Part Name</th>
+                                <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Cycle Time</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Target</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Scanned (OK)</th>
                                 <th class="py-4 px-6 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Actual Qty</th>
@@ -151,11 +152,24 @@
                                         ? $hourlySum
                                         : ((!empty($plan->actual_quantity) && $plan->actual_quantity > 0) ? (int)$plan->actual_quantity : (int)$scannedOk);
                                     $achievePercent = $plan->quantity > 0 ? round(($scannedOk / $plan->quantity) * 100) : 0;
+                                    
+                                    $cycleTime = (!empty($plan->temporal_cycle_time) && $plan->temporal_cycle_time > 0)
+                                        ? $plan->temporal_cycle_time
+                                        : ($plan->masterItem?->cycle_time ?? null);
                                 @endphp
                                 <tr class="hover:bg-gray-50/30 transition-colors">
                                     <td class="py-4 px-6 text-xs font-black text-gray-700">Shift {{ $plan->shift }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-gray-800">{{ $plan->item_code }}</td>
                                     <td class="py-4 px-6 text-xs font-semibold text-gray-500">{{ optional($plan->masterItem)->item_name ?? '-' }}</td>
+                                    <td class="py-4 px-6 text-xs font-bold text-center">
+                                        @if($cycleTime)
+                                            <span class="inline-block px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold rounded-lg text-xs">
+                                                {{ number_format((float)$cycleTime, 1) }}s
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400 italic text-[11px]">-</span>
+                                        @endif
+                                    </td>
                                     <td class="py-4 px-6 text-xs font-bold text-gray-700 text-center">{{ number_format($plan->quantity) }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-green-600 text-center">{{ number_format($scannedOk) }}</td>
                                     <td class="py-4 px-6 text-xs font-bold text-blue-600 text-center">{{ number_format($actualQty) }}</td>
@@ -427,4 +441,140 @@
         @endif
         
     </div>
+
+    {{-- Modal Detail Maintenance Checklist --}}
+    @if($showChecklistModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity" wire:click="closeChecklistModal"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100">
+                    
+                    <!-- Header Modal -->
+                    <div class="bg-slate-900 text-white px-6 py-5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-xl">
+                                🛠️
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black tracking-tight uppercase italic text-white flex items-center gap-2">
+                                    Checklist Predictive Maintenance
+                                </h3>
+                                <p class="text-xs text-slate-400 font-medium">
+                                    Mesin: <span class="text-white font-bold">{{ $selectedMachine?->name ?? '-' }}</span> | Tanggal Laporan: <span class="text-indigo-300 font-bold">{{ \Carbon\Carbon::parse($selectedDate)->format('d-m-Y') }}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeChecklistModal" class="text-slate-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-slate-800">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Body Modal -->
+                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                        @if($checklistHeader)
+                            <!-- Info Signatures -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-200/80">
+                                <div>
+                                    <span class="text-[10px] font-black uppercase text-gray-400 block mb-0.5">Prepared BY (PIC Maintenance)</span>
+                                    <span class="font-black text-gray-900 uppercase text-sm block">{{ $checklistHeader->prepared_by }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-black uppercase text-gray-400 block mb-0.5">Approved BY (Atasan)</span>
+                                    <span class="font-black text-slate-800 uppercase text-sm block">{{ $checklistHeader->approved_by ?: '-' }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-black uppercase text-gray-400 block mb-0.5">Jam Pengecekan</span>
+                                    <span class="font-black text-indigo-600 text-sm block">{{ $checklistHeader->check_time ?: '-' }}</span>
+                                </div>
+                            </div>
+
+                            <!-- 17 Items Detail List -->
+                            @php
+                                $detailsByItem = $checklistHeader->details->keyBy('item_id');
+                                $periods = ['Daily', 'Weekly', 'Two weeks'];
+                                $periodBadges = [
+                                    'Daily' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                    'Weekly' => 'bg-purple-100 text-purple-800 border-purple-200',
+                                    'Two weeks' => 'bg-orange-100 text-orange-800 border-orange-200',
+                                ];
+                            @endphp
+
+                            @foreach($periods as $p)
+                                @php
+                                    $groupItems = $checklistItems->filter(fn($i) => $i->period === $p);
+                                @endphp
+                                @if($groupItems->count() > 0)
+                                    <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                                        <div class="bg-gray-100/80 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
+                                            <span class="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black border {{ $periodBadges[$p] ?? 'bg-gray-100' }}">{{ $p }}</span>
+                                                <span>Pengecekan {{ $p }} ({{ $groupItems->count() }} Item)</span>
+                                            </span>
+                                        </div>
+                                        <div class="divide-y divide-gray-100 text-xs">
+                                            @foreach($groupItems as $item)
+                                                @php
+                                                    $d = $detailsByItem->get($item->id);
+                                                    $val = $d ? $d->value : '-';
+                                                    $isNormal = $d ? $d->is_normal : true;
+                                                @endphp
+                                                <div class="p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors {{ $val !== '-' && (!$isNormal || $val === 'NG') ? 'bg-red-50/50' : '' }}">
+                                                    <div class="flex-1">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-black text-gray-400 text-[10px] w-5">{{ $item->sort_order }}.</span>
+                                                            <span class="font-bold text-gray-800 text-xs">{{ $item->item_name }}</span>
+                                                        </div>
+                                                        <div class="ml-7 text-[10px] text-gray-400 font-medium">
+                                                            Standar: <span class="text-gray-600 font-semibold">{{ $item->standard }}</span> | Kriteria: <span class="text-gray-600 font-semibold">{{ $item->kriteria }}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="ml-7 md:ml-0">
+                                                        @if($val === 'OK')
+                                                            <span class="px-3.5 py-1 rounded-xl bg-emerald-600 text-white font-black text-xs inline-block">
+                                                                ✓ OK
+                                                            </span>
+                                                        @elseif($val === '-')
+                                                            <span class="px-3.5 py-1 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs inline-block border border-slate-200">
+                                                                - Lewati
+                                                            </span>
+                                                        @elseif(!$isNormal || $val === 'NG')
+                                                            <span class="px-3.5 py-1 rounded-xl bg-red-600 text-white font-black text-xs inline-block animate-pulse shadow-sm">
+                                                                ⚠️ {{ $val }} {{ $item->unit }} (ABNORMAL)
+                                                            </span>
+                                                        @else
+                                                            <span class="px-3.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 font-black text-xs inline-block">
+                                                                ✓ {{ $val }} {{ $item->unit }} (Normal)
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        @else
+                            <div class="py-12 px-6 text-center bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
+                                <div class="text-3xl">⏳</div>
+                                <h4 class="text-sm font-black text-amber-800 uppercase">Belum Ada Data Checklist</h4>
+                                <p class="text-xs text-amber-700 font-medium max-w-md mx-auto">
+                                    Checklist Predictive Maintenance untuk mesin <span class="font-bold text-amber-900">{{ $selectedMachine?->name ?? 'ini' }}</span> pada tanggal <span class="font-bold text-amber-900">{{ \Carbon\Carbon::parse($selectedDate)->format('d-m-Y') }}</span> belum diisi oleh tim Maintenance.
+                                </p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Footer Modal -->
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
+                        <button type="button" wire:click="closeChecklistModal" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition-colors">
+                            Tutup
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
