@@ -16,14 +16,37 @@
                 <p class="text-xs text-gray-500 mt-1 font-semibold">Created by {{ $workOrder->creator?->name ?? 'System' }} on {{ $workOrder->created_at->format('d M Y, H:i') }}</p>
             </div>
 
-            <div class="flex items-center gap-2">
-                <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
-                    &larr; Work Orders List
-                </a>
-                @if($workOrder->status === 'planned')
-                    <a href="{{ route('sp-work-orders.edit', $workOrder->id) }}" class="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                        Edit Work Order
+            @php
+                $activeSession = $workOrder->sessions->where('status', 'running')->first();
+                $completedSessions = $workOrder->sessions->where('status', 'completed');
+                $isFpiApproved = isset($firstPiece) && $firstPiece && $firstPiece->isApproved();
+            @endphp
+
+            <div class="flex flex-wrap items-center gap-2">
+                @if($activeSession)
+                    <a href="{{ route('app.sp-sessions.show', $activeSession->id) }}"
+                       class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
+                        Open Operator Screen
                     </a>
+                @elseif($workOrder->status === 'planned' && $isFpiApproved)
+                    <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
+                            Start Production
+                        </button>
+                    </form>
+                @endif
+
+                <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                    Work Orders List
+                </a>
+
+                @if($workOrder->status === 'planned')
+                    @can('manage-sp-work-orders')
+                        <a href="{{ route('sp-work-orders.edit', $workOrder->id) }}" class="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                            Edit
+                        </a>
+                    @endcan
                 @endif
             </div>
         </div>
@@ -45,10 +68,6 @@
             @endif
 
             @php
-                $activeSession = $workOrder->sessions->where('status', 'running')->first();
-                $completedSessions = $workOrder->sessions->where('status', 'completed');
-                $isFpiApproved = isset($firstPiece) && $firstPiece && $firstPiece->isApproved();
-
                 // Compute aggregated session metrics
                 $totalInputWip = $workOrder->sessions->flatMap->productionEntries->sum('input_qty');
                 $totalGood = $workOrder->total_good;
@@ -59,189 +78,169 @@
                 $activeManpowerCount = $workOrder->sessions->flatMap->manpowers->count();
             @endphp
 
-            {{-- Target Completion Progress Card --}}
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-3">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
-                    <div>
-                        <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Production Progress</h3>
-                        <div class="text-3xl font-black text-gray-900 mt-1">
-                            {{ number_format($totalGood) }} <span class="text-sm font-bold text-gray-500">/ {{ number_format($workOrder->target_qty) }} Pcs</span>
+            {{-- 1. Combined Progress & Sleek Metric Strip Card --}}
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+                {{-- Progress Bar Row --}}
+                <div class="space-y-2">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Total Production Target</span>
+                            <div class="text-2xl font-black text-gray-900 mt-0.5">
+                                {{ number_format($totalGood) }} <span class="text-xs font-bold text-gray-400">/ {{ number_format($workOrder->target_qty) }} Pcs</span>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
+                            {{ $workOrder->progress_percentage }}%
                         </div>
                     </div>
-                    <div class="text-3xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
-                        {{ $workOrder->progress_percentage }}%
+                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
+                        <div class="{{ $workOrder->progress_percentage >= 100 ? 'bg-emerald-500' : 'bg-blue-600' }} h-3 rounded-full transition-all duration-700" style="width: {{ min(100, $workOrder->progress_percentage) }}%"></div>
                     </div>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden border border-gray-200">
-                    <div class="{{ $workOrder->progress_percentage >= 100 ? 'bg-emerald-500' : 'bg-blue-600' }} h-3.5 rounded-full transition-all duration-700" style="width: {{ min(100, $workOrder->progress_percentage) }}%"></div>
+
+                {{-- Compact 1-Row Metric Strip --}}
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
+                    <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Input WIP Received</div>
+                        <div class="text-base font-black text-gray-900 mt-0.5">{{ number_format($totalInputWip) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
+                    </div>
+
+                    <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                        <div class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Good Output</div>
+                        <div class="text-base font-black text-emerald-700 mt-0.5">{{ number_format($totalGood) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
+                    </div>
+
+                    <div class="p-3 bg-red-50/50 rounded-xl border border-red-100">
+                        <div class="text-[10px] font-black text-red-800 uppercase tracking-wider">Defects & NG Rate</div>
+                        <div class="text-base font-black text-red-700 mt-0.5">{{ number_format($totalReject) }} <span class="text-[10px] font-bold text-gray-500">({{ $ngRate }}%)</span></div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Downtime / Line Team</div>
+                        <div class="text-base font-black text-gray-900 mt-0.5">{{ $totalDowntimeMin }} <span class="text-[10px] font-bold text-gray-500">Min</span> • {{ $activeManpowerCount }} <span class="text-[10px] font-bold text-gray-500">Op</span></div>
+                    </div>
                 </div>
             </div>
 
-            {{-- Real-time KPI Metric Summary Cards --}}
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                    <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Input WIP Received</div>
-                    <div class="text-xl font-black text-gray-900 mt-1">{{ number_format($totalInputWip) }} <span class="text-xs font-bold text-gray-500">Pcs</span></div>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                    <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Good Output</div>
-                    <div class="text-xl font-black text-emerald-700 mt-1">{{ number_format($totalGood) }} <span class="text-xs font-bold text-gray-500">Pcs</span></div>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                    <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Defects & NG Rate</div>
-                    <div class="text-xl font-black text-red-700 mt-1">{{ number_format($totalReject) }} <span class="text-xs font-bold text-gray-500">({{ $ngRate }}%)</span></div>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                    <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Downtime / Line Team</div>
-                    <div class="text-xl font-black text-gray-900 mt-1">{{ $totalDowntimeMin }} <span class="text-xs font-bold text-gray-500">Min</span> • {{ $activeManpowerCount }} <span class="text-xs font-bold text-gray-500">Op</span></div>
-                </div>
-            </div>
-
-            {{-- Main Work Order & QC Action Layout --}}
+            {{-- 2. Main Work Order Specifications & QC Gate Layout --}}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {{-- Left 2 Columns: Specs --}}
-                <div class="lg:col-span-2 space-y-6">
-
-                    {{-- Product & Manufacturing Setup Grid --}}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                            <div class="mb-4 pb-2 border-b border-gray-100">
-                                <h3 class="text-xs font-black text-gray-700 uppercase tracking-widest">Product Information</h3>
-                            </div>
-                            <div class="space-y-4 text-xs">
-                                <div>
-                                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Part Number</div>
-                                    <div class="font-bold text-blue-700 font-mono text-sm mt-0.5">{{ $workOrder->part_number }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Part Name</div>
-                                    <div class="font-bold text-gray-900 text-sm mt-0.5">{{ $workOrder->part_name }}</div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Customer</div>
-                                        <div class="font-bold text-gray-800 mt-0.5">{{ $workOrder->customer }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Model Code</div>
-                                        <div class="font-bold text-gray-800 mt-0.5">{{ $workOrder->model ?: '-' }}</div>
-                                    </div>
-                                </div>
-                            </div>
+                {{-- Left 2 Columns: Single Consolidated Specs Card --}}
+                <div class="lg:col-span-2">
+                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4 h-full">
+                        <div class="pb-3 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest">Work Order Specifications</h3>
+                            <span class="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">{{ $workOrder->wo_number }}</span>
                         </div>
 
-                        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                            <div class="mb-4 pb-2 border-b border-gray-100">
-                                <h3 class="text-xs font-black text-gray-700 uppercase tracking-widest">Manufacturing Setup</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                            {{-- Product Details --}}
+                            <div class="space-y-3.5">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Part Number</span>
+                                    <span class="font-bold text-blue-700 font-mono text-sm mt-0.5 block">{{ $workOrder->part_number }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Part Name</span>
+                                    <span class="font-bold text-gray-900 text-sm mt-0.5 block">{{ $workOrder->part_name }}</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 pt-1">
+                                    <div>
+                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Customer</span>
+                                        <span class="font-bold text-gray-800 mt-0.5 block">{{ $workOrder->customer }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Model Code</span>
+                                        <span class="font-bold text-gray-800 mt-0.5 block">{{ $workOrder->model ?: '-' }}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="space-y-4 text-xs">
+
+                            {{-- Manufacturing Setup --}}
+                            <div class="space-y-3.5 md:border-l md:border-gray-100 md:pl-6">
                                 <div>
-                                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Process Type</div>
-                                    <div class="font-bold text-gray-900 text-sm mt-0.5">{{ $workOrder->process_prod }}</div>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Process Type</span>
+                                    <span class="font-bold text-gray-900 text-sm mt-0.5 block">{{ $workOrder->process_prod }}</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4">
+                                <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Production Line</div>
-                                        <div class="font-bold text-gray-800 mt-0.5">{{ $workOrder->unit_line }}</div>
+                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Production Line</span>
+                                        <span class="font-bold text-gray-800 mt-0.5 block">{{ $workOrder->unit_line }}</span>
                                     </div>
                                     <div>
-                                        <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Shift</div>
-                                        <div class="font-bold text-gray-800 mt-0.5">Shift {{ $workOrder->shift }}</div>
+                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Shift</span>
+                                        <span class="font-bold text-gray-800 mt-0.5 block">Shift {{ $workOrder->shift }}</span>
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-wider">Planned Date</div>
-                                    <div class="font-bold text-gray-800 mt-0.5">{{ \Carbon\Carbon::parse($workOrder->planned_date)->format('l, d F Y') }}</div>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Planned Date</span>
+                                    <span class="font-bold text-gray-800 mt-0.5 block">{{ \Carbon\Carbon::parse($workOrder->planned_date)->format('l, d F Y') }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </div>
 
-                {{-- Right Column: Action & Gate Center --}}
+                {{-- Right Column: QC Gate & Session Actions --}}
                 <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4 h-full flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest border-b border-gray-100 pb-3">QC First Piece Gate</h3>
 
-                    {{-- Action Command Box --}}
-                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-                        <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest border-b border-gray-100 pb-3">Production Command Center</h3>
+                            <div class="p-4 rounded-xl border text-xs space-y-2 mt-4
+                                {{ $isFpiApproved ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : (isset($firstPiece) && $firstPiece ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-red-50 border-red-300 text-red-900') }}">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-black uppercase tracking-wider text-[10px] text-gray-500">Gate Status</span>
+                                    @if($isFpiApproved)
+                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-emerald-200 text-emerald-900 uppercase">QC Approved (OK)</span>
+                                    @elseif(isset($firstPiece) && $firstPiece)
+                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-amber-200 text-amber-900 uppercase">Pending Signature</span>
+                                    @else
+                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-red-200 text-red-900 uppercase">Inspection Required</span>
+                                    @endif
+                                </div>
 
-                        {{-- QC First Piece Inspection Gate Box --}}
-                        <div class="p-4 rounded-xl border text-xs space-y-2
-                            {{ $isFpiApproved ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : (isset($firstPiece) && $firstPiece ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-red-50 border-red-300 text-red-900') }}">
-                            <div class="flex items-center justify-between">
-                                <span class="font-black uppercase tracking-wider text-[10px] text-gray-500">QC First Piece Gate</span>
-                                @if($isFpiApproved)
-                                    <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-emerald-200 text-emerald-900 uppercase">QC Approved (OK)</span>
-                                @elseif(isset($firstPiece) && $firstPiece)
-                                    <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-amber-200 text-amber-900 uppercase">Pending Verification</span>
-                                @else
-                                    <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-red-200 text-red-900 uppercase">Gate Required</span>
-                                @endif
-                            </div>
+                                <p class="font-medium text-xs leading-relaxed">
+                                    @if($isFpiApproved)
+                                        Inspected & approved by QC Inspector <span class="font-black">{{ $firstPiece->checked_by ?: 'QC Inspector' }}</span>.
+                                    @elseif(isset($firstPiece) && $firstPiece)
+                                        Inspection recorded, awaiting QC inspector signature sign-off.
+                                    @else
+                                        First Piece Inspection must be completed before standard production start.
+                                    @endif
+                                </p>
 
-                            <p class="font-medium text-xs leading-relaxed">
-                                @if($isFpiApproved)
-                                    First Piece inspected & approved by QC Inspector <span class="font-black">{{ $firstPiece->checked_by ?: 'QC Inspector' }}</span>.
-                                @elseif(isset($firstPiece) && $firstPiece)
-                                    Inspection recorded, awaiting QC inspector signature sign-off.
-                                @else
-                                    QC First Piece Inspection must be completed & approved before starting production.
-                                @endif
-                            </p>
-
-                            <div class="pt-1">
-                                @if($isFpiApproved)
-                                    <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block text-xs font-black text-emerald-800 hover:underline uppercase tracking-wider">
-                                        View Inspection #{{ $firstPiece->id }} &rarr;
-                                    </a>
-                                @elseif(isset($firstPiece) && $firstPiece)
-                                    <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                        Sign QC Approval #{{ $firstPiece->id }}
-                                    </a>
-                                @else
-                                    <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $workOrder->id, 'part_number' => $workOrder->part_number, 'part_name' => $workOrder->part_name, 'model' => $workOrder->model]) }}"
-                                        class="inline-block w-full text-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition uppercase tracking-wider">
-                                        + Perform First Piece Inspection
-                                    </a>
-                                @endif
+                                <div class="pt-1">
+                                    @if($isFpiApproved)
+                                        <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block text-xs font-black text-emerald-800 hover:underline uppercase tracking-wider">
+                                            View Inspection #{{ $firstPiece->id }}
+                                        </a>
+                                    @elseif(isset($firstPiece) && $firstPiece)
+                                        <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                            Sign QC Approval #{{ $firstPiece->id }}
+                                        </a>
+                                    @else
+                                        <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $workOrder->id, 'part_number' => $workOrder->part_number, 'part_name' => $workOrder->part_name, 'model' => $workOrder->model]) }}"
+                                            class="inline-block w-full text-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition uppercase tracking-wider">
+                                            Perform Inspection
+                                        </a>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 
-                        {{-- Production Execution Action Button --}}
-                        @if($activeSession)
-                            <a href="{{ route('app.sp-sessions.show', $activeSession->id) }}"
-                                class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3.5 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                Open Operator Recording Screen
+                        {{-- Line Gateway Shortcut Link --}}
+                        <div class="pt-3 border-t border-gray-100">
+                            <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => array_search($workOrder->unit_line, config('mes.sp_lines', [])) ?: 'line-a']) }}"
+                               class="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-xl text-xs transition uppercase tracking-wider">
+                                Open Line Gateway
                             </a>
-                        @elseif($workOrder->status === 'planned' && $isFpiApproved)
-                            <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black py-3.5 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                    Start Production
-                                </button>
-                            </form>
-                        @elseif($completedSessions->count() > 0)
-                            <a href="{{ route('second-process-reports.index') }}"
-                                class="block w-full text-center bg-gray-700 hover:bg-gray-800 text-white font-black py-3.5 px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                View Daily Production Reports
-                            </a>
-                        @else
-                            <button type="button" disabled class="w-full bg-gray-200 text-gray-400 cursor-not-allowed font-black py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider border border-gray-300">
-                                Start Production (QC Gate Required)
-                            </button>
-                        @endif
-
+                        </div>
                     </div>
-
                 </div>
             </div>
 
-            {{-- Production Sessions List Table Card --}}
+            {{-- 3. Production Sessions Log Table Card --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mt-6">
                 <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <div>
@@ -274,7 +273,7 @@
                                     <td class="px-6 py-4 font-black text-blue-700 whitespace-nowrap">#SESSION-{{ $session->id }}</td>
                                     <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">{{ $session->operator?->name ?? 'Operator' }}</td>
                                     <td class="px-6 py-4 font-semibold text-gray-600 whitespace-nowrap">
-                                        {{ $session->started_at ? $session->started_at->format('H:i') : '-' }} &rarr; {{ $session->finished_at ? $session->finished_at->format('H:i') : 'Now' }}
+                                        {{ $session->started_at ? $session->started_at->format('H:i') : '-' }} - {{ $session->finished_at ? $session->finished_at->format('H:i') : 'Now' }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-black text-gray-900 whitespace-nowrap">
                                         {{ number_format($session->productionEntries->sum('input_qty')) }}

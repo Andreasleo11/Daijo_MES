@@ -414,7 +414,7 @@ class SpProductionSessionController extends Controller
         // All active/planned WOs for this line
         $workOrders = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
             ->where('unit_line', $line)
-            ->whereIn('status', ['draft', 'approved', 'in_progress'])
+            ->whereIn('status', ['planned', 'draft', 'approved', 'in_progress'])
             ->orderByDesc('id')
             ->get();
 

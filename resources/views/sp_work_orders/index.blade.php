@@ -7,9 +7,11 @@
                 </h2>
                 <p class="text-xs font-semibold text-gray-500 mt-0.5">Manage, release, and track production Work Orders & QC Gate status</p>
             </div>
-            <a href="{{ route('sp-work-orders.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center gap-1">
-                + New Work Order
-            </a>
+            @can('manage-sp-work-orders')
+                <a href="{{ route('sp-work-orders.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                    New Work Order
+                </a>
+            @endcan
         </div>
     </x-slot>
 
@@ -28,75 +30,72 @@
                 </div>
             @endif
 
-            {{-- Filter Bar --}}
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
-                    <div>
-                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Filter & Search Work Orders</h3>
-                        <p class="text-xs text-gray-500 font-medium">Refine planned and active Work Orders by line, shift, status, or search terms</p>
-                    </div>
-                </div>
-
-                <form method="GET" action="{{ route('sp-work-orders.index') }}" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">From Date</label>
-                            <input type="date" name="date_from" value="{{ request('date_from') }}"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">To Date</label>
-                            <input type="date" name="date_to" value="{{ request('date_to') }}"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Line / Area</label>
-                            <select name="unit_line" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                <option value="">All Lines</option>
-                                @foreach($lines as $l)
-                                    <option value="{{ $l }}" {{ request('unit_line') == $l ? 'selected' : '' }}>{{ $l }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                            <select name="status" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                <option value="">All Status</option>
-                                <option value="planned" {{ request('status') == 'planned' ? 'selected' : '' }}>Planned</option>
-                                <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
-                                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Search Keyword</label>
-                            <input type="text" name="search" value="{{ request('search') }}" placeholder="WO#, Part, Customer..."
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                        </div>
+            {{-- Compact 1-Row Inline Filter Bar --}}
+            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+                <form method="GET" action="{{ route('sp-work-orders.index') }}" class="flex flex-wrap items-center gap-3 text-xs">
+                    {{-- Search Input --}}
+                    <div class="flex-1 min-w-[200px]">
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Search WO#, Part Number, Name, Customer..."
+                            class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs font-semibold text-gray-800 px-3.5 py-2">
                     </div>
 
-                    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
-                            Reset Filters
-                        </a>
+                    {{-- Line Select --}}
+                    <div class="w-auto min-w-[130px]">
+                        <select name="unit_line" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs font-semibold text-gray-800 px-3.5 py-2">
+                            <option value="">All Lines</option>
+                            @foreach($lines as $l)
+                                <option value="{{ $l }}" {{ request('unit_line') == $l ? 'selected' : '' }}>{{ $l }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Status Select --}}
+                    <div class="w-auto min-w-[130px]">
+                        <select name="status" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs font-semibold text-gray-800 px-3.5 py-2">
+                            <option value="">All Status</option>
+                            <option value="planned" {{ request('status') == 'planned' ? 'selected' : '' }}>Planned</option>
+                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                        </select>
+                    </div>
+
+                    {{-- Date From --}}
+                    <div class="w-auto">
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" title="From Date"
+                            class="rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs font-semibold text-gray-800 px-3 py-2">
+                    </div>
+
+                    {{-- Date To --}}
+                    <div class="w-auto">
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" title="To Date"
+                            class="rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs font-semibold text-gray-800 px-3 py-2">
+                    </div>
+
+                    {{-- Actions --}}
+                    <div class="flex items-center gap-1.5 ml-auto">
                         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Apply Filter
+                            Filter
                         </button>
+                        @if(request()->hasAny(['search', 'unit_line', 'status', 'date_from', 'date_to']))
+                            <a href="{{ route('sp-work-orders.index') }}" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 transition uppercase tracking-wider">
+                                Reset
+                            </a>
+                        @endif
                     </div>
                 </form>
             </div>
 
             {{-- Table Display Card --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div>
                         <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Work Orders</h3>
                         <p class="text-xs text-gray-500 font-medium">Production planning and real-time execution status</p>
                     </div>
+                    <span class="text-xs font-bold bg-white px-3 py-1 rounded-full border border-gray-200 text-gray-600 shadow-sm">
+                        {{ $workOrders->total() }} Work Order(s)
+                    </span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -106,7 +105,7 @@
                                 <th class="px-6 py-3">WO Number</th>
                                 <th class="px-6 py-3">Planned Date</th>
                                 <th class="px-6 py-3">Line / Shift</th>
-                                <th class="px-6 py-3">Part Info</th>
+                                <th class="px-6 py-3">Part Information</th>
                                 <th class="px-6 py-3 text-right">Target Qty</th>
                                 <th class="px-6 py-3 text-center">QC First Piece Gate</th>
                                 <th class="px-6 py-3 text-center">Status</th>
@@ -158,7 +157,7 @@
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
                                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border
-                                            {{ $wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-200' }}">
+                                            {{ $wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($wo->status === 'planned' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-gray-100 text-gray-700 border-gray-200') }}">
                                             {{ str_replace('_', ' ', $wo->status) }}
                                         </span>
                                     </td>
@@ -181,10 +180,12 @@
                                                 </button>
                                             </form>
                                         @elseif($wo->status === 'planned')
-                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
-                                                class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                Perform Inspection
-                                            </a>
+                                            @can('execute-qc-inspections')
+                                                <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
+                                                    class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                    Perform Inspection
+                                                </a>
+                                            @endcan
                                         @endif
                                     </td>
                                 </tr>

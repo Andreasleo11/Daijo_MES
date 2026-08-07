@@ -40,7 +40,7 @@ class SecondProcessDashboardController extends Controller
         $activeWorkOrders = SpWorkOrder::with(['sessions'])
             ->where(function ($query) use ($date) {
                 $query->whereDate('planned_date', $date)
-                    ->orWhereIn('status', ['draft', 'approved', 'in_progress']);
+                    ->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress']);
             })
             ->orderBy('id', 'desc')
             ->get();
@@ -53,7 +53,7 @@ class SecondProcessDashboardController extends Controller
 
         // 5. Calculate real-time Shift KPIs
         $runningSessionsCount = $sessions->where('status', 'running')->count();
-        $pendingWoCount = $activeWorkOrders->whereIn('status', ['draft', 'approved'])->count();
+        $pendingWoCount = $activeWorkOrders->whereIn('status', ['planned', 'draft', 'approved'])->count();
         $totalShiftGood = $sessions->sum('total_good');
         $totalShiftReject = $sessions->sum('total_reject');
         $totalShiftTotal = $totalShiftGood + $totalShiftReject;
