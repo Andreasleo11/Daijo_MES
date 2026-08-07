@@ -307,6 +307,7 @@
                                 <th class="border border-black p-1">Visco</th>
                                 <th class="border border-black p-1">Mixing Ratio</th>
                                 <th class="border border-black p-1">Qty</th>
+                                <th class="border border-black p-1">UOM</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -318,6 +319,7 @@
                                     <td class="border border-black p-1 text-center font-mono">
                                         {{ $material->mixing_ratio ?: '-' }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->qty }}</td>
+                                    <td class="border border-black p-1 text-center">{{ $material->uom ?: '-' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -329,6 +331,7 @@
                                 <th class="border border-black p-1 text-left">Item Parts</th>
                                 <th class="border border-black p-1">Lot Number</th>
                                 <th class="border border-black p-1">Qty</th>
+                                <th class="border border-black p-1">UOM</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -337,6 +340,7 @@
                                     <td class="border border-black p-1 font-semibold">{{ $material->item_name }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->lot_number }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->qty }}</td>
+                                    <td class="border border-black p-1 text-center">{{ $material->uom ?: '-' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

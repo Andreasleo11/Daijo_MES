@@ -412,9 +412,10 @@
                                 <tr>
                                     <th class="px-3 py-2 text-left font-bold text-gray-600">Item Paint</th>
                                     <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/5">Lot Number</th>
-                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/6">Visco</th>
-                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/5">Mixing Ratio</th>
-                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/6">Qty</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-16">Visco</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-20">Mixing Ratio</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-20">Qty</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-20">UOM</th>
                                     <th class="px-1 py-2 text-center font-bold text-gray-600 w-8"></th>
                                 </tr>
                             </thead>
@@ -448,9 +449,15 @@
                                                 class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-2 py-2">
-                                            <input type="number" name="materials[{{ $currIdx }}][qty]"
+                                            <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][uom]"
+                                                value="{{ old('materials.' . $currIdx . '.uom', $mat->uom ?? '') }}"
+                                                placeholder="UOM"
                                                 class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-1 py-2 text-center">
@@ -480,6 +487,7 @@
                                 'item_name' => $pName,
                                 'lot_number' => '',
                                 'qty' => '',
+                                'uom' => '',
                             ]);
                         }
                     }
@@ -497,7 +505,8 @@
                                 <tr>
                                     <th class="px-3 py-2 text-left font-bold text-gray-600">Item Parts</th>
                                     <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/3">Lot Number</th>
-                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-1/4">Qty</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-24">Qty</th>
+                                    <th class="px-2 py-2 text-left font-bold text-gray-600 w-24">UOM</th>
                                     <th class="px-1 py-2 text-center font-bold text-gray-600 w-8"></th>
                                 </tr>
                             </thead>
@@ -519,9 +528,15 @@
                                                 class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-2 py-2">
-                                            <input type="number" name="materials[{{ $currIdx }}][qty]"
+                                            <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
+                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input type="text" name="materials[{{ $currIdx }}][uom]"
+                                                value="{{ old('materials.' . $currIdx . '.uom', $mat->uom ?? '') }}"
+                                                placeholder="UOM"
                                                 class="w-full text-xs rounded border-gray-300 py-1">
                                         </td>
                                         <td class="px-1 py-2 text-center">
@@ -2056,7 +2071,10 @@
                 <input type="text" name="materials[${materialRowIndex}][mixing_ratio]" value="" placeholder="Ratio (e.g. 1:1.5)" class="w-full text-xs rounded border-gray-300 py-1">
             </td>
             <td class="px-2 py-2">
-                <input type="number" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+                <input type="number" step="any" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][uom]" value="" placeholder="UOM" class="w-full text-xs rounded border-gray-300 py-1">
             </td>
             <td class="px-1 py-2 text-center">
                 <button type="button" onclick="removeMaterialRow(this)" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition" title="Remove Row">&times;</button>
@@ -2079,7 +2097,10 @@
                 <input type="text" name="materials[${materialRowIndex}][lot_number]" value="" placeholder="Lot" class="w-full text-xs rounded border-gray-300 py-1">
             </td>
             <td class="px-2 py-2">
-                <input type="number" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+                <input type="number" step="any" name="materials[${materialRowIndex}][qty]" value="" placeholder="Qty" class="w-full text-xs rounded border-gray-300 py-1">
+            </td>
+            <td class="px-2 py-2">
+                <input type="text" name="materials[${materialRowIndex}][uom]" value="" placeholder="UOM" class="w-full text-xs rounded border-gray-300 py-1">
             </td>
             <td class="px-1 py-2 text-center">
                 <button type="button" onclick="removeMaterialRow(this)" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition" title="Remove Row">&times;</button>
