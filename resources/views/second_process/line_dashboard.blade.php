@@ -3,141 +3,91 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <div class="flex items-center gap-3">
-                    <h2 class="font-black text-2xl text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                    <h2 class="font-black text-2xl text-slate-900 uppercase tracking-wide flex items-center gap-2">
                         <span>{{ $line }}</span>
-                        <span class="text-xs font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg">Line Dashboard</span>
+                        <span class="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">Historical Line Analytics</span>
                     </h2>
-                    @if($activeSession)
-                        <span class="px-3 py-1 text-xs font-black rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase tracking-widest animate-pulse">
-                            ACTIVE RUNNING
-                        </span>
-                    @else
-                        <span class="px-3 py-1 text-xs font-black rounded-full bg-gray-100 text-gray-600 border border-gray-300 uppercase tracking-widest">
-                            IDLE / NO RUNNING SESSION
-                        </span>
-                    @endif
                 </div>
-                <p class="text-xs font-semibold text-gray-500 mt-1">Dedicated shop floor line metrics, hourly performance, defect Pareto, downtime analysis, and session history</p>
+                <p class="text-xs font-semibold text-slate-500 mt-1">Line performance analysis, defect Pareto, downtime breakdown, and historical session logs</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                     Overview Dashboard
                 </a>
                 @php $currentSlug = array_search($line, config('mes.sp_lines', [])) ?: \Illuminate\Support\Str::slug($line); @endphp
                 <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $currentSlug]) }}" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
                     Operator Gateway
                 </a>
-                @if($activeSession)
-                    <a href="{{ route('app.sp-sessions.show', $activeSession->id) }}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                        Operator Screen
-                    </a>
-                @elseif($activeWo)
-                    @php $isFpApproved = $firstPiece && $firstPiece->isApproved(); @endphp
-                    @if($isFpApproved)
-                        <form action="{{ route('sp-sessions.start', $activeWo->id) }}" method="POST" class="inline">
-                            @csrf
-                            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                                Start Production
-                            </button>
-                        </form>
-                    @endif
-                @endif
             </div>
         </div>
     </x-slot>
 
-    <div class="py-6 space-y-6" x-data="{ 
-            init() { 
-                setInterval(() => { 
-                    if(!document.hidden) window.location.reload(); 
-                }, 30000);
-            } 
-        }">
+    <div class="py-6 space-y-6">
 
-        {{-- Filter & Line Control Bar --}}
-        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                <div class="flex items-center gap-2 text-xs font-bold text-gray-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
-                    <span class="text-blue-400 uppercase font-black text-[10px]">Line:</span>
-                    <span class="text-blue-900 font-black">{{ $line }}</span>
+        {{-- Filter & Historical Line Control Bar --}}
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <form action="{{ route('second-process.line-dashboard', $line) }}" method="GET" class="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                {{-- Date Presets --}}
+                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                    <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'preset' => 'today', 'shift' => $shift]) }}"
+                       class="px-3 py-1 rounded-lg font-bold transition {{ ($preset ?? 'today') === 'today' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                        Today
+                    </a>
+                    <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'preset' => 'yesterday', 'shift' => $shift]) }}"
+                       class="px-3 py-1 rounded-lg font-bold transition {{ ($preset ?? '') === 'yesterday' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                        Yesterday
+                    </a>
+                    <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'preset' => 'last_7_days', 'shift' => $shift]) }}"
+                       class="px-3 py-1 rounded-lg font-bold transition {{ ($preset ?? '') === 'last_7_days' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                        Last 7 Days
+                    </a>
+                    <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'preset' => 'this_month', 'shift' => $shift]) }}"
+                       class="px-3 py-1 rounded-lg font-bold transition {{ ($preset ?? '') === 'this_month' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                        This Month
+                    </a>
                 </div>
 
-                {{-- Date & Shift Form --}}
-                <form action="{{ route('second-process.line-dashboard', $line) }}" method="GET" class="flex flex-wrap items-center gap-4">
-                    <div class="flex items-center gap-2">
-                        <label class="font-black text-xs uppercase text-gray-500">Date:</label>
-                        <input type="date" name="date" value="{{ $date }}" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
+                {{-- Date Range Inputs (Start & End) --}}
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
+                        <label class="font-black text-xs uppercase text-slate-500">From:</label>
+                        <input type="date" name="date_from" value="{{ $dateFrom }}" class="rounded-xl border-slate-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
                     </div>
-                    <div class="flex items-center gap-2">
-                        <label class="font-black text-xs uppercase text-gray-500">Shift:</label>
-                        <select name="shift" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
-                            @foreach(config('mes.shifts', []) as $sId => $sConf)
-                                <option value="{{ $sId }}" {{ $shift == $sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
-                            @endforeach
-                            @if(empty(config('mes.shifts', [])))
-                                <option value="1" {{ $shift == 1 ? 'selected' : '' }}>Shift 1</option>
-                                <option value="2" {{ $shift == 2 ? 'selected' : '' }}>Shift 2</option>
-                                <option value="3" {{ $shift == 3 ? 'selected' : '' }}>Shift 3</option>
-                            @endif
-                        </select>
+                    <div class="flex items-center gap-1.5">
+                        <label class="font-black text-xs uppercase text-slate-500">To:</label>
+                        <input type="date" name="date_to" value="{{ $dateTo }}" class="rounded-xl border-slate-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
                     </div>
-                    <noscript><button type="submit" class="bg-gray-100 px-3 py-1 text-xs font-bold rounded-xl border border-gray-300">Filter</button></noscript>
-                </form>
-            </div>
+                </div>
 
-            <div class="flex items-center gap-2 text-xs font-bold text-gray-500">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Auto-refreshing every 30s</span>
+                {{-- Shift Select --}}
+                <div class="flex items-center gap-1.5">
+                    <label class="font-black text-xs uppercase text-slate-500">Shift:</label>
+                    <select name="shift" class="rounded-xl border-slate-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
+                        <option value="all" {{ (string)$shift === 'all' ? 'selected' : '' }}>All Shifts</option>
+                        @foreach(config('mes.shifts', []) as $sId => $sConf)
+                            <option value="{{ $sId }}" {{ (string)$shift === (string)$sId ? 'selected' : '' }}>{{ $sConf['name'] }}</option>
+                        @endforeach
+                        @if(empty(config('mes.shifts', [])))
+                            <option value="1" {{ (string)$shift === '1' ? 'selected' : '' }}>Shift 1</option>
+                            <option value="2" {{ (string)$shift === '2' ? 'selected' : '' }}>Shift 2</option>
+                            <option value="3" {{ (string)$shift === '3' ? 'selected' : '' }}>Shift 3</option>
+                        @endif
+                    </select>
+                </div>
+            </form>
+
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                <span>📅 Window: 
+                    <strong class="text-slate-900 font-black">
+                        @if($dateFrom === $dateTo)
+                            {{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }}
+                        @else
+                            {{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}
+                        @endif
+                    </strong>
+                </span>
             </div>
         </div>
-
-        {{-- Active Session Banner (if running) --}}
-        @if($activeSession)
-            @php
-                $wo = $activeSession->workOrder;
-                $goodQty = $activeSession->total_good ?? 0;
-                $target = $wo->target_qty ?? 0;
-                $pct = $target > 0 ? min(100, round(($goodQty / $target) * 100)) : 0;
-            @endphp
-            <div class="bg-gradient-to-r from-emerald-900 to-teal-900 text-white rounded-2xl p-6 shadow-md border border-emerald-700 relative overflow-hidden">
-                <div class="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-6 pointer-events-none">
-                    <span class="text-9xl font-black text-white">RUNNING</span>
-                </div>
-                <div class="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-3">
-                            <span class="px-3 py-1 bg-emerald-500 text-white text-[10px] font-black uppercase rounded-full tracking-wider animate-pulse">Live Session #{{ $activeSession->id }}</span>
-                            <span class="text-xs text-emerald-200 font-mono">Started: {{ $activeSession->started_at?->format('H:i:s') }} ({{ $activeSession->started_at?->diffForHumans() }})</span>
-                        </div>
-                        <div class="text-2xl font-black text-white flex items-center gap-3">
-                            <span>WO: {{ $wo->wo_number ?? '-' }}</span>
-                            <span class="text-sm font-semibold text-emerald-200">| Customer: {{ $wo->customer ?? '-' }}</span>
-                        </div>
-                        <div class="text-sm text-emerald-100 font-medium">
-                            Part: <strong class="text-white">{{ $wo->part_name ?? '-' }}</strong> <span class="font-mono text-emerald-300">({{ $wo->part_number ?? '-' }})</span>
-                        </div>
-                        <div class="text-xs text-emerald-200 flex items-center gap-4 pt-1">
-                            <span>Operator: <strong class="text-white">{{ $activeSession->operator?->name ?? 'Unassigned' }}</strong></span>
-                            <span>Shift: <strong class="text-white">Shift {{ $activeSession->shift }}</strong></span>
-                        </div>
-                    </div>
-
-                    <div class="w-full lg:w-80 bg-white/10 backdrop-blur p-4 rounded-xl border border-white/10 space-y-3">
-                        <div class="flex justify-between items-center text-xs font-black uppercase text-emerald-200">
-                            <span>Progress</span>
-                            <span>{{ number_format($goodQty) }} / {{ number_format($target) }} Pcs ({{ $pct }}%)</span>
-                        </div>
-                        <div class="w-full bg-emerald-950/60 rounded-full h-3 overflow-hidden border border-emerald-500/30">
-                            <div class="bg-emerald-400 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: {{ $pct }}%"></div>
-                        </div>
-                        <div class="flex justify-between text-[11px] text-emerald-100 pt-1">
-                            <span>Defects: <strong class="text-red-300 font-bold">{{ number_format($activeSession->total_reject) }}</strong></span>
-                            <span>NG Rate: <strong class="{{ $activeSession->ng_rate > 2 ? 'text-red-300' : 'text-emerald-300' }} font-bold">{{ $activeSession->ng_rate }}%</strong></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
 
         {{-- Top KPI Metric Cards (6 Grid) --}}
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

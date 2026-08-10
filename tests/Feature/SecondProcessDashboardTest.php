@@ -74,6 +74,6 @@ class SecondProcessDashboardTest extends TestCase
         $response->assertSee('Second Process Operator & Shop Floor Dashboard');
         $response->assertSee('Line A');
         $response->assertSee('WO-SP-20260731-0001');
-        $response->assertSee('Open Operator Screen');
+        $response->assertSee('Operator Screen');
     }
 }

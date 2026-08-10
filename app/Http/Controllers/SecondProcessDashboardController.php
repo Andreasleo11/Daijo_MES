@@ -108,8 +108,28 @@ class SecondProcessDashboardController extends Controller
     public function lineDashboard(Request $request, string $line)
     {
         $now = Carbon::now('Asia/Jakarta');
-        $date = $request->input('date', $now->format('Y-m-d'));
-        $shift = (int) $request->input('shift', $this->getCurrentShift($now));
+        $preset = $request->input('preset');
+
+        if ($preset === 'yesterday') {
+            $dateFrom = $now->copy()->subDay()->format('Y-m-d');
+            $dateTo = $dateFrom;
+        } elseif ($preset === 'last_7_days') {
+            $dateFrom = $now->copy()->subDays(6)->format('Y-m-d');
+            $dateTo = $now->format('Y-m-d');
+        } elseif ($preset === 'this_month') {
+            $dateFrom = $now->copy()->startOfMonth()->format('Y-m-d');
+            $dateTo = $now->format('Y-m-d');
+        } elseif ($request->filled('date_from') || $request->filled('date_to')) {
+            $dateFrom = $request->input('date_from', $now->format('Y-m-d'));
+            $dateTo = $request->input('date_to', $dateFrom);
+            $preset = 'custom';
+        } else {
+            $dateFrom = $request->input('date', $now->format('Y-m-d'));
+            $dateTo = $dateFrom;
+            $preset = 'today';
+        }
+
+        $shift = $request->input('shift', 'all');
 
         // Resolve slug -> display name from config (e.g. 'amplas' -> 'Area Amplas/Treatment')
         $spLines = config('mes.sp_lines', []);
@@ -132,16 +152,20 @@ class SecondProcessDashboardController extends Controller
 
         $knownLines = $defaultLines->merge($dbLines)->filter()->unique()->sort()->values();
 
-        // 2. Fetch sessions for this line strictly matching selected date/shift
-        $sessions = SpProductionSession::with([
+        // 2. Query historical sessions matching the filter window
+        $query = SpProductionSession::with([
                 'workOrder', 'operator', 'productionEntries', 'rejectEntries',
                 'reworkEntries', 'downtimeEntries', 'inputEntries', 'manpowerEntries',
             ])
             ->where('unit_line', $line)
-            ->whereDate('started_at', $date)
-            ->when((string)$shift !== 'all', fn($q) => $q->where('shift', $shift))
-            ->get();
+            ->whereDate('started_at', '>=', $dateFrom)
+            ->whereDate('started_at', '<=', $dateTo);
 
+        if ((string)$shift !== 'all') {
+            $query->where('shift', (int)$shift);
+        }
+
+        $sessions = $query->orderByDesc('started_at')->get();
         $sessionIds = $sessions->pluck('id');
 
         // === KPIs ===
@@ -155,9 +179,7 @@ class SecondProcessDashboardController extends Controller
         $totalReworkIn = $sessions->sum('total_rework_in');
         $totalReworkRecovered = $sessions->sum('total_rework_recovered');
         $totalScrap = $sessions->sum('total_scrap');
-
-        $activeSession = $sessions->where('status', 'running')->first();
-        $targetQty = $activeSession?->workOrder?->target_qty ?? $sessions->first()?->workOrder?->target_qty ?? 0;
+        $targetQty = $sessions->sum(fn($s) => $s->workOrder?->target_qty ?? 0);
 
         // === Hourly Output (grouped by H:00) ===
         $hourlyRaw = SpProductionEntry::whereIn('session_id', $sessionIds)
@@ -195,34 +217,16 @@ class SecondProcessDashboardController extends Controller
         // === Manpower Roster ===
         $manpower = SpSessionManpower::whereIn('session_id', $sessionIds)->get();
 
-        // === Session History (last 10 for this line) ===
-        $sessionHistory = SpProductionSession::with(['workOrder', 'operator'])
-            ->where('unit_line', $line)
-            ->orderByDesc('started_at')
-            ->limit(10)
-            ->get();
-
-        // === Active WO + First Piece ===
-        $activeWo = SpWorkOrder::where('unit_line', $line)
-            ->whereIn('status', ['draft', 'approved', 'in_progress'])
-            ->orderByDesc('id')
-            ->first();
-
-        $firstPiece = null;
-        if ($activeWo) {
-            $firstPiece = FirstPieceInspection::where('part_number', $activeWo->part_number)
-                ->whereDate('date', $date)
-                ->orderByDesc('id')
-                ->first();
-        }
+        // === Session History (last 20 sessions matching filter) ===
+        $sessionHistory = $sessions->take(20);
+        $date = $dateFrom; // For backwards compatibility
 
         return view('second_process.line_dashboard', compact(
-            'line', 'date', 'shift', 'knownLines', 'sessions',
+            'line', 'date', 'dateFrom', 'dateTo', 'shift', 'preset', 'knownLines', 'sessions',
             'totalGood', 'totalReject', 'totalInput', 'yieldPct', 'ngRate',
             'totalDowntimeMinutes', 'totalReworkIn', 'totalReworkRecovered', 'totalScrap',
-            'activeSession', 'targetQty',
-            'hourlyOutput', 'defectPareto', 'downtimeBreakdown', 'downtimeLog',
-            'manpower', 'sessionHistory', 'activeWo', 'firstPiece'
+            'targetQty', 'hourlyOutput', 'defectPareto', 'downtimeBreakdown',
+            'downtimeLog', 'manpower', 'sessionHistory'
         ));
     }
 

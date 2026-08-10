@@ -263,21 +263,9 @@
 
             @empty
                 {{-- Empty State: No Work Orders Assigned --}}
-                <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-4">
-                    <div>
-                        <h4 class="text-base font-black text-slate-800 uppercase tracking-wide">No Work Orders Assigned</h4>
-                        <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Please contact your line supervisor or production planner.</p>
-                    </div>
-                    <div class="pt-2 flex justify-center gap-3">
-                        @can('manage-sp-work-orders')
-                            <a href="{{ route('sp-work-orders.create', ['unit_line' => $line]) }}" class="px-4 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                                Create New Work Order
-                            </a>
-                        @endcan
-                        <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition uppercase tracking-wider">
-                            Return to Overview
-                        </a>
-                    </div>
+                <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+                    <h4 class="text-base font-black text-slate-800 uppercase tracking-wide">No Work Orders Assigned</h4>
+                    <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Please contact your line supervisor or production planner.</p>
                 </div>
             @endforelse
         </div>

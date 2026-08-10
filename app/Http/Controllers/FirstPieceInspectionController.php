@@ -85,21 +85,8 @@ class FirstPieceInspectionController extends Controller
             $this->handleAttachments($request, $inspection);
         });
 
-        if ($request->filled('work_order_id')) {
-            $wo = SpWorkOrder::find($request->get('work_order_id'));
-            if ($wo && $wo->unit_line) {
-                $spLines = config('mes.sp_lines', []);
-                $lineSlug = array_search($wo->unit_line, $spLines) ?: \Illuminate\Support\Str::slug($wo->unit_line);
-                return redirect()->route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug])
-                    ->with('success', 'First Piece Inspection logged & approved!');
-            }
-
-            return redirect()->route('sp-work-orders.show', $request->get('work_order_id'))
-                ->with('success', 'First Piece Inspection logged & approved! Production is now ready to start.');
-        }
-
-        return redirect()->route('first-piece-inspections.show', $inspection->id)
-            ->with('success', 'First Piece Inspection created successfully.');
+        return redirect()->route('first-piece-inspections.index')
+            ->with('success', 'First Piece Inspection logged successfully.');
     }
 
     public function show($id)
