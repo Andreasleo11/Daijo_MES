@@ -330,6 +330,58 @@
                             </div>
                         </div>
 
+                    @elseif($assignedWo && $assignedWo->status === 'completed')
+                        {{-- STATE 4: COMPLETED WORK ORDER --}}
+                        <div x-show="activeTab === 'all'" x-transition class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between transition opacity-85 hover:opacity-100 hover:shadow-md">
+                            <a href="{{ $gatewayUrl }}" class="block group">
+                                <div class="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center group-hover:bg-slate-200/70 transition">
+                                    <h4 class="font-black text-slate-800 uppercase tracking-wider text-sm">{{ $lineName }}</h4>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-700 uppercase tracking-widest border border-slate-300">
+                                        Completed
+                                    </span>
+                                </div>
+
+                                <div x-show="detailedMode" class="p-5 space-y-3">
+                                    <div>
+                                        <div class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Completed Work Order</div>
+                                        <div class="font-black text-xs text-blue-700">{{ $assignedWo->wo_number }}</div>
+                                        <div class="font-bold text-sm text-slate-800 truncate" title="{{ $assignedWo->part_name }}">{{ $assignedWo->part_name }}</div>
+                                        <div class="text-xs text-slate-500 font-mono font-medium">{{ $assignedWo->part_number }}</div>
+                                    </div>
+
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                                        <div>
+                                            <div class="text-[10px] font-black text-slate-400 uppercase">Target</div>
+                                            <div class="text-sm font-black text-slate-900">{{ number_format($assignedWo->target_qty) }} Pcs</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-[10px] font-black text-slate-400 uppercase">Produced</div>
+                                            <div class="text-sm font-black text-emerald-600">{{ number_format($assignedWo->total_good) }} Pcs</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div x-show="!detailedMode" class="p-3.5 space-y-2 text-xs">
+                                    <div class="flex justify-between items-center font-bold text-slate-800">
+                                        <span class="text-blue-700 font-black font-mono text-xs">{{ $assignedWo->wo_number }}</span>
+                                        <span class="truncate ml-2 text-xs font-semibold text-slate-700" title="{{ $assignedWo->part_name }}">{{ $assignedWo->part_name }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center pt-1.5 border-t border-slate-100 text-[10px] font-bold">
+                                        <span>Produced: <strong class="text-emerald-600 font-black">{{ number_format($assignedWo->total_good) }} / {{ number_format($assignedWo->target_qty) }} Pcs</strong></span>
+                                    </div>
+                                </div>
+                            </a>
+
+                            <div :class="detailedMode ? 'p-3.5' : 'p-2.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                    Analytics
+                                </a>
+                                <a href="{{ route('sp-work-orders.show', $assignedWo->id) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-2/3 text-center bg-slate-700 hover:bg-slate-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                    View Order
+                                </a>
+                            </div>
+                        </div>
+
                     @elseif($assignedWo)
                         @php
                             $isApproved = $firstPiece && $firstPiece->isApproved();

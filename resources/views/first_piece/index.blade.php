@@ -99,9 +99,15 @@
                                     <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">{{ $insp->date }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         @if($insp->workOrder)
-                                            <a href="{{ route('sp-work-orders.show', $insp->work_order_id) }}" class="text-blue-600 font-black hover:underline text-xs font-mono bg-blue-50 px-2 py-1 rounded-md border border-blue-200">
-                                                {{ $insp->workOrder->wo_number }}
-                                            </a>
+                                            @if($insp->workOrder->status === 'draft')
+                                                <a href="{{ route('sp-work-orders.show', $insp->work_order_id) }}" class="text-slate-700 font-bold hover:underline text-xs font-mono bg-slate-100 px-2 py-1 rounded-md border border-slate-300" title="Work Order is in Draft Mode">
+                                                    Draft: {{ $insp->workOrder->wo_number }}
+                                                </a>
+                                            @else
+                                                <a href="{{ route('sp-work-orders.show', $insp->work_order_id) }}" class="text-blue-700 font-bold hover:underline text-xs font-mono bg-blue-50 px-2 py-1 rounded-md border border-blue-200">
+                                                    {{ $insp->workOrder->wo_number }}
+                                                </a>
+                                            @endif
                                         @else
                                             <span class="text-gray-400 text-xs font-semibold">—</span>
                                         @endif
@@ -127,7 +133,9 @@
                                             <div class="font-bold text-gray-800">{{ $insp->checked_by }}</div>
                                             <div class="text-[10px] text-gray-400 font-medium">{{ $insp->checked_at ? $insp->checked_at->format('d/m/Y H:i') : '' }}</div>
                                         @else
-                                            <span class="text-amber-600 font-bold uppercase tracking-wider text-[10px]">Pending</span>
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wider">
+                                                Pending Sign-off
+                                            </span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-center">

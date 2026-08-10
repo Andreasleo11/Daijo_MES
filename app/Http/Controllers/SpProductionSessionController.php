@@ -426,10 +426,10 @@ class SpProductionSessionController extends Controller
         $selectedShift = $request->query('shift', (string) $shift);
         $currentShiftConfig = config("mes.sp_shifts.{$shift}", config("mes.shifts.{$shift}", []));
 
-        // Work Orders for this line (planned today OR currently running, excluding drafts)
+        // Work Orders for this line (active planned or in_progress only; draft and completed excluded)
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
             ->where('unit_line', $line)
-            ->where('status', '!=', 'draft')
+            ->whereIn('status', ['planned', 'in_progress'])
             ->where(function ($q) use ($date) {
                 $q->whereDate('planned_date', $date)
                     ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));

@@ -28,7 +28,7 @@ class FirstPieceInspectionWorkflowTest extends TestCase
         $response->assertSee('PN-WO-123');
         $response->assertSee('Widget Cover');
         $response->assertSee('Model-Alpha');
-        $response->assertSee('Pre-filled from Work Order');
+        $response->assertSee('Linked Work Order:');
     }
 
     public function test_store_with_auto_approve_sets_qc_approval_and_redirects_to_work_order()

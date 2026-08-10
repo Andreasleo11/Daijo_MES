@@ -26,7 +26,7 @@
         </div>
     @endif
 
-    <input type="hidden" name="work_order_id" value="{{ old('work_order_id', $workOrderId ?? request('work_order_id')) }}">
+    <input type="hidden" name="work_order_id" value="{{ old('work_order_id', $inspection->work_order_id ?? $workOrderId ?? request('work_order_id')) }}">
 
     {{-- CARD 1: Part & Identification Header --}}
     <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -35,9 +35,13 @@
                 <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Part & Header Identification</h3>
                 <p class="text-xs text-gray-500 font-medium">Document DI-F-P/PR/07/SP-013 • First Piece Inspection</p>
             </div>
-            @if(request('work_order_id') || !empty($workOrderId))
-                <span class="px-3 py-1 text-[10px] font-black rounded-full bg-blue-100 text-blue-800 uppercase tracking-widest border border-blue-200 shadow-sm">
-                    Pre-filled from Work Order
+            @php
+                $woId = old('work_order_id', $inspection->work_order_id ?? $workOrderId ?? request('work_order_id'));
+                $linkedWo = $inspection->workOrder ?? ($workOrder ?? ($woId ? \App\Models\SpWorkOrder::find($woId) : null));
+            @endphp
+            @if($linkedWo)
+                <span class="px-3 py-1 text-[10px] font-black rounded-full bg-blue-100 text-blue-800 uppercase tracking-widest border border-blue-200 shadow-sm font-mono">
+                    Linked Work Order: {{ $linkedWo->wo_number }}
                 </span>
             @endif
         </div>

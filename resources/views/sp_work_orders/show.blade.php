@@ -310,7 +310,7 @@
                                     <td class="px-6 py-4 font-black text-blue-700 whitespace-nowrap">#SESSION-{{ $session->id }}</td>
                                     <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">{{ $session->operator?->name ?? 'Operator' }}</td>
                                     <td class="px-6 py-4 font-semibold text-gray-600 whitespace-nowrap">
-                                        {{ $session->started_at ? $session->started_at->format('H:i') : '-' }} - {{ $session->finished_at ? $session->finished_at->format('H:i') : 'Now' }}
+                                        {{ $session->started_at ? $session->started_at->setTimezone('Asia/Jakarta')->format('d M H:i') : '-' }} - {{ $session->finished_at ? $session->finished_at->setTimezone('Asia/Jakarta')->format('H:i') : 'Now' }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-black text-gray-900 whitespace-nowrap">
                                         {{ number_format($session->productionEntries->sum('input_qty')) }}

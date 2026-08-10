@@ -43,14 +43,15 @@ class SecondProcessDashboardController extends Controller
         // Key by unit_line, prioritizing running sessions over finished ones
         $reports = $sessions->sortBy(fn($s) => $s->status === 'running' ? 2 : 1)->keyBy('unit_line');
 
-        // 3. Fetch planned/active Work Orders for today
+        // 3. Fetch planned/active Work Orders for today (excluding unreleased drafts, prioritizing active over completed)
         $activeWorkOrders = SpWorkOrder::with(['sessions'])
             ->where(function ($query) use ($date) {
                 $query->whereDate('planned_date', $date)
                     ->where(function($query) {
-                        $query->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress', 'completed']);
+                        $query->orWhereIn('status', ['planned', 'in_progress', 'completed']);
                     });
             })
+            ->orderByRaw("CASE WHEN status = 'in_progress' THEN 1 WHEN status = 'planned' THEN 2 ELSE 3 END")
             ->orderBy('id', 'desc')
             ->get();
 
@@ -66,7 +67,7 @@ class SecondProcessDashboardController extends Controller
 
         // 5. Calculate real-time Shift KPIs & Pending QC Gate Count
         $runningSessionsCount = $sessions->where('status', 'running')->count();
-        $pendingWoCount = $activeWorkOrders->whereIn('status', ['planned', 'draft', 'approved'])->count();
+        $pendingWoCount = $activeWorkOrders->where('status', 'planned')->count();
         $totalShiftGood = $sessions->sum('total_good');
         $totalShiftReject = $sessions->sum('total_reject');
         $totalShiftTotal = $totalShiftGood + $totalShiftReject;

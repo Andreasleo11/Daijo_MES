@@ -98,18 +98,20 @@ class FirstPieceInspectionController extends Controller
 
     public function edit($id)
     {
-        $inspection = FirstPieceInspection::with('attachments')->findOrFail($id);
+        $inspection = FirstPieceInspection::with(['attachments', 'workOrder'])->findOrFail($id);
 
         if ($inspection->checked_at !== null) {
             return redirect()->route('first-piece-inspections.show', $id)
                 ->with('error', 'Inspection already checked by QC cannot be edited.');
         }
 
+        $workOrderId = $inspection->work_order_id;
+        $workOrder = $inspection->workOrder;
         $defaultCheckPoints = self::DEFAULT_CHECK_POINTS;
         $chemicalProcesses = config('mes.chemical_processes', ['Painting', 'Printing', 'Silk Screen', 'Tampoprint', 'Cat']);
         $initialProcess = $inspection->paint_code || $inspection->thinner_code || $inspection->ink_code || $inspection->viscosity ? 'Painting' : '';
 
-        return view('first_piece.edit', compact('inspection', 'defaultCheckPoints', 'chemicalProcesses', 'initialProcess'));
+        return view('first_piece.edit', compact('inspection', 'workOrderId', 'workOrder', 'defaultCheckPoints', 'chemicalProcesses', 'initialProcess'));
     }
 
     public function update(Request $request, $id)
@@ -118,10 +120,11 @@ class FirstPieceInspectionController extends Controller
 
         if ($inspection->checked_at !== null) {
             return redirect()->route('first-piece-inspections.show', $id)
-                ->with('error', 'Inspection already checked by QC cannot be updated.');
+                ->with('error', 'Inspection already checked by QC cannot be edited.');
         }
 
         $validated = $this->validateInspection($request);
+        $validated['work_order_id'] = $validated['work_order_id'] ?? $inspection->work_order_id;
 
         DB::transaction(function () use ($request, $validated, $inspection) {
             $inspection->update($validated);

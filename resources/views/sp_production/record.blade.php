@@ -159,7 +159,7 @@
                     </div>
                     <div class="text-right">
                         <div class="text-xs text-blue-200 uppercase font-bold">Start Time</div>
-                        <div class="text-2xl font-black text-green-300">{{ $session->started_at ? $session->started_at->format('H:i') : '-' }}</div>
+                        <div class="text-2xl font-black text-green-300">{{ $session->started_at ? $session->started_at->setTimezone('Asia/Jakarta')->format('H:i') : '-' }}</div>
                     </div>
                 </div>
             </div>
