@@ -19,18 +19,11 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                {{-- Date Picker Control --}}
-                <form action="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" method="GET" class="flex items-center gap-1.5 mr-1">
-                    <input type="hidden" name="shift" value="{{ $selectedShift }}">
-                    <label class="font-black text-xs uppercase text-gray-500">Date:</label>
-                    <input type="date" name="date" value="{{ $date }}" class="rounded-xl border-gray-300 text-xs font-bold py-1 focus:ring-blue-500" onchange="this.form.submit()">
-                </form>
-
                 @foreach(['1' => 'Shift 1', '2' => 'Shift 2', '3' => 'Shift 3', 'all' => 'All Shifts'] as $sKey => $sLabel)
-                    <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'date' => $date, 'shift' => $sKey]) }}"
+                    <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'shift' => $sKey]) }}"
                        class="px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1 {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-600 text-white shadow-sm font-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300' }}">
                         <span>{{ $sLabel }}</span>
-                        @if((string)$shift === (string)$sKey)
+                        @if((string)$currentShift === (string)$sKey)
                             <span class="text-[9px] font-black uppercase px-1 py-0.2 rounded {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-800 text-white' : 'bg-blue-100 text-blue-800' }}">Current</span>
                         @endif
                     </a>
@@ -38,10 +31,10 @@
 
                 <div class="h-5 w-px bg-gray-300 mx-1 hidden sm:block"></div>
 
-                <a href="{{ route('second-process.dashboard', ['date' => $date, 'shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                <a href="{{ route('second-process.dashboard', ['shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                     Overview Dashboard
                 </a>
-                <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'date' => $date, 'shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
+                <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
                     Line Analytics
                 </a>
             </div>
@@ -79,20 +72,20 @@
 
                 @if($runningSession)
                     {{-- STATE 1: RUNNING SESSION (ACTIVE) --}}
-                    <div class="bg-white rounded-2xl border-2 border-emerald-500 shadow-md overflow-hidden relative transition hover:shadow-lg">
-                        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 text-white flex justify-between items-center">
+                    <div class="bg-white rounded-2xl border border-slate-200 border-l-4 border-l-emerald-500 shadow-sm overflow-hidden relative transition hover:shadow-md">
+                        <div class="bg-emerald-50/80 px-6 py-3 border-b border-emerald-100 flex justify-between items-center">
                             <div class="flex items-center gap-3">
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white text-emerald-800 uppercase tracking-widest animate-pulse">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 uppercase tracking-widest animate-pulse border border-emerald-300">
                                     RUNNING SESSION #{{ $runningSession->id }}
                                 </span>
                                 @if($runningSession->is_qc_bypassed)
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-200 text-purple-950 uppercase tracking-widest border border-purple-300">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 uppercase tracking-widest border border-purple-200">
                                         QC BYPASSED
                                     </span>
                                 @endif
-                                <span class="text-xs font-mono text-emerald-100">Started {{ $runningSession->started_at?->format('H:i') }} ({{ $runningSession->started_at?->diffForHumans() }})</span>
+                                <span class="text-xs font-mono text-emerald-800 font-medium">Started {{ $runningSession->started_at?->format('H:i') }} ({{ $runningSession->started_at?->diffForHumans() }})</span>
                             </div>
-                            <span class="text-xs font-black uppercase tracking-wider text-emerald-100">Shift {{ $wo->shift }}</span>
+                            <span class="text-xs font-black uppercase tracking-wider text-emerald-900">Shift {{ $wo->shift }}</span>
                         </div>
 
                         <div class="p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -104,12 +97,23 @@
                                 <div class="text-base font-bold text-gray-800">
                                     {{ $wo->part_name }} <span class="font-mono text-xs text-gray-500">({{ $wo->part_number }})</span>
                                 </div>
-                                @if($runningSession->is_qc_bypassed && $runningSession->qc_bypass_reason)
-                                    <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-                                        <span><strong class="text-purple-700 uppercase">QC Bypass Reason:</strong> {{ $runningSession->qc_bypass_reason }}</span>
-                                        @if($runningSession->qcBypassedBy)
-                                            <span class="text-[10px] text-purple-700 font-black uppercase">Bypassed By: {{ $runningSession->qcBypassedBy->name }}</span>
-                                        @endif
+                                @if($runningSession->is_qc_bypassed)
+                                    <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                        <div class="flex flex-col gap-0.5">
+                                            <span><strong class="text-purple-700 uppercase">QC Bypass Reason:</strong> {{ $runningSession->qc_bypass_reason ?? 'Bypassed by Supervisor' }}</span>
+                                            @if($runningSession->qcBypassedBy)
+                                                <span class="text-[10px] text-purple-700 font-black uppercase">Bypassed By: {{ $runningSession->qcBypassedBy->name }}</span>
+                                            @endif
+                                        </div>
+                                        <a href="{{ route('first-piece-inspections.create', [
+                                                'work_order_id' => $wo->id,
+                                                'part_number' => $wo->part_number,
+                                                'part_name' => $wo->part_name,
+                                                'model' => $wo->model
+                                            ]) }}" 
+                                           class="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-black text-xs rounded-lg shadow-sm transition uppercase tracking-wider whitespace-nowrap">
+                                            + First Piece
+                                        </a>
                                     </div>
                                 @endif
                                 <div class="text-xs font-semibold text-gray-500 flex flex-wrap items-center gap-4">

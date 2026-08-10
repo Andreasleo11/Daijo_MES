@@ -370,8 +370,17 @@ class SpProductionSessionController extends Controller
     {
         $session = SpProductionSession::with('workOrder')->findOrFail($id);
 
+        $spLines = config('mes.sp_lines', []);
+        $lineSlug = array_search($session->unit_line, $spLines) ?: \Illuminate\Support\Str::slug($session->unit_line);
+
+        $redirectParams = [
+            'lineSlug' => $lineSlug,
+            'date' => $session->started_at ? $session->started_at->format('Y-m-d') : now()->format('Y-m-d'),
+            'shift' => $session->shift ?? 1,
+        ];
+
         if ($session->status === 'completed') {
-            return redirect()->route('sp-work-orders.show', $session->work_order_id)
+            return redirect()->route('sp-sessions.line-gateway', $redirectParams)
                 ->with('info', 'Session is already completed.');
         }
 
@@ -381,9 +390,11 @@ class SpProductionSessionController extends Controller
             'remarks' => $request->input('remarks'),
         ]);
 
-        $session->workOrder->update(['status' => 'completed']);
+        if ($session->workOrder) {
+            $session->workOrder->update(['status' => 'completed']);
+        }
 
-        return redirect()->route('sp-work-orders.show', $session->work_order_id)
+        return redirect()->route('sp-sessions.line-gateway', $redirectParams)
             ->with('success', 'Production session completed successfully.');
     }
 
@@ -406,23 +417,22 @@ class SpProductionSessionController extends Controller
             abort(404, "Unknown line: {$lineSlug}");
         }
 
-        // Active date & shift filter
+        // Active date & shift filter (locked to today)
         $now = Carbon::now('Asia/Jakarta');
-        $date = $request->query('date', $now->format('Y-m-d'));
-        $shift = (int) $request->query('shift', $this->getCurrentShift($now));
+        $date = $now->format('Y-m-d');
+        $currentShift = $this->getCurrentShift($now);
+
+        $shift = (int) $request->query('shift', $currentShift);
         $selectedShift = $request->query('shift', (string) $shift);
         $currentShiftConfig = config("mes.shifts.{$shift}", []);
 
-        // All active/planned WOs for this line
+        // Work Orders for this line (planned today OR currently running)
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
-            ->where('unit_line', $line);
-
-        if ($date) {
-            $workOrdersQuery->where(function ($q) use ($date) {
+            ->where('unit_line', $line)
+            ->where(function ($q) use ($date) {
                 $q->whereDate('planned_date', $date)
                     ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
             });
-        }
 
         if ($selectedShift !== 'all') {
             $workOrdersQuery->where(function ($q) use ($selectedShift) {
@@ -457,7 +467,7 @@ class SpProductionSessionController extends Controller
         $quickBypassReasons = $defaultBypassPresets->merge($historicalBypassReasons)->filter()->unique()->values();
 
         return view('sp_production.line_gateway', compact(
-            'line', 'lineSlug', 'date', 'shift', 'selectedShift', 'currentShiftConfig',
+            'line', 'lineSlug', 'date', 'shift', 'selectedShift', 'currentShiftConfig', 'currentShift',
             'workOrders', 'firstPieceMap', 'spLines', 'quickBypassReasons'
         ));
     }

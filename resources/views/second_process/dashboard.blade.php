@@ -37,21 +37,18 @@
 
         {{-- Filter Control Bar --}}
         <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <form action="{{ route('second-process.dashboard') }}" method="GET" class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                <div class="flex items-center gap-2">
-                    <label class="font-black text-xs uppercase text-gray-500">Date:</label>
-                    <input type="date" name="date" value="{{ $date }}" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
-                </div>
+            <form action="{{ route('second-process.dashboard') }}" method="GET" class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <div class="flex items-center gap-2">
                     <label class="font-black text-xs uppercase text-gray-500">Shift:</label>
                     <select name="shift" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
+                        <option value="all" {{ (string)$shift === 'all' ? 'selected' : '' }}>All Today's Shifts</option>
                         @foreach(config('mes.shifts', []) as $sId => $sConf)
-                            <option value="{{ $sId }}" {{ $shift == $sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
+                            <option value="{{ $sId }}" {{ (string)$shift === (string)$sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
                         @endforeach
                         @if(empty(config('mes.shifts', [])))
-                            <option value="1" {{ $shift == 1 ? 'selected' : '' }}>Shift 1</option>
-                            <option value="2" {{ $shift == 2 ? 'selected' : '' }}>Shift 2</option>
-                            <option value="3" {{ $shift == 3 ? 'selected' : '' }}>Shift 3</option>
+                            <option value="1" {{ (string)$shift === '1' ? 'selected' : '' }}>Shift 1</option>
+                            <option value="2" {{ (string)$shift === '2' ? 'selected' : '' }}>Shift 2</option>
+                            <option value="3" {{ (string)$shift === '3' ? 'selected' : '' }}>Shift 3</option>
                         @endif
                     </select>
                 </div>
@@ -66,7 +63,7 @@
                 </button>
                 <div class="flex items-center gap-2 text-xs font-bold text-gray-500">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Auto-refreshing every 30s</span>
+                    <span>Live Floor View</span>
                 </div>
             </div>
         </div>
@@ -193,7 +190,7 @@
                         }
                         $spLines = config('mes.sp_lines', []);
                         $lineSlug = array_search($lineName, $spLines) ?: \Illuminate\Support\Str::slug($lineName);
-                        $gatewayUrl = route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'date' => $date, 'shift' => $shift]);
+                        $gatewayUrl = route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'shift' => $shift]);
                     @endphp
 
                     @if($report)
@@ -202,7 +199,7 @@
                         @endphp
                         {{-- STATE 1: RUNNING / FINISHED SESSION --}}
                         <div x-show="activeTab === 'all' || (activeTab === 'running' && '{{ $report->status }}' === 'running')" x-transition 
-                             class="bg-white rounded-2xl border {{ $isRunning ? 'border-emerald-300 hover:border-emerald-400' : 'border-slate-300 hover:border-slate-400' }} shadow-sm overflow-hidden flex flex-col justify-between transition hover:shadow-md">
+                             class="bg-white rounded-2xl border {{ $isRunning ? ($report->is_qc_bypassed ? 'border-l-4 border-l-purple-500 border-slate-200' : 'border-l-4 border-l-emerald-500 border-slate-200') : 'border-slate-200' }} shadow-sm overflow-hidden flex flex-col justify-between transition hover:shadow-md hover:border-slate-300">
                             {{-- Clickable Header & Content Body (Line Gateway Trigger) --}}
                             <a href="{{ $gatewayUrl }}" class="block group">
                                 <div class="{{ $isRunning ? 'bg-emerald-50 border-emerald-100 group-hover:bg-emerald-100/70' : 'bg-slate-100 border-slate-200 group-hover:bg-slate-200/70' }} px-4 py-2.5 border-b flex justify-between items-center transition">
@@ -237,8 +234,17 @@
                                     </div>
 
                                     @if($report->is_qc_bypassed && $report->qc_bypass_reason)
-                                        <div class="px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 truncate" title="{{ $report->qc_bypass_reason }}">
-                                            <span class="font-black uppercase text-purple-700">QC Bypass:</span> {{ $report->qc_bypass_reason }}
+                                        <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950">
+                                            <span class="truncate" title="{{ $report->qc_bypass_reason }}"><strong class="font-black uppercase text-purple-700">QC Bypass:</strong> {{ $report->qc_bypass_reason }}</span>
+                                            <a href="{{ route('first-piece-inspections.create', [
+                                                    'work_order_id' => $report->work_order_id,
+                                                    'part_number' => $report->workOrder->part_number ?? '',
+                                                    'part_name' => $report->workOrder->part_name ?? '',
+                                                    'model' => $report->workOrder->model ?? ''
+                                                ]) }}" 
+                                               class="px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white font-black text-[10px] rounded-lg shadow-sm transition uppercase tracking-wider whitespace-nowrap">
+                                                + First Piece
+                                            </a>
                                         </div>
                                     @endif
 
@@ -280,9 +286,18 @@
                                         <span class="truncate ml-2 text-xs font-semibold text-gray-700" title="{{ $report->workOrder->part_name ?? '-' }}">{{ $report->workOrder->part_name ?? '-' }}</span>
                                     </div>
 
-                                    @if($report->is_qc_bypassed && $report->qc_bypass_reason)
-                                        <div class="px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-900 truncate" title="{{ $report->qc_bypass_reason }}">
-                                            <span class="font-black uppercase text-purple-700">Bypass:</span> {{ $report->qc_bypass_reason }}
+                                    @if($report->is_qc_bypassed)
+                                        <div class="flex items-center justify-between gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-900">
+                                            <span class="truncate" title="{{ $report->qc_bypass_reason }}"><strong class="font-black uppercase text-purple-700">Bypass:</strong> {{ $report->qc_bypass_reason ?? 'QC Bypassed' }}</span>
+                                            <a href="{{ route('first-piece-inspections.create', [
+                                                    'work_order_id' => $report->work_order_id,
+                                                    'part_number' => $report->workOrder->part_number ?? '',
+                                                    'part_name' => $report->workOrder->part_name ?? '',
+                                                    'model' => $report->workOrder->model ?? ''
+                                                ]) }}" 
+                                               class="px-2 py-0.5 bg-purple-700 hover:bg-purple-800 text-white font-black text-[9px] rounded shadow-sm transition uppercase tracking-wider whitespace-nowrap">
+                                                + Log QC
+                                            </a>
                                         </div>
                                     @endif
 

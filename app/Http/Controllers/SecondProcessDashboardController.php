@@ -19,30 +19,36 @@ class SecondProcessDashboardController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Determine active date and shift
+        // 1. Lock to today date and active shift
         $now = Carbon::now('Asia/Jakarta');
-
-        $date = $request->input('date', $now->format('Y-m-d'));
-        $shift = (int) $request->input('shift', $this->getCurrentShift($now));
+        $date = $now->format('Y-m-d');
+        $currentShift = $this->getCurrentShift($now);
+        $shift = $request->input('shift', $currentShift);
 
         // Define all valid lines from config
         $lines = array_values(config('mes.sp_lines', []));
 
-        // 2. Fetch sessions for this date and shift
+        // 2. Fetch sessions for today's date/shift + ALL currently running sessions
         $sessions = SpProductionSession::with(['workOrder', 'productionEntries', 'manpowerEntries'])
-            ->whereDate('started_at', $date)
-            ->where('shift', $shift)
+            ->where(function ($query) use ($date, $shift) {
+                $query->where(function ($q) use ($date, $shift) {
+                    $q->whereDate('started_at', $date);
+                    if ((string)$shift !== 'all') {
+                        $q->where('shift', $shift);
+                    }
+                })->orWhere('status', 'running');
+            })
             ->get();
 
         // Key by unit_line, prioritizing running sessions over finished ones
         $reports = $sessions->sortBy(fn($s) => $s->status === 'running' ? 2 : 1)->keyBy('unit_line');
 
-        // 3. Fetch planned/active Work Orders for today or in progress
+        // 3. Fetch planned/active Work Orders for today
         $activeWorkOrders = SpWorkOrder::with(['sessions'])
             ->where(function ($query) use ($date) {
                 $query->whereDate('planned_date', $date)
                     ->where(function($query) {
-                        $query->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress']);
+                        $query->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress', 'completed']);
                     });
             })
             ->orderBy('id', 'desc')
@@ -85,6 +91,7 @@ class SecondProcessDashboardController extends Controller
             'firstPieceMap',
             'date',
             'shift',
+            'currentShift',
             'runningSessionsCount',
             'pendingWoCount',
             'totalShiftGood',
@@ -125,14 +132,14 @@ class SecondProcessDashboardController extends Controller
 
         $knownLines = $defaultLines->merge($dbLines)->filter()->unique()->sort()->values();
 
-        // 2. Fetch sessions for this line/date/shift
+        // 2. Fetch sessions for this line strictly matching selected date/shift
         $sessions = SpProductionSession::with([
                 'workOrder', 'operator', 'productionEntries', 'rejectEntries',
                 'reworkEntries', 'downtimeEntries', 'inputEntries', 'manpowerEntries',
             ])
             ->where('unit_line', $line)
             ->whereDate('started_at', $date)
-            ->where('shift', $shift)
+            ->when((string)$shift !== 'all', fn($q) => $q->where('shift', $shift))
             ->get();
 
         $sessionIds = $sessions->pluck('id');
