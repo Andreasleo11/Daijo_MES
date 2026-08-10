@@ -1,4 +1,19 @@
-<div class="space-y-6 pb-20">
+<div class="space-y-6 pb-20" x-data="{
+    processType: @js($initialProcess ?? old('process_type', '')),
+    chemicalProcesses: @js($chemicalProcesses ?? config('mes.chemical_processes', [])),
+    get isChemicalProcess() {
+        if (!this.processType) return false;
+        const p = this.processType.toLowerCase();
+        return this.chemicalProcesses.some(cp => p.includes(cp.toLowerCase()));
+    },
+    customCheckpoints: [],
+    addCustomCheckpoint() {
+        this.customCheckpoints.push({ check_point: '', method: 'Visual', result: 'OK', judgement: 'OK' });
+    },
+    removeCustomCheckpoint(idx) {
+        this.customCheckpoints.splice(idx, 1);
+    }
+}">
 
     @if ($errors->any())
         <div class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl text-sm shadow-sm">
@@ -37,12 +52,19 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
             {{-- Date --}}
             <div>
                 <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Inspection Date *</label>
                 <input type="date" name="date" value="{{ old('date', $inspection->date ?? date('Y-m-d')) }}"
                     class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800" required>
+            </div>
+
+            {{-- Process Type --}}
+            <div>
+                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Process Type</label>
+                <input type="text" x-model="processType" name="process_type" value="{{ old('process_type', $initialProcess ?? '') }}" placeholder="e.g. Painting, Assembly..."
+                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
             </div>
 
             {{-- Model Code --}}
@@ -74,12 +96,16 @@
     </div>
 
     {{-- CARD 2: Process & Material Parameters --}}
-    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-        <div class="mb-4 pb-3 border-b border-gray-100">
-            <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Process & Material Parameters</h3>
+    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+        <div class="pb-3 border-b border-gray-100 flex justify-between items-center">
+            <div>
+                <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Process & Material Parameters</h3>
+                <p class="text-xs text-gray-500 font-medium" x-text="isChemicalProcess ? 'Chemical & paint specifications for ' + processType : 'General process parameters'"></p>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {{-- Conditional Chemical Fields --}}
+        <div x-show="isChemicalProcess" x-transition class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
                 <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Paint / Material Code</label>
                 <input type="text" name="paint_code" value="{{ old('paint_code', $inspection->paint_code) }}" placeholder="e.g. DR 249 - 8M8"
@@ -103,18 +129,23 @@
                 <input type="text" name="viscosity" value="{{ old('viscosity', $inspection->viscosity) }}" placeholder="e.g. 14 sec NK-2"
                     class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold">
             </div>
+        </div>
 
+        {{-- Always visible general parameters --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
                 <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Cycle Time</label>
                 <input type="text" name="cycle_time" value="{{ old('cycle_time', $inspection->cycle_time) }}" placeholder="e.g. 45 sec"
                     class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold">
             </div>
+        </div>
 
-            <div>
-                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Time Submit</label>
-                <input type="time" name="time_submit" value="{{ old('time_submit', $inspection->time_submit) }}"
-                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold">
-            </div>
+        {{-- Informational note when non-chemical process --}}
+        <div x-show="!isChemicalProcess" class="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-800 flex justify-between items-center">
+            <span>Paint & chemical parameters (Paint Code, Thinner, Ink, Viscosity) are hidden for non-chemical processes.</span>
+            <button type="button" @click="processType = 'Painting'" class="text-[11px] font-black text-blue-700 hover:underline uppercase">
+                Show Painting Fields
+            </button>
         </div>
     </div>
 
@@ -123,11 +154,16 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-3 border-b border-gray-100">
             <div>
                 <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Quality Control Checkpoints</h3>
-                <p class="text-xs text-gray-500 font-medium">Verify each defect criteria. Tap OK or NG for each checkpoint.</p>
+                <p class="text-xs text-gray-500 font-medium">Verify each defect criteria. Tap OK or NG for each checkpoint or add custom criteria.</p>
             </div>
-            <button type="button" id="btn-mark-all-ok" class="w-full sm:w-auto bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 font-black px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 active:scale-95">
-                ⚡ Mark All OK
-            </button>
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button type="button" @click="addCustomCheckpoint()" class="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm active:scale-95">
+                    + Add Custom Checkpoint
+                </button>
+                <button type="button" id="btn-mark-all-ok" class="w-full sm:w-auto bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 font-black px-4 py-2 rounded-xl text-xs transition shadow-sm active:scale-95">
+                    Mark All OK
+                </button>
+            </div>
         </div>
 
         @php
@@ -160,8 +196,8 @@
                                 {{ $row['check_point'] }}
                             </td>
                             <td class="py-3.5 px-4 text-center text-xs font-semibold text-gray-500">
-                                <input type="hidden" name="check_results[{{ $idx }}][method]" value="Visual">
-                                Visual Inspection
+                                <input type="hidden" name="check_results[{{ $idx }}][method]" value="{{ $row['method'] ?? 'Visual' }}">
+                                {{ $row['method'] ?? 'Visual' }}
                             </td>
                             <td class="py-3.5 px-4 text-center">
                                 <input type="hidden" name="check_results[{{ $idx }}][result]" id="result-input-{{ $idx }}" value="{{ $currResult }}">
@@ -184,6 +220,49 @@
                             </td>
                         </tr>
                     @endforeach
+
+                    {{-- Dynamic Custom Checkpoints --}}
+                    @php $nextIdx = count($existingResults); @endphp
+                    <template x-for="(cp, idx) in customCheckpoints" :key="idx">
+                        <tr class="hover:bg-blue-50/50 transition">
+                            <td class="py-3.5 px-4">
+                                <input type="text" :name="`check_results[${@js($nextIdx)} + idx][check_point]`"
+                                       x-model="cp.check_point" placeholder="Enter custom defect criteria (e.g. Scratch Mark)..."
+                                       class="w-full rounded-xl border-gray-300 text-xs font-bold focus:ring-blue-500" required>
+                            </td>
+                            <td class="py-3.5 px-4 text-center">
+                                <input type="text" :name="`check_results[${@js($nextIdx)} + idx][method]`"
+                                       x-model="cp.method" placeholder="Method (e.g. Visual)"
+                                       class="w-full rounded-xl border-gray-300 text-xs text-center font-semibold focus:ring-blue-500">
+                            </td>
+                            <td class="py-3.5 px-4 text-center">
+                                <input type="hidden" :name="`check_results[${@js($nextIdx)} + idx][result]`" :value="cp.result">
+                                <div class="inline-flex rounded-xl p-1 bg-gray-100 border border-gray-200">
+                                    <button type="button" @click="cp.result = 'OK'; cp.judgement = 'OK'"
+                                        :class="cp.result === 'OK' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                                        class="px-5 py-1.5 rounded-lg text-xs font-black transition-all">
+                                        OK
+                                    </button>
+                                    <button type="button" @click="cp.result = 'NG'; cp.judgement = 'NG'"
+                                        :class="cp.result === 'NG' ? 'bg-red-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                                        class="px-5 py-1.5 rounded-lg text-xs font-black transition-all">
+                                        NG
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="py-3.5 px-4 text-center font-black">
+                                <input type="hidden" :name="`check_results[${@js($nextIdx)} + idx][judgement]`" :value="cp.judgement">
+                                <div class="flex items-center justify-center gap-2">
+                                    <span :class="cp.judgement === 'OK' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                          class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider" x-text="cp.judgement">
+                                    </span>
+                                    <button type="button" @click="removeCustomCheckpoint(idx)" class="text-red-500 hover:text-red-700 text-xs font-bold uppercase p-1" title="Remove checkpoint">
+                                        &times;
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
@@ -330,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
             Array.from(this.files).forEach((file) => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center space-x-2 text-gray-700 bg-blue-50 p-2 rounded-xl';
-                item.innerHTML = `<span class="font-bold">📎 ${file.name}</span> <span class="text-gray-500">(${(file.size/1024/1024).toFixed(2)} MB)</span>`;
+                item.innerHTML = `<span class="font-bold">${file.name}</span> <span class="text-gray-500">(${(file.size/1024/1024).toFixed(2)} MB)</span>`;
                 previewList.appendChild(item);
             });
         });

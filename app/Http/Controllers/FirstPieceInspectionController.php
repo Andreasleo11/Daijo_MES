@@ -59,8 +59,10 @@ class FirstPieceInspectionController extends Controller
         $workOrderId = $request->get('work_order_id');
         $workOrder = $workOrderId ? SpWorkOrder::find($workOrderId) : null;
         $defaultCheckPoints = self::DEFAULT_CHECK_POINTS;
+        $chemicalProcesses = config('mes.chemical_processes', ['Painting', 'Printing', 'Silk Screen', 'Tampoprint', 'Cat']);
+        $initialProcess = $workOrder ? $workOrder->process_prod : '';
 
-        return view('first_piece.create', compact('inspection', 'defaultCheckPoints', 'workOrderId', 'workOrder'));
+        return view('first_piece.create', compact('inspection', 'defaultCheckPoints', 'workOrderId', 'workOrder', 'chemicalProcesses', 'initialProcess'));
     }
 
     public function store(Request $request)
@@ -109,8 +111,10 @@ class FirstPieceInspectionController extends Controller
         }
 
         $defaultCheckPoints = self::DEFAULT_CHECK_POINTS;
+        $chemicalProcesses = config('mes.chemical_processes', ['Painting', 'Printing', 'Silk Screen', 'Tampoprint', 'Cat']);
+        $initialProcess = $inspection->paint_code || $inspection->thinner_code || $inspection->ink_code || $inspection->viscosity ? 'Painting' : '';
 
-        return view('first_piece.edit', compact('inspection', 'defaultCheckPoints'));
+        return view('first_piece.edit', compact('inspection', 'defaultCheckPoints', 'chemicalProcesses', 'initialProcess'));
     }
 
     public function update(Request $request, $id)
@@ -246,7 +250,6 @@ class FirstPieceInspectionController extends Controller
             'ink_code' => 'nullable|string',
             'viscosity' => 'nullable|string',
             'cycle_time' => 'nullable|string',
-            'time_submit' => 'nullable|string',
             'remark' => 'nullable|string',
             'check_results' => 'nullable|array',
             'check_results.*.check_point' => 'required|string',

@@ -46,12 +46,11 @@ class FirstPieceInspectionTest extends TestCase
             'ink_code' => 'INK-01',
             'viscosity' => '10s',
             'cycle_time' => '30s',
-            'time_submit' => '08:00',
             'remark' => 'First piece approved',
             'check_results' => [
                 ['check_point' => 'Dirty Spray', 'method' => 'Visual', 'result' => 'OK', 'judgement' => 'OK'],
                 ['check_point' => 'Over Spray', 'method' => 'Visual', 'result' => 'OK', 'judgement' => 'OK'],
-                ['check_point' => 'Peel Off', 'method' => 'Visual', 'result' => 'OK', 'judgement' => 'OK'],
+                ['check_point' => 'Custom Surface Scratch', 'method' => 'Gauge', 'result' => 'OK', 'judgement' => 'OK'],
             ],
         ];
 

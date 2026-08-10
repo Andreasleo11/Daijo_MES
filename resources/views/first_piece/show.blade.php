@@ -2,16 +2,18 @@
     <div class="py-6 no-print">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 flex justify-between">
             <a href="{{ route('first-piece-inspections.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition text-sm">
-                &larr; Back to List
+                Back to List
             </a>
             <div class="space-x-2">
                 <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition text-sm">
                     Print Form
                 </button>
                 @if(!$inspection->checked_at)
-                    <a href="{{ route('first-piece-inspections.edit', $inspection->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition text-sm">
-                        Edit Form
-                    </a>
+                    @can('execute-qc-inspections')
+                        <a href="{{ route('first-piece-inspections.edit', $inspection->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition text-sm">
+                            Edit Form
+                        </a>
+                    @endcan
                 @endif
             </div>
         </div>
@@ -131,9 +133,7 @@
                     </tr>
                     <tr>
                         <td class="border border-black p-2 font-bold bg-gray-50">PAINT CODE / MAT. CODE</td>
-                        <td class="border border-black p-2">{{ $inspection->paint_code ?? '-' }}</td>
-                        <td class="border border-black p-2 font-bold bg-gray-50">TIME SUBMIT</td>
-                        <td class="border border-black p-2">{{ $inspection->time_submit ?? '-' }}</td>
+                        <td class="border border-black p-2" colspan="3">{{ $inspection->paint_code ?? '-' }}</td>
                     </tr>
                 </tbody>
             </table>

@@ -9,11 +9,13 @@
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('second-process.dashboard') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
-                    Floor Overview Dashboard
+                    Overview Dashboard
                 </a>
-                <a href="{{ route('first-piece-inspections.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                    + New First Piece Inspection
-                </a>
+                @can('execute-qc-inspections')
+                    <a href="{{ route('first-piece-inspections.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                        New First Piece Inspection
+                    </a>
+                @endcan
             </div>
         </div>
     </x-slot>
@@ -33,52 +35,37 @@
                 </div>
             @endif
 
-            {{-- Filter Card --}}
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
-                    <div>
-                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Filter & Search Inspections</h3>
-                        <p class="text-xs text-gray-500 font-medium">Refine First Piece Inspection records by date, judgement, or keywords</p>
-                    </div>
-                </div>
-
-                <form method="GET" action="{{ route('first-piece-inspections.index') }}" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">From Date</label>
-                            <input type="date" name="date_from" value="{{ request('date_from') }}"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+            {{-- Compact 1-Row Inline Filter Toolbar --}}
+            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+                <form method="GET" action="{{ route('first-piece-inspections.index') }}" class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                        <div class="flex items-center gap-2">
+                            <label class="font-black text-xs uppercase text-gray-500">From:</label>
+                            <input type="date" name="date_from" value="{{ request('date_from') }}" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500">
                         </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">To Date</label>
-                            <input type="date" name="date_to" value="{{ request('date_to') }}"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                        <div class="flex items-center gap-2">
+                            <label class="font-black text-xs uppercase text-gray-500">To:</label>
+                            <input type="date" name="date_to" value="{{ request('date_to') }}" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500">
                         </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Judgement</label>
-                            <select name="overall_judgement" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                        <div class="flex items-center gap-2">
+                            <label class="font-black text-xs uppercase text-gray-500">Judgement:</label>
+                            <select name="overall_judgement" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500">
                                 <option value="">All Judgements</option>
                                 <option value="OK" {{ request('overall_judgement') === 'OK' ? 'selected' : '' }}>OK Only</option>
                                 <option value="NG" {{ request('overall_judgement') === 'NG' ? 'selected' : '' }}>NG Only</option>
                             </select>
                         </div>
-
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Search Keyword</label>
-                            <input type="text" name="search" value="{{ request('search') }}" placeholder="Part No, Name, Model..."
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                        <div class="flex items-center gap-2">
+                            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search Part No, Name, Model..." class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500">
                         </div>
                     </div>
-
-                    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                        <a href="{{ route('first-piece-inspections.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
-                            Reset Filters
-                        </a>
+                    <div class="flex items-center gap-2">
                         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Apply Filter
+                            Filter
                         </button>
+                        <a href="{{ route('first-piece-inspections.index') }}" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 transition uppercase tracking-wider">
+                            Reset
+                        </a>
                     </div>
                 </form>
             </div>
@@ -147,10 +134,12 @@
                                             View
                                         </a>
                                         @if(!$insp->checked_at)
-                                            <a href="{{ route('first-piece-inspections.edit', $insp->id) }}"
-                                                class="inline-block px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg border border-amber-200 transition uppercase tracking-wider">
-                                                Edit
-                                            </a>
+                                            @can('execute-qc-inspections')
+                                                <a href="{{ route('first-piece-inspections.edit', $insp->id) }}"
+                                                    class="inline-block px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg border border-amber-200 transition uppercase tracking-wider">
+                                                    Edit
+                                                </a>
+                                            @endcan
                                         @endif
                                     </td>
                                 </tr>

@@ -47,4 +47,21 @@ return [
         'packing'  => 'Area Packing',
         'assy'     => 'Area Assy',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chemical / Material Parameter Processes
+    |--------------------------------------------------------------------------
+    |
+    | Processes that require Paint Code, Thinner Code, Ink Code, and Viscosity
+    | fields in First Piece Inspection forms.
+    |
+    */
+    'chemical_processes' => [
+        'Painting',
+        'Printing',
+        'Silk Screen',
+        'Tampoprint',
+        'Cat',
+    ],
 ];

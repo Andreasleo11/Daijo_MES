@@ -19,7 +19,6 @@ class FirstPieceInspection extends Model
         'ink_code',
         'viscosity',
         'cycle_time',
-        'time_submit',
         'check_results',
         'overall_judgement',
         'remark',
