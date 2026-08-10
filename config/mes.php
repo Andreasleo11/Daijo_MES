@@ -26,6 +26,26 @@ return [
             'name' => 'Shift 3',
             'start' => '23:30',
             'end' => '07:30',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Active Shifts
+    |--------------------------------------------------------------------------
+    |
+    | Define active operating shifts for Second Process (1 to 2 shifts).
+    |
+    */
+    'sp_shifts' => [
+        1 => [
+            'name'  => 'Shift 1',
+            'start' => '07:30',
+            'end'   => '15:30',
+        ],
+        2 => [
+            'name'  => 'Shift 2',
+            'start' => '15:30',
+            'end'   => '23:30',
         ],
     ],
 

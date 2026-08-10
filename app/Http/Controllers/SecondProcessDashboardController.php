@@ -235,7 +235,7 @@ class SecondProcessDashboardController extends Controller
      */
     private function getCurrentShift(Carbon $now)
     {
-        $shifts = config('mes.shifts', []);
+        $shifts = config('mes.sp_shifts', config('mes.shifts', []));
         $currentTime = $now->format('H:i');
 
         foreach ($shifts as $shiftId => $schedule) {

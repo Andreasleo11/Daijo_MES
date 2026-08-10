@@ -42,14 +42,9 @@
                     <label class="font-black text-xs uppercase text-gray-500">Shift:</label>
                     <select name="shift" class="rounded-xl border-gray-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
                         <option value="all" {{ (string)$shift === 'all' ? 'selected' : '' }}>All Today's Shifts</option>
-                        @foreach(config('mes.shifts', []) as $sId => $sConf)
+                        @foreach(config('mes.sp_shifts', config('mes.shifts', [])) as $sId => $sConf)
                             <option value="{{ $sId }}" {{ (string)$shift === (string)$sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
                         @endforeach
-                        @if(empty(config('mes.shifts', [])))
-                            <option value="1" {{ (string)$shift === '1' ? 'selected' : '' }}>Shift 1</option>
-                            <option value="2" {{ (string)$shift === '2' ? 'selected' : '' }}>Shift 2</option>
-                            <option value="3" {{ (string)$shift === '3' ? 'selected' : '' }}>Shift 3</option>
-                        @endif
                     </select>
                 </div>
                 <noscript><button type="submit" class="bg-gray-100 px-3 py-1 text-xs font-bold rounded-xl border border-gray-300">Filter</button></noscript>

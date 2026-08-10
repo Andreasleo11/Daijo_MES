@@ -54,9 +54,9 @@
                         <div>
                             <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Shift *</label>
                             <select name="shift" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                <option value="1" {{ old('shift') == '1' ? 'selected' : '' }}>Shift 1 (07:30 - 15:30)</option>
-                                <option value="2" {{ old('shift') == '2' ? 'selected' : '' }}>Shift 2 (15:30 - 23:30)</option>
-                                <option value="3" {{ old('shift') == '3' ? 'selected' : '' }}>Shift 3 (23:30 - 07:30)</option>
+                                @foreach(config('mes.sp_shifts', config('mes.shifts', [])) as $sId => $sConf)
+                                    <option value="{{ $sId }}" {{ old('shift', 1) == $sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
+                                @endforeach
                             </select>
                         </div>
 

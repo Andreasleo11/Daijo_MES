@@ -78,49 +78,51 @@
                 $activeManpowerCount = $workOrder->sessions->flatMap->manpowers->count();
             @endphp
 
-            {{-- 1. Combined Progress & Sleek Metric Strip Card --}}
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
-                {{-- Progress Bar Row --}}
-                <div class="space-y-2">
-                    <div class="flex justify-between items-end">
-                        <div>
-                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Total Production Target</span>
-                            <div class="text-2xl font-black text-gray-900 mt-0.5">
-                                {{ number_format($totalGood) }} <span class="text-xs font-bold text-gray-400">/ {{ number_format($workOrder->target_qty) }} Pcs</span>
+            {{-- 1. Combined Progress & Sleek Metric Strip Card (Shown when WO has active/completed sessions or is running/completed) --}}
+            @if($workOrder->sessions->count() > 0 || in_array($workOrder->status, ['in_progress', 'completed']))
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+                    {{-- Progress Bar Row --}}
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Total Production Target</span>
+                                <div class="text-2xl font-black text-gray-900 mt-0.5">
+                                    {{ number_format($totalGood) }} <span class="text-xs font-bold text-gray-400">/ {{ number_format($workOrder->target_qty) }} Pcs</span>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
+                                {{ $workOrder->progress_percentage }}%
                             </div>
                         </div>
-                        <div class="text-2xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
-                            {{ $workOrder->progress_percentage }}%
+                        <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
+                            <div class="{{ $workOrder->progress_percentage >= 100 ? 'bg-emerald-500' : 'bg-blue-600' }} h-3 rounded-full transition-all duration-700" style="width: {{ min(100, $workOrder->progress_percentage) }}%"></div>
                         </div>
                     </div>
-                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
-                        <div class="{{ $workOrder->progress_percentage >= 100 ? 'bg-emerald-500' : 'bg-blue-600' }} h-3 rounded-full transition-all duration-700" style="width: {{ min(100, $workOrder->progress_percentage) }}%"></div>
+
+                    {{-- Compact 1-Row Metric Strip --}}
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                            <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Input WIP Received</div>
+                            <div class="text-base font-black text-gray-900 mt-0.5">{{ number_format($totalInputWip) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
+                        </div>
+
+                        <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                            <div class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Good Output</div>
+                            <div class="text-base font-black text-emerald-700 mt-0.5">{{ number_format($totalGood) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
+                        </div>
+
+                        <div class="p-3 bg-red-50/50 rounded-xl border border-red-100">
+                            <div class="text-[10px] font-black text-red-800 uppercase tracking-wider">Defects & NG Rate</div>
+                            <div class="text-base font-black text-red-700 mt-0.5">{{ number_format($totalReject) }} <span class="text-[10px] font-bold text-gray-500">({{ $ngRate }}%)</span></div>
+                        </div>
+
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                            <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Downtime / Line Team</div>
+                            <div class="text-base font-black text-gray-900 mt-0.5">{{ $totalDowntimeMin }} <span class="text-[10px] font-bold text-gray-500">Min</span> • {{ $activeManpowerCount }} <span class="text-[10px] font-bold text-gray-500">Op</span></div>
+                        </div>
                     </div>
                 </div>
-
-                {{-- Compact 1-Row Metric Strip --}}
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
-                    <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
-                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Input WIP Received</div>
-                        <div class="text-base font-black text-gray-900 mt-0.5">{{ number_format($totalInputWip) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
-                    </div>
-
-                    <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                        <div class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Good Output</div>
-                        <div class="text-base font-black text-emerald-700 mt-0.5">{{ number_format($totalGood) }} <span class="text-[10px] font-bold text-gray-500">Pcs</span></div>
-                    </div>
-
-                    <div class="p-3 bg-red-50/50 rounded-xl border border-red-100">
-                        <div class="text-[10px] font-black text-red-800 uppercase tracking-wider">Defects & NG Rate</div>
-                        <div class="text-base font-black text-red-700 mt-0.5">{{ number_format($totalReject) }} <span class="text-[10px] font-bold text-gray-500">({{ $ngRate }}%)</span></div>
-                    </div>
-
-                    <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100">
-                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Downtime / Line Team</div>
-                        <div class="text-base font-black text-gray-900 mt-0.5">{{ $totalDowntimeMin }} <span class="text-[10px] font-bold text-gray-500">Min</span> • {{ $activeManpowerCount }} <span class="text-[10px] font-bold text-gray-500">Op</span></div>
-                    </div>
-                </div>
-            </div>
+            @endif
 
             {{-- 2. Main Work Order Specifications & QC Gate Layout --}}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

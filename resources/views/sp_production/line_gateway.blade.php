@@ -26,8 +26,10 @@
                      x-transition 
                      class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 space-y-1 text-xs"
                      x-cloak>
-                    <div class="px-3 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">Select Shift Filter</div>
-                    @foreach(['1' => 'Shift 1', '2' => 'Shift 2', '3' => 'Shift 3', 'all' => 'All Shifts'] as $sKey => $sLabel)
+                    @php
+                        $spShiftOptions = collect(config('mes.sp_shifts', []))->mapWithKeys(fn($s, $k) => [(string)$k => $s['name']])->put('all', 'All Shifts');
+                    @endphp
+                    @foreach($spShiftOptions as $sKey => $sLabel)
                         <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'shift' => $sKey]) }}"
                            class="block px-3 py-1.5 rounded-lg transition {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 text-slate-700 font-medium' }}">
                             {{ $sLabel }} {{ (string)$currentShift === (string)$sKey ? '(Current)' : '' }}
@@ -37,9 +39,6 @@
                     <div class="border-t border-slate-100 my-1"></div>
                     <a href="{{ route('second-process.dashboard', ['shift' => $selectedShift]) }}" class="block px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-800 font-bold">
                         Overview Dashboard
-                    </a>
-                    <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'shift' => $selectedShift]) }}" class="block px-3 py-1.5 rounded-lg hover:bg-slate-100 text-blue-700 font-bold">
-                        Line Analytics
                     </a>
                 </div>
             </div>

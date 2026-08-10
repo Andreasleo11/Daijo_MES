@@ -64,14 +64,9 @@
                     <label class="font-black text-xs uppercase text-slate-500">Shift:</label>
                     <select name="shift" class="rounded-xl border-slate-300 text-xs font-bold py-1.5 focus:ring-blue-500" onchange="this.form.submit()">
                         <option value="all" {{ (string)$shift === 'all' ? 'selected' : '' }}>All Shifts</option>
-                        @foreach(config('mes.shifts', []) as $sId => $sConf)
+                        @foreach(config('mes.sp_shifts', config('mes.shifts', [])) as $sId => $sConf)
                             <option value="{{ $sId }}" {{ (string)$shift === (string)$sId ? 'selected' : '' }}>{{ $sConf['name'] }}</option>
                         @endforeach
-                        @if(empty(config('mes.shifts', [])))
-                            <option value="1" {{ (string)$shift === '1' ? 'selected' : '' }}>Shift 1</option>
-                            <option value="2" {{ (string)$shift === '2' ? 'selected' : '' }}>Shift 2</option>
-                            <option value="3" {{ (string)$shift === '3' ? 'selected' : '' }}>Shift 3</option>
-                        @endif
                     </select>
                 </div>
             </form>

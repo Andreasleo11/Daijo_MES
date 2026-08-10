@@ -424,7 +424,7 @@ class SpProductionSessionController extends Controller
 
         $shift = (int) $request->query('shift', $currentShift);
         $selectedShift = $request->query('shift', (string) $shift);
-        $currentShiftConfig = config("mes.shifts.{$shift}", []);
+        $currentShiftConfig = config("mes.sp_shifts.{$shift}", config("mes.shifts.{$shift}", []));
 
         // Work Orders for this line (planned today OR currently running)
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
@@ -474,7 +474,7 @@ class SpProductionSessionController extends Controller
 
     private function getCurrentShift(Carbon $now)
     {
-        $shifts = config('mes.shifts', []);
+        $shifts = config('mes.sp_shifts', config('mes.shifts', []));
         $currentTime = $now->format('H:i');
 
         foreach ($shifts as $shiftId => $schedule) {
