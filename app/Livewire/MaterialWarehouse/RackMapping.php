@@ -486,8 +486,17 @@ class RackMapping extends Component
                 ->get();
 
             if ($itemPallets->isNotEmpty()) {
-                $matchedItemCode = $itemPallets->first()->item_code;
-                $exactPallets = $itemPallets->where('item_code', $matchedItemCode)->values();
+                // Priority 1: Check for exact item_code match with $targetItemCode
+                $exactMatches = $itemPallets->where('item_code', $targetItemCode)->values();
+                if ($exactMatches->isNotEmpty()) {
+                    $matchedItemCode = $targetItemCode;
+                    $exactPallets = $exactMatches;
+                } else {
+                    // Priority 2: Fallback to the first item_code from ordered results (for partial search queries)
+                    $matchedItemCode = $itemPallets->first()->item_code;
+                    $exactPallets = $itemPallets->where('item_code', $matchedItemCode)->values();
+                }
+
                 $firstPallet = $exactPallets->first() ?? $itemPallets->first();
 
                 $activeItemSummary = [
