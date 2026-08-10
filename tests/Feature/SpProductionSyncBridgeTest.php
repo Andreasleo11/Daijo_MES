@@ -25,7 +25,6 @@ class SpProductionSyncBridgeTest extends TestCase
             'wo_number' => 'WO-SP-TEST-001',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line 1',
-            'shift' => '1',
             'process_prod' => 'Assembly',
             'part_number' => 'PN-SYNC-100',
             'part_name' => 'Widget A',

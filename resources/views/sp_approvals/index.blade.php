@@ -55,7 +55,7 @@
                                 <tr class="hover:bg-gray-50 transition">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="font-bold text-gray-800">{{ optional($session->finished_at)->format('Y-m-d') ?: '-' }}</div>
-                                        <div class="text-xs text-gray-500">{{ optional($session->finished_at)->format('H:i') ?: '-' }} (Shift: {{ $session->workOrder->shift }})</div>
+                                        <div class="text-xs text-gray-500">{{ optional($session->finished_at)->format('H:i') ?: '-' }} (Shift: {{ $session->shift }})</div>
                                     </td>
                                     <td class="px-6 py-4 font-mono font-bold text-gray-800">
                                         {{ $session->workOrder->wo_number }}

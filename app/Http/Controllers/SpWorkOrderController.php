@@ -23,9 +23,6 @@ class SpWorkOrderController extends Controller
         if ($request->filled('unit_line')) {
             $query->where('unit_line', $request->unit_line);
         }
-        if ($request->filled('shift')) {
-            $query->where('shift', $request->shift);
-        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -67,42 +64,63 @@ class SpWorkOrderController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'wo_number' => 'required|string|unique:sp_work_orders,wo_number',
-            'planned_date' => 'required|date',
-            'unit_line' => 'required|string',
-            'shift' => 'required|string',
-            'process_prod' => 'required|string',
-            'part_number' => 'required|string',
-            'part_name' => 'required|string',
-            'model' => 'nullable|string',
-            'customer' => 'required|string',
-            'target_qty' => 'required|integer|min:1',
-        ]);
+        $isDraft = $request->input('action') === 'draft';
+
+        if ($isDraft) {
+            $validated = $request->validate([
+                'wo_number' => 'required|string|unique:sp_work_orders,wo_number',
+                'planned_date' => 'nullable|date',
+                'unit_line' => 'required|string',
+                'process_prod' => 'required|string',
+                'part_number' => 'required|string',
+                'part_name' => 'required|string',
+                'model' => 'nullable|string',
+                'customer' => 'nullable|string',
+                'target_qty' => 'nullable|integer|min:0',
+            ]);
+
+            $validated['planned_date'] = $validated['planned_date'] ?? now()->toDateString();
+            $validated['customer'] = $validated['customer'] ?: 'N/A';
+            $validated['target_qty'] = $validated['target_qty'] ?? 0;
+            $validated['status'] = 'draft';
+        } else {
+            $validated = $request->validate([
+                'wo_number' => 'required|string|unique:sp_work_orders,wo_number',
+                'planned_date' => 'required|date',
+                'unit_line' => 'required|string',
+                'process_prod' => 'required|string',
+                'part_number' => 'required|string',
+                'part_name' => 'required|string',
+                'model' => 'nullable|string',
+                'customer' => 'required|string',
+                'target_qty' => 'required|integer|min:1',
+            ]);
+            $validated['status'] = 'planned';
+        }
 
         $validated['created_by'] = auth()->id();
-        $validated['status'] = 'planned';
 
         $wo = SpWorkOrder::create($validated);
 
-        return redirect()->route('sp-work-orders.show', $wo->id)
-            ->with('success', "Work Order {$wo->wo_number} created successfully.");
+        $msg = $isDraft 
+            ? "Work Order {$wo->wo_number} saved as draft." 
+            : "Work Order {$wo->wo_number} created and released successfully.";
+
+        return redirect()->route('sp-work-orders.show', $wo->id)->with('success', $msg);
     }
 
     public function show($id)
     {
         $workOrder = SpWorkOrder::with(['creator', 'sessions.operator', 'sessions.productionEntries', 'sessions.rejectEntries', 'sessions.downtimeEntries', 'sessions.manpowerEntries'])->findOrFail($id);
 
-        $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
-            ->whereDate('date', $workOrder->planned_date)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if (!$firstPiece) {
-            $firstPiece = FirstPieceInspection::where('part_number', $workOrder->part_number)
+        $firstPiece = $workOrder->latestFirstPieceInspection 
+            ?? FirstPieceInspection::where('part_number', $workOrder->part_number)
+                ->whereDate('date', $workOrder->planned_date)
+                ->orderBy('id', 'desc')
+                ->first()
+            ?? FirstPieceInspection::where('part_number', $workOrder->part_number)
                 ->orderBy('id', 'desc')
                 ->first();
-        }
 
         return view('sp_work_orders.show', compact('workOrder', 'firstPiece'));
     }
@@ -111,9 +129,9 @@ class SpWorkOrderController extends Controller
     {
         $workOrder = SpWorkOrder::findOrFail($id);
 
-        if ($workOrder->status !== 'planned') {
+        if ($workOrder->status !== 'draft') {
             return redirect()->route('sp-work-orders.show', $id)
-                ->with('error', 'Only planned Work Orders can be edited.');
+                ->with('error', 'Only draft Work Orders can be edited. Revert to draft first if no production has started.');
         }
 
         $lines = array_values(config('mes.sp_lines', []));
@@ -126,34 +144,92 @@ class SpWorkOrderController extends Controller
     {
         $workOrder = SpWorkOrder::findOrFail($id);
 
-        if ($workOrder->status !== 'planned') {
+        if ($workOrder->status !== 'draft') {
             return redirect()->route('sp-work-orders.show', $id)
-                ->with('error', 'Only planned Work Orders can be updated.');
+                ->with('error', 'Only draft Work Orders can be edited.');
         }
 
-        $validated = $request->validate([
-            'planned_date' => 'required|date',
-            'unit_line' => 'required|string',
-            'shift' => 'required|string',
-            'process_prod' => 'required|string',
-            'part_number' => 'required|string',
-            'part_name' => 'required|string',
-            'model' => 'nullable|string',
-            'customer' => 'required|string',
-            'target_qty' => 'required|integer|min:1',
-        ]);
+        $isDraft = $request->input('action') === 'draft';
+
+        if ($isDraft) {
+            $validated = $request->validate([
+                'planned_date' => 'nullable|date',
+                'unit_line' => 'required|string',
+                'process_prod' => 'required|string',
+                'part_number' => 'required|string',
+                'part_name' => 'required|string',
+                'model' => 'nullable|string',
+                'customer' => 'nullable|string',
+                'target_qty' => 'nullable|integer|min:0',
+            ]);
+        } else {
+            $validated = $request->validate([
+                'planned_date' => 'required|date',
+                'unit_line' => 'required|string',
+                'process_prod' => 'required|string',
+                'part_number' => 'required|string',
+                'part_name' => 'required|string',
+                'model' => 'nullable|string',
+                'customer' => 'required|string',
+                'target_qty' => 'required|integer|min:1',
+            ]);
+            $validated['status'] = 'planned';
+        }
 
         $workOrder->update($validated);
 
+        $msg = $isDraft 
+            ? "Draft Work Order {$workOrder->wo_number} updated." 
+            : "Work Order {$workOrder->wo_number} updated and released to production.";
+
+        return redirect()->route('sp-work-orders.show', $workOrder->id)->with('success', $msg);
+    }
+
+    public function release($id)
+    {
+        $workOrder = SpWorkOrder::findOrFail($id);
+
+        if ($workOrder->status !== 'draft') {
+            return redirect()->route('sp-work-orders.show', $id)
+                ->with('error', 'Only draft Work Orders can be released.');
+        }
+
+        if (empty($workOrder->customer) || $workOrder->customer === 'N/A' || $workOrder->target_qty < 1) {
+            return redirect()->route('sp-work-orders.edit', $id)
+                ->with('error', 'Please complete Customer and Target Quantity before releasing to production.');
+        }
+
+        $workOrder->update(['status' => 'planned']);
+
         return redirect()->route('sp-work-orders.show', $workOrder->id)
-            ->with('success', "Work Order {$workOrder->wo_number} updated successfully.");
+            ->with('success', "Work Order {$workOrder->wo_number} released to production successfully.");
+    }
+
+    public function revertToDraft($id)
+    {
+        $workOrder = SpWorkOrder::with('sessions')->findOrFail($id);
+
+        if ($workOrder->status !== 'planned') {
+            return redirect()->route('sp-work-orders.show', $id)
+                ->with('error', 'Only planned Work Orders can be reverted to draft.');
+        }
+
+        if ($workOrder->sessions->count() > 0) {
+            return redirect()->route('sp-work-orders.show', $id)
+                ->with('error', 'Cannot revert Work Order to draft because production sessions have already been logged.');
+        }
+
+        $workOrder->update(['status' => 'draft']);
+
+        return redirect()->route('sp-work-orders.show', $workOrder->id)
+            ->with('success', "Work Order {$workOrder->wo_number} reverted to draft mode.");
     }
 
     public function destroy($id)
     {
         $workOrder = SpWorkOrder::findOrFail($id);
 
-        if ($workOrder->status !== 'planned') {
+        if (!in_array($workOrder->status, ['draft', 'planned'])) {
             return redirect()->back()
                 ->with('error', 'Cannot delete Work Orders that are already in progress or completed.');
         }

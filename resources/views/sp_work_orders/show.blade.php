@@ -7,6 +7,7 @@
                         {{ $workOrder->wo_number }}
                     </h2>
                     @switch($workOrder->status)
+                        @case('draft') <span class="px-3 py-1 text-[10px] font-black rounded-full bg-slate-100 text-slate-700 uppercase tracking-widest border border-slate-200">Draft</span> @break
                         @case('planned') <span class="px-3 py-1 text-[10px] font-black rounded-full bg-blue-100 text-blue-800 uppercase tracking-widest border border-blue-200">Planned</span> @break
                         @case('in_progress') <span class="px-3 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-widest border border-emerald-200">Running</span> @break
                         @case('completed') <span class="px-3 py-1 text-[10px] font-black rounded-full bg-gray-100 text-gray-700 uppercase tracking-widest border border-gray-200">Completed</span> @break
@@ -23,37 +24,65 @@
             @endphp
 
             <div class="flex flex-wrap items-center gap-2">
-                @if($activeSession)
+                @if($workOrder->status === 'draft')
+                    <a href="{{ route('sp-work-orders.edit', $workOrder->id) }}" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                        Edit Draft
+                    </a>
+                    <form action="{{ route('sp-work-orders.release', $workOrder->id) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
+                            Release Order
+                        </button>
+                    </form>
+                @elseif($activeSession)
                     <a href="{{ route('app.sp-sessions.show', $activeSession->id) }}"
                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
                         Open Operator Screen
                     </a>
-                @elseif($workOrder->status === 'planned' && $isFpiApproved)
-                    <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
-                            Start Production
-                        </button>
-                    </form>
+                @elseif($workOrder->status === 'planned')
+                    @if($isFpiApproved)
+                        <form action="{{ route('sp-sessions.start', $workOrder->id) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
+                                Start Production
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($workOrder->sessions->count() === 0)
+                        <form action="{{ route('sp-work-orders.revert-to-draft', $workOrder->id) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="px-3 py-2 bg-gray-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition uppercase tracking-wider" title="Revert to draft mode to unlock editing">
+                                Revert to Draft
+                            </button>
+                        </form>
+                    @endif
                 @endif
 
                 <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
                     Work Orders List
                 </a>
-
-                @if($workOrder->status === 'planned')
-                    @can('manage-sp-work-orders')
-                        <a href="{{ route('sp-work-orders.edit', $workOrder->id) }}" class="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Edit
-                        </a>
-                    @endcan
-                @endif
             </div>
         </div>
     </x-slot>
 
     <div class="py-6 space-y-6">
         <div class="max-w-7xl mx-auto space-y-6">
+
+            @if($workOrder->status === 'draft')
+                <div class="bg-slate-100 border border-slate-300 text-slate-800 px-5 py-4 rounded-2xl text-xs font-bold shadow-sm flex justify-between items-center">
+                    <div>
+                        <span class="font-black text-slate-900">Work Order Draft Mode:</span>
+                        <span class="font-medium text-slate-600 ml-1">This job ticket is currently in draft mode and is hidden from shop floor operators.</span>
+                    </div>
+                    <form action="{{ route('sp-work-orders.release', $workOrder->id) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition uppercase tracking-wider">
+                            Release Order to Production
+                        </button>
+                    </form>
+                </div>
+            @endif
 
             @if(session('success'))
                 <div class="bg-emerald-50 border border-emerald-300 text-emerald-900 px-5 py-4 rounded-2xl text-xs font-bold shadow-sm">
@@ -164,15 +193,9 @@
                                     <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Process Type</span>
                                     <span class="font-bold text-gray-900 text-sm mt-0.5 block">{{ $workOrder->process_prod }}</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Production Line</span>
-                                        <span class="font-bold text-gray-800 mt-0.5 block">{{ $workOrder->unit_line }}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Shift</span>
-                                        <span class="font-bold text-gray-800 mt-0.5 block">Shift {{ $workOrder->shift }}</span>
-                                    </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Production Line</span>
+                                    <span class="font-bold text-gray-800 mt-0.5 block">{{ $workOrder->unit_line }}</span>
                                 </div>
                                 <div>
                                     <span class="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Planned Date</span>
@@ -189,46 +212,58 @@
                         <div>
                             <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest border-b border-gray-100 pb-3">QC First Piece Gate</h3>
 
-                            <div class="p-4 rounded-xl border text-xs space-y-2 mt-4
-                                {{ $isFpiApproved ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : (isset($firstPiece) && $firstPiece ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-red-50 border-red-300 text-red-900') }}">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-black uppercase tracking-wider text-[10px] text-gray-500">Gate Status</span>
-                                    @if($isFpiApproved)
-                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-emerald-200 text-emerald-900 uppercase">QC Approved (OK)</span>
-                                    @elseif(isset($firstPiece) && $firstPiece)
-                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-amber-200 text-amber-900 uppercase">Pending Signature</span>
-                                    @else
-                                        <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-red-200 text-red-900 uppercase">Inspection Required</span>
-                                    @endif
+                            @if($workOrder->status === 'draft')
+                                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 font-medium space-y-2 mt-4">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-black uppercase tracking-wider text-[10px] text-slate-400">Gate Status</span>
+                                        <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-slate-200 text-slate-700 uppercase">Unreleased Draft</span>
+                                    </div>
+                                    <p class="font-medium text-xs leading-relaxed text-slate-600">
+                                        This Work Order is currently in draft mode. Release to production to enable First Piece Inspection.
+                                    </p>
                                 </div>
+                            @else
+                                <div class="p-4 rounded-xl border text-xs space-y-2 mt-4
+                                    {{ $isFpiApproved ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : (isset($firstPiece) && $firstPiece ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-red-50 border-red-300 text-red-900') }}">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-black uppercase tracking-wider text-[10px] text-gray-500">Gate Status</span>
+                                        @if($isFpiApproved)
+                                            <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-emerald-200 text-emerald-900 uppercase">QC Approved (OK)</span>
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-amber-200 text-amber-900 uppercase">Pending Signature</span>
+                                        @else
+                                            <span class="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-red-200 text-red-900 uppercase">Inspection Required</span>
+                                        @endif
+                                    </div>
 
-                                <p class="font-medium text-xs leading-relaxed">
-                                    @if($isFpiApproved)
-                                        Inspected & approved by QC Inspector <span class="font-black">{{ $firstPiece->checked_by ?: 'QC Inspector' }}</span>.
-                                    @elseif(isset($firstPiece) && $firstPiece)
-                                        Inspection recorded, awaiting QC inspector signature sign-off.
-                                    @else
-                                        First Piece Inspection must be completed before standard production start.
-                                    @endif
-                                </p>
+                                    <p class="font-medium text-xs leading-relaxed">
+                                        @if($isFpiApproved)
+                                            Inspected & approved by QC Inspector <span class="font-black">{{ $firstPiece->checked_by ?: 'QC Inspector' }}</span>.
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            Inspection recorded, awaiting QC inspector signature sign-off.
+                                        @else
+                                            First Piece Inspection must be completed before standard production start.
+                                        @endif
+                                    </p>
 
-                                <div class="pt-1">
-                                    @if($isFpiApproved)
-                                        <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block text-xs font-black text-emerald-800 hover:underline uppercase tracking-wider">
-                                            View Inspection #{{ $firstPiece->id }}
-                                        </a>
-                                    @elseif(isset($firstPiece) && $firstPiece)
-                                        <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                            Sign QC Approval #{{ $firstPiece->id }}
-                                        </a>
-                                    @else
-                                        <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $workOrder->id, 'part_number' => $workOrder->part_number, 'part_name' => $workOrder->part_name, 'model' => $workOrder->model]) }}"
-                                            class="inline-block w-full text-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition uppercase tracking-wider">
-                                            Perform Inspection
-                                        </a>
-                                    @endif
+                                    <div class="pt-1">
+                                        @if($isFpiApproved)
+                                            <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block text-xs font-black text-emerald-800 hover:underline uppercase tracking-wider">
+                                                View Inspection #{{ $firstPiece->id }}
+                                            </a>
+                                        @elseif(isset($firstPiece) && $firstPiece)
+                                            <a href="{{ route('first-piece-inspections.show', $firstPiece->id) }}" class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                Sign QC Approval #{{ $firstPiece->id }}
+                                            </a>
+                                        @else
+                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $workOrder->id, 'part_number' => $workOrder->part_number, 'part_name' => $workOrder->part_name, 'model' => $workOrder->model]) }}"
+                                                class="inline-block w-full text-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition uppercase tracking-wider">
+                                                Perform Inspection
+                                            </a>
+                                        @endif
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
                         </div>
 
                         {{-- Line Gateway Shortcut Link --}}

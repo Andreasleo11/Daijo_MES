@@ -13,7 +13,6 @@ class SpWorkOrder extends Model
         'wo_number',
         'planned_date',
         'unit_line',
-        'shift',
         'process_prod',
         'part_number',
         'part_name',
@@ -27,6 +26,33 @@ class SpWorkOrder extends Model
     public function sessions()
     {
         return $this->hasMany(SpProductionSession::class, 'work_order_id');
+    }
+
+    public function firstPieceInspections()
+    {
+        return $this->hasMany(FirstPieceInspection::class, 'work_order_id');
+    }
+
+    public function latestFirstPieceInspection()
+    {
+        return $this->hasOne(FirstPieceInspection::class, 'work_order_id')->latestOfMany();
+    }
+
+    /**
+     * Derived QC status based on linked First Piece Inspection.
+     */
+    public function getQcStatusAttribute(): string
+    {
+        $inspection = $this->latestFirstPieceInspection 
+            ?? FirstPieceInspection::where('part_number', $this->part_number)->latest('id')->first();
+
+        if (!$inspection) {
+            return 'missing';
+        }
+        if ($inspection->isApproved()) {
+            return 'approved';
+        }
+        return 'pending';
     }
 
     public function creator()

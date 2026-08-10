@@ -122,8 +122,8 @@
                                 @php
                                     $fpList = $firstPieceMap->get($wo->part_number) ?? collect();
                                     $fp = $fpList->first();
-                                    $fpApproved = $fp && $fp->checked_at && $fp->overall_judgement === 'OK';
-                                    $runningSession = $wo->sessions->where('status', 'running')->first();
+                                     $fpApproved = $fp && $fp->isApproved();
+                                     $runningSession = $wo->sessions->where('status', 'running')->first();
                                 @endphp
                                 <tr class="hover:bg-gray-50/50 transition">
                                     <td class="px-6 py-4 font-black text-blue-700 whitespace-nowrap">
@@ -136,7 +136,6 @@
                                     </td>
                                     <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
                                         <div>{{ $wo->unit_line }}</div>
-                                        <div class="text-[10px] text-gray-400 font-medium">Shift {{ $wo->shift }}</div>
                                     </td>
                                     <td class="px-6 py-4">
                                         <div class="font-bold text-gray-900">{{ $wo->part_name }}</div>
@@ -146,23 +145,27 @@
                                         {{ number_format($wo->target_qty) }} Pcs
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
-                                        @if($fpApproved)
-                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider border border-emerald-200">
+                                        @if($wo->status === 'draft')
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                                Unreleased Draft
+                                            </span>
+                                        @elseif($fpApproved)
+                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider border border-emerald-200 hover:bg-emerald-200 transition">
                                                 QC Approved
-                                            </span>
+                                            </a>
                                         @elseif($fp)
-                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider border border-amber-200">
+                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider border border-amber-200 hover:bg-amber-200 transition">
                                                 Pending Sign-off
-                                            </span>
+                                            </a>
                                         @else
-                                            <span class="px-3 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 uppercase tracking-wider border border-red-200">
+                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 uppercase tracking-wider border border-red-200 hover:bg-red-200 transition">
                                                 Gate Required
-                                            </span>
+                                            </a>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
                                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border
-                                            {{ $wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($wo->status === 'planned' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-gray-100 text-gray-700 border-gray-200') }}">
+                                            {{ $wo->status === 'draft' ? 'bg-slate-100 text-slate-700 border-slate-200' : ($wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($wo->status === 'planned' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-gray-100 text-gray-700 border-gray-200')) }}">
                                             {{ str_replace('_', ' ', $wo->status) }}
                                         </span>
                                     </td>
@@ -172,25 +175,47 @@
                                             Details
                                         </a>
 
-                                        @if($runningSession)
+                                        @if($wo->status === 'draft')
+                                            <a href="{{ route('sp-work-orders.edit', $wo->id) }}"
+                                                class="inline-block px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                Edit Draft
+                                            </a>
+                                            <form action="{{ route('sp-work-orders.release', $wo->id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                    Release
+                                                </button>
+                                            </form>
+                                        @elseif($runningSession)
                                             <a href="{{ route('app.sp-sessions.show', $runningSession->id) }}"
                                                 class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
                                                 Open Screen
                                             </a>
-                                        @elseif($wo->status === 'planned' && $fpApproved)
-                                            <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                    Start Production
-                                                </button>
-                                            </form>
                                         @elseif($wo->status === 'planned')
-                                            @can('execute-qc-inspections')
-                                                <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
-                                                    class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                    Perform Inspection
-                                                </a>
-                                            @endcan
+                                            @if($fpApproved)
+                                                <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                        Start Production
+                                                    </button>
+                                                </form>
+                                            @else
+                                                @can('execute-qc-inspections')
+                                                    <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
+                                                        class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
+                                                        Perform Inspection
+                                                    </a>
+                                                @endcan
+                                            @endif
+
+                                            @if($wo->sessions->count() === 0)
+                                                <form action="{{ route('sp-work-orders.revert-to-draft', $wo->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="px-2.5 py-1.5 bg-gray-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition uppercase tracking-wider" title="Revert to draft mode for editing">
+                                                        Revert
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @endif
                                     </td>
                                 </tr>

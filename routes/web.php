@@ -785,6 +785,8 @@ Route::middleware('auth')->group(function (){
         ->name('maintenance.mould.index');
 
     // Second Process Reports & Work Orders
+    Route::post('/sp-work-orders/{id}/release', [\App\Http\Controllers\SpWorkOrderController::class, 'release'])->name('sp-work-orders.release');
+    Route::post('/sp-work-orders/{id}/revert-to-draft', [\App\Http\Controllers\SpWorkOrderController::class, 'revertToDraft'])->name('sp-work-orders.revert-to-draft');
     Route::resource('sp-work-orders', \App\Http\Controllers\SpWorkOrderController::class);
 
     // Second Process Approvals

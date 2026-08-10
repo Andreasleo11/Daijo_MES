@@ -42,7 +42,7 @@ class FirstPieceInspectionController extends Controller
             });
         }
 
-        $inspections = $query->orderBy('date', 'desc')->orderBy('id', 'desc')->paginate(25)->withQueryString();
+        $inspections = $query->with('workOrder')->orderBy('date', 'desc')->orderBy('id', 'desc')->paginate(25)->withQueryString();
 
         return view('first_piece.index', compact('inspections'));
     }
@@ -236,6 +236,7 @@ class FirstPieceInspectionController extends Controller
     private function validateInspection(Request $request): array
     {
         $validated = $request->validate([
+            'work_order_id' => 'nullable|exists:sp_work_orders,id',
             'date' => 'required|date',
             'model' => 'nullable|string',
             'part_name' => 'required|string',

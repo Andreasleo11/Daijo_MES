@@ -40,7 +40,6 @@ class FirstPieceInspectionWorkflowTest extends TestCase
             'wo_number' => 'WO-FPI-FAST-01',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line A',
-            'shift' => '1',
             'process_prod' => 'Assembly',
             'part_number' => 'PN-FPI-FAST',
             'part_name' => 'Fast Part',
@@ -65,10 +64,11 @@ class FirstPieceInspectionWorkflowTest extends TestCase
 
         $response = $this->post(route('first-piece-inspections.store'), $postData);
 
-        $response->assertRedirect(route('sp-work-orders.show', $workOrder->id));
+        $response->assertRedirect(route('first-piece-inspections.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('first_piece_inspections', [
+            'work_order_id' => $workOrder->id,
             'part_number' => 'PN-FPI-FAST',
             'overall_judgement' => 'OK',
             'checked_by' => 'QC Inspector John',

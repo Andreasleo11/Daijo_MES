@@ -37,7 +37,6 @@ class SecondProcessDashboardTest extends TestCase
             'wo_number' => 'WO-SP-20260731-0001',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line A',
-            'shift' => 1,
             'process_prod' => 'Painting',
             'part_number' => '401-41019967',
             'part_name' => 'Molding Side REF',

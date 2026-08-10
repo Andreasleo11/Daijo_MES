@@ -86,7 +86,7 @@
                             </div>
                             <div>
                                 <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Shift</div>
-                                <div class="font-bold text-gray-800">{{ $session->workOrder->shift }}</div>
+                                <div class="font-bold text-gray-800">{{ $session->shift }}</div>
                             </div>
                             <div>
                                 <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Operator</div>

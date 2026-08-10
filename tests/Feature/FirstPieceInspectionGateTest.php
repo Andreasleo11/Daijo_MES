@@ -21,7 +21,6 @@ class FirstPieceInspectionGateTest extends TestCase
             'wo_number' => 'WO-FPI-GATE-01',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line A',
-            'shift' => '1',
             'process_prod' => 'Assembly',
             'part_number' => 'PN-FPI-TEST',
             'part_name' => 'Widget FPI',
@@ -32,7 +31,8 @@ class FirstPieceInspectionGateTest extends TestCase
         ]);
 
         // Attempt start without First Piece Inspection
-        $response = $this->post(route('sp-sessions.start', $workOrder->id));
+        $response = $this->from(route('sp-work-orders.show', $workOrder->id))
+            ->post(route('sp-sessions.start', $workOrder->id));
 
         $response->assertRedirect(route('sp-work-orders.show', $workOrder->id));
         $response->assertSessionHas('error');
@@ -50,7 +50,6 @@ class FirstPieceInspectionGateTest extends TestCase
             'wo_number' => 'WO-FPI-GATE-02',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line A',
-            'shift' => '1',
             'process_prod' => 'Assembly',
             'part_number' => 'PN-FPI-APPROVED',
             'part_name' => 'Widget OK',

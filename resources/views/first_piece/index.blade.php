@@ -84,6 +84,7 @@
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-wider">
                                 <th class="px-6 py-3">Date</th>
+                                <th class="px-6 py-3">Work Order</th>
                                 <th class="px-6 py-3">Model</th>
                                 <th class="px-6 py-3">Part Details</th>
                                 <th class="px-6 py-3 text-center">Judgement</th>
@@ -96,6 +97,15 @@
                             @forelse($inspections as $insp)
                                 <tr class="hover:bg-gray-50/50 transition">
                                     <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">{{ $insp->date }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($insp->workOrder)
+                                            <a href="{{ route('sp-work-orders.show', $insp->work_order_id) }}" class="text-blue-600 font-black hover:underline text-xs font-mono bg-blue-50 px-2 py-1 rounded-md border border-blue-200">
+                                                {{ $insp->workOrder->wo_number }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400 text-xs font-semibold">—</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 font-semibold text-gray-600">{{ $insp->model ?: '-' }}</td>
                                     <td class="px-6 py-4">
                                         <div class="font-bold text-gray-900">{{ $insp->part_name }}</div>

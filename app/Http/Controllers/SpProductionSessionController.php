@@ -63,7 +63,7 @@ class SpProductionSessionController extends Controller
             'work_order_id' => $workOrder->id,
             'operator_id' => auth()->id(),
             'unit_line' => $workOrder->unit_line,
-            'shift' => $workOrder->shift,
+            'shift' => $this->getCurrentShift(Carbon::now('Asia/Jakarta')),
             'status' => 'running',
             'started_at' => now(),
             'is_qc_bypassed' => $isBypassed,
@@ -426,20 +426,14 @@ class SpProductionSessionController extends Controller
         $selectedShift = $request->query('shift', (string) $shift);
         $currentShiftConfig = config("mes.sp_shifts.{$shift}", config("mes.shifts.{$shift}", []));
 
-        // Work Orders for this line (planned today OR currently running)
+        // Work Orders for this line (planned today OR currently running, excluding drafts)
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
             ->where('unit_line', $line)
+            ->where('status', '!=', 'draft')
             ->where(function ($q) use ($date) {
                 $q->whereDate('planned_date', $date)
                     ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
             });
-
-        if ($selectedShift !== 'all') {
-            $workOrdersQuery->where(function ($q) use ($selectedShift) {
-                $q->where('shift', $selectedShift)
-                    ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
-            });
-        }
 
         $workOrders = $workOrdersQuery->orderByDesc('id')->get();
 

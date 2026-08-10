@@ -23,7 +23,6 @@ class SpProductionManpowerTest extends TestCase
             'wo_number' => 'WO-SP-MANPOWER-01',
             'planned_date' => now()->format('Y-m-d'),
             'unit_line' => 'Line A',
-            'shift' => '1',
             'process_prod' => 'Assembly',
             'part_number' => 'PN-MP-100',
             'part_name' => 'Widget B',

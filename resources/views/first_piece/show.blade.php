@@ -1,9 +1,16 @@
 <x-app-layout>
     <div class="py-6 no-print">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 flex justify-between">
-            <a href="{{ route('first-piece-inspections.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition text-sm">
-                Back to List
-            </a>
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <a href="{{ route('first-piece-inspections.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition text-sm">
+                    Back to List
+                </a>
+                @if($inspection->workOrder)
+                    <a href="{{ route('sp-work-orders.show', $inspection->work_order_id) }}" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 px-4 rounded border border-blue-200 transition text-sm flex items-center font-mono">
+                        Work Order: {{ $inspection->workOrder->wo_number }}
+                    </a>
+                @endif
+            </div>
             <div class="space-x-2">
                 <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition text-sm">
                     Print Form

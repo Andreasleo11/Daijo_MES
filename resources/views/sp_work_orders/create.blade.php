@@ -50,15 +50,6 @@
                             </select>
                         </div>
 
-                        {{-- Shift --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Shift *</label>
-                            <select name="shift" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                @foreach(config('mes.sp_shifts', config('mes.shifts', [])) as $sId => $sConf)
-                                    <option value="{{ $sId }}" {{ old('shift', 1) == $sId ? 'selected' : '' }}>{{ $sConf['name'] }} ({{ $sConf['start'] }} - {{ $sConf['end'] }})</option>
-                                @endforeach
-                            </select>
-                        </div>
 
                         {{-- Process --}}
                         <div>
@@ -110,12 +101,15 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-2 border-t border-gray-100 pt-4">
-                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                    <div class="flex justify-end items-center gap-3 border-t border-gray-100 pt-4">
+                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
                             Cancel
                         </a>
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Save Work Order
+                        <button type="submit" name="action" value="draft" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                            Save as Draft
+                        </button>
+                        <button type="submit" name="action" value="release" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                            Publish & Release Order
                         </button>
                     </div>
 

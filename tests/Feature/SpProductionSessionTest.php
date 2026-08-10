@@ -31,7 +31,6 @@ class SpProductionSessionTest extends TestCase
             'process_prod' => 'Second Process',
             'target_qty' => 1000,
             'unit_line' => 'Line 1',
-            'shift' => '1',
             'status' => 'in_progress',
             'planned_date' => now()->toDateString(),
         ]);
@@ -59,7 +58,6 @@ class SpProductionSessionTest extends TestCase
             'process_prod' => 'Second Process',
             'target_qty' => 500,
             'unit_line' => 'Line 2',
-            'shift' => '2',
             'status' => 'planned',
             'planned_date' => now()->toDateString(),
         ]);

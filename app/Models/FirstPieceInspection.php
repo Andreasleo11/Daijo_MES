@@ -10,6 +10,7 @@ class FirstPieceInspection extends Model
     use HasFactory;
 
     protected $fillable = [
+        'work_order_id',
         'date',
         'model',
         'part_name',
@@ -36,6 +37,11 @@ class FirstPieceInspection extends Model
         'checked_at' => 'datetime',
         'approved_at' => 'datetime',
     ];
+
+    public function workOrder()
+    {
+        return $this->belongsTo(SpWorkOrder::class, 'work_order_id');
+    }
 
     public function attachments()
     {
