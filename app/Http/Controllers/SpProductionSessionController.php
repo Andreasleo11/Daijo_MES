@@ -415,13 +415,14 @@ class SpProductionSessionController extends Controller
         $selectedShift = $request->query('shift', (string) $shift);
 
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
-            ->where('unit_line', $line)
-            ->whereIn('status', ['planned', 'draft', 'approved', 'in_progress']);
+            ->where('unit_line', $line);
 
         if ($selectedShift !== 'all') {
             $workOrdersQuery->where(function ($q) use ($selectedShift) {
                 $q->where('shift', $selectedShift)
-                  ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
+                    ->where(function($q){
+                        $q->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
+                    });
             });
         }
 
