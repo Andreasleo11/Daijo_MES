@@ -19,8 +19,15 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
+                {{-- Date Picker Control --}}
+                <form action="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" method="GET" class="flex items-center gap-1.5 mr-1">
+                    <input type="hidden" name="shift" value="{{ $selectedShift }}">
+                    <label class="font-black text-xs uppercase text-gray-500">Date:</label>
+                    <input type="date" name="date" value="{{ $date }}" class="rounded-xl border-gray-300 text-xs font-bold py-1 focus:ring-blue-500" onchange="this.form.submit()">
+                </form>
+
                 @foreach(['1' => 'Shift 1', '2' => 'Shift 2', '3' => 'Shift 3', 'all' => 'All Shifts'] as $sKey => $sLabel)
-                    <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'shift' => $sKey]) }}"
+                    <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'date' => $date, 'shift' => $sKey]) }}"
                        class="px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1 {{ (string)$selectedShift === (string)$sKey ? 'bg-blue-600 text-white shadow-sm font-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300' }}">
                         <span>{{ $sLabel }}</span>
                         @if((string)$shift === (string)$sKey)
@@ -31,10 +38,10 @@
 
                 <div class="h-5 w-px bg-gray-300 mx-1 hidden sm:block"></div>
 
-                <a href="{{ route('second-process.dashboard') }}" class="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                <a href="{{ route('second-process.dashboard', ['date' => $date, 'shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                     Overview Dashboard
                 </a>
-                <a href="{{ route('second-process.line-dashboard', ['line' => $line]) }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
+                <a href="{{ route('second-process.line-dashboard', ['line' => $line, 'date' => $date, 'shift' => $selectedShift]) }}" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 shadow-sm transition uppercase tracking-wider">
                     Line Analytics
                 </a>
             </div>
@@ -78,13 +85,18 @@
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white text-emerald-800 uppercase tracking-widest animate-pulse">
                                     RUNNING SESSION #{{ $runningSession->id }}
                                 </span>
+                                @if($runningSession->is_qc_bypassed)
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-200 text-purple-950 uppercase tracking-widest border border-purple-300">
+                                        QC BYPASSED
+                                    </span>
+                                @endif
                                 <span class="text-xs font-mono text-emerald-100">Started {{ $runningSession->started_at?->format('H:i') }} ({{ $runningSession->started_at?->diffForHumans() }})</span>
                             </div>
                             <span class="text-xs font-black uppercase tracking-wider text-emerald-100">Shift {{ $wo->shift }}</span>
                         </div>
 
                         <div class="p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                            <div class="space-y-2">
+                            <div class="space-y-2.5">
                                 <div class="text-2xl font-black text-gray-900 flex items-center gap-3">
                                     <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="text-blue-700 hover:underline">{{ $wo->wo_number }}</a>
                                     <span class="text-sm font-bold text-gray-500">| Customer: {{ $wo->customer ?? '-' }}</span>
@@ -92,6 +104,14 @@
                                 <div class="text-base font-bold text-gray-800">
                                     {{ $wo->part_name }} <span class="font-mono text-xs text-gray-500">({{ $wo->part_number }})</span>
                                 </div>
+                                @if($runningSession->is_qc_bypassed && $runningSession->qc_bypass_reason)
+                                    <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+                                        <span><strong class="text-purple-700 uppercase">QC Bypass Reason:</strong> {{ $runningSession->qc_bypass_reason }}</span>
+                                        @if($runningSession->qcBypassedBy)
+                                            <span class="text-[10px] text-purple-700 font-black uppercase">Bypassed By: {{ $runningSession->qcBypassedBy->name }}</span>
+                                        @endif
+                                    </div>
+                                @endif
                                 <div class="text-xs font-semibold text-gray-500 flex flex-wrap items-center gap-4">
                                     <span>Target: <strong class="text-gray-900">{{ number_format($wo->target_qty) }} Pcs</strong></span>
                                     <span>Good Output: <strong class="text-emerald-600 font-bold">{{ number_format($runningSession->total_good) }} Pcs</strong></span>

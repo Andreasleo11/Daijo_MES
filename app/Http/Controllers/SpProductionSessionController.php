@@ -46,12 +46,12 @@ class SpProductionSessionController extends Controller
             $isBypassed = true;
             $bypassReason = $request->input('bypass_reason');
         } else {
-            // Validate QC-Approved First Piece Inspection before starting session
-            $firstPiece = FirstPieceInspection::approvedForPartToday($workOrder->part_number)->first();
+            // Validate QC-Approved First Piece Inspection before starting session (latest for part)
+            $firstPiece = FirstPieceInspection::latestForPart($workOrder->part_number)->first();
 
             if (!$firstPiece || !$firstPiece->isApproved()) {
                 $reason = !$firstPiece 
-                    ? "No First Piece Inspection record found for today." 
+                    ? "No First Piece Inspection record found." 
                     : ($firstPiece->overall_judgement !== 'OK' ? "Overall judgement is {$firstPiece->overall_judgement}." : "Pending QC signature.");
 
                 return redirect()->back()
@@ -406,31 +406,39 @@ class SpProductionSessionController extends Controller
             abort(404, "Unknown line: {$lineSlug}");
         }
 
-        // Current shift (auto-detect)
+        // Active date & shift filter
         $now = Carbon::now('Asia/Jakarta');
-        $shift = $this->getCurrentShift($now);
+        $date = $request->query('date', $now->format('Y-m-d'));
+        $shift = (int) $request->query('shift', $this->getCurrentShift($now));
+        $selectedShift = $request->query('shift', (string) $shift);
         $currentShiftConfig = config("mes.shifts.{$shift}", []);
 
         // All active/planned WOs for this line
-        $selectedShift = $request->query('shift', (string) $shift);
-
         $workOrdersQuery = SpWorkOrder::with(['sessions' => fn($q) => $q->orderByDesc('started_at')])
             ->where('unit_line', $line);
+
+        if ($date) {
+            $workOrdersQuery->where(function ($q) use ($date) {
+                $q->whereDate('planned_date', $date)
+                    ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
+            });
+        }
 
         if ($selectedShift !== 'all') {
             $workOrdersQuery->where(function ($q) use ($selectedShift) {
                 $q->where('shift', $selectedShift)
-                    ->where(function($q){
-                        $q->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
-                    });
+                    ->orWhereHas('sessions', fn($s) => $s->where('status', 'running'));
             });
         }
 
         $workOrders = $workOrdersQuery->orderByDesc('id')->get();
 
-        // Fetch First Piece Inspections for today (keyed by part_number)
-        $firstPieceMap = FirstPieceInspection::whereDate('date', now()->format('Y-m-d'))
+        // Fetch First Piece Inspections for line work orders (latest per part, date-agnostic)
+        $partNumbers = $workOrders->pluck('part_number')->filter()->unique();
+        $firstPieceMap = FirstPieceInspection::whereIn('part_number', $partNumbers)
+            ->latest('id')
             ->get()
+            ->unique('part_number')
             ->keyBy('part_number');
 
         // Fetch quick bypass reasons (default factory presets + historical DB reasons)
@@ -449,7 +457,7 @@ class SpProductionSessionController extends Controller
         $quickBypassReasons = $defaultBypassPresets->merge($historicalBypassReasons)->filter()->unique()->values();
 
         return view('sp_production.line_gateway', compact(
-            'line', 'lineSlug', 'shift', 'selectedShift', 'currentShiftConfig',
+            'line', 'lineSlug', 'date', 'shift', 'selectedShift', 'currentShiftConfig',
             'workOrders', 'firstPieceMap', 'spLines', 'quickBypassReasons'
         ));
     }

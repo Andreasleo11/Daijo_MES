@@ -57,4 +57,12 @@ class FirstPieceInspection extends Model
             ->whereDate('date', $dateStr)
             ->orderBy('id', 'desc');
     }
+
+    /**
+     * Scope query to find the latest inspection for a part number regardless of date.
+     */
+    public function scopeLatestForPart($query, string $partNumber)
+    {
+        return $query->where('part_number', $partNumber)->orderBy('id', 'desc');
+    }
 }

@@ -34,7 +34,8 @@ class SecondProcessDashboardController extends Controller
             ->where('shift', $shift)
             ->get();
 
-        $reports = $sessions->keyBy('unit_line');
+        // Key by unit_line, prioritizing running sessions over finished ones
+        $reports = $sessions->sortBy(fn($s) => $s->status === 'running' ? 2 : 1)->keyBy('unit_line');
 
         // 3. Fetch planned/active Work Orders for today or in progress
         $activeWorkOrders = SpWorkOrder::with(['sessions'])
@@ -49,18 +50,32 @@ class SecondProcessDashboardController extends Controller
 
         $workOrdersByLine = $activeWorkOrders->keyBy('unit_line');
 
-        // 4. Fetch First Piece Inspections for this date
-        $firstPieceInspections = FirstPieceInspection::whereDate('date', $date)->get();
+        // 4. Fetch First Piece Inspections for active part numbers (latest per part, date-agnostic)
+        $activePartNumbers = $activeWorkOrders->pluck('part_number')->filter()->unique();
+        $firstPieceInspections = FirstPieceInspection::whereIn('part_number', $activePartNumbers)
+            ->latest('id')
+            ->get()
+            ->unique('part_number');
         $firstPieceMap = $firstPieceInspections->keyBy('part_number');
 
-        // 5. Calculate real-time Shift KPIs
+        // 5. Calculate real-time Shift KPIs & Pending QC Gate Count
         $runningSessionsCount = $sessions->where('status', 'running')->count();
         $pendingWoCount = $activeWorkOrders->whereIn('status', ['planned', 'draft', 'approved'])->count();
         $totalShiftGood = $sessions->sum('total_good');
         $totalShiftReject = $sessions->sum('total_reject');
         $totalShiftTotal = $totalShiftGood + $totalShiftReject;
         $overallNgRate = $totalShiftTotal > 0 ? round(($totalShiftReject / $totalShiftTotal) * 100, 1) : 0;
-        $approvedFirstPieceCount = $firstPieceInspections->filter(fn($fp) => $fp->isApproved())->count();
+
+        $pendingQcGateCount = 0;
+        $approvedFirstPieceCount = 0;
+        foreach ($activeWorkOrders as $wo) {
+            $fp = $firstPieceMap->get($wo->part_number);
+            if ($fp && $fp->isApproved()) {
+                $approvedFirstPieceCount++;
+            } else {
+                $pendingQcGateCount++;
+            }
+        }
 
         return view('second_process.dashboard', compact(
             'lines',
@@ -75,7 +90,8 @@ class SecondProcessDashboardController extends Controller
             'totalShiftGood',
             'totalShiftReject',
             'overallNgRate',
-            'approvedFirstPieceCount'
+            'approvedFirstPieceCount',
+            'pendingQcGateCount'
         ));
     }
 

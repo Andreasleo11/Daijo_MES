@@ -23,10 +23,10 @@
 
     <div class="py-6 space-y-6" x-data="{ 
             activeTab: 'all',
-            focusMode: localStorage.getItem('sp_dashboard_focus_mode') === 'true',
-            toggleFocusMode() {
-                this.focusMode = !this.focusMode;
-                localStorage.setItem('sp_dashboard_focus_mode', this.focusMode);
+            detailedMode: localStorage.getItem('sp_dashboard_detailed_mode') === 'true',
+            toggleDetailedMode() {
+                this.detailedMode = !this.detailedMode;
+                localStorage.setItem('sp_dashboard_detailed_mode', this.detailedMode);
             },
             init() { 
                 setInterval(() => { 
@@ -59,10 +59,10 @@
             </form>
 
             <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-                <button type="button" @click="toggleFocusMode()"
-                    :class="focusMode ? 'bg-blue-600 text-white shadow-sm font-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 font-bold'"
+                <button type="button" @click="toggleDetailedMode()"
+                    :class="detailedMode ? 'bg-blue-600 text-white shadow-sm font-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 font-bold'"
                     class="px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 uppercase tracking-wider">
-                    <span x-text="focusMode ? 'Exit Focus Mode' : 'Focus Mode'"></span>
+                    <span x-text="detailedMode ? 'Compact View' : 'Detailed View'"></span>
                 </button>
                 <div class="flex items-center gap-2 text-xs font-bold text-gray-500">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -71,8 +71,45 @@
             </div>
         </div>
 
-        {{-- Top KPI Metric Cards (Standard Expanded View) --}}
-        <div x-show="!focusMode" x-transition class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+        {{-- Default Compact Metric Strip (shows when !detailedMode) --}}
+        <div x-show="!detailedMode" x-transition class="bg-gray-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-bold shadow-md">
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="button" @click="activeTab = (activeTab === 'running' ? 'all' : 'running')" 
+                        :class="activeTab === 'running' ? 'bg-emerald-500 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
+                        class="px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Running: {{ $runningSessionsCount }}/{{ count($lines) }}</span>
+                    @php $bypassedCount = $reports->filter(fn($r) => $r->status === 'running' && $r->is_qc_bypassed)->count(); @endphp
+                    @if($bypassedCount > 0)
+                        <span class="text-purple-300 font-mono text-[10px]">({{ $bypassedCount }} Bypassed)</span>
+                    @endif
+                </button>
+
+                <button type="button" @click="activeTab = (activeTab === 'ready' ? 'all' : 'ready')" 
+                        :class="activeTab === 'ready' ? 'bg-blue-600 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
+                        class="px-3 py-1.5 rounded-xl transition">
+                    <span>Queued: {{ $pendingWoCount }}</span>
+                </button>
+
+                <button type="button" @click="activeTab = (activeTab === 'qc_gate' ? 'all' : 'qc_gate')" 
+                        :class="activeTab === 'qc_gate' ? 'bg-amber-600 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
+                        class="px-3 py-1.5 rounded-xl transition">
+                    <span>QC Gate: {{ $pendingQcGateCount }} Pending</span>
+                </button>
+
+                <div class="text-gray-300 border-l border-gray-700 pl-3">
+                    <span>Output: <strong class="text-white font-black font-mono">{{ number_format($totalShiftGood) }} Pcs</strong></span>
+                    <span class="ml-2 font-mono font-bold {{ $overallNgRate > 2 ? 'text-red-400' : 'text-emerald-400' }}">({{ $overallNgRate }}% NG)</span>
+                </div>
+            </div>
+
+            <button type="button" @click="toggleDetailedMode()" class="text-[11px] font-black text-gray-400 hover:text-white uppercase tracking-wider flex items-center gap-1">
+                Expand Detailed Cards ↗
+            </button>
+        </div>
+
+        {{-- Top KPI Metric Cards (Detailed Expanded View - shows when detailedMode is ON) --}}
+        <div x-show="detailedMode" x-transition class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
             {{-- KPI Tab 1: Active Production Lines --}}
             <button type="button" @click="activeTab = (activeTab === 'running' ? 'all' : 'running')"
                 :class="activeTab === 'running' ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-400 shadow-md' : 'border-gray-200 bg-white hover:border-emerald-300 shadow-sm'"
@@ -105,10 +142,10 @@
                 class="p-3.5 sm:p-4 md:p-5 rounded-2xl border text-left transition cursor-pointer select-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 w-full">
                 <div>
                     <div class="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1">First Piece QC Gate</div>
-                    <div class="text-lg sm:text-xl md:text-2xl font-black text-gray-900">{{ $approvedFirstPieceCount }} <span class="text-xs text-gray-400 font-bold">Approved Today</span></div>
+                    <div class="text-lg sm:text-xl md:text-2xl font-black text-gray-900">{{ $pendingQcGateCount }} <span class="text-xs text-gray-400 font-bold">Pending QC</span></div>
                 </div>
                 <span class="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-black bg-amber-100 text-amber-800 uppercase tracking-widest border border-amber-200">
-                    QC Gate
+                    {{ $approvedFirstPieceCount }} Approved
                 </span>
             </button>
 
@@ -124,39 +161,6 @@
                     <div class="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1">NG Rate</div>
                     <div class="text-xs sm:text-sm font-black {{ $overallNgRate > 2 ? 'text-red-600' : 'text-emerald-600' }}">{{ $overallNgRate }}%</div>
                 </div>
-            </button>
-        </div>
-
-        {{-- Focused Mode Compact Metric Strip --}}
-        <div x-show="focusMode" x-transition class="bg-gray-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-bold shadow-md">
-            <div class="flex flex-wrap items-center gap-3">
-                <button type="button" @click="activeTab = (activeTab === 'running' ? 'all' : 'running')" 
-                        :class="activeTab === 'running' ? 'bg-emerald-500 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
-                        class="px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>Running: {{ $runningSessionsCount }}/{{ count($lines) }}</span>
-                </button>
-
-                <button type="button" @click="activeTab = (activeTab === 'ready' ? 'all' : 'ready')" 
-                        :class="activeTab === 'ready' ? 'bg-blue-600 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
-                        class="px-3 py-1.5 rounded-xl transition">
-                    <span>Queued: {{ $pendingWoCount }}</span>
-                </button>
-
-                <button type="button" @click="activeTab = (activeTab === 'qc_gate' ? 'all' : 'qc_gate')" 
-                        :class="activeTab === 'qc_gate' ? 'bg-amber-600 text-white font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'" 
-                        class="px-3 py-1.5 rounded-xl transition">
-                    <span>QC Gate: {{ $approvedFirstPieceCount }} Approved</span>
-                </button>
-
-                <div class="text-gray-300 border-l border-gray-700 pl-3">
-                    <span>Output: <strong class="text-white font-black font-mono">{{ number_format($totalShiftGood) }} Pcs</strong></span>
-                    <span class="ml-2 font-mono font-bold {{ $overallNgRate > 2 ? 'text-red-400' : 'text-emerald-400' }}">({{ $overallNgRate }}% NG)</span>
-                </div>
-            </div>
-
-            <button type="button" @click="toggleFocusMode()" class="text-[11px] font-black text-gray-400 hover:text-white uppercase tracking-wider">
-                Expand Cards ✕
             </button>
         </div>
 
@@ -189,37 +193,54 @@
                         }
                         $spLines = config('mes.sp_lines', []);
                         $lineSlug = array_search($lineName, $spLines) ?: \Illuminate\Support\Str::slug($lineName);
-                        $gatewayUrl = route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]);
+                        $gatewayUrl = route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug, 'date' => $date, 'shift' => $shift]);
                     @endphp
 
                     @if($report)
-                        {{-- STATE 1: RUNNING SESSION --}}
-                        <div x-show="activeTab === 'all' || activeTab === 'running'" x-transition class="bg-white rounded-2xl border border-emerald-300 shadow-sm overflow-hidden flex flex-col justify-between transition hover:shadow-md hover:border-emerald-400">
+                        @php
+                            $isRunning = $report->status === 'running';
+                        @endphp
+                        {{-- STATE 1: RUNNING / FINISHED SESSION --}}
+                        <div x-show="activeTab === 'all' || (activeTab === 'running' && '{{ $report->status }}' === 'running')" x-transition 
+                             class="bg-white rounded-2xl border {{ $isRunning ? 'border-emerald-300 hover:border-emerald-400' : 'border-slate-300 hover:border-slate-400' }} shadow-sm overflow-hidden flex flex-col justify-between transition hover:shadow-md">
                             {{-- Clickable Header & Content Body (Line Gateway Trigger) --}}
                             <a href="{{ $gatewayUrl }}" class="block group">
-                                <div class="bg-emerald-50 px-4 py-2.5 border-b border-emerald-100 flex justify-between items-center group-hover:bg-emerald-100/70 transition">
-                                    <h4 class="font-black text-emerald-950 uppercase tracking-wider text-sm flex items-center gap-1.5">
+                                <div class="{{ $isRunning ? 'bg-emerald-50 border-emerald-100 group-hover:bg-emerald-100/70' : 'bg-slate-100 border-slate-200 group-hover:bg-slate-200/70' }} px-4 py-2.5 border-b flex justify-between items-center transition">
+                                    <h4 class="font-black {{ $isRunning ? 'text-emerald-950' : 'text-slate-800' }} uppercase tracking-wider text-sm flex items-center gap-1.5">
                                         {{ $lineName }}
                                     </h4>
-                                    @if($report->status === 'running')
-                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 uppercase tracking-widest animate-pulse border border-emerald-300">
-                                            Running
-                                        </span>
-                                    @else
-                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gray-200 text-gray-700 uppercase tracking-widest">
-                                            Finished
-                                        </span>
-                                    @endif
+                                    <div class="flex items-center gap-1.5">
+                                        @if($report->is_qc_bypassed)
+                                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-900 uppercase tracking-wider border border-purple-300">
+                                                QC Bypassed
+                                            </span>
+                                        @endif
+                                        @if($isRunning)
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 uppercase tracking-widest animate-pulse border border-emerald-300">
+                                                Running
+                                            </span>
+                                        @else
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-700 uppercase tracking-widest border border-slate-300">
+                                                Finished
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
 
-                                {{-- Standard Expanded Content --}}
-                                <div x-show="!focusMode" class="p-5 space-y-4">
+                                {{-- Standard Expanded Content (shows when detailedMode is ON) --}}
+                                <div x-show="detailedMode" class="p-5 space-y-4">
                                     <div>
                                         <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Work Order & Part</div>
                                         <div class="font-black text-xs text-blue-700">{{ $report->workOrder->wo_number ?? '-' }}</div>
                                         <div class="font-bold text-sm text-gray-800 truncate" title="{{ $report->workOrder->part_name ?? '-' }}">{{ $report->workOrder->part_name ?? '-' }}</div>
                                         <div class="text-xs text-gray-500 font-mono font-medium">{{ $report->workOrder->part_number ?? '-' }}</div>
                                     </div>
+
+                                    @if($report->is_qc_bypassed && $report->qc_bypass_reason)
+                                        <div class="px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 truncate" title="{{ $report->qc_bypass_reason }}">
+                                            <span class="font-black uppercase text-purple-700">QC Bypass:</span> {{ $report->qc_bypass_reason }}
+                                        </div>
+                                    @endif
 
                                     @php
                                         $targetQty = $report->workOrder->target_qty ?? 0;
@@ -232,7 +253,7 @@
                                             <span>{{ number_format($goodQty) }} / {{ number_format($targetQty) }} Pcs ({{ $pct }}%)</span>
                                         </div>
                                         <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
-                                            <div class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: {{ $pct }}%"></div>
+                                            <div class="{{ $isRunning ? 'bg-emerald-500' : 'bg-slate-400' }} h-2 rounded-full transition-all duration-500" style="width: {{ $pct }}%"></div>
                                         </div>
                                     </div>
 
@@ -252,12 +273,18 @@
                                     </div>
                                 </div>
 
-                                {{-- Focused High-Density Content --}}
-                                <div x-show="focusMode" class="p-3.5 space-y-2 text-xs">
+                                {{-- Default Compact High-Density Content (shows when !detailedMode) --}}
+                                <div x-show="!detailedMode" class="p-3.5 space-y-2 text-xs">
                                     <div class="flex justify-between items-center font-bold text-gray-800">
                                         <span class="text-blue-700 font-black font-mono text-xs">{{ $report->workOrder->wo_number ?? '-' }}</span>
                                         <span class="truncate ml-2 text-xs font-semibold text-gray-700" title="{{ $report->workOrder->part_name ?? '-' }}">{{ $report->workOrder->part_name ?? '-' }}</span>
                                     </div>
+
+                                    @if($report->is_qc_bypassed && $report->qc_bypass_reason)
+                                        <div class="px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-900 truncate" title="{{ $report->qc_bypass_reason }}">
+                                            <span class="font-black uppercase text-purple-700">Bypass:</span> {{ $report->qc_bypass_reason }}
+                                        </div>
+                                    @endif
 
                                     @php
                                         $targetQty = $report->workOrder->target_qty ?? 0;
@@ -270,7 +297,7 @@
                                             <span>{{ number_format($goodQty) }} / {{ number_format($targetQty) }}</span>
                                         </div>
                                         <div class="w-full bg-gray-100 rounded-full h-1.5 border border-gray-200 overflow-hidden">
-                                            <div class="bg-emerald-500 h-1.5 rounded-full transition-all" style="width: {{ $pct }}%"></div>
+                                            <div class="{{ $isRunning ? 'bg-emerald-500' : 'bg-slate-400' }} h-1.5 rounded-full transition-all" style="width: {{ $pct }}%"></div>
                                         </div>
                                     </div>
 
@@ -283,12 +310,12 @@
                             </a>
 
                             {{-- Bottom Actions --}}
-                            <div :class="focusMode ? 'p-2.5' : 'p-3.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                            <div :class="detailedMode ? 'p-3.5' : 'p-2.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
                                     Analytics
                                 </a>
-                                <a href="{{ route('app.sp-sessions.show', $report->id) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-2/3 text-center bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
-                                    Operator Screen
+                                <a href="{{ route('app.sp-sessions.show', $report->id) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-2/3 text-center {{ $isRunning ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800' : 'bg-slate-700 hover:bg-slate-800 active:bg-slate-900' }} text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                    {{ $isRunning ? 'Operator Screen' : 'View Session' }}
                                 </a>
                             </div>
                         </div>
@@ -310,7 +337,7 @@
                                     </div>
 
                                     {{-- Standard Expanded Content --}}
-                                    <div x-show="!focusMode" class="p-5 space-y-3">
+                                    <div x-show="detailedMode" class="p-5 space-y-3">
                                         <div>
                                             <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Assigned Work Order</div>
                                             <div class="font-black text-xs text-blue-700">{{ $assignedWo->wo_number }}</div>
@@ -324,8 +351,8 @@
                                         </div>
                                     </div>
 
-                                    {{-- Focused High-Density Content --}}
-                                    <div x-show="focusMode" class="p-3.5 space-y-2 text-xs">
+                                    {{-- Default Compact High-Density Content --}}
+                                    <div x-show="!detailedMode" class="p-3.5 space-y-2 text-xs">
                                         <div class="flex justify-between items-center font-bold text-gray-800">
                                             <span class="text-blue-700 font-black font-mono text-xs">{{ $assignedWo->wo_number }}</span>
                                             <span class="truncate ml-2 text-xs font-semibold text-gray-700" title="{{ $assignedWo->part_name }}">{{ $assignedWo->part_name }}</span>
@@ -336,13 +363,13 @@
                                     </div>
                                 </a>
 
-                                <div :class="focusMode ? 'p-2.5' : 'p-3.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                <div :class="detailedMode ? 'p-3.5' : 'p-2.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
                                         Analytics
                                     </a>
                                     <form action="{{ route('sp-sessions.start', $assignedWo->id) }}" method="POST" class="w-2/3">
                                         @csrf
-                                        <button type="submit" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                        <button type="submit" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                             Start Production
                                         </button>
                                     </form>
@@ -360,7 +387,7 @@
                                     </div>
 
                                     {{-- Standard Expanded Content --}}
-                                    <div x-show="!focusMode" class="p-5 space-y-3">
+                                    <div x-show="detailedMode" class="p-5 space-y-3">
                                         <div>
                                             <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Assigned Work Order</div>
                                             <div class="font-black text-xs text-amber-800">{{ $assignedWo->wo_number }}</div>
@@ -373,8 +400,8 @@
                                         </div>
                                     </div>
 
-                                    {{-- Focused High-Density Content --}}
-                                    <div x-show="focusMode" class="p-3.5 space-y-2 text-xs">
+                                    {{-- Default Compact High-Density Content --}}
+                                    <div x-show="!detailedMode" class="p-3.5 space-y-2 text-xs">
                                         <div class="flex justify-between items-center font-bold text-gray-800">
                                             <span class="text-amber-800 font-black font-mono text-xs">{{ $assignedWo->wo_number }}</span>
                                             <span class="truncate ml-2 text-xs font-semibold text-gray-700" title="{{ $assignedWo->part_name }}">{{ $assignedWo->part_name }}</span>
@@ -385,17 +412,17 @@
                                     </div>
                                 </a>
 
-                                <div :class="focusMode ? 'p-2.5' : 'p-3.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                                <div :class="detailedMode ? 'p-3.5' : 'p-2.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                    <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
                                         Analytics
                                     </a>
                                     @can('execute-qc-inspections')
                                         <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $assignedWo->id, 'part_number' => $assignedWo->part_number, 'part_name' => $assignedWo->part_name, 'model' => $assignedWo->model]) }}"
-                                            :class="focusMode ? 'py-1.5' : 'py-2.5'" class="block w-2/3 text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                            :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="block w-2/3 text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                             First Piece Inspection
                                         </a>
                                     @else
-                                        <a href="{{ $gatewayUrl }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="block w-2/3 text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                        <a href="{{ $gatewayUrl }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="block w-2/3 text-center bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                             Open Gateway
                                         </a>
                                     @endcan
@@ -415,27 +442,27 @@
                                 </div>
 
                                 {{-- Standard Expanded Content --}}
-                                <div x-show="!focusMode" class="p-5 flex flex-col items-center justify-center text-center py-10">
+                                <div x-show="detailedMode" class="p-5 flex flex-col items-center justify-center text-center py-10">
                                     <p class="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">No Active Production</p>
                                     <p class="text-[11px] text-gray-500 font-medium">Line is available for assignment</p>
                                 </div>
 
-                                {{-- Focused High-Density Content --}}
-                                <div x-show="focusMode" class="py-2.5 px-3 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                                {{-- Default Compact High-Density Content --}}
+                                <div x-show="!detailedMode" class="py-2.5 px-3 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                                     Line Available
                                 </div>
                             </a>
 
-                            <div :class="focusMode ? 'p-2.5' : 'p-3.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
+                            <div :class="detailedMode ? 'p-3.5' : 'p-2.5'" class="bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                                <a href="{{ route('second-process.line-dashboard', ['line' => $lineSlug, 'date' => $date, 'shift' => $shift]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="w-1/3 text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-2 rounded-xl text-xs transition uppercase tracking-wider">
                                     Analytics
                                 </a>
                                 @can('manage-sp-work-orders')
-                                    <a href="{{ route('sp-work-orders.create', ['unit_line' => $lineName]) }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="block w-2/3 text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                    <a href="{{ route('sp-work-orders.create', ['unit_line' => $lineName]) }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="block w-2/3 text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                         Create Work Order
                                     </a>
                                 @else
-                                    <a href="{{ $gatewayUrl }}" :class="focusMode ? 'py-1.5' : 'py-2.5'" class="block w-2/3 text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
+                                    <a href="{{ $gatewayUrl }}" :class="detailedMode ? 'py-2.5' : 'py-1.5'" class="block w-2/3 text-center bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-black px-4 rounded-xl shadow-sm text-xs transition uppercase tracking-wider">
                                         Open Gateway
                                     </a>
                                 @endcan
