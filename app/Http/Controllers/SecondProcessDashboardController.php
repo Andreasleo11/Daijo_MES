@@ -40,7 +40,9 @@ class SecondProcessDashboardController extends Controller
         $activeWorkOrders = SpWorkOrder::with(['sessions'])
             ->where(function ($query) use ($date) {
                 $query->whereDate('planned_date', $date)
-                    ->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress']);
+                    ->where(function($query) {
+                        $query->orWhereIn('status', ['planned', 'draft', 'approved', 'in_progress']);
+                    });
             })
             ->orderBy('id', 'desc')
             ->get();
