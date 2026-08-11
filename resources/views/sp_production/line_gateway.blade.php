@@ -133,6 +133,12 @@
                                 <div class="text-xs text-slate-600 font-semibold">
                                     Target: <strong class="text-slate-950 font-black">{{ number_format($wo->target_qty) }} Pcs</strong>
                                 </div>
+                                @php $cumulativeGood = $wo->sessions->sum('total_good'); @endphp
+                                @if($cumulativeGood > 0)
+                                    <div class="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 inline-block">
+                                        Previously produced: <strong class="font-black">{{ number_format($cumulativeGood) }} / {{ number_format($wo->target_qty) }} Pcs</strong> — Remaining: <strong class="font-black text-amber-900">{{ number_format(max(0, $wo->target_qty - $cumulativeGood)) }} Pcs</strong>
+                                    </div>
+                                @endif
                             </div>
 
                             <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="w-full lg:w-auto">

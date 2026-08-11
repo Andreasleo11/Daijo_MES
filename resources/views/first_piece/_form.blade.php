@@ -313,19 +313,87 @@
                 </div>
             @endif
 
-            <div class="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:border-blue-500 transition bg-gray-50" id="file-dropzone">
-                <input type="file" name="qc_files[]" multiple accept="image/*" class="hidden" id="qc-files-input">
-                <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="mt-2 text-xs text-gray-600">
-                    <button type="button" onclick="document.getElementById('qc-files-input').click()" class="font-bold text-blue-600 hover:underline">
-                        Upload inspection photos
+            <div x-data="{
+                uploads: [],
+                presets: ['Front View', 'Side View', 'Close-up Defect', 'Measurement', 'Physical Sample'],
+                addSlot(presetLabel = '') {
+                    this.uploads.push({ label: presetLabel, file: null, preview: null });
+                },
+                removeSlot(idx) {
+                    this.uploads.splice(idx, 1);
+                },
+                handleFile(idx, event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.uploads[idx].file = file;
+                    if (!this.uploads[idx].label) {
+                        const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                        this.uploads[idx].label = nameWithoutExt;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => { this.uploads[idx].preview = e.target.result; };
+                    reader.readAsDataURL(file);
+                }
+            }" class="space-y-4">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-[11px] font-black text-gray-500 uppercase tracking-wider">Quick Presets:</span>
+                    <template x-for="preset in presets" :key="preset">
+                        <button type="button" @click="addSlot(preset)"
+                            class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold text-xs rounded-xl transition shadow-xs active:scale-95">
+                            + <span x-text="preset"></span>
+                        </button>
+                    </template>
+                    <button type="button" @click="addSlot('')"
+                        class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs active:scale-95">
+                        + Add Custom Photo Slot
                     </button>
-                    <span> or drag and drop</span>
                 </div>
-                <p class="text-[10px] text-gray-400 mt-1">PNG, JPG, WEBP up to 5MB each</p>
-                <div id="file-preview-list" class="mt-4 text-left text-xs space-y-1"></div>
+
+                <div class="space-y-3">
+                    <template x-for="(slot, idx) in uploads" :key="idx">
+                        <div class="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-2xl transition hover:border-blue-300">
+                            {{-- Thumbnail Preview --}}
+                            <div class="w-16 h-16 flex-shrink-0 bg-white border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center shadow-xs">
+                                <template x-if="slot.preview">
+                                    <img :src="slot.preview" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!slot.preview">
+                                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </template>
+                            </div>
+
+                            {{-- Label + File Input --}}
+                            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Custom Photo Label</label>
+                                    <input type="text" :name="`qc_file_labels[${idx}]`" x-model="slot.label"
+                                        placeholder="e.g. Front View, Defect Detail..."
+                                        class="w-full rounded-xl border-gray-300 text-xs font-bold text-gray-800 focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Select File *</label>
+                                    <input type="file" :name="`qc_files[${idx}]`" accept="image/*"
+                                        @change="handleFile(idx, $event)"
+                                        class="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border file:border-gray-300 file:text-xs file:font-bold file:bg-white file:text-gray-700 hover:file:bg-gray-100 cursor-pointer">
+                                </div>
+                            </div>
+
+                            {{-- Remove Button --}}
+                            <button type="button" @click="removeSlot(idx)"
+                                class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition font-black text-lg" title="Remove upload slot">
+                                &times;
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <template x-if="uploads.length === 0">
+                    <div class="text-center py-8 text-xs text-gray-400 font-semibold border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                        Click a quick preset button above or <strong class="text-blue-600 cursor-pointer" @click="addSlot('')">+ Add Custom Photo Slot</strong> to attach proof photos with labels.
+                    </div>
+                </template>
             </div>
         </div>
     </div>
@@ -399,22 +467,6 @@ document.addEventListener('DOMContentLoaded', function() {
             resultInputs.forEach((input) => {
                 const idx = input.id.replace('result-input-', '');
                 setCheckpointState(idx, 'OK');
-            });
-        });
-    }
-
-    // File preview logic
-    const fileInput = document.getElementById('qc-files-input');
-    const previewList = document.getElementById('file-preview-list');
-
-    if (fileInput && previewList) {
-        fileInput.addEventListener('change', function() {
-            previewList.innerHTML = '';
-            Array.from(this.files).forEach((file) => {
-                const item = document.createElement('div');
-                item.className = 'flex items-center space-x-2 text-gray-700 bg-blue-50 p-2 rounded-xl';
-                item.innerHTML = `<span class="font-bold">${file.name}</span> <span class="text-gray-500">(${(file.size/1024/1024).toFixed(2)} MB)</span>`;
-                previewList.appendChild(item);
             });
         });
     }

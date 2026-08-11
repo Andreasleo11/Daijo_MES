@@ -240,16 +240,81 @@
 
             <!-- Attached Physical Proof Gallery -->
             @if($inspection->attachments->count() > 0)
-                <div class="border-t border-black pt-4">
+                <div x-data="{
+                        isOpen: false,
+                        activeIdx: 0,
+                        images: [
+                            @foreach($inspection->attachments as $attach)
+                            { url: '{{ $attach->url }}', label: '{{ addslashes($attach->label ?? $attach->original_name) }}' }{{ !$loop->last ? ',' : '' }}
+                            @endforeach
+                        ],
+                        openGallery(idx) {
+                            this.activeIdx = idx;
+                            this.isOpen = true;
+                            document.body.style.overflow = 'hidden';
+                        },
+                        closeGallery() {
+                            this.isOpen = false;
+                            document.body.style.overflow = '';
+                        },
+                        next() {
+                            this.activeIdx = (this.activeIdx + 1) % this.images.length;
+                        },
+                        prev() {
+                            this.activeIdx = (this.activeIdx - 1 + this.images.length) % this.images.length;
+                        }
+                    }"
+                    @keydown.escape.window="closeGallery()"
+                    @keydown.arrow-right.window="if(isOpen) next()"
+                    @keydown.arrow-left.window="if(isOpen) prev()"
+                    class="border-t border-black pt-4">
+
                     <h4 class="text-xs font-bold text-gray-700 uppercase mb-2">Attached Physical Sample Photos:</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        @foreach($inspection->attachments as $attach)
-                            <a href="{{ $attach->url }}" target="_blank" class="block border rounded p-2 text-center hover:shadow transition">
-                                <img src="{{ $attach->url }}" alt="{{ $attach->label }}" class="h-32 object-cover mx-auto rounded">
-                                <div class="text-[11px] text-gray-700 mt-1 font-semibold truncate">{{ $attach->label ?? $attach->original_name }}</div>
-                            </a>
+                        @foreach($inspection->attachments as $idx => $attach)
+                            <button type="button" @click="openGallery({{ $idx }})" class="block border rounded p-2 text-center hover:shadow transition focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-white group relative">
+                                <div class="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/10 transition rounded"></div>
+                                <img src="{{ $attach->url }}" alt="{{ $attach->label }}" class="h-32 w-full object-cover mx-auto rounded border border-gray-100">
+                                <div class="text-[11px] text-gray-700 mt-2 font-semibold truncate">{{ $attach->label ?? $attach->original_name }}</div>
+                            </button>
                         @endforeach
                     </div>
+
+                    <!-- Lightbox Modal -->
+                    <template x-teleport="body">
+                        <div x-show="isOpen" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm" x-transition.opacity>
+                            <!-- Close Button -->
+                            <button @click="closeGallery()" class="absolute top-6 right-6 text-slate-300 hover:text-white focus:outline-none z-[110] p-2 bg-slate-800/50 hover:bg-slate-700 rounded-full transition">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+
+                            <!-- Navigation Previous -->
+                            <button x-show="images.length > 1" @click.stop="prev()" class="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-300 hover:text-white focus:outline-none p-3 bg-slate-800/50 hover:bg-slate-700 rounded-full transition z-[110]">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+
+                            <!-- Main Content -->
+                            <div class="max-w-5xl w-full max-h-[90vh] flex flex-col items-center justify-center p-4 relative" @click.outside="closeGallery()">
+                                <!-- Image Label -->
+                                <div class="absolute top-0 inset-x-0 text-center -mt-8">
+                                    <span class="bg-slate-800 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg border border-slate-700" x-text="images[activeIdx].label"></span>
+                                </div>
+
+                                <!-- Main Image -->
+                                <img :src="images[activeIdx].url" :alt="images[activeIdx].label" class="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl">
+                                
+                                <!-- Image Counter -->
+                                <div class="absolute bottom-0 inset-x-0 text-center -mb-8">
+                                    <span class="text-slate-400 text-xs font-semibold tracking-widest" x-text="(activeIdx + 1) + ' / ' + images.length"></span>
+                                </div>
+                            </div>
+
+                            <!-- Navigation Next -->
+                            <button x-show="images.length > 1" @click.stop="next()" class="absolute right-6 top-1/2 transform -translate-y-1/2 text-slate-300 hover:text-white focus:outline-none p-3 bg-slate-800/50 hover:bg-slate-700 rounded-full transition z-[110]">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                        </div>
+                    </template>
                 </div>
             @endif
 

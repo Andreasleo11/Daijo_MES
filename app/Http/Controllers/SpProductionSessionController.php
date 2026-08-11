@@ -391,11 +391,22 @@ class SpProductionSessionController extends Controller
         ]);
 
         if ($session->workOrder) {
-            $session->workOrder->update(['status' => 'completed']);
+            $wo = $session->workOrder;
+            $cumulativeGood = $wo->sessions()->sum('total_good');
+
+            if ($cumulativeGood >= $wo->target_qty) {
+                $wo->update(['status' => 'completed']);
+            } else {
+                $wo->update(['status' => 'planned']);
+            }
         }
 
+        $successMsg = ($session->workOrder && $session->workOrder->fresh()->status === 'completed')
+            ? "Production session completed. Work Order {$session->workOrder->wo_number} target fulfilled!"
+            : "Production session completed. Work Order target not yet met — order returned to queue.";
+
         return redirect()->route('sp-sessions.line-gateway', $redirectParams)
-            ->with('success', 'Production session completed successfully.');
+            ->with('success', $successMsg);
     }
 
     /**

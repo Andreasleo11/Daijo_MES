@@ -119,8 +119,18 @@
                                     {{ number_format($totalGood) }} <span class="text-xs font-bold text-gray-400">/ {{ number_format($workOrder->target_qty) }} Pcs</span>
                                 </div>
                             </div>
-                            <div class="text-2xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
-                                {{ $workOrder->progress_percentage }}%
+                            <div class="flex items-center gap-4">
+                                @if($workOrder->status === 'planned' && $totalGood > 0 && $totalGood < $workOrder->target_qty)
+                                    <div class="text-right">
+                                        <span class="text-[10px] font-black text-amber-600 uppercase tracking-widest block">Remaining</span>
+                                        <div class="text-lg font-black text-amber-700">
+                                            {{ number_format($workOrder->target_qty - $totalGood) }} Pcs
+                                        </div>
+                                    </div>
+                                @endif
+                                <div class="text-2xl font-black {{ $workOrder->progress_percentage >= 100 ? 'text-emerald-600' : 'text-blue-600' }}">
+                                    {{ $workOrder->progress_percentage }}%
+                                </div>
                             </div>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
