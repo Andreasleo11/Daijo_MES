@@ -28,17 +28,17 @@
                 }
             }
         </script>
-        <div class="flex items-center justify-between gap-2 text-xs" x-data="headerClock()" x-cloak>
+        <div class="flex items-center justify-between gap-2 text-sm" x-data="headerClock()" x-cloak>
             {{-- Left: WO & Part info --}}
             <div class="flex items-center gap-2 min-w-0">
-                <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="font-black text-blue-700 hover:text-blue-900 whitespace-nowrap text-sm">
+                <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="font-black text-blue-700 hover:text-blue-900 whitespace-nowrap text-base">
                     {{ $session->workOrder->wo_number }}
                 </a>
                 <span class="text-gray-300 font-light">|</span>
-                <span class="font-black text-gray-900 truncate max-w-[140px] sm:max-w-[200px]" title="{{ $session->workOrder->part_number }}">
+                <span class="font-black text-gray-900 truncate max-w-[140px] sm:max-w-[200px] text-sm" title="{{ $session->workOrder->part_number }}">
                     {{ $session->workOrder->part_number }}
                 </span>
-                <span class="text-gray-500 truncate hidden md:inline max-w-[180px]" title="{{ $session->workOrder->part_name }}">
+                <span class="text-gray-500 truncate hidden md:inline max-w-[180px] text-xs font-medium" title="{{ $session->workOrder->part_name }}">
                     {{ $session->workOrder->part_name }}
                 </span>
             </div>
@@ -46,22 +46,22 @@
             {{-- Center: Status & Session Elapsed --}}
             <div class="flex items-center gap-2 whitespace-nowrap">
                 @if($session->status === 'running')
-                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-green-500 text-white uppercase animate-pulse">
+                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-green-500 text-white uppercase animate-pulse">
                         RUNNING
                     </span>
-                    <span class="text-[10px] font-bold text-gray-500" x-text="elapsedTime"></span>
+                    <span class="text-xs font-bold text-gray-500" x-text="elapsedTime"></span>
                 @elseif($session->approved_by)
-                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-blue-500 text-white uppercase">
+                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-blue-500 text-white uppercase">
                         APPROVED
                     </span>
                 @else
-                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-gray-500 text-white uppercase">
+                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-gray-500 text-white uppercase">
                         COMPLETED
                     </span>
                 @endif
 
                 @if($session->is_qc_bypassed)
-                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
+                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
                         BYPASSED
                     </span>
                 @endif
@@ -72,17 +72,17 @@
                 $lineSlug = array_search($session->unit_line, config('mes.sp_lines', [])) ?: 'line-a';
             @endphp
             <div class="flex items-center gap-2 whitespace-nowrap">
-                <span class="font-bold text-gray-700 text-[11px]">
+                <span class="font-bold text-gray-700 text-xs">
                     {{ $session->unit_line }} S{{ $session->shift }}
                 </span>
-                <span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-[11px]" x-text="liveTime"></span>
+                <span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs" x-text="liveTime"></span>
                 
-                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2.5 rounded-lg text-[10px] transition uppercase">
+                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2.5 rounded-lg text-xs transition uppercase">
                     Gateway
                 </a>
 
                 @if($session->status === 'running')
-                    <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-black py-1 px-3 rounded-lg text-[10px] uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-black py-1 px-3 rounded-lg text-xs uppercase tracking-wider transition">
                         Finish
                     </button>
                 @endif
@@ -101,7 +101,9 @@
                         reject: {{ $session->total_reject ?? 0 }},
                         yield: {{ $session->yield ?? 0 }},
                         downtime_minutes: {{ $session->downtimeEntries->sum('duration_minutes') ?? 0 }},
-                        downtime_count: {{ $session->downtimeEntries->count() ?? 0 }}
+                        downtime_count: {{ $session->downtimeEntries->count() ?? 0 }},
+                        rework_in: {{ $session->total_rework_in ?? 0 }},
+                        rework_recovered: {{ $session->total_rework_recovered ?? 0 }}
                     },
                     targetQty: {{ $session->workOrder->target_qty ?? 1 }},
                     progressPct: 0,
@@ -115,6 +117,7 @@
                     downtimeEntries: @json($session->downtimeEntries),
                     reworkEntries: @json($session->reworkEntries),
                     inputEntries: @json($session->inputEntries),
+                    manpowerEntries: @json($session->manpowerEntries),
 
                     init() {
                         // Load persistent quick-tap batch size
@@ -164,6 +167,33 @@
                                     this.highlightedEntryId = null;
                                 }
                             }, 1500);
+                        }
+                    },
+
+                    async removeManpower(manpowerId) {
+                        if (!confirm('Remove worker from line team?')) return;
+
+                        try {
+                            const response = await fetch(`{{ url('app/sp-sessions/' . $session->id . '/manpower') }}/${manpowerId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error || 'Failed to remove team member.');
+                            }
+
+                            const data = await response.json();
+                            if (data.success) {
+                                this.manpowerEntries = this.manpowerEntries.filter(m => m.id !== manpowerId);
+                            }
+                        } catch (error) {
+                            alert(error.message);
                         }
                     },
 
@@ -241,6 +271,7 @@
                                 else if (type === 'downtime') this.downtimeEntries.unshift(data.entry);
                                 else if (type === 'rework') this.reworkEntries.unshift(data.entry);
                                 else if (type === 'input') this.inputEntries.unshift(data.entry);
+                                else if (type === 'manpower') this.manpowerEntries.unshift(data.entry);
 
                                 if (tabMap[type]) {
                                     this.tab = tabMap[type];
@@ -305,43 +336,54 @@
             </div>
         @endif
 
-        {{-- KPI Strip + Target Progress Bar (Compact ~52px) --}}
-        <div class="bg-white border-b border-gray-200 px-3 py-2 shadow-sm flex-shrink-0">
+        {{-- KPI Strip + Target Progress Bar (Compact ~56px) --}}
+        <div class="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
             <div class="flex items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-4 flex-wrap">
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black text-gray-400 uppercase">Input</span>
-                        <span class="text-base font-black text-gray-900" x-text="formatNum(totals.input)"></span>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-xl border border-gray-200 shadow-xs">
+                        <span class="text-xs font-black text-gray-400 uppercase tracking-wider">Input</span>
+                        <span class="text-xl font-black text-gray-900" x-text="formatNum(totals.input)"></span>
                     </div>
 
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black text-green-600 uppercase">Good</span>
-                        <span class="text-base font-black text-green-600" x-text="formatNum(totals.good)"></span>
+                    <div class="flex items-center gap-2 px-3 py-1 bg-emerald-50/60 rounded-xl border border-emerald-200 shadow-xs">
+                        <span class="text-xs font-black text-emerald-600 uppercase tracking-wider">Good</span>
+                        <span class="text-xl font-black text-emerald-700" x-text="formatNum(totals.good)"></span>
                     </div>
 
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black text-red-600 uppercase">NG</span>
-                        <span class="text-base font-black text-red-600" x-text="formatNum(totals.reject)"></span>
+                    <div class="flex items-center gap-2 px-3 py-1 bg-red-50/60 rounded-xl border border-red-200 shadow-xs">
+                        <span class="text-xs font-black text-red-500 uppercase tracking-wider">NG</span>
+                        <span class="text-xl font-black text-red-600" x-text="formatNum(totals.reject)"></span>
                     </div>
 
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black uppercase" :class="totals.yield >= 90 ? 'text-green-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')">Yield</span>
-                        <span class="text-base font-black" :class="totals.yield >= 90 ? 'text-green-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')" x-text="totals.yield + '%'"></span>
+                    <div class="flex items-center gap-2 px-3 py-1 rounded-xl border shadow-xs"
+                         :class="totals.yield >= 90 ? 'bg-emerald-50/60 border-emerald-200' : (totals.yield >= 80 ? 'bg-amber-50/60 border-amber-200' : 'bg-red-50/60 border-red-200')">
+                        <span class="text-xs font-black uppercase tracking-wider" :class="totals.yield >= 90 ? 'text-emerald-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')">Yield</span>
+                        <span class="text-xl font-black" :class="totals.yield >= 90 ? 'text-emerald-700' : (totals.yield >= 80 ? 'text-amber-700' : 'text-red-700')" x-text="totals.yield + '%'"></span>
                     </div>
 
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black text-orange-600 uppercase">Downtime</span>
-                        <span class="text-base font-black text-orange-600" x-text="totals.downtime_minutes + 'm'"></span>
+                    <div class="flex items-center gap-2 px-3 py-1 bg-orange-50/60 rounded-xl border border-orange-200 shadow-xs">
+                        <span class="text-xs font-black text-orange-500 uppercase tracking-wider">Downtime</span>
+                        <span class="text-xl font-black text-orange-600" x-text="totals.downtime_minutes + 'm'"></span>
                     </div>
+
+                    <button type="button" @click="tab = 'manpower'" class="flex items-center gap-2 px-3 py-1 bg-purple-50/60 hover:bg-purple-100/80 active:bg-purple-200 rounded-xl border border-purple-200 shadow-xs transition cursor-pointer text-left">
+                        <span class="text-xs font-black text-purple-600 uppercase tracking-wider">Team</span>
+                        <span class="text-xl font-black text-purple-700" x-text="manpowerEntries.length"></span>
+                    </button>
+
+                    <button type="button" x-show="totals.rework_in > 0 || totals.rework_recovered > 0" x-cloak @click="tab = 'rework'" class="flex items-center gap-2 px-3 py-1 bg-yellow-50/60 hover:bg-yellow-100/80 active:bg-yellow-200 rounded-xl border border-yellow-200 shadow-xs transition cursor-pointer text-left">
+                        <span class="text-xs font-black text-yellow-600 uppercase tracking-wider">Rework</span>
+                        <span class="text-xl font-black text-yellow-700" x-text="formatNum(totals.rework_recovered) + '/' + formatNum(totals.rework_in)"></span>
+                    </button>
                 </div>
 
                 {{-- Target Progress --}}
-                <div class="flex-1 max-w-xs min-w-[140px] pl-2">
-                    <div class="flex justify-between text-[10px] font-bold text-gray-500 mb-0.5">
+                <div class="flex-1 max-w-xs min-w-[160px] pl-2">
+                    <div class="flex justify-between text-xs font-bold text-gray-500 mb-1">
                         <span>Target Progress</span>
                         <span><strong class="text-gray-900" x-text="formatNum(totals.good)"></strong> / {{ number_format($session->workOrder->target_qty) }}</span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                         <div class="h-full rounded-full transition-all duration-500"
                              :class="progressPct >= 100 ? 'bg-green-500' : (progressPct >= 75 ? 'bg-blue-500' : (progressPct >= 50 ? 'bg-amber-500' : 'bg-gray-400'))"
                              :style="'width: ' + Math.min(100, progressPct) + '%'"></div>
@@ -350,71 +392,71 @@
             </div>
         </div>
 
-        {{-- Action Control Panel + Quick-Tap Configurable Toolbar (Compact ~44px) --}}
+        {{-- Action Control Panel + Quick-Tap Configurable Toolbar (Touch Target Height ~42px) --}}
         @if($session->status === 'running')
-            <div class="bg-slate-900 text-white px-3 py-1.5 flex items-center justify-between gap-2 shadow-inner flex-shrink-0">
-                <div class="flex items-center gap-2">
-                    {{-- Quick-Tap Button with Flash Effect --}}
+            <div class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between gap-3 shadow-inner flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    {{-- Quick-Tap Button with Touch Target 42px --}}
                     <button type="button" @click="quickAddGood()"
-                        class="bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-black py-1.5 px-4 rounded-xl text-xs uppercase tracking-wider transition shadow flex items-center gap-1.5 min-w-[110px] justify-center"
+                        class="bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-black py-2.5 px-5 rounded-xl text-sm uppercase tracking-wider transition shadow-md flex items-center gap-1.5 min-w-[130px] justify-center"
                         :class="quickFlash && 'ring-4 ring-emerald-300 bg-emerald-400 scale-105'">
                         <span x-text="quickFlash ? 'SAVED!' : ('+' + batchSize + ' GOOD')"></span>
                     </button>
 
                     {{-- Operator Configurable Batch Size Selector --}}
-                    <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-[10px] font-bold">
-                        <span class="px-1.5 text-slate-400 uppercase text-[9px]">Batch:</span>
+                    <div class="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs font-bold">
+                        <span class="px-2 text-slate-400 uppercase text-xs">Batch:</span>
                         <template x-for="size in [1, 5, 10, 50]" :key="size">
                             <button type="button" @click="setBatchSize(size)"
-                                :class="batchSize === size ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'"
-                                class="px-2 py-0.5 rounded transition" x-text="'+' + size"></button>
+                                :class="batchSize === size ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                                class="px-2.5 py-1 rounded-lg transition text-xs font-bold" x-text="'+' + size"></button>
                         </template>
                     </div>
                 </div>
 
-                {{-- Modal Action Triggers --}}
-                <div class="flex items-center gap-1.5 overflow-x-auto">
-                    <button onclick="document.getElementById('modalProduction').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                {{-- Modal Action Triggers (Touch Target ~42px) --}}
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <button onclick="document.getElementById('modalProduction').showModal()" class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         Output
                     </button>
-                    <button onclick="document.getElementById('modalReject').showModal()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalReject').showModal()" class="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         Defect
                     </button>
-                    <button onclick="document.getElementById('modalDowntime').showModal()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalDowntime').showModal()" class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         Downtime
                     </button>
-                    <button onclick="document.getElementById('modalRework').showModal()" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalRework').showModal()" class="bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         Rework
                     </button>
-                    <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         Input
                     </button>
-                    <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
                         + Team
                     </button>
                 </div>
             </div>
         @endif
 
-        {{-- Event Log Tabs (Compact ~28px) --}}
-        <div class="bg-white border-b border-gray-200 px-3 flex gap-1 text-xs flex-shrink-0">
-            <button @click="tab = 'production'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'production', 'text-gray-500 hover:text-gray-700': tab !== 'production' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+        {{-- Event Log Tabs (Touch Friendly ~38px) --}}
+        <div class="bg-white border-b border-gray-200 px-4 flex gap-1 text-sm flex-shrink-0">
+            <button @click="tab = 'production'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'production', 'text-gray-500 hover:text-gray-700': tab !== 'production' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
                 Output (<span x-text="productionEntries.length"></span>)
             </button>
-            <button @click="tab = 'defects'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'defects', 'text-gray-500 hover:text-gray-700': tab !== 'defects' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+            <button @click="tab = 'defects'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'defects', 'text-gray-500 hover:text-gray-700': tab !== 'defects' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
                 Defects (<span x-text="rejectEntries.length"></span>)
             </button>
-            <button @click="tab = 'downtime'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'downtime', 'text-gray-500 hover:text-gray-700': tab !== 'downtime' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+            <button @click="tab = 'downtime'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'downtime', 'text-gray-500 hover:text-gray-700': tab !== 'downtime' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
                 Downtime (<span x-text="downtimeEntries.length"></span>)
             </button>
-            <button @click="tab = 'rework'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'rework', 'text-gray-500 hover:text-gray-700': tab !== 'rework' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+            <button @click="tab = 'rework'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'rework', 'text-gray-500 hover:text-gray-700': tab !== 'rework' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
                 Rework (<span x-text="reworkEntries.length"></span>)
             </button>
-            <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'input', 'text-gray-500 hover:text-gray-700': tab !== 'input' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+            <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'input', 'text-gray-500 hover:text-gray-700': tab !== 'input' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
                 Input WIP (<span x-text="inputEntries.length"></span>)
             </button>
-            <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'manpower', 'text-gray-500 hover:text-gray-700': tab !== 'manpower' }" class="py-1.5 px-3 border-b-2 font-bold transition">
-                Line Team ({{ $session->manpowerEntries->count() }})
+            <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'manpower', 'text-gray-500 hover:text-gray-700': tab !== 'manpower' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
+                Line Team (<span x-text="manpowerEntries.length"></span>)
             </button>
         </div>
 
@@ -423,8 +465,8 @@
 
             {{-- Output Logs --}}
             <div x-show="tab === 'production'" class="p-0">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
                             <th class="px-3 py-2">Timestamp</th>
                             <th class="px-3 py-2 text-right">Good Qty</th>
@@ -435,10 +477,10 @@
                     <tbody class="divide-y divide-gray-100">
                         <template x-for="entry in productionEntries" :key="entry.id">
                             <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-1.5 font-mono text-gray-500" x-text="formatTime(entry.recorded_at)"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-green-600" x-text="'+' + formatNum(entry.good_qty)"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-red-600" x-text="'+' + formatNum(entry.reject_qty)"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-medium truncate max-w-xs" x-text="entry.remarks || '-'"></td>
+                                <td class="px-3 py-2 font-mono text-xs text-gray-500" x-text="formatTime(entry.recorded_at)"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-green-600" x-text="'+' + formatNum(entry.good_qty)"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-red-600" x-text="'+' + formatNum(entry.reject_qty)"></td>
+                                <td class="px-3 py-2 text-gray-600 text-xs font-medium truncate max-w-xs" x-text="entry.remarks || '-'"></td>
                             </tr>
                         </template>
                         <tr x-show="productionEntries.length === 0">
@@ -450,8 +492,8 @@
 
             {{-- Defects --}}
             <div x-show="tab === 'defects'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
                             <th class="px-3 py-2">Defect Type</th>
                             <th class="px-3 py-2 text-right">Quantity</th>
@@ -462,10 +504,10 @@
                     <tbody class="divide-y divide-gray-100">
                         <template x-for="entry in rejectEntries" :key="entry.id">
                             <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-1.5 font-black text-red-600" x-text="entry.defect_type"></td>
-                                <td class="px-3 py-1.5 text-right font-black" x-text="formatNum(entry.quantity) + ' Pcs'"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.cause || '-'"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                                <td class="px-3 py-2 font-black text-sm text-red-600" x-text="entry.defect_type"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-gray-900" x-text="formatNum(entry.quantity) + ' Pcs'"></td>
+                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.cause || '-'"></td>
+                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
                             </tr>
                         </template>
                         <tr x-show="rejectEntries.length === 0">
@@ -477,8 +519,8 @@
 
             {{-- Downtime --}}
             <div x-show="tab === 'downtime'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
                             <th class="px-3 py-2">Reason</th>
                             <th class="px-3 py-2">Start Time</th>
@@ -490,11 +532,11 @@
                     <tbody class="divide-y divide-gray-100">
                         <template x-for="entry in downtimeEntries" :key="entry.id">
                             <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-1.5 font-black text-orange-600" x-text="entry.reason"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-mono" x-text="formatHM(entry.start_time)"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-mono" x-text="formatHM(entry.resume_time)"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-gray-900" x-text="entry.duration_minutes + ' Mins'"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                                <td class="px-3 py-2 font-black text-sm text-orange-600" x-text="entry.reason"></td>
+                                <td class="px-3 py-2 text-gray-600 font-mono text-xs" x-text="formatHM(entry.start_time)"></td>
+                                <td class="px-3 py-2 text-gray-600 font-mono text-xs" x-text="formatHM(entry.resume_time)"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-gray-900" x-text="entry.duration_minutes + ' Mins'"></td>
+                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
                             </tr>
                         </template>
                         <tr x-show="downtimeEntries.length === 0">
@@ -506,8 +548,8 @@
 
             {{-- Rework --}}
             <div x-show="tab === 'rework'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
                             <th class="px-3 py-2 text-right">Rework Input</th>
                             <th class="px-3 py-2 text-right">Recovered Good</th>
@@ -518,10 +560,10 @@
                     <tbody class="divide-y divide-gray-100">
                         <template x-for="entry in reworkEntries" :key="entry.id">
                             <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-1.5 text-right font-black text-gray-800" x-text="formatNum(entry.input_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-green-600" x-text="formatNum(entry.recovered_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-red-600" x-text="formatNum(entry.scrapped_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-gray-800" x-text="formatNum(entry.input_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-green-600" x-text="formatNum(entry.recovered_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-red-600" x-text="formatNum(entry.scrapped_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
                             </tr>
                         </template>
                         <tr x-show="reworkEntries.length === 0">
@@ -533,8 +575,8 @@
 
             {{-- Input WIP --}}
             <div x-show="tab === 'input'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
                             <th class="px-3 py-2">Timestamp</th>
                             <th class="px-3 py-2 text-right">Quantity</th>
@@ -545,10 +587,10 @@
                     <tbody class="divide-y divide-gray-100">
                         <template x-for="entry in inputEntries" :key="entry.id">
                             <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-1.5 font-mono text-gray-500" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
-                                <td class="px-3 py-1.5 text-right font-black text-blue-600" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
-                                <td class="px-3 py-1.5 font-mono text-gray-700 uppercase" x-text="entry.pallet_number || '-'"></td>
-                                <td class="px-3 py-1.5 text-gray-500 uppercase text-[10px] font-bold" x-text="entry.source || 'WIP'"></td>
+                                <td class="px-3 py-2 font-mono text-xs text-gray-500" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
+                                <td class="px-3 py-2 text-right font-black text-sm text-blue-600" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
+                                <td class="px-3 py-2 font-mono text-xs text-gray-700 uppercase" x-text="entry.pallet_number || '-'"></td>
+                                <td class="px-3 py-2 text-gray-500 uppercase text-xs font-bold" x-text="entry.source || 'WIP'"></td>
                             </tr>
                         </template>
                         <tr x-show="inputEntries.length === 0">
@@ -560,38 +602,33 @@
 
             {{-- Line Team --}}
             <div x-show="tab === 'manpower'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
                         <tr>
-                            <th class="px-3 py-2">Role / Position</th>
-                            <th class="px-3 py-2">Operator Name</th>
-                            <th class="px-3 py-2">Employee NIK</th>
-                            <th class="px-3 py-2 text-right">Action</th>
+                            <th class="px-4 py-2.5">Role / Position</th>
+                            <th class="px-4 py-2.5">Operator Name</th>
+                            <th class="px-4 py-2.5">Employee NIK</th>
+                            <th class="px-4 py-2.5 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        @forelse($session->manpowerEntries as $mp)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-3 py-2 font-black text-purple-700 uppercase text-[10px]">{{ $mp->role }}</td>
-                                <td class="px-3 py-2 font-bold text-gray-900">{{ $mp->operator_name }}</td>
-                                <td class="px-3 py-2 font-mono text-gray-500">{{ $mp->employee_no ?: '-' }}</td>
-                                <td class="px-3 py-2 text-right">
+                        <template x-for="mp in manpowerEntries" :key="mp.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === mp.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-4 py-2.5 font-black text-sm text-purple-700 uppercase tracking-wide" x-text="mp.role"></td>
+                                <td class="px-4 py-2.5 font-bold text-sm text-gray-900" x-text="mp.operator_name"></td>
+                                <td class="px-4 py-2.5 font-mono text-xs text-gray-500" x-text="mp.employee_no || '-'"></td>
+                                <td class="px-4 py-2.5 text-right">
                                     @if($session->status === 'running')
-                                        <form action="{{ route('app.sp-sessions.remove-manpower', [$session->id, $mp->id]) }}" method="POST" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" onclick="return confirm('Remove worker from line team?')" class="text-[10px] text-red-600 hover:text-red-800 font-black uppercase">
-                                                Remove
-                                            </button>
-                                        </form>
+                                        <button type="button" @click="removeManpower(mp.id)" class="text-xs text-red-600 hover:text-red-800 font-black uppercase">
+                                            Remove
+                                        </button>
                                     @endif
                                 </td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No extra line team members added yet. Click "+ Team" to assign operators.</td>
-                            </tr>
-                        @endforelse
+                        </template>
+                        <tr x-show="manpowerEntries.length === 0">
+                            <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-xs">No extra line team members added yet. Click "+ Team" to assign operators.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -852,7 +889,7 @@
                 <h3 class="text-lg font-black text-white">+ Add Line Team Member</h3>
                 <button type="button" onclick="document.getElementById('modalManpower').close()" class="text-purple-200 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            <form action="{{ route('app.sp-sessions.add-manpower', $session->id) }}" method="POST" class="p-6">
+            <form action="{{ route('app.sp-sessions.add-manpower', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'manpower')" class="p-6">
                 @csrf
                 <div class="space-y-4">
                     <div>

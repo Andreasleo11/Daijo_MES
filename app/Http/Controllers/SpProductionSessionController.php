@@ -221,9 +221,14 @@ class SpProductionSessionController extends Controller
                 'message' => 'Rework recorded successfully.',
                 'entry' => $entry,
                 'totals' => [
+                    'input' => $session->total_input,
+                    'good' => $session->total_good,
+                    'reject' => $session->total_reject,
+                    'yield' => $session->yield,
                     'rework_in' => $session->total_rework_in,
                     'rework_recovered' => $session->total_rework_recovered,
                     'scrap' => $session->total_scrap,
+                    'downtime_minutes' => $session->downtimeEntries()->sum('duration_minutes'),
                 ]
             ]);
         }
