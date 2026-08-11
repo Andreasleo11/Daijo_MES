@@ -20,13 +20,13 @@
 <body class="font-sans antialiased bg-gray-100 min-h-screen flex flex-col">
     @if (isset($header))
         <header class="bg-white shadow z-10 sticky top-0">
-            <div class="px-4 sm:px-6 lg:px-8 py-4">
+            <div class="{{ $headerContainerClass ?? 'px-4 sm:px-6 lg:px-8 py-4' }}">
                 {{ $header }}
             </div>
         </header>
     @endif
 
-    <main class="flex-1 w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
+    <main class="flex-1 w-full {{ $mainClass ?? 'max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8' }}">
         {{ $slot }}
     </main>
     

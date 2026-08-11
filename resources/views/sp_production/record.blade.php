@@ -1,56 +1,96 @@
 <x-operator-layout>
+    <x-slot name="headerContainerClass">px-3 py-1.5</x-slot>
+    <x-slot name="mainClass">p-0 overflow-hidden</x-slot>
+
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="font-bold text-xl text-gray-800 leading-tight">
-                        {{ __('Real-Time Production Screen') }}
-                    </h2>
-                    @if($session->status === 'running')
-                        <span class="px-3 py-0.5 text-xs font-bold rounded-full bg-green-500 text-white uppercase animate-pulse">
-                            RUNNING
-                        </span>
-                    @elseif($session->approved_by)
-                        <span class="px-3 py-0.5 text-xs font-bold rounded-full bg-blue-500 text-white uppercase" title="Approved by {{ $session->approvedBy->name }}">
-                            APPROVED
-                        </span>
-                    @else
-                        <span class="px-3 py-0.5 text-xs font-bold rounded-full bg-gray-500 text-white uppercase">
-                            COMPLETED
-                        </span>
-                    @endif
-                    @if($session->is_qc_bypassed)
-                        <span class="px-3 py-0.5 text-xs font-bold rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
-                            ⚠️ QC BYPASSED
-                        </span>
-                    @endif
-                </div>
-                <p class="text-xs text-gray-500 mt-1">
-                    Work Order: <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="text-blue-600 hover:text-blue-800 hover:underline font-bold">{{ $session->workOrder->wo_number }}</a> |
-                    Line: <strong>{{ $session->unit_line }}</strong> |
-                    Shift: <strong>{{ $session->shift }}</strong> |
-                    Operator: <strong>{{ $session->operator?->name ?? 'Operator' }}</strong>
-                </p>
+        <script>
+            function headerClock() {
+                return {
+                    liveTime: '',
+                    elapsedTime: '',
+                    init() {
+                        this.update();
+                        setInterval(() => this.update(), 1000);
+                    },
+                    update() {
+                        const now = new Date();
+                        this.liveTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                        @if($session->started_at)
+                            const started = new Date('{{ $session->started_at->toIso8601String() }}');
+                            const diffSec = Math.max(0, Math.floor((now - started) / 1000));
+                            const hrs = Math.floor(diffSec / 3600);
+                            const mins = Math.floor((diffSec % 3600) / 60);
+                            this.elapsedTime = hrs + 'h ' + mins + 'm';
+                        @else
+                            this.elapsedTime = '0h 0m';
+                        @endif
+                    }
+                }
+            }
+        </script>
+        <div class="flex items-center justify-between gap-2 text-xs" x-data="headerClock()" x-cloak>
+            {{-- Left: WO & Part info --}}
+            <div class="flex items-center gap-2 min-w-0">
+                <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="font-black text-blue-700 hover:text-blue-900 whitespace-nowrap text-sm">
+                    {{ $session->workOrder->wo_number }}
+                </a>
+                <span class="text-gray-300 font-light">|</span>
+                <span class="font-black text-gray-900 truncate max-w-[140px] sm:max-w-[200px]" title="{{ $session->workOrder->part_number }}">
+                    {{ $session->workOrder->part_number }}
+                </span>
+                <span class="text-gray-500 truncate hidden md:inline max-w-[180px]" title="{{ $session->workOrder->part_name }}">
+                    {{ $session->workOrder->part_name }}
+                </span>
             </div>
 
+            {{-- Center: Status & Session Elapsed --}}
+            <div class="flex items-center gap-2 whitespace-nowrap">
+                @if($session->status === 'running')
+                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-green-500 text-white uppercase animate-pulse">
+                        RUNNING
+                    </span>
+                    <span class="text-[10px] font-bold text-gray-500" x-text="elapsedTime"></span>
+                @elseif($session->approved_by)
+                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-blue-500 text-white uppercase">
+                        APPROVED
+                    </span>
+                @else
+                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-gray-500 text-white uppercase">
+                        COMPLETED
+                    </span>
+                @endif
+
+                @if($session->is_qc_bypassed)
+                    <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
+                        BYPASSED
+                    </span>
+                @endif
+            </div>
+
+            {{-- Right: Line/Shift, Live Clock, Gateway & Finish --}}
             @php
                 $lineSlug = array_search($session->unit_line, config('mes.sp_lines', [])) ?: 'line-a';
             @endphp
-
-            <div class="flex items-center gap-2">
-                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm text-xs transition">
-                    Line Gateway
+            <div class="flex items-center gap-2 whitespace-nowrap">
+                <span class="font-bold text-gray-700 text-[11px]">
+                    {{ $session->unit_line }} S{{ $session->shift }}
+                </span>
+                <span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-[11px]" x-text="liveTime"></span>
+                
+                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2.5 rounded-lg text-[10px] transition uppercase">
+                    Gateway
                 </a>
+
                 @if($session->status === 'running')
-                    <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg shadow transition text-xs flex items-center gap-1">
-                        <span class="mr-2">Finish Production</span>
+                    <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-black py-1 px-3 rounded-lg text-[10px] uppercase tracking-wider transition">
+                        Finish
                     </button>
                 @endif
             </div>
         </div>
     </x-slot>
 
-    <div class="py-6" x-data="productionSession()" x-cloak>
+    <div class="flex flex-col h-[calc(100vh-42px)] bg-gray-100" x-data="productionSession()" x-cloak>
         <script>
             function productionSession() {
                 return {
@@ -63,11 +103,105 @@
                         downtime_minutes: {{ $session->downtimeEntries->sum('duration_minutes') ?? 0 }},
                         downtime_count: {{ $session->downtimeEntries->count() ?? 0 }}
                     },
+                    targetQty: {{ $session->workOrder->target_qty ?? 1 }},
+                    progressPct: 0,
+                    liveTime: '',
+                    elapsedTime: '',
+                    batchSize: 1,
+                    quickFlash: false,
+                    highlightedEntryId: null,
                     productionEntries: @json($session->productionEntries),
                     rejectEntries: @json($session->rejectEntries),
                     downtimeEntries: @json($session->downtimeEntries),
                     reworkEntries: @json($session->reworkEntries),
                     inputEntries: @json($session->inputEntries),
+
+                    init() {
+                        // Load persistent quick-tap batch size
+                        const savedBatch = localStorage.getItem('sp_quick_batch_size');
+                        if (savedBatch && !isNaN(savedBatch)) {
+                            this.batchSize = parseInt(savedBatch);
+                        }
+
+                        this.updateClock();
+                        setInterval(() => this.updateClock(), 1000);
+                        this.recalcProgress();
+                    },
+
+                    setBatchSize(size) {
+                        this.batchSize = size;
+                        localStorage.setItem('sp_quick_batch_size', size);
+                    },
+
+                    updateClock() {
+                        const now = new Date();
+                        this.liveTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+                        @if($session->started_at)
+                            const started = new Date('{{ $session->started_at->toIso8601String() }}');
+                            const diffSec = Math.max(0, Math.floor((now - started) / 1000));
+                            const hrs = Math.floor(diffSec / 3600);
+                            const mins = Math.floor((diffSec % 3600) / 60);
+                            this.elapsedTime = hrs + 'h ' + mins + 'm';
+                        @else
+                            this.elapsedTime = '0h 0m';
+                        @endif
+                    },
+
+                    recalcProgress() {
+                        if (this.targetQty > 0) {
+                            this.progressPct = Math.min(100, Math.round((this.totals.good / this.targetQty) * 100));
+                        } else {
+                            this.progressPct = 0;
+                        }
+                    },
+
+                    triggerHighlight(entryId) {
+                        if (entryId) {
+                            this.highlightedEntryId = entryId;
+                            setTimeout(() => {
+                                if (this.highlightedEntryId === entryId) {
+                                    this.highlightedEntryId = null;
+                                }
+                            }, 1500);
+                        }
+                    },
+
+                    async quickAddGood() {
+                        try {
+                            const formData = new FormData();
+                            formData.append('good_qty', this.batchSize);
+                            formData.append('reject_qty', 0);
+                            formData.append('_token', '{{ csrf_token() }}');
+
+                            const response = await fetch('{{ route("app.sp-sessions.add-production", $session->id) }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                },
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error || 'Quick log failed');
+                            }
+
+                            const data = await response.json();
+                            if (data.success) {
+                                this.totals = { ...this.totals, ...data.totals };
+                                this.productionEntries.unshift(data.entry);
+                                this.tab = 'production';
+                                this.triggerHighlight(data.entry?.id);
+                                this.recalcProgress();
+                                this.quickFlash = true;
+                                setTimeout(() => this.quickFlash = false, 600);
+                            }
+                        } catch (error) {
+                            alert(error.message);
+                        }
+                    },
 
                     async submitForm(event, type) {
                         const form = event.target;
@@ -93,15 +227,29 @@
                             if (data.success) {
                                 this.totals = { ...this.totals, ...data.totals };
 
+                                const tabMap = {
+                                    'production': 'production',
+                                    'reject': 'defects',
+                                    'downtime': 'downtime',
+                                    'rework': 'rework',
+                                    'input': 'input',
+                                    'manpower': 'manpower'
+                                };
+
                                 if (type === 'production') this.productionEntries.unshift(data.entry);
                                 else if (type === 'reject') this.rejectEntries.unshift(data.entry);
                                 else if (type === 'downtime') this.downtimeEntries.unshift(data.entry);
                                 else if (type === 'rework') this.reworkEntries.unshift(data.entry);
                                 else if (type === 'input') this.inputEntries.unshift(data.entry);
 
+                                if (tabMap[type]) {
+                                    this.tab = tabMap[type];
+                                }
+
+                                this.triggerHighlight(data.entry?.id);
+                                this.recalcProgress();
                                 form.reset();
 
-                                // Reset Alpine reactive variables on form submit
                                 if (form._x_dataStack) {
                                     const alpineData = form._x_dataStack[0];
                                     if (alpineData) {
@@ -123,13 +271,25 @@
                             alert(error.message);
                         }
                     },
+
+                    parseUtc(dateString) {
+                        if (!dateString) return null;
+                        if (typeof dateString === 'string') {
+                            if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+                                return new Date(dateString.replace(' ', 'T') + 'Z');
+                            }
+                        }
+                        return new Date(dateString);
+                    },
                     formatTime(dateString) {
-                        if (!dateString) return '-';
-                        return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                        const d = this.parseUtc(dateString);
+                        if (!d || isNaN(d)) return '-';
+                        return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
                     },
                     formatHM(dateString) {
-                        if (!dateString) return '-';
-                        return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
+                        const d = this.parseUtc(dateString);
+                        if (!d || isNaN(d)) return '-';
+                        return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
                     },
                     formatNum(num) {
                         return new Intl.NumberFormat().format(num || 0);
@@ -137,297 +297,303 @@
                 }
             }
         </script>
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-sm">
-                    {{ session('success') }}
-                </div>
-            @endif
+        {{-- Flash Notification --}}
+        @if(session('success'))
+            <div class="bg-green-600 text-white px-4 py-1.5 text-xs font-bold text-center">
+                {{ session('success') }}
+            </div>
+        @endif
 
-            {{-- Part Info Header Card --}}
-            <div class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-5 rounded-xl shadow-md flex flex-wrap justify-between items-center gap-4">
-                <div>
-                    <div class="text-xs text-blue-200 uppercase font-bold tracking-wider">Part Info</div>
-                    <div class="text-xl font-black mt-0.5">{{ $session->workOrder->part_number }}</div>
-                    <div class="text-sm text-blue-100 mt-0.5">{{ $session->workOrder->part_name }} (Customer: {{ $session->workOrder->customer }})</div>
-                </div>
-                <div class="flex gap-6">
-                    <div class="text-right">
-                        <div class="text-xs text-blue-200 uppercase font-bold">Target Qty</div>
-                        <div class="text-2xl font-black text-yellow-300">{{ number_format($session->workOrder->target_qty) }} Pcs</div>
+        {{-- KPI Strip + Target Progress Bar (Compact ~52px) --}}
+        <div class="bg-white border-b border-gray-200 px-3 py-2 shadow-sm flex-shrink-0">
+            <div class="flex items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-[10px] font-black text-gray-400 uppercase">Input</span>
+                        <span class="text-base font-black text-gray-900" x-text="formatNum(totals.input)"></span>
                     </div>
-                    <div class="text-right">
-                        <div class="text-xs text-blue-200 uppercase font-bold">Start Time</div>
-                        <div class="text-2xl font-black text-green-300">{{ $session->started_at ? $session->started_at->setTimezone('Asia/Jakarta')->format('H:i') : '-' }}</div>
+
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-[10px] font-black text-green-600 uppercase">Good</span>
+                        <span class="text-base font-black text-green-600" x-text="formatNum(totals.good)"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-[10px] font-black text-red-600 uppercase">NG</span>
+                        <span class="text-base font-black text-red-600" x-text="formatNum(totals.reject)"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-[10px] font-black uppercase" :class="totals.yield >= 90 ? 'text-green-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')">Yield</span>
+                        <span class="text-base font-black" :class="totals.yield >= 90 ? 'text-green-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')" x-text="totals.yield + '%'"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-[10px] font-black text-orange-600 uppercase">Downtime</span>
+                        <span class="text-base font-black text-orange-600" x-text="totals.downtime_minutes + 'm'"></span>
+                    </div>
+                </div>
+
+                {{-- Target Progress --}}
+                <div class="flex-1 max-w-xs min-w-[140px] pl-2">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-500 mb-0.5">
+                        <span>Target Progress</span>
+                        <span><strong class="text-gray-900" x-text="formatNum(totals.good)"></strong> / {{ number_format($session->workOrder->target_qty) }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500"
+                             :class="progressPct >= 100 ? 'bg-green-500' : (progressPct >= 75 ? 'bg-blue-500' : (progressPct >= 50 ? 'bg-amber-500' : 'bg-gray-400'))"
+                             :style="'width: ' + Math.min(100, progressPct) + '%'"></div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            {{-- Live KPI Counter Cards --}}
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs font-bold text-gray-500 uppercase">Input WIP</div>
-                    <div class="text-3xl font-black text-gray-900 mt-1"><span x-text="formatNum(totals.input)"></span></div>
-                    <div class="text-[11px] text-gray-400 mt-0.5">Received from Injection</div>
-                </div>
+        {{-- Action Control Panel + Quick-Tap Configurable Toolbar (Compact ~44px) --}}
+        @if($session->status === 'running')
+            <div class="bg-slate-900 text-white px-3 py-1.5 flex items-center justify-between gap-2 shadow-inner flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    {{-- Quick-Tap Button with Flash Effect --}}
+                    <button type="button" @click="quickAddGood()"
+                        class="bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-black py-1.5 px-4 rounded-xl text-xs uppercase tracking-wider transition shadow flex items-center gap-1.5 min-w-[110px] justify-center"
+                        :class="quickFlash && 'ring-4 ring-emerald-300 bg-emerald-400 scale-105'">
+                        <span x-text="quickFlash ? 'SAVED!' : ('+' + batchSize + ' GOOD')"></span>
+                    </button>
 
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs font-bold text-gray-500 uppercase">Good Qty</div>
-                    <div class="text-3xl font-black text-green-600 mt-1"><span x-text="formatNum(totals.good)"></span></div>
-                    <div class="text-[11px] text-gray-400 mt-0.5">Passed inspection</div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs font-bold text-gray-500 uppercase">Reject Qty</div>
-                    <div class="text-3xl font-black text-red-600 mt-1"><span x-text="formatNum(totals.reject)"></span></div>
-                    <div class="text-[11px] text-gray-400 mt-0.5">Defects recorded</div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs font-bold text-gray-500 uppercase">Yield Rate</div>
-                    <div class="text-3xl font-black text-blue-600 mt-1"><span x-text="totals.yield"></span>%</div>
-                    <div class="text-[11px] text-gray-400 mt-0.5">Good / Total Output</div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm col-span-2 lg:col-span-1">
-                    <div class="text-xs font-bold text-gray-500 uppercase">Downtime Loss</div>
-                    <div class="text-3xl font-black text-orange-600 mt-1">
-                        <span x-text="totals.downtime_minutes"></span> <span class="text-xs font-bold">Mins</span>
+                    {{-- Operator Configurable Batch Size Selector --}}
+                    <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-[10px] font-bold">
+                        <span class="px-1.5 text-slate-400 uppercase text-[9px]">Batch:</span>
+                        <template x-for="size in [1, 5, 10, 50]" :key="size">
+                            <button type="button" @click="setBatchSize(size)"
+                                :class="batchSize === size ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'"
+                                class="px-2 py-0.5 rounded transition" x-text="'+' + size"></button>
+                        </template>
                     </div>
-                    <div class="text-[11px] text-gray-400 mt-0.5"><span x-text="totals.downtime_count"></span> stop events</div>
+                </div>
+
+                {{-- Modal Action Triggers --}}
+                <div class="flex items-center gap-1.5 overflow-x-auto">
+                    <button onclick="document.getElementById('modalProduction').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        Output
+                    </button>
+                    <button onclick="document.getElementById('modalReject').showModal()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        Defect
+                    </button>
+                    <button onclick="document.getElementById('modalDowntime').showModal()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        Downtime
+                    </button>
+                    <button onclick="document.getElementById('modalRework').showModal()" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        Rework
+                    </button>
+                    <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        Input
+                    </button>
+                    <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                        + Team
+                    </button>
                 </div>
             </div>
+        @endif
 
-            {{-- Action Control Panel --}}
-            @if($session->status === 'running')
-                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Event Recording</h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                        <button onclick="document.getElementById('modalProduction').showModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
-                            <span class="text-sm font-black tracking-widest uppercase">Output</span>
-                        </button>
+        {{-- Event Log Tabs (Compact ~28px) --}}
+        <div class="bg-white border-b border-gray-200 px-3 flex gap-1 text-xs flex-shrink-0">
+            <button @click="tab = 'production'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'production', 'text-gray-500 hover:text-gray-700': tab !== 'production' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Output (<span x-text="productionEntries.length"></span>)
+            </button>
+            <button @click="tab = 'defects'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'defects', 'text-gray-500 hover:text-gray-700': tab !== 'defects' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Defects (<span x-text="rejectEntries.length"></span>)
+            </button>
+            <button @click="tab = 'downtime'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'downtime', 'text-gray-500 hover:text-gray-700': tab !== 'downtime' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Downtime (<span x-text="downtimeEntries.length"></span>)
+            </button>
+            <button @click="tab = 'rework'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'rework', 'text-gray-500 hover:text-gray-700': tab !== 'rework' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Rework (<span x-text="reworkEntries.length"></span>)
+            </button>
+            <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'input', 'text-gray-500 hover:text-gray-700': tab !== 'input' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Input WIP (<span x-text="inputEntries.length"></span>)
+            </button>
+            <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'manpower', 'text-gray-500 hover:text-gray-700': tab !== 'manpower' }" class="py-1.5 px-3 border-b-2 font-bold transition">
+                Line Team ({{ $session->manpowerEntries->count() }})
+            </button>
+        </div>
 
-                        <button onclick="document.getElementById('modalReject').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
-                            <span class="text-sm font-black tracking-widest uppercase">Defect</span>
-                        </button>
+        {{-- Event Log Tables (Flex-1 Fill Remaining Heights & Scrollable) --}}
+        <div class="flex-1 overflow-y-auto bg-white">
 
-                        <button onclick="document.getElementById('modalRework').showModal()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
-                            <span class="text-sm font-black tracking-widest uppercase">Rework</span>
-                        </button>
+            {{-- Output Logs --}}
+            <div x-show="tab === 'production'" class="p-0">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Timestamp</th>
+                            <th class="px-3 py-2 text-right">Good Qty</th>
+                            <th class="px-3 py-2 text-right">Reject Qty</th>
+                            <th class="px-3 py-2">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="entry in productionEntries" :key="entry.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-3 py-1.5 font-mono text-gray-500" x-text="formatTime(entry.recorded_at)"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-green-600" x-text="'+' + formatNum(entry.good_qty)"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-red-600" x-text="'+' + formatNum(entry.reject_qty)"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-medium truncate max-w-xs" x-text="entry.remarks || '-'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="productionEntries.length === 0">
+                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No production entries logged yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-                        <button onclick="document.getElementById('modalDowntime').showModal()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
-                            <span class="text-sm font-black tracking-widest uppercase">Downtime</span>
-                        </button>
+            {{-- Defects --}}
+            <div x-show="tab === 'defects'" class="p-0" style="display: none;">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Defect Type</th>
+                            <th class="px-3 py-2 text-right">Quantity</th>
+                            <th class="px-3 py-2">Cause</th>
+                            <th class="px-3 py-2">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="entry in rejectEntries" :key="entry.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-3 py-1.5 font-black text-red-600" x-text="entry.defect_type"></td>
+                                <td class="px-3 py-1.5 text-right font-black" x-text="formatNum(entry.quantity) + ' Pcs'"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.cause || '-'"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="rejectEntries.length === 0">
+                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No defects logged yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-                        <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1">
-                            <span class="text-sm font-black tracking-widest uppercase">Input WIP</span>
-                        </button>
+            {{-- Downtime --}}
+            <div x-show="tab === 'downtime'" class="p-0" style="display: none;">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Reason</th>
+                            <th class="px-3 py-2">Start Time</th>
+                            <th class="px-3 py-2">Resume Time</th>
+                            <th class="px-3 py-2 text-right">Duration</th>
+                            <th class="px-3 py-2">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="entry in downtimeEntries" :key="entry.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-3 py-1.5 font-black text-orange-600" x-text="entry.reason"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-mono" x-text="formatHM(entry.start_time)"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-mono" x-text="formatHM(entry.resume_time)"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-gray-900" x-text="entry.duration_minutes + ' Mins'"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="downtimeEntries.length === 0">
+                            <td colspan="5" class="px-3 py-6 text-center text-gray-400 text-xs">No downtime events logged yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-                        <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex flex-col items-center gap-1 col-span-2 sm:col-span-1">
-                            <span class="text-sm font-black tracking-widest uppercase">+ Team</span>
-                        </button>
-                    </div>
-                </div>
-            @endif
+            {{-- Rework --}}
+            <div x-show="tab === 'rework'" class="p-0" style="display: none;">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-right">Rework Input</th>
+                            <th class="px-3 py-2 text-right">Recovered Good</th>
+                            <th class="px-3 py-2 text-right">Scrapped Qty</th>
+                            <th class="px-3 py-2">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="entry in reworkEntries" :key="entry.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-3 py-1.5 text-right font-black text-gray-800" x-text="formatNum(entry.input_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-green-600" x-text="formatNum(entry.recovered_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-red-600" x-text="formatNum(entry.scrapped_qty) + ' Pcs'"></td>
+                                <td class="px-3 py-1.5 text-gray-600 font-medium" x-text="entry.remarks || '-'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="reworkEntries.length === 0">
+                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No rework entries logged yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-            {{-- Event Log Tabs & Table --}}
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div class="border-b border-gray-200 bg-gray-50 px-5 py-3 flex gap-4">
-                    <button @click="tab = 'production'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'production', 'text-gray-500': tab !== 'production' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Output Logs (<span x-text="productionEntries.length"></span>)
-                    </button>
-                    <button @click="tab = 'defects'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'defects', 'text-gray-500': tab !== 'defects' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Defect Details (<span x-text="rejectEntries.length"></span>)
-                    </button>
-                    <button @click="tab = 'downtime'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'downtime', 'text-gray-500': tab !== 'downtime' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Downtime (<span x-text="downtimeEntries.length"></span>)
-                    </button>
-                    <button @click="tab = 'rework'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'rework', 'text-gray-500': tab !== 'rework' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Rework (<span x-text="reworkEntries.length"></span>)
-                    </button>
-                    <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'input', 'text-gray-500': tab !== 'input' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Input WIP (<span x-text="inputEntries.length"></span>)
-                    </button>
-                    <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-bold': tab === 'manpower', 'text-gray-500': tab !== 'manpower' }" class="py-2 text-sm border-b-2 font-semibold">
-                        Line Team ({{ $session->manpowerEntries->count() }})
-                    </button>
-                </div>
+            {{-- Input WIP --}}
+            <div x-show="tab === 'input'" class="p-0" style="display: none;">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Timestamp</th>
+                            <th class="px-3 py-2 text-right">Quantity</th>
+                            <th class="px-3 py-2">Pallet / Box #</th>
+                            <th class="px-3 py-2">Source</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="entry in inputEntries" :key="entry.id">
+                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
+                                <td class="px-3 py-1.5 font-mono text-gray-500" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
+                                <td class="px-3 py-1.5 text-right font-black text-blue-600" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
+                                <td class="px-3 py-1.5 font-mono text-gray-700 uppercase" x-text="entry.pallet_number || '-'"></td>
+                                <td class="px-3 py-1.5 text-gray-500 uppercase text-[10px] font-bold" x-text="entry.source || 'WIP'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="inputEntries.length === 0">
+                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No input WIP entries recorded.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-                {{-- Output Logs --}}
-                <div x-show="tab === 'production'" class="p-5">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
+            {{-- Line Team --}}
+            <div x-show="tab === 'manpower'" class="p-0" style="display: none;">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Role / Position</th>
+                            <th class="px-3 py-2">Operator Name</th>
+                            <th class="px-3 py-2">Employee NIK</th>
+                            <th class="px-3 py-2 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($session->manpowerEntries as $mp)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2 font-black text-purple-700 uppercase text-[10px]">{{ $mp->role }}</td>
+                                <td class="px-3 py-2 font-bold text-gray-900">{{ $mp->operator_name }}</td>
+                                <td class="px-3 py-2 font-mono text-gray-500">{{ $mp->employee_no ?: '-' }}</td>
+                                <td class="px-3 py-2 text-right">
+                                    @if($session->status === 'running')
+                                        <form action="{{ route('app.sp-sessions.remove-manpower', [$session->id, $mp->id]) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" onclick="return confirm('Remove worker from line team?')" class="text-[10px] text-red-600 hover:text-red-800 font-black uppercase">
+                                                Remove
+                                            </button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Timestamp</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Good Qty</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Reject Qty</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Remarks</th>
+                                <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No extra line team members added yet. Click "+ Team" to assign operators.</td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 ">
-                            <template x-for="entry in productionEntries" :key="entry.id">
-                                <tr>
-                                    <td class="px-4 py-2.5 text-sm text-gray-500" x-text="formatTime(entry.recorded_at)"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-green-600" x-text="'+' + formatNum(entry.good_qty)"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-red-600" x-text="'+' + formatNum(entry.reject_qty)"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.remarks || '-'"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="productionEntries.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No production entries logged yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Defects --}}
-                <div x-show="tab === 'defects'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Defect Type</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Quantity</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Cause</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Remarks</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 ">
-                            <template x-for="entry in rejectEntries" :key="entry.id">
-                                <tr>
-                                    <td class="px-4 py-2.5 text-sm font-bold text-red-600" x-text="entry.defect_type"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold" x-text="formatNum(entry.quantity) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.cause || '-'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.remarks || '-'"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="rejectEntries.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No defects logged yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Downtime --}}
-                <div x-show="tab === 'downtime'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Reason</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Start Time</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Resume Time</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Duration</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Remarks</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 ">
-                            <template x-for="entry in downtimeEntries" :key="entry.id">
-                                <tr>
-                                    <td class="px-4 py-2.5 text-sm font-bold text-orange-600" x-text="entry.reason"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="formatHM(entry.start_time)"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="formatHM(entry.resume_time)"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-gray-900" x-text="entry.duration_minutes + ' Mins'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.remarks || '-'"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="downtimeEntries.length === 0">
-                                <td colspan="5" class="px-4 py-6 text-center text-gray-400 text-sm">No downtime events logged yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Rework --}}
-                <div x-show="tab === 'rework'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200 ">
-                        <thead class="bg-gray-50 ">
-                            <tr>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Rework Input</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Recovered Good</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Scrapped Qty</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Remarks</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 ">
-                            <template x-for="entry in reworkEntries" :key="entry.id">
-                                <tr>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-gray-800" x-text="formatNum(entry.input_qty) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-green-600" x-text="formatNum(entry.recovered_qty) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-right font-bold text-red-600" x-text="formatNum(entry.scrapped_qty) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-600" x-text="entry.remarks || '-'"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="reworkEntries.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No rework entries logged yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Input WIP --}}
-                <div x-show="tab === 'input'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Timestamp</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Quantity</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Pallet Number</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Source</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            <template x-for="entry in inputEntries" :key="entry.id">
-                                <tr>
-                                    <td class="px-4 py-2.5 text-sm text-gray-500 font-mono" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
-                                    <td class="px-4 py-2.5 text-sm font-bold text-blue-600 text-right" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-700 font-mono" x-text="entry.pallet_number || '-'"></td>
-                                    <td class="px-4 py-2.5 text-sm text-gray-500 uppercase" x-text="entry.source || 'WIP'"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="inputEntries.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">No input WIP entries recorded.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Line Team / Manpower Logs --}}
-                <div x-show="tab === 'manpower'" class="p-5" style="display: none;">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Role / Position</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Operator Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Employee NIK</th>
-                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @forelse($session->manpowerEntries as $mp)
-                                <tr>
-                                    <td class="px-4 py-3 text-sm font-bold text-purple-700 uppercase tracking-wide">{{ $mp->role }}</td>
-                                    <td class="px-4 py-3 text-sm font-bold text-gray-800">{{ $mp->operator_name }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 font-mono">{{ $mp->employee_no ?: '-' }}</td>
-                                    <td class="px-4 py-3 text-sm text-right">
-                                        @if($session->status === 'running')
-                                            <form action="{{ route('app.sp-sessions.remove-manpower', [$session->id, $mp->id]) }}" method="POST" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" onclick="return confirm('Remove worker from line team?')" class="text-xs text-red-600 hover:text-red-800 font-bold uppercase">
-                                                    Remove
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">No extra line team members added yet. Click "+ Team" to assign operators.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
 
         </div>
@@ -444,7 +610,6 @@
             <form action="{{ route('app.sp-sessions.add-production', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'production')" x-data="{ good_qty: 0, reject_qty: 0 }" class="p-6">
                 @csrf
                 <div class="space-y-6">
-                    <!-- Good Qty Stepper -->
                     <div>
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Good Qty (Pcs) *</label>
                         <div class="flex items-stretch h-20 rounded-2xl border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
@@ -466,7 +631,6 @@
                     
                     <hr class="border-gray-100">
 
-                    <!-- Reject Qty Stepper -->
                     <div>
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Reject Qty (Pcs)</label>
                         <div class="flex items-stretch h-20 rounded-2xl border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
@@ -544,9 +708,9 @@
     {{-- Modal 3: Log Downtime --}}
     <dialog id="modalDowntime" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
         <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
-            <div class="bg-orange-500 px-6 py-4 flex justify-between items-center">
+            <div class="bg-amber-600 px-6 py-4 flex justify-between items-center">
                 <h3 class="text-lg font-black text-white">Log Downtime</h3>
-                <button type="button" onclick="document.getElementById('modalDowntime').close()" class="text-orange-200 hover:text-white text-xl font-bold">&times;</button>
+                <button type="button" onclick="document.getElementById('modalDowntime').close()" class="text-amber-200 hover:text-white text-xl font-bold">&times;</button>
             </div>
             <form action="{{ route('app.sp-sessions.add-downtime', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'downtime')" x-data="{ reason: '' }" class="p-6">
                 @csrf
@@ -556,7 +720,7 @@
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Reason *</label>
                         <div class="grid grid-cols-2 gap-3">
                             @foreach($downtimeReasons as $r)
-                                <button type="button" @click="reason = '{{ $r }}'" :class="reason === '{{ $r }}' ? 'bg-orange-500 text-white ring-4 ring-orange-200' : 'bg-gray-100 text-gray-700'" class="py-3 px-2 rounded-xl font-bold text-center transition shadow-sm text-sm">
+                                <button type="button" @click="reason = '{{ $r }}'" :class="reason === '{{ $r }}' ? 'bg-amber-600 text-white ring-4 ring-amber-200' : 'bg-gray-100 text-gray-700'" class="py-3 px-2 rounded-xl font-bold text-center transition shadow-sm text-sm">
                                     {{ $r }}
                                 </button>
                             @endforeach
@@ -579,7 +743,7 @@
                     </div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" :disabled="!reason" :class="!reason ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-orange-500 active:bg-orange-600 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE DOWNTIME</button>
+                    <button type="submit" :disabled="!reason" :class="!reason ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-amber-600 active:bg-amber-700 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE DOWNTIME</button>
                 </div>
             </form>
         </div>
@@ -742,6 +906,5 @@
             </form>
         </div>
     </dialog>
-    </div> <!-- End of x-data -->
-
+    </div> <!-- End of x-data="productionSession()" -->
 </x-operator-layout>

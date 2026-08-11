@@ -246,9 +246,12 @@ class SpProductionSessionController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        $today = now()->format('Y-m-d');
-        $startDT = Carbon::parse("{$today} {$validated['start_time']}");
-        $resumeDT = Carbon::parse("{$today} {$validated['resume_time']}");
+        $sessionDate = $session->started_at
+            ? $session->started_at->setTimezone('Asia/Jakarta')->format('Y-m-d')
+            : Carbon::now('Asia/Jakarta')->format('Y-m-d');
+
+        $startDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['start_time']}", 'Asia/Jakarta')->setTimezone('UTC');
+        $resumeDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['resume_time']}", 'Asia/Jakarta')->setTimezone('UTC');
 
         if ($resumeDT->lt($startDT)) {
             $resumeDT->addDay();
