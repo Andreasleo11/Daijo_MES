@@ -203,14 +203,14 @@
                         <input type="text" name="part_name" value="{{ old('part_name', $report->part_name) }}"
                             placeholder="Auto-filled from Part Number"
                             class="w-full rounded border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                            required>
+                            >
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Model</label>
                         <input type="text" name="model" value="{{ old('model', $report->model) }}"
                             placeholder="Model"
                             class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                            required>
+                            >
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Customer</label>
@@ -218,7 +218,7 @@
                             <input type="text" name="customer" id="customer"
                                 value="{{ old('customer', $report->customer) }}" placeholder="Search Customer..."
                                 class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                                required autocomplete="off">
+                                autocomplete="off">
                             <div id="customer-dropdown"
                                 class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50 hidden">
                             </div>
