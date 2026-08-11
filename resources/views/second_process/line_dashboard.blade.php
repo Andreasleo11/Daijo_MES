@@ -203,8 +203,8 @@
                                 @forelse($downtimeLog as $dtEntry)
                                     <tr class="hover:bg-gray-50/50 transition">
                                         <td class="px-6 py-3 font-bold text-gray-900">{{ $dtEntry->reason }}</td>
-                                        <td class="px-6 py-3 text-gray-600 font-mono">{{ $dtEntry->start_time?->format('H:i') ?? '-' }}</td>
-                                        <td class="px-6 py-3 text-gray-600 font-mono">{{ $dtEntry->resume_time?->format('H:i') ?? '-' }}</td>
+                                        <td class="px-6 py-3 text-gray-600 font-mono">{{ $dtEntry->start_time?->setTimezone('Asia/Jakarta')->format('H:i') ?? '-' }}</td>
+                                        <td class="px-6 py-3 text-gray-600 font-mono">{{ $dtEntry->resume_time?->setTimezone('Asia/Jakarta')->format('H:i') ?? '-' }}</td>
                                         <td class="px-6 py-3 text-right font-black text-amber-700">{{ $dtEntry->duration_minutes }} min</td>
                                         <td class="px-6 py-3 text-gray-500 italic max-w-xs truncate">{{ $dtEntry->remarks ?? '-' }}</td>
                                     </tr>
@@ -326,7 +326,7 @@
                             @forelse($sessionHistory as $sHist)
                                 <tr class="hover:bg-gray-50/50 transition">
                                     <td class="px-6 py-3 font-bold text-gray-800">
-                                        <div>{{ $sHist->started_at?->format('Y-m-d') }}</div>
+                                        <div>{{ $sHist->started_at?->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }}</div>
                                         <div class="text-[10px] text-gray-400">Shift {{ $sHist->shift }}</div>
                                     </td>
                                     <td class="px-6 py-3 font-black text-blue-700">

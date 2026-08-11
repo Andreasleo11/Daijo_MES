@@ -191,6 +191,14 @@
                     @if($report)
                         @php
                             $isRunning = $report->status === 'running';
+                            $wo = $assignedWo ?? $report->workOrder;
+                            $woGood = $wo ? $wo->total_good : ($report->total_good ?? 0);
+                            $woReject = $wo ? $wo->total_reject : ($report->total_reject ?? 0);
+                            $woTotal = $woGood + $woReject;
+                            $woNgRate = $woTotal > 0 ? round(($woReject / $woTotal) * 100, 1) : 0;
+                            $targetQty = $wo ? $wo->target_qty : 0;
+                            $pct = $wo ? $wo->progress_percentage : 0;
+                            $sessionCount = $wo && $wo->relationLoaded('sessions') ? $wo->sessions->count() : 1;
                         @endphp
                         {{-- STATE 1: RUNNING / FINISHED SESSION --}}
                         <div x-show="activeTab === 'all' || (activeTab === 'running' && '{{ $report->status }}' === 'running')" x-transition 
@@ -243,33 +251,33 @@
                                         </div>
                                     @endif
 
-                                    @php
-                                        $targetQty = $report->workOrder->target_qty ?? 0;
-                                        $goodQty = $report->total_good ?? 0;
-                                        $pct = $targetQty > 0 ? min(100, round(($goodQty / $targetQty) * 100)) : 0;
-                                    @endphp
                                     <div>
                                         <div class="flex justify-between items-center text-[10px] font-black text-gray-500 uppercase mb-1">
                                             <span>Progress</span>
-                                            <span>{{ number_format($goodQty) }} / {{ number_format($targetQty) }} Pcs ({{ $pct }}%)</span>
+                                            <span>{{ number_format($woGood) }} / {{ number_format($targetQty) }} Pcs ({{ $pct }}%)</span>
                                         </div>
                                         <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
                                             <div class="{{ $isRunning ? 'bg-emerald-500' : 'bg-slate-400' }} h-2 rounded-full transition-all duration-500" style="width: {{ $pct }}%"></div>
                                         </div>
+                                        @if($sessionCount > 1)
+                                            <div class="text-[10px] font-bold text-gray-400 text-right mt-1">
+                                                Cumulative across {{ $sessionCount }} sessions
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <div class="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100 text-center">
                                         <div>
-                                            <div class="text-[9px] font-black text-gray-400 uppercase">Good Output</div>
-                                            <div class="font-black text-sm text-emerald-600">{{ number_format($report->total_good) }}</div>
+                                            <div class="text-[9px] font-black text-gray-400 uppercase">Total Good</div>
+                                            <div class="font-black text-sm text-emerald-600">{{ number_format($woGood) }}</div>
                                         </div>
                                         <div>
-                                            <div class="text-[9px] font-black text-gray-400 uppercase">Defects</div>
-                                            <div class="font-black text-sm text-red-600">{{ number_format($report->total_reject) }}</div>
+                                            <div class="text-[9px] font-black text-gray-400 uppercase">Total Defects</div>
+                                            <div class="font-black text-sm text-red-600">{{ number_format($woReject) }}</div>
                                         </div>
                                         <div>
                                             <div class="text-[9px] font-black text-gray-400 uppercase">NG Rate</div>
-                                            <div class="font-black text-sm {{ $report->ng_rate > 2 ? 'text-red-600' : 'text-emerald-600' }}">{{ $report->ng_rate }}%</div>
+                                            <div class="font-black text-sm {{ $woNgRate > 2 ? 'text-red-600' : 'text-emerald-600' }}">{{ $woNgRate }}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -296,15 +304,10 @@
                                         </div>
                                     @endif
 
-                                    @php
-                                        $targetQty = $report->workOrder->target_qty ?? 0;
-                                        $goodQty = $report->total_good ?? 0;
-                                        $pct = $targetQty > 0 ? min(100, round(($goodQty / $targetQty) * 100)) : 0;
-                                    @endphp
                                     <div>
                                         <div class="flex justify-between items-center text-[10px] font-black text-gray-500 mb-0.5">
                                             <span>Progress ({{ $pct }}%)</span>
-                                            <span>{{ number_format($goodQty) }} / {{ number_format($targetQty) }}</span>
+                                            <span>{{ number_format($woGood) }} / {{ number_format($targetQty) }}</span>
                                         </div>
                                         <div class="w-full bg-gray-100 rounded-full h-1.5 border border-gray-200 overflow-hidden">
                                             <div class="{{ $isRunning ? 'bg-emerald-500' : 'bg-slate-400' }} h-1.5 rounded-full transition-all" style="width: {{ $pct }}%"></div>
@@ -312,9 +315,9 @@
                                     </div>
 
                                     <div class="flex justify-between items-center pt-1.5 border-t border-gray-100 text-[10px] font-bold">
-                                        <span>Good: <strong class="text-emerald-600 font-black">{{ number_format($report->total_good) }}</strong></span>
-                                        <span>Defects: <strong class="text-red-600 font-black">{{ number_format($report->total_reject) }}</strong></span>
-                                        <span>NG: <strong class="{{ $report->ng_rate > 2 ? 'text-red-600' : 'text-emerald-600' }} font-black">{{ $report->ng_rate }}%</strong></span>
+                                        <span>Good: <strong class="text-emerald-600 font-black">{{ number_format($woGood) }}</strong></span>
+                                        <span>Defects: <strong class="text-red-600 font-black">{{ number_format($woReject) }}</strong></span>
+                                        <span>NG: <strong class="{{ $woNgRate > 2 ? 'text-red-600' : 'text-emerald-600' }} font-black">{{ $woNgRate }}%</strong></span>
                                     </div>
                                 </div>
                             </a>

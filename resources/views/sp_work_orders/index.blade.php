@@ -107,14 +107,14 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                                <th class="px-6 py-3">WO Number</th>
-                                <th class="px-6 py-3">Planned Date</th>
-                                <th class="px-6 py-3">Line / Shift</th>
-                                <th class="px-6 py-3">Part Information</th>
-                                <th class="px-6 py-3 text-right">Target Qty</th>
-                                <th class="px-6 py-3 text-center">QC First Piece Gate</th>
-                                <th class="px-6 py-3 text-center">Status</th>
-                                <th class="px-6 py-3 text-right">Action</th>
+                                <th class="px-4 py-3">WO Number</th>
+                                <th class="px-4 py-3">Planned Date</th>
+                                <th class="px-4 py-3">Line</th>
+                                <th class="px-4 py-3">Part Information</th>
+                                <th class="px-4 py-3 text-right">Target Qty</th>
+                                <th class="px-4 py-3 text-center">QC Gate</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-xs">
@@ -122,101 +122,103 @@
                                 @php
                                     $fpList = $firstPieceMap->get($wo->part_number) ?? collect();
                                     $fp = $fpList->first();
-                                     $fpApproved = $fp && $fp->isApproved();
-                                     $runningSession = $wo->sessions->where('status', 'running')->first();
+                                    $fpApproved = $fp && $fp->isApproved();
+                                    $runningSession = $wo->sessions->where('status', 'running')->first();
                                 @endphp
                                 <tr class="hover:bg-gray-50/50 transition">
-                                    <td class="px-6 py-4 font-black text-blue-700 whitespace-nowrap">
+                                    <td class="px-4 py-3 font-black text-blue-700 whitespace-nowrap">
                                         <a href="{{ route('sp-work-orders.show', $wo->id) }}" class="hover:underline">
                                             {{ $wo->wo_number }}
                                         </a>
                                     </td>
-                                    <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
+                                    <td class="px-4 py-3 font-bold text-gray-800 whitespace-nowrap">
                                         {{ \Carbon\Carbon::parse($wo->planned_date)->format('d M Y') }}
                                     </td>
-                                    <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
+                                    <td class="px-4 py-3 font-bold text-gray-800 whitespace-nowrap">
                                         <div>{{ $wo->unit_line }}</div>
                                     </td>
-                                    <td class="px-6 py-4">
-                                        <div class="font-bold text-gray-900">{{ $wo->part_name }}</div>
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold text-gray-900 leading-tight">{{ $wo->part_name }}</div>
                                         <div class="text-[10px] text-gray-400 font-mono">{{ $wo->part_number }}</div>
                                     </td>
-                                    <td class="px-6 py-4 text-right font-black text-gray-900 whitespace-nowrap">
+                                    <td class="px-4 py-3 text-right font-black text-gray-900 whitespace-nowrap">
                                         {{ number_format($wo->target_qty) }} Pcs
                                     </td>
-                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">
                                         @if($wo->status === 'draft')
-                                            <span class="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                                Unreleased Draft
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                                Unreleased
                                             </span>
                                         @elseif($fpApproved)
-                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider border border-emerald-200 hover:bg-emerald-200 transition">
+                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider border border-emerald-200 hover:bg-emerald-200 transition">
                                                 QC Approved
                                             </a>
                                         @elseif($fp)
-                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider border border-amber-200 hover:bg-amber-200 transition">
+                                            <a href="{{ route('first-piece-inspections.show', $fp->id) }}" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider border border-amber-200 hover:bg-amber-200 transition">
                                                 Pending Sign-off
                                             </a>
                                         @else
-                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}" class="inline-block px-3 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 uppercase tracking-wider border border-red-200 hover:bg-red-200 transition">
+                                            <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800 uppercase tracking-wider border border-red-200 hover:bg-red-200 transition">
                                                 Gate Required
                                             </a>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 text-center whitespace-nowrap">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border
                                             {{ $wo->status === 'draft' ? 'bg-slate-100 text-slate-700 border-slate-200' : ($wo->status === 'in_progress' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : ($wo->status === 'planned' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-gray-100 text-gray-700 border-gray-200')) }}">
                                             {{ str_replace('_', ' ', $wo->status) }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 text-right space-x-1 whitespace-nowrap">
-                                        <a href="{{ route('sp-work-orders.show', $wo->id) }}"
-                                            class="inline-block px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-lg border border-gray-300 transition uppercase tracking-wider">
-                                            Details
-                                        </a>
-
-                                        @if($wo->status === 'draft')
-                                            <a href="{{ route('sp-work-orders.edit', $wo->id) }}"
-                                                class="inline-block px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                Edit Draft
-                                            </a>
-                                            <form action="{{ route('sp-work-orders.release', $wo->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                    Release
-                                                </button>
-                                            </form>
-                                        @elseif($runningSession)
-                                            <a href="{{ route('app.sp-sessions.show', $runningSession->id) }}"
-                                                class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                Open Screen
-                                            </a>
-                                        @elseif($wo->status === 'planned')
-                                            @if($fpApproved)
-                                                <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="inline">
+                                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            @if($wo->status === 'draft')
+                                                <a href="{{ route('sp-work-orders.edit', $wo->id) }}"
+                                                    class="px-2.5 py-1 bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] rounded-lg transition uppercase tracking-wider">
+                                                    Edit
+                                                </a>
+                                                <form action="{{ route('sp-work-orders.release', $wo->id) }}" method="POST" class="inline">
                                                     @csrf
-                                                    <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                        Start Production
+                                                    <button type="submit" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition uppercase tracking-wider">
+                                                        Release
                                                     </button>
                                                 </form>
+                                            @elseif($runningSession)
+                                                <a href="{{ route('app.sp-sessions.show', $runningSession->id) }}"
+                                                    class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition uppercase tracking-wider">
+                                                    Open Screen
+                                                </a>
+                                            @elseif($wo->status === 'planned')
+                                                @if($fpApproved)
+                                                    <form action="{{ route('sp-sessions.start', $wo->id) }}" method="POST" class="inline">
+                                                        @csrf
+                                                        <button type="submit" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition uppercase tracking-wider">
+                                                            Start
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    @can('execute-qc-inspections')
+                                                        <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
+                                                            class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] rounded-lg transition uppercase tracking-wider">
+                                                            QC Inspection
+                                                        </a>
+                                                    @endcan
+                                                @endif
+
+                                                @if($wo->sessions->count() === 0)
+                                                    <form action="{{ route('sp-work-orders.revert-to-draft', $wo->id) }}" method="POST" class="inline">
+                                                        @csrf
+                                                        <button type="submit" class="px-2 py-1 bg-gray-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-300 transition uppercase tracking-wider" title="Revert to draft mode">
+                                                            Revert
+                                                        </button>
+                                                    </form>
+                                                @endif
                                             @else
-                                                @can('execute-qc-inspections')
-                                                    <a href="{{ route('first-piece-inspections.create', ['work_order_id' => $wo->id, 'part_number' => $wo->part_number, 'part_name' => $wo->part_name, 'model' => $wo->model]) }}"
-                                                        class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition uppercase tracking-wider">
-                                                        Perform Inspection
-                                                    </a>
-                                                @endcan
+                                                <a href="{{ route('sp-work-orders.show', $wo->id) }}"
+                                                    class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-[11px] rounded-lg border border-gray-300 transition uppercase tracking-wider">
+                                                    View
+                                                </a>
                                             @endif
-
-                                            @if($wo->sessions->count() === 0)
-                                                <form action="{{ route('sp-work-orders.revert-to-draft', $wo->id) }}" method="POST" class="inline">
-                                                    @csrf
-                                                    <button type="submit" class="px-2.5 py-1.5 bg-gray-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition uppercase tracking-wider" title="Revert to draft mode for editing">
-                                                        Revert
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @empty

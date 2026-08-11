@@ -402,13 +402,17 @@ class SecondProcessReportController extends Controller
             ->limit(20)
             ->get()
             ->map(function ($item) {
+                $rawCust = $item->customer?->customer_name ?? $item->customer_code;
+                $custName = (!empty($rawCust) && $rawCust !== '0' && $rawCust !== '-') ? $rawCust : 'N/A';
+                $rawModel = $item->project_code;
+                $modelCode = (!empty($rawModel) && $rawModel !== '0' && $rawModel !== '-') ? $rawModel : 'N/A';
                 return [
                     'id' => $item->id,
                     'item_code' => $item->item_code,
                     'item_name' => $item->item_name,
                     'item_description' => $item->item_name,
-                    'project_code' => $item->project_code,
-                    'customer_name' => $item->customer?->customer_name ?? $item->customer_code,
+                    'project_code' => $modelCode,
+                    'customer_name' => $custName,
                     'customer_code' => $item->customer_code,
                 ];
             });

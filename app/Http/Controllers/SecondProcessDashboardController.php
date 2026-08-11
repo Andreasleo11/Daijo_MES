@@ -182,10 +182,10 @@ class SecondProcessDashboardController extends Controller
         $totalScrap = $sessions->sum('total_scrap');
         $targetQty = $sessions->sum(fn($s) => $s->workOrder?->target_qty ?? 0);
 
-        // === Hourly Output (grouped by H:00) ===
+        // === Hourly Output (grouped by H:00 in Asia/Jakarta timezone) ===
         $hourlyRaw = SpProductionEntry::whereIn('session_id', $sessionIds)
             ->get()
-            ->groupBy(fn($e) => $e->recorded_at ? $e->recorded_at->format('H:00') : '00:00');
+            ->groupBy(fn($e) => $e->recorded_at ? $e->recorded_at->setTimezone('Asia/Jakarta')->format('H:00') : '00:00');
 
         $hourlyOutput = [];
         foreach ($hourlyRaw as $hour => $entries) {

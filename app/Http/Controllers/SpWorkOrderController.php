@@ -80,7 +80,10 @@ class SpWorkOrderController extends Controller
             ]);
 
             $validated['planned_date'] = $validated['planned_date'] ?? now()->toDateString();
-            $validated['customer'] = $validated['customer'] ?: 'N/A';
+            $cust = $request->input('customer');
+            $validated['customer'] = (!empty($cust) && $cust !== '0' && $cust !== '-') ? $cust : 'N/A';
+            $mod = $request->input('model');
+            $validated['model'] = (!empty($mod) && $mod !== '0' && $mod !== '-') ? $mod : 'N/A';
             $validated['target_qty'] = $validated['target_qty'] ?? 0;
             $validated['status'] = 'draft';
         } else {
@@ -92,9 +95,13 @@ class SpWorkOrderController extends Controller
                 'part_number' => 'required|string',
                 'part_name' => 'required|string',
                 'model' => 'nullable|string',
-                'customer' => 'required|string',
+                'customer' => 'nullable|string',
                 'target_qty' => 'required|integer|min:1',
             ]);
+            $cust = $request->input('customer');
+            $validated['customer'] = (!empty($cust) && $cust !== '0' && $cust !== '-') ? $cust : 'N/A';
+            $mod = $request->input('model');
+            $validated['model'] = (!empty($mod) && $mod !== '0' && $mod !== '-') ? $mod : 'N/A';
             $validated['status'] = 'planned';
         }
 
@@ -170,11 +177,16 @@ class SpWorkOrderController extends Controller
                 'part_number' => 'required|string',
                 'part_name' => 'required|string',
                 'model' => 'nullable|string',
-                'customer' => 'required|string',
+                'customer' => 'nullable|string',
                 'target_qty' => 'required|integer|min:1',
             ]);
             $validated['status'] = 'planned';
         }
+
+        $cust = $request->input('customer');
+        $validated['customer'] = (!empty($cust) && $cust !== '0' && $cust !== '-') ? $cust : 'N/A';
+        $mod = $request->input('model');
+        $validated['model'] = (!empty($mod) && $mod !== '0' && $mod !== '-') ? $mod : 'N/A';
 
         $workOrder->update($validated);
 
@@ -194,12 +206,21 @@ class SpWorkOrderController extends Controller
                 ->with('error', 'Only draft Work Orders can be released.');
         }
 
-        if (empty($workOrder->customer) || $workOrder->customer === 'N/A' || $workOrder->target_qty < 1) {
+        if ($workOrder->target_qty < 1) {
             return redirect()->route('sp-work-orders.edit', $id)
-                ->with('error', 'Please complete Customer and Target Quantity before releasing to production.');
+                ->with('error', 'Please complete Target Quantity before releasing to production.');
         }
 
-        $workOrder->update(['status' => 'planned']);
+        $cust = $workOrder->customer;
+        $cleanCust = (!empty($cust) && $cust !== '0' && $cust !== '-') ? $cust : 'N/A';
+        $mod = $workOrder->model;
+        $cleanMod = (!empty($mod) && $mod !== '0' && $mod !== '-') ? $mod : 'N/A';
+
+        $workOrder->update([
+            'customer' => $cleanCust,
+            'model' => $cleanMod,
+            'status' => 'planned',
+        ]);
 
         return redirect()->route('sp-work-orders.show', $workOrder->id)
             ->with('success', "Work Order {$workOrder->wo_number} released to production successfully.");

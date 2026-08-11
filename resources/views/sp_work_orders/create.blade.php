@@ -15,101 +15,114 @@
 
     <div class="py-6 space-y-6">
         <div class="max-w-3xl mx-auto space-y-6">
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <div class="mb-4 pb-3 border-b border-gray-100">
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+                <div class="border-b border-gray-100 pb-3">
                     <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Work Order Parameters</h3>
-                    <p class="text-xs text-gray-500 font-medium">Fill in manufacturing setup and product specs</p>
+                    <p class="text-xs text-gray-500 font-medium">Define product specs and shop floor setup</p>
                 </div>
 
                 <form action="{{ route('sp-work-orders.store') }}" method="POST" class="space-y-6">
                     @csrf
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {{-- WO Number --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Work Order No. (Auto)</label>
-                            <input type="text" name="wo_number" value="{{ old('wo_number', $woNumber) }}" readonly
-                                class="w-full rounded-xl bg-gray-100 border-gray-300 text-sm font-black text-blue-700">
+                    {{-- SECTION 1: Product Specifications (Catalog Lookup) --}}
+                    <div class="bg-gray-50/80 p-5 rounded-2xl border border-gray-200 space-y-4">
+                        <div class="text-[11px] font-black text-gray-500 uppercase tracking-widest">
+                            1. Product Specifications (Catalog Lookup)
                         </div>
 
-                        {{-- Planned Date --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Planned Date *</label>
-                            <input type="date" name="planned_date" value="{{ old('planned_date', date('Y-m-d')) }}" required
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                        </div>
-
-                        {{-- Unit / Line --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Production Line *</label>
-                            <select name="unit_line" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                <option value="">-- Select Line --</option>
-                                @foreach($lines as $l)
-                                    <option value="{{ $l }}" {{ old('unit_line', request('unit_line')) == $l ? 'selected' : '' }}>{{ $l }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-
-                        {{-- Process --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Second Process Type *</label>
-                            <select name="process_prod" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                                <option value="">-- Select Process --</option>
-                                @foreach($processes as $p)
-                                    <option value="{{ $p }}" {{ old('process_prod') == $p ? 'selected' : '' }}>{{ $p }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Customer --}}
+                        {{-- Part Number (Primary Lookup) --}}
                         <div class="relative">
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Customer Name *</label>
-                            <input type="text" name="customer" id="customer" value="{{ old('customer') }}" placeholder="Search or enter Customer..." required autocomplete="off"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                            <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
-                        </div>
-
-                        {{-- Part Number --}}
-                        <div class="relative">
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Part Number *</label>
+                            <label class="block text-[11px] font-black text-gray-600 uppercase tracking-wider mb-1">Part Number (Primary Lookup) *</label>
                             <input type="text" name="part_number" id="part_number" value="{{ old('part_number') }}" placeholder="Search Part Number..." required autocomplete="off"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-900 bg-white">
                             <div id="part-number-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
                         </div>
 
-                        {{-- Part Name --}}
-                        <div class="relative">
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Part Name *</label>
-                            <input type="text" name="part_name" id="part_name" value="{{ old('part_name') }}" placeholder="Search or enter Part Name..." required autocomplete="off"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
-                            <div id="part-name-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
+                        {{-- Specs 3-Column Grid --}}
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="relative">
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Part Name *</label>
+                                <input type="text" name="part_name" id="part_name" value="{{ old('part_name') }}" placeholder="Search or enter Part Name..." required autocomplete="off"
+                                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800 bg-white">
+                                <div id="part-name-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Model Code</label>
+                                <input type="text" name="model" id="model" value="{{ old('model', 'N/A') }}" placeholder="e.g. D01D or N/A"
+                                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800 bg-white">
+                            </div>
+
+                            <div class="relative">
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Customer Name</label>
+                                <input type="text" name="customer" id="customer" value="{{ old('customer', 'N/A') }}" placeholder="Enter Customer or N/A..." autocomplete="off"
+                                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800 bg-white">
+                                <div id="customer-dropdown" class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 hidden"></div>
+                            </div>
                         </div>
 
-                        {{-- Model --}}
-                        <div>
-                            <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Model Code (Optional)</label>
-                            <input type="text" name="model" id="model" value="{{ old('model') }}" placeholder="e.g. D01D"
-                                class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                        <div id="auto-fill-notice" class="hidden text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-center">
+                            Auto-filled from Master Catalog
+                        </div>
+                    </div>
+
+                    {{-- SECTION 2: Production Setup & Schedule --}}
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 space-y-4">
+                        <div class="text-[11px] font-black text-gray-500 uppercase tracking-widest">
+                            2. Production Setup & Schedule
                         </div>
 
-                        {{-- Target Qty --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Work Order No. (Auto)</label>
+                                <input type="text" name="wo_number" value="{{ old('wo_number', $woNumber) }}" readonly
+                                    class="w-full rounded-xl bg-gray-100 border-gray-300 text-sm font-black text-blue-700">
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Planned Date *</label>
+                                <input type="date" name="planned_date" value="{{ old('planned_date', date('Y-m-d')) }}" required
+                                    class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Production Line *</label>
+                                <select name="unit_line" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                                    <option value="">-- Select Line --</option>
+                                    @foreach($lines as $l)
+                                        <option value="{{ $l }}" {{ old('unit_line', request('unit_line')) == $l ? 'selected' : '' }}>{{ $l }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Second Process Type *</label>
+                                <select name="process_prod" required class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-gray-800">
+                                    <option value="">-- Select Process --</option>
+                                    @foreach($processes as $p)
+                                        <option value="{{ $p }}" {{ old('process_prod') == $p ? 'selected' : '' }}>{{ $p }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Target Production Qty (Pcs) *</label>
-                            <input type="number" name="target_qty" value="{{ old('target_qty', 1000) }}" min="1" required
+                            <input type="number" name="target_qty" id="target_qty" value="{{ old('target_qty', 1000) }}" min="1" required
                                 class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-bold text-emerald-700">
                         </div>
                     </div>
 
+                    {{-- Form Actions --}}
                     <div class="flex justify-end items-center gap-3 border-t border-gray-100 pt-4">
-                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 shadow-sm transition uppercase tracking-wider">
+                        <a href="{{ route('sp-work-orders.index') }}" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 transition uppercase tracking-wider">
                             Cancel
                         </a>
-                        <button type="submit" name="action" value="draft" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
+                        <button type="submit" name="action" value="draft" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
                             Save as Draft
                         </button>
-                        <button type="submit" name="action" value="release" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-xs rounded-xl shadow-sm transition uppercase tracking-wider">
-                            Publish & Release Order
+                        <button type="submit" name="action" value="release" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition uppercase tracking-wider">
+                            Release Order
                         </button>
                     </div>
 
@@ -186,19 +199,29 @@
                 if (item.item_name || item.item_description) {
                     document.getElementById('part_name').value = item.item_name || item.item_description;
                 }
-                if (item.project_code) {
-                    document.getElementById('model').value = item.project_code;
+                
+                const rawModel = item.project_code ? String(item.project_code).trim() : '';
+                document.getElementById('model').value = (rawModel === '' || rawModel === '0' || rawModel === '-') ? 'N/A' : rawModel;
+
+                if (item.customer_name !== undefined && item.customer_name !== null) {
+                    const cust = String(item.customer_name).trim();
+                    document.getElementById('customer').value = (cust === '' || cust === '0' || cust === '-') ? 'N/A' : cust;
                 }
-                if (item.customer_name) {
-                    document.getElementById('customer').value = item.customer_name;
-                }
+
+                const notice = document.getElementById('auto-fill-notice');
+                if (notice) notice.classList.remove('hidden');
+
+                const targetInput = document.getElementById('target_qty');
+                if (targetInput) targetInput.focus();
             }
 
             // Bind Autocompletes
             setupAutocomplete('part_number', 'part-number-dropdown', '{{ route('second-process-reports.search-items') }}', populateFromItem);
             setupAutocomplete('part_name', 'part-name-dropdown', '{{ route('second-process-reports.search-items') }}', populateFromItem);
             setupAutocomplete('customer', 'customer-dropdown', '{{ route('second-process-reports.search-customers') }}', function(item) {
-                document.getElementById('customer').value = item.customer_name || item.name || '';
+                const custName = item.customer_name || item.name || '';
+                const cust = String(custName).trim();
+                document.getElementById('customer').value = (cust === '' || cust === '0' || cust === '-') ? 'N/A' : cust;
             });
         });
     </script>
