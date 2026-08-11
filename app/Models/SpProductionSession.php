@@ -30,6 +30,11 @@ class SpProductionSession extends Model
         'qc_bypass_reason',
         'qc_bypassed_at',
         'qc_bypassed_by',
+        'production_notes',
+        'ng_remarks',
+        'absent_employees',
+        'next_production_schedule',
+        'output_destination',
     ];
 
     protected $casts = [
@@ -38,6 +43,7 @@ class SpProductionSession extends Model
         'approved_at' => 'datetime',
         'is_qc_bypassed' => 'boolean',
         'qc_bypassed_at' => 'datetime',
+        'next_production_schedule' => 'array',
     ];
 
     public function workOrder()
@@ -88,6 +94,11 @@ class SpProductionSession extends Model
     public function manpowerEntries()
     {
         return $this->hasMany(SpSessionManpower::class, 'session_id');
+    }
+
+    public function materials()
+    {
+        return $this->hasMany(SpSessionMaterial::class, 'session_id');
     }
 
     public function defectEntries()

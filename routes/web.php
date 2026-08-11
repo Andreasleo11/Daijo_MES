@@ -802,6 +802,8 @@ Route::middleware('auth')->group(function (){
     Route::prefix('app')->name('app.')->group(function () {
         Route::get('sp-sessions/{session}', [\App\Http\Controllers\SpProductionSessionController::class, 'show'])->name('sp-sessions.show');
         Route::post('sp-sessions/{session}/finish', [\App\Http\Controllers\SpProductionSessionController::class, 'finish'])->name('sp-sessions.finish');
+        Route::get('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'closeout'])->name('sp-sessions.closeout');
+        Route::post('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'submitCloseout'])->name('sp-sessions.submit-closeout');
         Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('sp-sessions.approve');
         Route::post('sp-sessions/{session}/production', [\App\Http\Controllers\SpProductionSessionController::class, 'addProduction'])->name('sp-sessions.add-production');
         Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');

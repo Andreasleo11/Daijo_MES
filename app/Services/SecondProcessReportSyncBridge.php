@@ -7,6 +7,7 @@ use App\Models\SecondProcessNgRecord;
 use App\Models\SecondProcessTrouble;
 use App\Models\SecondProcessHourlyProduction;
 use App\Models\SecondProcessManpower;
+use App\Models\SecondProcessMaterial;
 use App\Models\SpProductionSession;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -27,7 +28,8 @@ class SecondProcessReportSyncBridge
                 'downtimeEntries',
                 'reworkEntries',
                 'inputEntries',
-                'manpowerEntries'
+                'manpowerEntries',
+                'materials'
             ]);
 
             $wo = $session->workOrder;
@@ -63,7 +65,11 @@ class SecondProcessReportSyncBridge
                     'leader_signed_at' => $session->finished_at,
                     'created_by_name' => $session->operator->name ?? null,
                     'created_by_signed_at' => $session->finished_at,
-                    'production_notes' => $session->remarks,
+                    'production_notes' => $session->production_notes ?? $session->remarks,
+                    'ng_remarks' => $session->ng_remarks,
+                    'absent_employees' => $session->absent_employees,
+                    'next_production_schedule' => $session->next_production_schedule,
+                    'output_destination' => $session->output_destination,
                     'acknowledged_by_name' => $session->approvedBy->name ?? null,
                     'acknowledged_signed_at' => $session->approved_at,
                 ]
@@ -97,10 +103,26 @@ class SecondProcessReportSyncBridge
 
                 SecondProcessTrouble::create([
                     'report_id' => $report->id,
+                    'penyebab' => $dt->category ?? 'Downtime',
                     'masalah' => $dt->reason,
-                    'penyebab' => $dt->remarks ?: $dt->reason,
+                    'penanganan' => $dt->countermeasure,
                     'loss_time_minutes' => $duration,
-                    'category' => 'Downtime',
+                    'category' => $dt->category ?? 'Downtime',
+                ]);
+            }
+
+            // Sync Materials
+            $report->materials()->delete();
+            foreach ($session->materials as $mat) {
+                SecondProcessMaterial::create([
+                    'report_id' => $report->id,
+                    'type' => $mat->type,
+                    'item_name' => $mat->item_name,
+                    'lot_number' => $mat->lot_number,
+                    'visco' => $mat->visco,
+                    'mixing_ratio' => $mat->mixing_ratio,
+                    'qty' => $mat->qty,
+                    'uom' => $mat->uom,
                 ]);
             }
 

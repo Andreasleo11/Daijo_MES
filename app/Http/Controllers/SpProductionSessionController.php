@@ -8,6 +8,7 @@ use App\Models\SpProductionEntry;
 use App\Models\SpProductionSession;
 use App\Models\SpRejectEntry;
 use App\Models\SpReworkEntry;
+use App\Models\SpSessionMaterial;
 use App\Models\SpWorkOrder;
 use App\Models\FirstPieceInspection;
 use App\Services\SecondProcessReportSyncBridge;
@@ -370,17 +371,8 @@ class SpProductionSessionController extends Controller
     {
         $session = SpProductionSession::with('workOrder')->findOrFail($id);
 
-        $spLines = config('mes.sp_lines', []);
-        $lineSlug = array_search($session->unit_line, $spLines) ?: \Illuminate\Support\Str::slug($session->unit_line);
-
-        $redirectParams = [
-            'lineSlug' => $lineSlug,
-            'date' => $session->started_at ? $session->started_at->format('Y-m-d') : now()->format('Y-m-d'),
-            'shift' => $session->shift ?? 1,
-        ];
-
         if ($session->status === 'completed') {
-            return redirect()->route('sp-sessions.line-gateway', $redirectParams)
+            return redirect()->route('app.sp-sessions.closeout', $session->id)
                 ->with('info', 'Session is already completed.');
         }
 
@@ -401,12 +393,97 @@ class SpProductionSessionController extends Controller
             }
         }
 
-        $successMsg = ($session->workOrder && $session->workOrder->fresh()->status === 'completed')
-            ? "Production session completed. Work Order {$session->workOrder->wo_number} target fulfilled!"
-            : "Production session completed. Work Order target not yet met — order returned to queue.";
+        return redirect()->route('app.sp-sessions.closeout', $session->id)
+            ->with('success', 'Session completed. Please fill in the close-out details.');
+    }
 
-        return redirect()->route('sp-sessions.line-gateway', $redirectParams)
-            ->with('success', $successMsg);
+    public function closeout($id)
+    {
+        $session = SpProductionSession::with([
+            'workOrder',
+            'operator',
+            'materials',
+            'downtimeEntries',
+            'manpowerEntries',
+        ])->findOrFail($id);
+
+        if ($session->status !== 'completed') {
+            return redirect()->route('app.sp-sessions.show', $session->id)
+                ->with('error', 'Session must be completed before close-out.');
+        }
+
+        $troubleCategories = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
+
+        return view('sp_production.closeout', compact('session', 'troubleCategories'));
+    }
+
+    public function submitCloseout(Request $request, $id)
+    {
+        $session = SpProductionSession::with('workOrder')->findOrFail($id);
+
+        $validated = $request->validate([
+            'production_notes' => 'nullable|string',
+            'ng_remarks' => 'nullable|string',
+            'absent_employees' => 'nullable|string',
+            'next_production_schedule' => 'nullable|array',
+            'output_destination' => 'nullable|string',
+            'remarks' => 'nullable|string',
+            // Materials
+            'materials' => 'nullable|array',
+            'materials.*.type' => 'required|string|in:paint,part',
+            'materials.*.item_name' => 'required|string',
+            'materials.*.lot_number' => 'nullable|string',
+            'materials.*.visco' => 'nullable|string',
+            'materials.*.mixing_ratio' => 'nullable|string',
+            'materials.*.qty' => 'nullable|numeric',
+            'materials.*.uom' => 'nullable|string',
+            // Downtime enrichment
+            'troubles' => 'nullable|array',
+            'troubles.*.downtime_id' => 'nullable|integer',
+            'troubles.*.category' => 'nullable|string',
+            'troubles.*.countermeasure' => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($session, $validated) {
+            $session->update([
+                'production_notes' => $validated['production_notes'] ?? null,
+                'ng_remarks' => $validated['ng_remarks'] ?? null,
+                'absent_employees' => $validated['absent_employees'] ?? null,
+                'next_production_schedule' => $validated['next_production_schedule'] ?? null,
+                'output_destination' => $validated['output_destination'] ?? null,
+                'remarks' => $validated['remarks'] ?? $session->remarks,
+            ]);
+
+            // Save materials
+            $session->materials()->delete();
+            foreach (($validated['materials'] ?? []) as $mat) {
+                if (!empty($mat['item_name'])) {
+                    $session->materials()->create($mat);
+                }
+            }
+
+            // Enrich downtime entries with category + countermeasure
+            foreach (($validated['troubles'] ?? []) as $trouble) {
+                if (!empty($trouble['downtime_id'])) {
+                    SpDowntimeEntry::where('id', $trouble['downtime_id'])
+                        ->where('session_id', $session->id)
+                        ->update([
+                            'category' => $trouble['category'] ?? null,
+                            'countermeasure' => $trouble['countermeasure'] ?? null,
+                        ]);
+                }
+            }
+        });
+
+        $spLines = config('mes.sp_lines', []);
+        $lineSlug = array_search($session->unit_line, $spLines)
+            ?: \Illuminate\Support\Str::slug($session->unit_line);
+
+        return redirect()->route('sp-sessions.line-gateway', [
+            'lineSlug' => $lineSlug,
+            'date' => $session->started_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
+            'shift' => $session->shift ?? 1,
+        ])->with('success', 'Session close-out completed successfully.');
     }
 
     /**

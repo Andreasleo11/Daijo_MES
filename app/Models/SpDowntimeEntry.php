@@ -13,10 +13,12 @@ class SpDowntimeEntry extends Model
     protected $fillable = [
         'session_id',
         'reason',
+        'category',
         'start_time',
         'resume_time',
         'duration_minutes',
         'remarks',
+        'countermeasure',
     ];
 
     protected $casts = [
