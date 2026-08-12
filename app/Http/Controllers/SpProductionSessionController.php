@@ -512,30 +512,11 @@ class SpProductionSessionController extends Controller
     {
         $session = SpProductionSession::with('workOrder')->findOrFail($id);
 
-        if ($session->status === 'completed') {
-            return redirect()->route('app.sp-sessions.closeout', $session->id)
-                ->with('info', 'Session is already completed.');
+        if ($request->filled('remarks')) {
+            $session->update(['remarks' => $request->input('remarks')]);
         }
 
-        $session->update([
-            'status' => 'completed',
-            'finished_at' => now(),
-            'remarks' => $request->input('remarks'),
-        ]);
-
-        if ($session->workOrder) {
-            $wo = $session->workOrder;
-            $cumulativeGood = $wo->sessions()->sum('total_good');
-
-            if ($cumulativeGood >= $wo->target_qty) {
-                $wo->update(['status' => 'completed']);
-            } else {
-                $wo->update(['status' => 'planned']);
-            }
-        }
-
-        return redirect()->route('app.sp-sessions.closeout', $session->id)
-            ->with('success', 'Session completed. Please fill in the close-out details.');
+        return redirect()->route('app.sp-sessions.closeout', $session->id);
     }
 
     public function closeout($id)
@@ -547,11 +528,6 @@ class SpProductionSessionController extends Controller
             'downtimeEntries',
             'manpowerEntries',
         ])->findOrFail($id);
-
-        if ($session->status !== 'completed') {
-            return redirect()->route('app.sp-sessions.show', $session->id)
-                ->with('error', 'Session must be completed before close-out.');
-        }
 
         $troubleCategories = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
 
@@ -587,6 +563,8 @@ class SpProductionSessionController extends Controller
 
         DB::transaction(function () use ($session, $validated) {
             $session->update([
+                'status' => 'completed',
+                'finished_at' => $session->finished_at ?? now(),
                 'production_notes' => $validated['production_notes'] ?? null,
                 'ng_remarks' => $validated['ng_remarks'] ?? null,
                 'absent_employees' => $validated['absent_employees'] ?? null,
@@ -614,17 +592,27 @@ class SpProductionSessionController extends Controller
                         ]);
                 }
             }
+
+            if ($session->workOrder) {
+                $wo = $session->workOrder;
+                $cumulativeGood = $wo->sessions()->sum('total_good');
+
+                if ($cumulativeGood >= $wo->target_qty) {
+                    $wo->update(['status' => 'completed']);
+                } else {
+                    $wo->update(['status' => 'planned']);
+                }
+            }
         });
 
         $spLines = config('mes.sp_lines', []);
-        $lineSlug = array_search($session->unit_line, $spLines)
-            ?: \Illuminate\Support\Str::slug($session->unit_line);
+        $lineSlug = array_search($session->unit_line, $spLines) ?: \Illuminate\Support\Str::slug($session->unit_line);
 
         return redirect()->route('sp-sessions.line-gateway', [
             'lineSlug' => $lineSlug,
             'date' => $session->started_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
             'shift' => $session->shift ?? 1,
-        ])->with('success', 'Session close-out completed successfully.');
+        ])->with('success', 'Production session close-out submitted and shift completed successfully!');
     }
 
     /**

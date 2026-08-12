@@ -1464,25 +1464,81 @@
         </div>
     </dialog>
 
-    {{-- Modal 7: Finish Production --}}
-    <dialog id="modalFinish" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
-        <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
-            <div class="bg-red-600 px-6 py-4 flex justify-between items-center">
-                <h3 class="text-lg font-black text-white">Complete Session</h3>
-                <button type="button" onclick="document.getElementById('modalFinish').close()" class="text-red-200 hover:text-white text-xl font-bold">&times;</button>
+    {{-- Modal 7: Finish Production (Executive Shift Closeout Form) --}}
+    <dialog id="modalFinish" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/60 bg-transparent">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-red-700 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="text-xl font-black flex items-center gap-2">Complete Production Session</h3>
+                    <p class="text-xs text-red-100 font-medium mt-0.5">Work Order #{{ $session->workOrder->wo_number }} — Shift Closeout</p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalFinish').close()" class="text-red-200 hover:text-white text-2xl font-bold">&times;</button>
             </div>
+
             <form action="{{ route('app.sp-sessions.finish', $session->id) }}" method="POST" class="p-6">
                 @csrf
-                <p class="text-sm text-gray-500 mb-6 font-semibold">Are you sure you want to finish this session? Final totals will be computed and saved to the daily production report.</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Final Remarks / Handover</label>
-                        <textarea name="remarks" rows="3" placeholder="Optional handover notes..." class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white"></textarea>
+
+                {{-- Executive Shift Performance Summary Scorecard --}}
+                <div class="mb-5">
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Shift Performance Summary</label>
+                    <div class="grid grid-cols-2 gap-2.5 text-center">
+                        {{-- Good Output --}}
+                        <div class="p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl">
+                            <span class="block text-[10px] font-black uppercase tracking-wider text-emerald-700">Good Output</span>
+                            <strong class="text-lg font-black text-emerald-950" x-text="formatNum(totals.good) + ' Pcs'"></strong>
+                            <span class="block text-[9px] font-bold text-emerald-700/80 mt-0.5" x-text="formatNum(totals.direct_good || (totals.good - (totals.rework_recovered || 0))) + ' Direct • ' + formatNum(totals.rework_recovered || 0) + ' Rec.'"></span>
+                        </div>
+
+                        {{-- Final Scrap --}}
+                        <div class="p-3 bg-red-50 border border-red-200/80 rounded-2xl">
+                            <span class="block text-[10px] font-black uppercase tracking-wider text-red-700">Final Scrap</span>
+                            <strong class="text-lg font-black text-red-950" x-text="formatNum(totals.reject) + ' Pcs'"></strong>
+                            <span class="block text-[9px] font-bold text-red-700/80 mt-0.5" x-text="formatNum(totals.raw_reject || totals.reject) + ' Raw Defects'"></span>
+                        </div>
+
+                        {{-- Total Downtime --}}
+                        <div class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl">
+                            <span class="block text-[10px] font-black uppercase tracking-wider text-amber-800">Total Downtime</span>
+                            <strong class="text-lg font-black text-amber-950" x-text="formatNum(totals.downtime_minutes) + ' Mins'"></strong>
+                            <span class="block text-[9px] font-bold text-amber-700 mt-0.5" x-text="elapsedTime"></span>
+                        </div>
+
+                        {{-- WO Progress --}}
+                        <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                            <span class="block text-[10px] font-black uppercase tracking-wider text-slate-600">Target Completion</span>
+                            <strong class="text-lg font-black text-slate-950" x-text="progressPct + '%'"></strong>
+                            <span class="block text-[9px] font-bold text-slate-500 mt-0.5" x-text="formatNum(totals.good) + ' / ' + formatNum(targetQty) + ' Pcs'"></span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('modalFinish').close()" class="w-1/3 bg-gray-200 active:bg-gray-300 text-gray-800 py-4 rounded-xl text-lg font-bold">Cancel</button>
-                    <button type="submit" class="w-2/3 bg-red-600 active:bg-red-700 text-white py-4 rounded-xl text-xl font-black shadow-lg">FINISH NOW</button>
+
+                {{-- Unfinished Rework Warning Notice --}}
+                <div x-show="reworkPending > 0" class="mb-5 p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2 text-xs font-bold text-amber-900">
+                    <span class="text-base leading-none">⚠️</span>
+                    <div>
+                        <strong class="font-black">Active Rework Warning:</strong>
+                        <p class="font-medium text-amber-800 mt-0.5">
+                            <span x-text="reworkPending"></span> Pcs are still sitting at the Rework Bench. Completing this session will finalize totals and archive active repair logs.
+                        </p>
+                    </div>
+                </div>
+
+                {{-- Shift Handover Notes --}}
+                <div class="mb-6">
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">Shift Handover & Operator Notes</label>
+                    <textarea name="remarks" rows="2" placeholder="Optional notes for next shift operator or line supervisor..."
+                              class="w-full border-slate-300 rounded-2xl text-xs p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 font-medium placeholder-slate-400"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="document.getElementById('modalFinish').close()"
+                            class="w-1/3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="w-2/3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider shadow-lg transition cursor-pointer flex items-center justify-center gap-2">
+                        <span>PROCEED TO CLOSE-OUT REPORT →</span>
+                    </button>
                 </div>
             </form>
         </div>
