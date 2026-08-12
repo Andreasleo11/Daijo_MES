@@ -175,6 +175,11 @@ use App\Livewire\ManualSync;
     Route::get('/monitoring-spkdetail/{spk}', [MonitoringController::class, 'show'])
         ->name('monitoring.spk.detail');
 
+    // ROUTE UNTUK PERBANDINGAN & LOG PERUBAHAN SPK (SPK CHANGE TRACKING)
+    Route::get('/spk-changes', [\App\Http\Controllers\SpkChangeLogController::class, 'index'])->name('spk.changes.index');
+    Route::post('/spk-changes/sync', [\App\Http\Controllers\SpkChangeLogController::class, 'triggerSync'])->name('spk.changes.sync');
+    Route::get('/spk-changes/history/{spk}', [\App\Http\Controllers\SpkChangeLogController::class, 'getHistory'])->name('spk.changes.history');
+
     // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
