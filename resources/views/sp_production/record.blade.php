@@ -1,6 +1,7 @@
 <x-operator-layout>
+    <x-slot name="bodyClass">h-screen max-h-screen overflow-hidden select-none touch-none</x-slot>
     <x-slot name="headerContainerClass">px-3 py-1.5</x-slot>
-    <x-slot name="mainClass">p-0 overflow-hidden</x-slot>
+    <x-slot name="mainClass">p-0 h-[calc(100vh-42px)] overflow-hidden</x-slot>
 
     <x-slot name="header">
         <script>
@@ -97,7 +98,7 @@
         </div>
     </x-slot>
 
-    <div class="flex flex-col h-[calc(100vh-42px)] bg-gray-100" x-data="productionSession()" x-cloak>
+    <div class="flex flex-col h-full overflow-hidden bg-gray-100" x-data="productionSession()" x-cloak>
         <script>
             function productionSession() {
                 return {
@@ -663,12 +664,12 @@
 
         {{-- ULTRA-KISS HERO BUTTON AREA (70% Screen Area) --}}
         @if($session->status === 'running')
-            <div class="flex-1 bg-gray-100 p-4 sm:p-6 flex flex-col items-center justify-center select-none overflow-y-auto">
-                <div class="w-full max-w-2xl flex flex-col items-center gap-6">
+            <div class="flex-1 bg-gray-100 p-3 sm:p-4 flex flex-col items-center justify-center select-none overflow-hidden min-h-0">
+                <div class="w-full max-w-2xl h-full flex flex-col items-center justify-center gap-4">
                     
                     {{-- THE GIANT HERO OUTPUT BUTTON --}}
                     <button type="button" @click="quickAddGood()"
-                            class="w-full h-56 sm:h-64 rounded-3xl p-6 shadow-2xl border-4 transition-all flex flex-col items-center justify-center text-center cursor-pointer active:scale-95"
+                            class="w-full flex-1 max-h-64 sm:max-h-72 rounded-3xl p-4 sm:p-6 shadow-2xl border-4 transition-all flex flex-col items-center justify-center text-center cursor-pointer active:scale-95"
                             :class="[
                                 isPaused ? 'bg-slate-800 border-amber-500 text-white' : (availableWip < batchSize ? 'bg-amber-600 hover:bg-amber-500 active:bg-amber-700 border-amber-400 text-white animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 border-emerald-400 text-white'),
                                 quickFlash && 'ring-8 ring-emerald-300 scale-105 bg-emerald-500'
