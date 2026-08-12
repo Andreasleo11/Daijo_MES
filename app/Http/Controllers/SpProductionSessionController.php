@@ -182,6 +182,52 @@ class SpProductionSessionController extends Controller
             return response()->json(['error' => 'Session is not running.'], 422);
         }
 
+        $isAjax = $request->expectsJson() || $request->ajax() || $request->wantsJson();
+
+        // Multi-defect batch payload
+        $defects = $request->input('defects');
+        if (is_array($defects) && count($defects) > 0) {
+            $validated = $request->validate([
+                'defects' => 'required|array|min:1',
+                'defects.*.defect_type' => 'required|string',
+                'defects.*.quantity' => 'required|integer|min:1',
+                'defects.*.cause' => 'nullable|string',
+                'remarks' => 'nullable|string',
+            ]);
+
+            $totalRequestedQty = array_sum(array_column($validated['defects'], 'quantity'));
+            $currentOutput = $session->total_good + $session->total_reject;
+
+            if (($currentOutput + $totalRequestedQty) > $session->total_input) {
+                $availableWip = max(0, $session->total_input - $currentOutput);
+                return response()->json([
+                    'error' => "Total output cannot exceed available Input WIP ({$availableWip} Pcs available out of {$session->total_input} Pcs total). Please log Input WIP first."
+                ], 422);
+            }
+
+            $createdEntries = [];
+            foreach ($validated['defects'] as $item) {
+                $entry = $session->rejectEntries()->create([
+                    'defect_type' => trim($item['defect_type']),
+                    'quantity' => (int) $item['quantity'],
+                    'cause' => isset($item['cause']) ? trim($item['cause']) : null,
+                    'remarks' => isset($validated['remarks']) ? trim($validated['remarks']) : null,
+                ]);
+                $createdEntries[] = $entry;
+            }
+
+            $session->recalculateTotals();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($createdEntries) . ' defect record(s) logged successfully.',
+                'entries' => $createdEntries,
+                'entry' => $createdEntries[0] ?? null,
+                'totals' => $this->getSessionTotalsArray($session)
+            ]);
+        }
+
+        // Single defect fallback
         $validated = $request->validate([
             'defect_type' => 'required|string',
             'quantity' => 'required|integer|min:1',
@@ -192,28 +238,23 @@ class SpProductionSessionController extends Controller
         $currentOutput = $session->total_good + $session->total_reject;
         if (($currentOutput + $validated['quantity']) > $session->total_input) {
             $availableWip = max(0, $session->total_input - $currentOutput);
-            return response()->json([
-                'error' => "Total output cannot exceed available Input WIP ({$availableWip} Pcs available out of {$session->total_input} Pcs total). Please log Input WIP first."
-            ], 422);
+            if ($isAjax) {
+                return response()->json([
+                    'error' => "Total output cannot exceed available Input WIP ({$availableWip} Pcs available out of {$session->total_input} Pcs total). Please log Input WIP first."
+                ], 422);
+            }
+            return redirect()->back()->with('error', "Total output cannot exceed available Input WIP ({$availableWip} Pcs available).");
         }
 
         $entry = $session->rejectEntries()->create($validated);
         $session->recalculateTotals();
 
-        if ($request->wantsJson()) {
+        if ($isAjax) {
             return response()->json([
                 'success' => true,
                 'message' => 'Defect recorded successfully.',
                 'entry' => $entry,
-                'totals' => [
-                    'good' => $session->total_good,
-                    'reject' => $session->total_reject,
-                    'input' => $session->total_input,
-                    'yield' => $session->yield,
-                    'downtime_minutes' => $session->downtimeEntries->sum('duration_minutes') ?? 0,
-                    'rework_in' => $session->total_rework_in,
-                    'rework_recovered' => $session->total_rework_recovered,
-                ]
+                'totals' => $this->getSessionTotalsArray($session)
             ]);
         }
 

@@ -472,6 +472,65 @@
                         }
                     },
 
+                    async submitMultiRejectForm(event) {
+                        const form = event.target;
+                        const alpineData = form._x_dataStack ? form._x_dataStack[0] : null;
+                        if (!alpineData || !alpineData.validDefects || !alpineData.validDefects.length) {
+                            alert('Please select quantity for at least one defect type.');
+                            return;
+                        }
+
+                        const payload = {
+                            defects: alpineData.validDefects,
+                            remarks: alpineData.remarks || null
+                        };
+
+                        try {
+                            const response = await fetch(form.action, {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            const contentType = response.headers.get('content-type') || '';
+                            let data = {};
+                            if (contentType.includes('application/json')) {
+                                data = await response.json();
+                            } else {
+                                const rawText = await response.text();
+                                console.error('Non-JSON server response:', rawText);
+                                throw new Error('Server error (' + response.status + '). Please try again.');
+                            }
+
+                            if (!response.ok) {
+                                throw new Error(data.error || data.message || 'Failed to submit defects.');
+                            }
+
+                            if (data.success) {
+                                if (data.totals) {
+                                    this.totals = { ...this.totals, ...data.totals };
+                                }
+                                if (data.entries && data.entries.length) {
+                                    data.entries.forEach(e => this.rejectEntries.unshift(e));
+                                } else if (data.entry) {
+                                    this.rejectEntries.unshift(data.entry);
+                                }
+
+                                this.tab = 'defects';
+                                this.recalcProgress();
+                                if (alpineData.resetCounts) alpineData.resetCounts();
+                                form.closest('dialog').close();
+                            }
+                        } catch (error) {
+                            alert(error.message);
+                        }
+                    },
+
                     parseUtc(dateString) {
                         if (!dateString) return null;
                         if (typeof dateString === 'string') {
@@ -495,6 +554,61 @@
                         return new Intl.NumberFormat().format(num || 0);
                     }
                 }
+            }
+
+            function rejectBuilder(presetList) {
+                return {
+                    searchQuery: '',
+                    presetList: presetList || [],
+                    stagedItems: [],
+                    cause: '',
+
+                    get filteredPresets() {
+                        const q = (this.searchQuery || '').trim().toLowerCase();
+                        if (!q) return this.presetList;
+                        return this.presetList.filter(p => p.toLowerCase().includes(q));
+                    },
+
+                    get showCustomAdd() {
+                        const q = (this.searchQuery || '').trim();
+                        if (!q) return false;
+                        return !this.presetList.some(p => p.toLowerCase() === q.toLowerCase());
+                    },
+
+                    addDefect(name) {
+                        if (!name || !name.trim()) return;
+                        const cleanName = name.trim();
+                        const existing = this.stagedItems.find(i => i.defect_type.toLowerCase() === cleanName.toLowerCase());
+                        if (existing) {
+                            existing.quantity += 1;
+                        } else {
+                            this.stagedItems.push({ defect_type: cleanName, quantity: 1 });
+                        }
+                        this.searchQuery = '';
+                    },
+
+                    removeDefect(idx) {
+                        this.stagedItems.splice(idx, 1);
+                    },
+
+                    get totalDefectQty() {
+                        return this.stagedItems.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+                    },
+
+                    get validDefects() {
+                        return this.stagedItems.filter(item => (parseInt(item.quantity) || 0) > 0).map(item => ({
+                            defect_type: item.defect_type,
+                            quantity: parseInt(item.quantity),
+                            cause: this.cause || null
+                        }));
+                    },
+
+                    resetCounts() {
+                        this.searchQuery = '';
+                        this.stagedItems = [];
+                        this.cause = '';
+                    }
+                };
             }
         </script>
 
@@ -570,7 +684,6 @@
 
                         <template x-if="!isPaused && availableWip >= batchSize">
                             <div class="flex flex-col items-center">
-                                <span class="text-xs font-black uppercase tracking-widest text-emerald-200 mb-2">Tap Anywhere to Record</span>
                                 <h1 class="text-5xl sm:text-7xl font-black tracking-tight drop-shadow-md" x-text="quickFlash ? '✓ SAVED!' : ('+' + batchSize + ' GOOD')"></h1>
                                 <p class="text-sm font-bold text-emerald-100 mt-3" x-text="'Tap to log ' + batchSize + ' OK piece(s)'"></p>
                             </div>
@@ -792,63 +905,125 @@
         </div>
     </dialog>
 
-    {{-- Modal 2: Log Defect --}}
-    <dialog id="modalReject" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
-        <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
-            <div class="bg-red-600 px-6 py-4 flex justify-between items-center">
-                <h3 class="text-lg font-black text-white">Log Defect Type</h3>
-                <button type="button" onclick="document.getElementById('modalReject').close()" class="text-red-200 hover:text-white text-xl font-bold">&times;</button>
+    {{-- Modal 2: Log Defect (Zero-Scroll Search-As-You-Type Builder) --}}
+    <dialog id="modalReject" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-xl backdrop:bg-gray-900/60 bg-transparent">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-red-600 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="text-xl font-black">Log Defect Entries</h3>
+                    <p class="text-xs text-red-100 font-medium mt-0.5">Search or type defects, assign quantities, and submit batch</p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalReject').close()" class="text-red-200 hover:text-white text-2xl font-bold">&times;</button>
             </div>
-            <form action="{{ route('app.sp-sessions.add-reject', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'reject')" x-data="{ defect: '', quantity: 1 }" class="p-6">
+
+            @php
+                $presetDefects = array_values(array_unique(array_merge($defectTypes ?? [], ['Flash', 'Burn Mark', 'Scratch', 'Short Shot', 'Discoloration', 'Sink Mark', 'Silver Streak', 'Deformation'])));
+            @endphp
+
+            <form action="{{ route('app.sp-sessions.add-reject', $session->id) }}" method="POST"
+                  @submit.prevent="submitMultiRejectForm($event)"
+                  x-data="rejectBuilder({{ json_encode($presetDefects) }})"
+                  class="p-6">
                 @csrf
-                <input type="hidden" name="defect_type" :value="defect">
-                
+
                 <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-bold text-blue-900">
                     <span>Available Input WIP:</span>
                     <span class="text-sm font-black" x-text="formatNum(availableWip) + ' Pcs'"></span>
                 </div>
 
-                <div class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Defect Type *</label>
-                        <div class="grid grid-cols-2 gap-3">
-                            @foreach($defectTypes as $d)
-                                <button type="button" @click="defect = '{{ $d }}'" :class="defect === '{{ $d }}' ? 'bg-red-600 text-white ring-4 ring-red-200' : 'bg-gray-100 text-gray-700'" class="py-4 px-2 rounded-xl font-bold text-center transition shadow-sm text-sm">
-                                    {{ $d }}
-                                </button>
-                            @endforeach
-                        </div>
+                {{-- Search / Type Defect Input --}}
+                <div class="relative mb-4">
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Search or Type Defect Name</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" x-model="searchQuery"
+                               @keydown.enter.prevent="if (searchQuery.trim()) { addDefect(searchQuery); }"
+                               placeholder="Type e.g. Flash, Burn Mark, or custom defect..."
+                               class="flex-1 text-sm font-bold border-slate-300 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900 placeholder-slate-400">
+                        <button type="button" @click="if (searchQuery.trim()) addDefect(searchQuery)"
+                                class="px-4 py-3 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer flex-shrink-0">
+                            + ADD
+                        </button>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Quantity (Pcs) *</label>
-                        <div class="flex items-stretch h-20 rounded-2xl border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
-                            <button type="button" @click="quantity = Math.max(1, quantity - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
-                                -
+                    {{-- Search Dropdown Suggestions --}}
+                    <div x-show="searchQuery.trim().length > 0" x-cloak
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                        <template x-for="p in filteredPresets" :key="p">
+                            <button type="button" @click="addDefect(p)"
+                                    class="w-full text-left px-4 py-2.5 hover:bg-red-50 transition flex items-center justify-between cursor-pointer">
+                                <span class="font-bold text-sm text-slate-800" x-text="p"></span>
+                                <span class="text-xs font-black text-red-600">+ Select</span>
                             </button>
-                            <input type="number" name="quantity" value="1" x-model.number="quantity" @focus="$event.target.select()" @blur="if (!quantity && quantity !== 0) quantity = 1" min="1" required class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
-                            <button type="button" @click="quantity += 1" class="w-24 flex items-center justify-center bg-red-100 hover:bg-red-200 active:bg-red-300 transition text-red-700 text-4xl font-black border-l border-gray-300">
-                                +
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 mt-4">
-                            <button type="button" @click="quantity += 5" class="py-4 bg-red-50 active:bg-red-100 text-red-700 font-black rounded-xl text-xl shadow-sm border border-red-200">+5</button>
-                            <button type="button" @click="quantity += 10" class="py-4 bg-red-50 active:bg-red-100 text-red-700 font-black rounded-xl text-xl shadow-sm border border-red-200">+10</button>
-                        </div>
-                    </div>
+                        </template>
 
-                    <div>
-                        <input type="text" name="cause" placeholder="Probable Cause (Optional)..." class="w-full border-gray-300 rounded-lg text-lg p-3 bg-gray-50 focus:bg-white">
+                        <template x-if="showCustomAdd">
+                            <button type="button" @click="addDefect(searchQuery)"
+                                    class="w-full text-left px-4 py-2.5 bg-red-50 hover:bg-red-100 transition flex items-center justify-between cursor-pointer border-t border-red-200">
+                                <span>Add Custom Defect: <strong class="text-red-700 font-black" x-text="'&quot;' + searchQuery.trim() + '&quot;'"></strong></span>
+                                <span class="text-xs font-black text-red-700">+ Add Custom</span>
+                            </button>
+                        </template>
                     </div>
+                </div>
+
+                {{-- Staged Defects List (Zero Scroll Container) --}}
+                <div class="mb-4">
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Staged Defect Entries (<span x-text="stagedItems.length"></span>)
+                    </label>
+
+                    <template x-if="stagedItems.length === 0">
+                        <div class="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center text-slate-400 text-xs font-medium">
+                            No defects staged yet. Search, type, or tap quick presets above to add defect types.
+                        </div>
+                    </template>
+
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                        <template x-for="(item, idx) in stagedItems" :key="item.defect_type + '-' + idx">
+                            <div class="p-2.5 bg-red-50/80 border border-red-200 rounded-xl flex items-center justify-between gap-3">
+                                <span class="font-black text-sm text-red-950 flex-1 truncate" x-text="item.defect_type"></span>
+
+                                {{-- Counter & Remove --}}
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <button type="button" @click="item.quantity = Math.max(1, (parseInt(item.quantity) || 1) - 1)"
+                                            class="w-7 h-7 rounded-lg bg-white border border-red-200 text-red-700 font-black text-base flex items-center justify-center hover:bg-red-100 transition cursor-pointer">
+                                        -
+                                    </button>
+                                    <input type="number" min="1" x-model.number="item.quantity" @focus="$event.target.select()"
+                                           class="w-12 h-7 text-center font-black text-sm border border-red-200 rounded-lg bg-white text-red-700 p-0 focus:ring-red-500">
+                                    <button type="button" @click="item.quantity = (parseInt(item.quantity) || 0) + 1"
+                                            class="w-7 h-7 rounded-lg bg-red-600 text-white font-black text-base flex items-center justify-center hover:bg-red-500 transition cursor-pointer">
+                                        +
+                                    </button>
+
+                                    <button type="button" @click="removeDefect(idx)"
+                                            class="w-7 h-7 ml-1 text-slate-400 hover:text-red-600 font-bold text-lg flex items-center justify-center transition cursor-pointer" title="Remove">
+                                        &times;
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                {{-- Probable Cause Optional --}}
+                <div class="mb-4">
+                    <input type="text" x-model="cause" placeholder="Probable Cause for this batch (Optional)..."
+                           class="w-full border-slate-300 rounded-xl text-xs p-2.5 bg-slate-50 focus:bg-white font-medium">
                 </div>
 
                 {{-- WIP Warning --}}
-                <div x-show="quantity > availableWip" class="mt-4 p-2 bg-red-100 border border-red-300 rounded-lg text-xs font-bold text-red-700 text-center">
-                    Warning: Defect quantity (<span x-text="quantity"></span> Pcs) exceeds available WIP (<span x-text="availableWip"></span> Pcs). Please log Input WIP first.
+                <div x-show="totalDefectQty > availableWip" class="mb-4 p-2 bg-red-100 border border-red-300 rounded-xl text-xs font-bold text-red-700 text-center">
+                    Warning: Total defect quantity (<span x-text="totalDefectQty"></span> Pcs) exceeds available WIP (<span x-text="availableWip"></span> Pcs).
                 </div>
 
-                <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" :disabled="!defect || quantity > availableWip" :class="!defect || quantity > availableWip ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-red-600 active:bg-red-700 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE DEFECT</button>
+                <div>
+                    <button type="submit"
+                            :disabled="totalDefectQty <= 0 || stagedItems.length === 0 || totalDefectQty > availableWip"
+                            :class="(totalDefectQty <= 0 || stagedItems.length === 0 || totalDefectQty > availableWip) ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-red-600 hover:bg-red-500 active:bg-red-700 shadow-lg'"
+                            class="w-full text-white py-3.5 rounded-xl text-base font-black uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2">
+                        <span x-text="totalDefectQty > 0 ? ('SUBMIT ' + totalDefectQty + ' DEFECT(S) (' + stagedItems.length + ' TYPES)') : 'ADD DEFECT TYPES TO SUBMIT'"></span>
+                    </button>
                 </div>
             </form>
         </div>
