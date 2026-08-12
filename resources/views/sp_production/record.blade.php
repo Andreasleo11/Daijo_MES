@@ -28,61 +28,68 @@
                 }
             }
         </script>
-        <div class="flex items-center justify-between gap-2 text-sm" x-data="headerClock()" x-cloak>
-            {{-- Left: WO & Part info --}}
-            <div class="flex items-center gap-2 min-w-0">
-                <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="font-black text-blue-700 hover:text-blue-900 whitespace-nowrap text-base">
-                    {{ $session->workOrder->wo_number }}
-                </a>
-                <span class="text-gray-300 font-light">|</span>
-                <span class="font-black text-gray-900 truncate max-w-[140px] sm:max-w-[200px] text-sm" title="{{ $session->workOrder->part_number }}">
-                    {{ $session->workOrder->part_number }}
-                </span>
-                <span class="text-gray-500 truncate hidden md:inline max-w-[180px] text-xs font-medium" title="{{ $session->workOrder->part_name }}">
-                    {{ $session->workOrder->part_name }}
-                </span>
-            </div>
-
-            {{-- Center: Status & Session Elapsed --}}
-            <div class="flex items-center gap-2 whitespace-nowrap">
+        <div class="flex items-center justify-between gap-4 py-0.5" x-data="headerClock()" x-cloak>
+            {{-- Left: Status, Line & Work Order Context --}}
+            <div class="flex items-center gap-3 min-w-0">
                 @if($session->status === 'running')
-                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-green-500 text-white uppercase animate-pulse">
-                        RUNNING
-                    </span>
-                    <span class="text-xs font-bold text-gray-500" x-text="elapsedTime"></span>
-                @elseif($session->approved_by)
-                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-blue-500 text-white uppercase">
-                        APPROVED
-                    </span>
+                    @if($session->paused_at)
+                        <span class="w-3 h-3 rounded-full bg-amber-500 animate-pulse flex-shrink-0" title="PAUSED"></span>
+                    @else
+                        <span class="w-3 h-3 rounded-full bg-green-500 animate-pulse flex-shrink-0" title="RUNNING"></span>
+                    @endif
                 @else
-                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-gray-500 text-white uppercase">
-                        COMPLETED
-                    </span>
+                    <span class="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" title="COMPLETED"></span>
                 @endif
 
-                @if($session->is_qc_bypassed)
-                    <span class="px-2 py-0.5 text-xs font-black rounded-full bg-amber-500 text-white uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
-                        BYPASSED
-                    </span>
-                @endif
+                <div class="min-w-0 flex flex-col">
+                    <div class="flex items-center gap-2 leading-tight">
+                        <span class="font-black text-slate-900 text-sm tracking-tight">
+                            {{ $session->unit_line }}
+                        </span>
+                        <span class="text-slate-300 font-light">•</span>
+                        <a href="{{ route('sp-work-orders.show', $session->work_order_id) }}" class="font-black text-blue-700 hover:text-blue-900 text-sm">
+                            {{ $session->workOrder->wo_number }}
+                        </a>
+                        @if($session->is_qc_bypassed)
+                            <span class="px-1.5 py-0.2 text-[10px] font-black rounded-md bg-amber-100 text-amber-800 uppercase" title="QC Bypassed: {{ $session->qc_bypass_reason }}">
+                                BYPASSED
+                            </span>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 leading-tight">
+                        <span class="truncate max-w-[180px]" title="{{ $session->workOrder->part_number }} - {{ $session->workOrder->part_name }}">
+                            {{ $session->workOrder->part_number }}
+                        </span>
+                        <span>•</span>
+                        <span x-text="elapsedTime"></span>
+                    </div>
+                </div>
             </div>
 
-            {{-- Right: Line/Shift, Live Clock, Gateway & Finish --}}
+            {{-- Right: Essential Controls (Team, Gateway, Finish) --}}
             @php
                 $lineSlug = array_search($session->unit_line, config('mes.sp_lines', [])) ?: 'line-a';
             @endphp
-            <div class="flex items-center gap-2 whitespace-nowrap">
-                <span class="font-bold text-gray-700 text-xs">
-                    {{ $session->unit_line }} S{{ $session->shift }}
-                </span>
-                <span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs" x-text="liveTime"></span>
-                
-                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2.5 rounded-lg text-xs transition uppercase">
+            <div class="flex items-center gap-2 flex-shrink-0">
+                {{-- Team Roster Trigger Pill --}}
+                <button type="button" onclick="document.getElementById('modalTeamRoster').showModal()"
+                        class="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-800 font-bold text-xs rounded-xl border border-purple-200 transition cursor-pointer flex items-center gap-1.5">
+                    <span>Team</span>
+                    <span class="bg-purple-600 text-white px-1.5 py-0.2 rounded-md text-[10px] font-black">
+                        {{ $session->manpowerEntries->count() }}
+                    </span>
+                </button>
+
+                {{-- Gateway Link --}}
+                <a href="{{ route('sp-sessions.line-gateway', ['lineSlug' => $lineSlug]) }}"
+                   class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition">
                     Gateway
                 </a>
 
+                {{-- Finish Button --}}
                 @if($session->status === 'running')
-                    <button onclick="document.getElementById('modalFinish').showModal()" class="bg-red-600 hover:bg-red-700 text-white font-black py-1 px-3 rounded-lg text-xs uppercase tracking-wider transition">
+                    <button type="button" onclick="document.getElementById('modalFinish').showModal()"
+                            class="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-xs rounded-xl shadow-xs transition uppercase tracking-wider">
                         Finish
                     </button>
                 @endif
@@ -94,7 +101,7 @@
         <script>
             function productionSession() {
                 return {
-                    tab: 'production',
+                    tab: 'all',
                     totals: {
                         input: {{ $session->total_input ?? 0 }},
                         good: {{ $session->total_good ?? 0 }},
@@ -119,6 +126,28 @@
                     inputEntries: @json($session->inputEntries),
                     manpowerEntries: @json($session->manpowerEntries),
 
+                    pausedAt: {{ $session->paused_at ? "'" . $session->paused_at->toIso8601String() . "'" : "null" }},
+                    pausedDurationMinutes: 0,
+
+                    get isPaused() {
+                        return !!this.pausedAt;
+                    },
+
+                    get availableWip() {
+                        return Math.max(0, this.totals.input - (this.totals.good + this.totals.reject));
+                    },
+
+                    get allRecords() {
+                        const list = [];
+                        (this.productionEntries || []).forEach(e => list.push({ ...e, streamType: 'production', timestamp: new Date(e.recorded_at || e.created_at).getTime() }));
+                        (this.rejectEntries || []).forEach(e => list.push({ ...e, streamType: 'reject', timestamp: new Date(e.created_at).getTime() }));
+                        (this.downtimeEntries || []).forEach(e => list.push({ ...e, streamType: 'downtime', timestamp: new Date(e.created_at).getTime() }));
+                        (this.reworkEntries || []).forEach(e => list.push({ ...e, streamType: 'rework', timestamp: new Date(e.created_at).getTime() }));
+                        (this.inputEntries || []).forEach(e => list.push({ ...e, streamType: 'input', timestamp: new Date(e.created_at).getTime() }));
+                        (this.manpowerEntries || []).forEach(e => list.push({ ...e, streamType: 'manpower', timestamp: new Date(e.created_at).getTime() }));
+                        return list.sort((a, b) => b.timestamp - a.timestamp);
+                    },
+
                     init() {
                         // Load persistent quick-tap batch size
                         const savedBatch = localStorage.getItem('sp_quick_batch_size');
@@ -140,15 +169,94 @@
                         const now = new Date();
                         this.liveTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
-                        @if($session->started_at)
-                            const started = new Date('{{ $session->started_at->toIso8601String() }}');
-                            const diffSec = Math.max(0, Math.floor((now - started) / 1000));
+                        if (this.pausedAt) {
+                            const paused = new Date(this.pausedAt);
+                            const diffSec = Math.max(0, Math.floor((now - paused) / 1000));
                             const hrs = Math.floor(diffSec / 3600);
                             const mins = Math.floor((diffSec % 3600) / 60);
-                            this.elapsedTime = hrs + 'h ' + mins + 'm';
-                        @else
-                            this.elapsedTime = '0h 0m';
-                        @endif
+                            this.pausedDurationMinutes = Math.max(1, Math.round(diffSec / 60));
+                            this.elapsedTime = (hrs > 0 ? hrs + 'h ' : '') + mins + 'm (PAUSED)';
+                        } else {
+                            @if($session->started_at)
+                                const started = new Date('{{ $session->started_at->toIso8601String() }}');
+                                const diffSec = Math.max(0, Math.floor((now - started) / 1000));
+                                const hrs = Math.floor(diffSec / 3600);
+                                const mins = Math.floor((diffSec % 3600) / 60);
+                                this.elapsedTime = hrs + 'h ' + mins + 'm';
+                            @else
+                                this.elapsedTime = '0h 0m';
+                            @endif
+                        }
+                    },
+
+                    async togglePause() {
+                        if (this.isPaused) {
+                            document.getElementById('modalResumeDowntime').showModal();
+                            return;
+                        }
+
+                        if (!confirm('Pause production line for breakdown / downtime?')) return;
+
+                        try {
+                            const response = await fetch('{{ route("app.sp-sessions.pause", $session->id) }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error || 'Failed to pause line.');
+                            }
+
+                            const data = await response.json();
+                            if (data.success) {
+                                this.pausedAt = data.paused_at;
+                                this.updateClock();
+                            }
+                        } catch (error) {
+                            alert(error.message);
+                        }
+                    },
+
+                    async submitResumeForm(event) {
+                        const form = event.target;
+                        const formData = new FormData(form);
+
+                        try {
+                            const response = await fetch('{{ route("app.sp-sessions.resume", $session->id) }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                },
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error || 'Failed to resume line.');
+                            }
+
+                            const data = await response.json();
+                            if (data.success) {
+                                this.pausedAt = null;
+                                if (data.downtime) {
+                                    this.downtimeEntries.unshift(data.downtime);
+                                    this.triggerHighlight(data.downtime.id);
+                                }
+                                if (data.totals) {
+                                    this.totals = { ...this.totals, ...data.totals };
+                                }
+                                form.closest('dialog').close();
+                                form.reset();
+                            }
+                        } catch (error) {
+                            alert(error.message);
+                        }
                     },
 
                     recalcProgress() {
@@ -197,7 +305,68 @@
                         }
                     },
 
+                    async deleteEntry(item) {
+                        if (!confirm('Remove this log entry? Session totals will recalculate automatically.')) return;
+
+                        let endpoint = '';
+                        if (item.streamType === 'production') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/production') }}/${item.id}`;
+                        else if (item.streamType === 'reject') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/reject') }}/${item.id}`;
+                        else if (item.streamType === 'downtime') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/downtime') }}/${item.id}`;
+                        else if (item.streamType === 'rework') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/rework') }}/${item.id}`;
+                        else if (item.streamType === 'input') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/input') }}/${item.id}`;
+                        else if (item.streamType === 'manpower') {
+                            this.removeManpower(item.id);
+                            return;
+                        }
+
+                        if (!endpoint) return;
+
+                        try {
+                            const response = await fetch(endpoint, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error || 'Failed to remove entry.');
+                            }
+
+                            const data = await response.json();
+                            if (data.success) {
+                                if (item.streamType === 'production') this.productionEntries = this.productionEntries.filter(e => e.id !== item.id);
+                                else if (item.streamType === 'reject') this.rejectEntries = this.rejectEntries.filter(e => e.id !== item.id);
+                                else if (item.streamType === 'downtime') this.downtimeEntries = this.downtimeEntries.filter(e => e.id !== item.id);
+                                else if (item.streamType === 'rework') this.reworkEntries = this.reworkEntries.filter(e => e.id !== item.id);
+                                else if (item.streamType === 'input') this.inputEntries = this.inputEntries.filter(e => e.id !== item.id);
+
+                                if (data.totals) {
+                                    this.totals = { ...this.totals, ...data.totals };
+                                    this.recalcProgress();
+                                }
+                            }
+                        } catch (error) {
+                            alert(error.message);
+                        }
+                    },
+
                     async quickAddGood() {
+                        if (this.isPaused) {
+                            alert('Line is currently PAUSED for downtime. Please tap ▶ RESUME LINE to restart production.');
+                            document.getElementById('modalResumeDowntime').showModal();
+                            return;
+                        }
+
+                        if (this.batchSize > this.availableWip) {
+                            alert('Available Input WIP (' + this.availableWip + ' Pcs) is less than batch size (+' + this.batchSize + ' Pcs). Please receive stock first.');
+                            document.getElementById('modalInput').showModal();
+                            return;
+                        }
+
                         try {
                             const formData = new FormData();
                             formData.append('good_qty', this.batchSize);
@@ -336,304 +505,239 @@
             </div>
         @endif
 
-        {{-- KPI Strip + Target Progress Bar (Compact ~56px) --}}
-        <div class="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
-            <div class="flex items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-3 flex-wrap">
-                    <div class="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-xl border border-gray-200 shadow-xs">
-                        <span class="text-xs font-black text-gray-400 uppercase tracking-wider">Input</span>
-                        <span class="text-xl font-black text-gray-900" x-text="formatNum(totals.input)"></span>
+        {{-- ULTRA-KISS CORE METRICS BAR (2 Essential Numbers Only) --}}
+        <div class="bg-white border-b border-gray-200 px-4 py-2.5 shadow-sm flex items-center justify-between gap-4 flex-shrink-0">
+            {{-- Metric 1: Good Output / Target --}}
+            <button type="button" onclick="document.getElementById('modalProduction').showModal()"
+                    class="flex items-center gap-3 px-4 py-2 bg-emerald-50 hover:bg-emerald-100/80 active:bg-emerald-200 border border-emerald-200 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl flex-shrink-0">✓</div>
+                <div class="min-w-0">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">Good Output / Target</span>
+                    <div class="text-xl font-black text-emerald-900 leading-tight">
+                        <span x-text="formatNum(totals.good)"></span> <span class="text-gray-400 font-bold text-sm">/ {{ number_format($session->workOrder->target_qty) }}</span>
                     </div>
-
-                    <div class="flex items-center gap-2 px-3 py-1 bg-emerald-50/60 rounded-xl border border-emerald-200 shadow-xs">
-                        <span class="text-xs font-black text-emerald-600 uppercase tracking-wider">Good</span>
-                        <span class="text-xl font-black text-emerald-700" x-text="formatNum(totals.good)"></span>
-                    </div>
-
-                    <div class="flex items-center gap-2 px-3 py-1 bg-red-50/60 rounded-xl border border-red-200 shadow-xs">
-                        <span class="text-xs font-black text-red-500 uppercase tracking-wider">NG</span>
-                        <span class="text-xl font-black text-red-600" x-text="formatNum(totals.reject)"></span>
-                    </div>
-
-                    <div class="flex items-center gap-2 px-3 py-1 rounded-xl border shadow-xs"
-                         :class="totals.yield >= 90 ? 'bg-emerald-50/60 border-emerald-200' : (totals.yield >= 80 ? 'bg-amber-50/60 border-amber-200' : 'bg-red-50/60 border-red-200')">
-                        <span class="text-xs font-black uppercase tracking-wider" :class="totals.yield >= 90 ? 'text-emerald-600' : (totals.yield >= 80 ? 'text-amber-600' : 'text-red-600')">Yield</span>
-                        <span class="text-xl font-black" :class="totals.yield >= 90 ? 'text-emerald-700' : (totals.yield >= 80 ? 'text-amber-700' : 'text-red-700')" x-text="totals.yield + '%'"></span>
-                    </div>
-
-                    <div class="flex items-center gap-2 px-3 py-1 bg-orange-50/60 rounded-xl border border-orange-200 shadow-xs">
-                        <span class="text-xs font-black text-orange-500 uppercase tracking-wider">Downtime</span>
-                        <span class="text-xl font-black text-orange-600" x-text="totals.downtime_minutes + 'm'"></span>
-                    </div>
-
-                    <button type="button" @click="tab = 'manpower'" class="flex items-center gap-2 px-3 py-1 bg-purple-50/60 hover:bg-purple-100/80 active:bg-purple-200 rounded-xl border border-purple-200 shadow-xs transition cursor-pointer text-left">
-                        <span class="text-xs font-black text-purple-600 uppercase tracking-wider">Team</span>
-                        <span class="text-xl font-black text-purple-700" x-text="manpowerEntries.length"></span>
-                    </button>
-
-                    <button type="button" x-show="totals.rework_in > 0 || totals.rework_recovered > 0" x-cloak @click="tab = 'rework'" class="flex items-center gap-2 px-3 py-1 bg-yellow-50/60 hover:bg-yellow-100/80 active:bg-yellow-200 rounded-xl border border-yellow-200 shadow-xs transition cursor-pointer text-left">
-                        <span class="text-xs font-black text-yellow-600 uppercase tracking-wider">Rework</span>
-                        <span class="text-xl font-black text-yellow-700" x-text="formatNum(totals.rework_recovered) + '/' + formatNum(totals.rework_in)"></span>
-                    </button>
                 </div>
+            </button>
 
-                {{-- Target Progress --}}
-                <div class="flex-1 max-w-xs min-w-[160px] pl-2">
-                    <div class="flex justify-between text-xs font-bold text-gray-500 mb-1">
-                        <span>Target Progress</span>
-                        <span><strong class="text-gray-900" x-text="formatNum(totals.good)"></strong> / {{ number_format($session->workOrder->target_qty) }}</span>
+            {{-- Metric 2: Available WIP Balance --}}
+            <button type="button" onclick="document.getElementById('modalInput').showModal()"
+                    class="flex items-center gap-3 px-4 py-2 rounded-2xl border transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    :class="availableWip > 0 ? 'bg-blue-50 hover:bg-blue-100/80 border-blue-200' : 'bg-amber-100 hover:bg-amber-200 border-amber-300 animate-pulse'">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl flex-shrink-0"
+                     :class="availableWip > 0 ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white'">📦</div>
+                <div class="min-w-0">
+                    <span class="text-[10px] font-black uppercase tracking-wider block" :class="availableWip > 0 ? 'text-blue-700' : 'text-amber-800'">Available WIP Stock</span>
+                    <div class="text-xl font-black leading-tight" :class="availableWip > 0 ? 'text-blue-900' : 'text-amber-900'">
+                        <span x-text="formatNum(availableWip) + ' Pcs'"></span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-500"
-                             :class="progressPct >= 100 ? 'bg-green-500' : (progressPct >= 75 ? 'bg-blue-500' : (progressPct >= 50 ? 'bg-amber-500' : 'bg-gray-400'))"
-                             :style="'width: ' + Math.min(100, progressPct) + '%'"></div>
-                    </div>
+                </div>
+            </button>
+
+            {{-- Target Progress Bar --}}
+            <div class="flex-1 max-w-xs hidden sm:block">
+                <div class="flex justify-between text-xs font-bold text-gray-500 mb-1">
+                    <span>Progress</span>
+                    <span class="font-black text-gray-900" x-text="progressPct + '%'"></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500"
+                         :class="progressPct >= 100 ? 'bg-green-500' : (progressPct >= 75 ? 'bg-blue-500' : (progressPct >= 50 ? 'bg-amber-500' : 'bg-gray-400'))"
+                         :style="'width: ' + Math.min(100, progressPct) + '%'"></div>
                 </div>
             </div>
         </div>
 
-        {{-- Action Control Panel + Quick-Tap Configurable Toolbar (Touch Target Height ~42px) --}}
+        {{-- ULTRA-KISS HERO BUTTON AREA (70% Screen Area) --}}
         @if($session->status === 'running')
-            <div class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between gap-3 shadow-inner flex-shrink-0">
-                <div class="flex items-center gap-2.5">
-                    {{-- Quick-Tap Button with Touch Target 42px --}}
+            <div class="flex-1 bg-gray-100 p-4 sm:p-6 flex flex-col items-center justify-center select-none overflow-y-auto">
+                <div class="w-full max-w-2xl flex flex-col items-center gap-6">
+                    
+                    {{-- THE GIANT HERO OUTPUT BUTTON --}}
                     <button type="button" @click="quickAddGood()"
-                        class="bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-black py-2.5 px-5 rounded-xl text-sm uppercase tracking-wider transition shadow-md flex items-center gap-1.5 min-w-[130px] justify-center"
-                        :class="quickFlash && 'ring-4 ring-emerald-300 bg-emerald-400 scale-105'">
-                        <span x-text="quickFlash ? 'SAVED!' : ('+' + batchSize + ' GOOD')"></span>
-                    </button>
-
-                    {{-- Operator Configurable Batch Size Selector --}}
-                    <div class="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs font-bold">
-                        <span class="px-2 text-slate-400 uppercase text-xs">Batch:</span>
-                        <template x-for="size in [1, 5, 10, 50]" :key="size">
-                            <button type="button" @click="setBatchSize(size)"
-                                :class="batchSize === size ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
-                                class="px-2.5 py-1 rounded-lg transition text-xs font-bold" x-text="'+' + size"></button>
+                            class="w-full h-56 sm:h-64 rounded-3xl p-6 shadow-2xl border-4 transition-all flex flex-col items-center justify-center text-center cursor-pointer active:scale-95"
+                            :class="[
+                                isPaused ? 'bg-slate-800 border-amber-500 text-white' : (availableWip < batchSize ? 'bg-amber-600 hover:bg-amber-500 active:bg-amber-700 border-amber-400 text-white animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 border-emerald-400 text-white'),
+                                quickFlash && 'ring-8 ring-emerald-300 scale-105 bg-emerald-500'
+                            ]">
+                        
+                        <template x-if="isPaused">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs font-black uppercase tracking-widest text-amber-300 mb-2 animate-pulse">LINE PAUSED FOR DOWNTIME</span>
+                                <h1 class="text-4xl sm:text-6xl font-black tracking-tight drop-shadow-md text-amber-400">LINE STOPPED</h1>
+                                <p class="text-sm font-bold text-slate-300 mt-3">Tap Resume Line below to select downtime reason and restart production</p>
+                            </div>
                         </template>
-                    </div>
-                </div>
 
-                {{-- Modal Action Triggers (Touch Target ~42px) --}}
-                <div class="flex items-center gap-2 overflow-x-auto">
-                    <button onclick="document.getElementById('modalProduction').showModal()" class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        Output
+                        <template x-if="!isPaused && availableWip >= batchSize">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs font-black uppercase tracking-widest text-emerald-200 mb-2">Tap Anywhere to Record</span>
+                                <h1 class="text-5xl sm:text-7xl font-black tracking-tight drop-shadow-md" x-text="quickFlash ? '✓ SAVED!' : ('+' + batchSize + ' GOOD')"></h1>
+                                <p class="text-sm font-bold text-emerald-100 mt-3" x-text="'Tap to log ' + batchSize + ' OK piece(s)'"></p>
+                            </div>
+                        </template>
+
+                        <template x-if="!isPaused && availableWip < batchSize">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs font-black uppercase tracking-widest text-amber-200 mb-2">WIP Stock Exhausted</span>
+                                <h1 class="text-3xl sm:text-5xl font-black tracking-tight drop-shadow-md">RECEIVE WIP</h1>
+                                <p class="text-sm font-bold text-amber-100 mt-3">Tap here to add incoming WIP stock to line balance</p>
+                            </div>
+                        </template>
                     </button>
-                    <button onclick="document.getElementById('modalReject').showModal()" class="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        Defect
-                    </button>
-                    <button onclick="document.getElementById('modalDowntime').showModal()" class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        Downtime
-                    </button>
-                    <button onclick="document.getElementById('modalRework').showModal()" class="bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        Rework
-                    </button>
-                    <button onclick="document.getElementById('modalInput').showModal()" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        Input
-                    </button>
-                    <button onclick="document.getElementById('modalManpower').showModal()" class="bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-black py-2.5 px-4 rounded-xl text-sm uppercase tracking-wider transition shadow-sm">
-                        + Team
-                    </button>
+
+                    {{-- Quick Batch Size Toggles + Custom Input --}}
+                    <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl shadow-md border border-gray-200 flex-wrap justify-center">
+                        <span class="text-xs font-black uppercase tracking-wider text-gray-400 mr-1">Batch:</span>
+                        <template x-for="size in [1, 5, 10, 50, 100]" :key="size">
+                            <button type="button" @click="setBatchSize(size)"
+                                :class="batchSize === size ? 'bg-emerald-600 text-white font-black scale-110 shadow' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold'"
+                                class="px-3.5 py-2 rounded-xl transition text-sm sm:text-base min-w-[48px] text-center cursor-pointer"
+                                x-text="'+' + size"></button>
+                        </template>
+
+                        {{-- Custom Batch Input Pill --}}
+                        <div class="flex items-center gap-1 px-3 py-1.5 rounded-xl border transition"
+                             :class="![1, 5, 10, 50, 100].includes(batchSize) ? 'bg-emerald-600 border-emerald-500 text-white shadow-md' : 'bg-gray-100 border-gray-300 text-gray-700'">
+                            <span class="text-xs font-black" :class="![1, 5, 10, 50, 100].includes(batchSize) ? 'text-white' : 'text-gray-500'">+</span>
+                            <input type="number"
+                                   :value="[1, 5, 10, 50, 100].includes(batchSize) ? '' : batchSize"
+                                   @input="if ($event.target.value > 0) setBatchSize(parseInt($event.target.value))"
+                                   @focus="$event.target.select()"
+                                   placeholder="Custom"
+                                   min="1"
+                                   class="w-16 text-center text-sm font-black border-0 bg-transparent focus:ring-0 p-0 placeholder-gray-400"
+                                   :class="![1, 5, 10, 50, 100].includes(batchSize) ? 'text-white placeholder-emerald-200' : 'text-gray-900'">
+                        </div>
+                    </div>
+
                 </div>
             </div>
         @endif
 
-        {{-- Event Log Tabs (Touch Friendly ~38px) --}}
-        <div class="bg-white border-b border-gray-200 px-4 flex gap-1 text-sm flex-shrink-0">
-            <button @click="tab = 'production'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'production', 'text-gray-500 hover:text-gray-700': tab !== 'production' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Output (<span x-text="productionEntries.length"></span>)
-            </button>
-            <button @click="tab = 'defects'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'defects', 'text-gray-500 hover:text-gray-700': tab !== 'defects' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Defects (<span x-text="rejectEntries.length"></span>)
-            </button>
-            <button @click="tab = 'downtime'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'downtime', 'text-gray-500 hover:text-gray-700': tab !== 'downtime' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Downtime (<span x-text="downtimeEntries.length"></span>)
-            </button>
-            <button @click="tab = 'rework'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'rework', 'text-gray-500 hover:text-gray-700': tab !== 'rework' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Rework (<span x-text="reworkEntries.length"></span>)
-            </button>
-            <button @click="tab = 'input'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'input', 'text-gray-500 hover:text-gray-700': tab !== 'input' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Input WIP (<span x-text="inputEntries.length"></span>)
-            </button>
-            <button @click="tab = 'manpower'" :class="{ 'text-blue-600 border-blue-600 font-black bg-blue-50/50': tab === 'manpower', 'text-gray-500 hover:text-gray-700': tab !== 'manpower' }" class="py-2.5 px-4 border-b-2 font-bold transition rounded-t-xl">
-                Line Team (<span x-text="manpowerEntries.length"></span>)
+        {{-- ULTRA-KISS BOTTOM ACTION BAR (3 Clean Actions) --}}
+        <div class="bg-white border-t border-gray-200 p-3 shadow-md flex items-center justify-between gap-3 flex-shrink-0">
+            {{-- 3 Main Bottom Triggers --}}
+            <div class="grid grid-cols-3 gap-3 flex-1">
+                <button type="button" onclick="document.getElementById('modalReject').showModal()"
+                        class="py-3 px-3 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-sm rounded-xl shadow-md transition uppercase tracking-wider flex items-center justify-center gap-2">
+                    <span>Log Defect</span>
+                </button>
+
+                <button type="button" onclick="document.getElementById('modalInput').showModal()"
+                        class="py-3 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-sm rounded-xl shadow-md transition uppercase tracking-wider flex items-center justify-center gap-2">
+                    <span>Receive WIP</span>
+                </button>
+
+                <button type="button" @click="togglePause()"
+                        :class="isPaused ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 animate-pulse' : 'bg-amber-600 hover:bg-amber-500 active:bg-amber-700'"
+                        class="py-3 px-3 text-white font-black text-sm rounded-xl shadow-md transition uppercase tracking-wider flex items-center justify-center gap-2">
+                    <span x-text="isPaused ? 'Resume Line' : 'Pause Line'"></span>
+                </button>
+            </div>
+
+            {{-- History Drawer Trigger Button --}}
+            <button type="button" onclick="document.getElementById('modalHistory').showModal()"
+                    title="View Full Shift Log History"
+                    class="px-3.5 py-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-black text-sm rounded-xl border border-slate-300 transition flex items-center gap-1.5 flex-shrink-0">
+                <span>Logs</span>
+                <span class="text-xs font-black bg-slate-200 px-1.5 py-0.5 rounded-md" x-text="allRecords.length"></span>
             </button>
         </div>
 
-        {{-- Event Log Tables (Flex-1 Fill Remaining Heights & Scrollable) --}}
-        <div class="flex-1 overflow-y-auto bg-white">
+        {{-- MODAL HISTORY (FULL SEARCHABLE EVENT STREAM DRAWER) --}}
+        <dialog id="modalHistory" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-4xl backdrop:bg-gray-900/60 bg-transparent">
+            <div class="bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg font-black">Full Operational Event History</h3>
+                        <p class="text-xs text-slate-400 font-medium">Complete chronological activity log for Session #{{ $session->id }}</p>
+                    </div>
+                    <button type="button" onclick="document.getElementById('modalHistory').close()" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+                </div>
 
-            {{-- Output Logs --}}
-            <div x-show="tab === 'production'" class="p-0">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2">Timestamp</th>
-                            <th class="px-3 py-2 text-right">Good Qty</th>
-                            <th class="px-3 py-2 text-right">Reject Qty</th>
-                            <th class="px-3 py-2">Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="entry in productionEntries" :key="entry.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-2 font-mono text-xs text-gray-500" x-text="formatTime(entry.recorded_at)"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-green-600" x-text="'+' + formatNum(entry.good_qty)"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-red-600" x-text="'+' + formatNum(entry.reject_qty)"></td>
-                                <td class="px-3 py-2 text-gray-600 text-xs font-medium truncate max-w-xs" x-text="entry.remarks || '-'"></td>
+                {{-- Filter Tabs (Fixed height row, flex-shrink-0) --}}
+                <div class="bg-slate-100 border-b border-slate-200 px-6 flex items-center gap-2.5 text-xs font-bold py-3 overflow-x-auto whitespace-nowrap flex-shrink-0">
+                    <button type="button" @click="tab = 'all'" :class="tab === 'all' ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">All (<span x-text="allRecords.length"></span>)</button>
+                    <button type="button" @click="tab = 'production'" :class="tab === 'production' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Good Output (<span x-text="productionEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'defects'" :class="tab === 'defects' ? 'bg-red-600 text-white border-red-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Defects (<span x-text="rejectEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'downtime'" :class="tab === 'downtime' ? 'bg-amber-600 text-white border-amber-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Downtime (<span x-text="downtimeEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'rework'" :class="tab === 'rework' ? 'bg-yellow-600 text-white border-yellow-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Rework (<span x-text="reworkEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'input'" :class="tab === 'input' ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Input WIP (<span x-text="inputEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'manpower'" :class="tab === 'manpower' ? 'bg-purple-600 text-white border-purple-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Team (<span x-text="manpowerEntries.length"></span>)</button>
+                </div>
+
+                {{-- Table Area --}}
+                <div class="flex-1 overflow-y-auto p-0">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-xs font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-3">Timestamp</th>
+                                <th class="px-4 py-3">Type</th>
+                                <th class="px-4 py-3">Event Details</th>
+                                <th class="px-4 py-3 text-right">Quantity / Duration</th>
+                                <th class="px-4 py-3 text-center">Action</th>
                             </tr>
-                        </template>
-                        <tr x-show="productionEntries.length === 0">
-                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No production entries logged yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <template x-for="item in (tab === 'all' ? allRecords : (tab === 'production' ? productionEntries : (tab === 'defects' ? rejectEntries : (tab === 'downtime' ? downtimeEntries : (tab === 'rework' ? reworkEntries : (tab === 'input' ? inputEntries : manpowerEntries))))))" :key="(item.streamType || tab) + '-' + (item.id || item.timestamp || Math.random())">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-2.5 font-mono text-xs text-slate-500" x-text="formatTime(item.recorded_at || item.created_at)"></td>
+                                    <td class="px-4 py-2.5">
+                                        <span x-show="item.good_qty !== undefined || item.streamType === 'production'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">GOOD</span>
+                                        <span x-show="item.defect_type !== undefined || item.streamType === 'reject'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-200">DEFECT</span>
+                                        <span x-show="item.duration_minutes !== undefined || item.streamType === 'downtime'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">DOWNTIME</span>
+                                        <span x-show="item.recovered_qty !== undefined || item.streamType === 'rework'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-200">REWORK</span>
+                                        <span x-show="item.source !== undefined || item.streamType === 'input'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-100 text-blue-800 border border-blue-200">INPUT</span>
+                                        <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-purple-100 text-purple-800 border border-purple-200">TEAM</span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-xs font-semibold text-slate-800">
+                                        <template x-if="item.good_qty !== undefined || item.streamType === 'production'">
+                                            <span>Good Output Logged <span class="text-slate-400 font-normal" x-text="item.remarks ? '(' + item.remarks + ')' : ''"></span></span>
+                                        </template>
+                                        <template x-if="item.defect_type !== undefined || item.streamType === 'reject'">
+                                            <span><strong class="text-red-700" x-text="item.defect_type"></strong> <span class="text-slate-500 font-normal" x-text="item.cause ? '— Cause: ' + item.cause : ''"></span></span>
+                                        </template>
+                                        <template x-if="item.duration_minutes !== undefined || item.streamType === 'downtime'">
+                                            <span><strong class="text-amber-800" x-text="item.reason"></strong> <span class="text-slate-500 font-normal" x-text="(item.start_time && item.resume_time) ? '(' + formatHM(item.start_time) + ' – ' + formatHM(item.resume_time) + ')' : (item.start_time ? '(' + formatHM(item.start_time) + ')' : '')"></span></span>
+                                        </template>
+                                        <template x-if="item.recovered_qty !== undefined || item.streamType === 'rework'">
+                                            <span>Rework Salvage <span class="text-slate-500 font-normal" x-text="'(In: ' + item.input_qty + ', Rec: ' + item.recovered_qty + ', Scrap: ' + item.scrapped_qty + ')'"></span></span>
+                                        </template>
+                                        <template x-if="item.source !== undefined || item.streamType === 'input'">
+                                            <span>WIP Stock Received <span class="text-slate-500 font-normal" x-text="item.source ? '(' + item.source + ')' : ''"></span></span>
+                                        </template>
+                                        <template x-if="item.role !== undefined || item.streamType === 'manpower'">
+                                            <span>Team Member Added: <strong class="text-purple-800" x-text="item.operator_name || ('Worker #' + (item.user_id || item.id))"></strong> <span class="text-slate-400 font-normal" x-text="item.role ? '(' + item.role + ')' : ''"></span></span>
+                                        </template>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right font-black text-xs">
+                                        <span x-show="item.good_qty !== undefined || item.streamType === 'production'" class="text-emerald-700" x-text="'+' + formatNum(item.good_qty || 0) + ' Pcs'"></span>
+                                        <span x-show="item.defect_type !== undefined || item.streamType === 'reject'" class="text-red-600" x-text="formatNum(item.quantity || 0) + ' Pcs'"></span>
+                                        <span x-show="item.duration_minutes !== undefined || item.streamType === 'downtime'" class="text-amber-700" x-text="(item.duration_minutes || 0) + 'm'"></span>
+                                        <span x-show="item.recovered_qty !== undefined || item.streamType === 'rework'" class="text-yellow-800" x-text="'+' + formatNum(item.recovered_qty || 0) + ' Rec'"></span>
+                                        <span x-show="item.source !== undefined || item.streamType === 'input'" class="text-blue-700" x-text="'+' + formatNum(item.quantity || 0) + ' WIP'"></span>
+                                        <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="text-purple-700" x-text="item.role || 'Team'"></span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center whitespace-nowrap">
+                                        @if($session->status === 'running')
+                                            <button type="button" @click="deleteEntry(item)" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-bold text-xs rounded-lg border border-red-200 transition cursor-pointer">
+                                                Delete
+                                            </button>
+                                        @else
+                                            <span class="text-slate-300 font-normal text-xs">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
 
-            {{-- Defects --}}
-            <div x-show="tab === 'defects'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2">Defect Type</th>
-                            <th class="px-3 py-2 text-right">Quantity</th>
-                            <th class="px-3 py-2">Cause</th>
-                            <th class="px-3 py-2">Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="entry in rejectEntries" :key="entry.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-2 font-black text-sm text-red-600" x-text="entry.defect_type"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-gray-900" x-text="formatNum(entry.quantity) + ' Pcs'"></td>
-                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.cause || '-'"></td>
-                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
-                            </tr>
-                        </template>
-                        <tr x-show="rejectEntries.length === 0">
-                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No defects logged yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="bg-slate-100 p-4 border-t border-slate-200 text-right">
+                    <button type="button" onclick="document.getElementById('modalHistory').close()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl uppercase">Close History</button>
+                </div>
             </div>
-
-            {{-- Downtime --}}
-            <div x-show="tab === 'downtime'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2">Reason</th>
-                            <th class="px-3 py-2">Start Time</th>
-                            <th class="px-3 py-2">Resume Time</th>
-                            <th class="px-3 py-2 text-right">Duration</th>
-                            <th class="px-3 py-2">Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="entry in downtimeEntries" :key="entry.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-2 font-black text-sm text-orange-600" x-text="entry.reason"></td>
-                                <td class="px-3 py-2 text-gray-600 font-mono text-xs" x-text="formatHM(entry.start_time)"></td>
-                                <td class="px-3 py-2 text-gray-600 font-mono text-xs" x-text="formatHM(entry.resume_time)"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-gray-900" x-text="entry.duration_minutes + ' Mins'"></td>
-                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
-                            </tr>
-                        </template>
-                        <tr x-show="downtimeEntries.length === 0">
-                            <td colspan="5" class="px-3 py-6 text-center text-gray-400 text-xs">No downtime events logged yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Rework --}}
-            <div x-show="tab === 'rework'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2 text-right">Rework Input</th>
-                            <th class="px-3 py-2 text-right">Recovered Good</th>
-                            <th class="px-3 py-2 text-right">Scrapped Qty</th>
-                            <th class="px-3 py-2">Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="entry in reworkEntries" :key="entry.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-2 text-right font-black text-sm text-gray-800" x-text="formatNum(entry.input_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-green-600" x-text="formatNum(entry.recovered_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-red-600" x-text="formatNum(entry.scrapped_qty) + ' Pcs'"></td>
-                                <td class="px-3 py-2 text-gray-600 text-xs font-medium" x-text="entry.remarks || '-'"></td>
-                            </tr>
-                        </template>
-                        <tr x-show="reworkEntries.length === 0">
-                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No rework entries logged yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Input WIP --}}
-            <div x-show="tab === 'input'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2">Timestamp</th>
-                            <th class="px-3 py-2 text-right">Quantity</th>
-                            <th class="px-3 py-2">Pallet / Box #</th>
-                            <th class="px-3 py-2">Source</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="entry in inputEntries" :key="entry.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === entry.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-3 py-2 font-mono text-xs text-gray-500" x-text="formatTime(entry.created_at || entry.recorded_at)"></td>
-                                <td class="px-3 py-2 text-right font-black text-sm text-blue-600" x-text="'+' + formatNum(entry.quantity) + ' Pcs'"></td>
-                                <td class="px-3 py-2 font-mono text-xs text-gray-700 uppercase" x-text="entry.pallet_number || '-'"></td>
-                                <td class="px-3 py-2 text-gray-500 uppercase text-xs font-bold" x-text="entry.source || 'WIP'"></td>
-                            </tr>
-                        </template>
-                        <tr x-show="inputEntries.length === 0">
-                            <td colspan="4" class="px-3 py-6 text-center text-gray-400 text-xs">No input WIP entries recorded.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Line Team --}}
-            <div x-show="tab === 'manpower'" class="p-0" style="display: none;">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase tracking-wider border-b border-gray-200 sticky top-0 bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-2.5">Role / Position</th>
-                            <th class="px-4 py-2.5">Operator Name</th>
-                            <th class="px-4 py-2.5">Employee NIK</th>
-                            <th class="px-4 py-2.5 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <template x-for="mp in manpowerEntries" :key="mp.id">
-                            <tr class="transition-colors duration-500" :class="highlightedEntryId === mp.id ? 'bg-emerald-100 font-bold border-l-4 border-emerald-500' : 'hover:bg-gray-50'">
-                                <td class="px-4 py-2.5 font-black text-sm text-purple-700 uppercase tracking-wide" x-text="mp.role"></td>
-                                <td class="px-4 py-2.5 font-bold text-sm text-gray-900" x-text="mp.operator_name"></td>
-                                <td class="px-4 py-2.5 font-mono text-xs text-gray-500" x-text="mp.employee_no || '-'"></td>
-                                <td class="px-4 py-2.5 text-right">
-                                    @if($session->status === 'running')
-                                        <button type="button" @click="removeManpower(mp.id)" class="text-xs text-red-600 hover:text-red-800 font-black uppercase">
-                                            Remove
-                                        </button>
-                                    @endif
-                                </td>
-                            </tr>
-                        </template>
-                        <tr x-show="manpowerEntries.length === 0">
-                            <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-xs">No extra line team members added yet. Click "+ Team" to assign operators.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
+        </dialog>
 
     {{-- MODALS --}}
 
@@ -644,8 +748,13 @@
                 <h3 class="text-lg font-black text-white">Log Output</h3>
                 <button type="button" onclick="document.getElementById('modalProduction').close()" class="text-green-200 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            <form action="{{ route('app.sp-sessions.add-production', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'production')" x-data="{ good_qty: 0, reject_qty: 0 }" class="p-6">
+            <form action="{{ route('app.sp-sessions.add-production', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'production')" x-data="{ good_qty: 0 }" class="p-6">
                 @csrf
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-bold text-blue-900">
+                    <span>Available Input WIP:</span>
+                    <span class="text-sm font-black" x-text="formatNum(availableWip) + ' Pcs'"></span>
+                </div>
+
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Good Qty (Pcs) *</label>
@@ -665,28 +774,19 @@
                             <button type="button" @click="good_qty += 100" class="py-4 bg-green-50 active:bg-green-100 text-green-700 font-black rounded-xl text-xl shadow-sm border border-green-200">+100</button>
                         </div>
                     </div>
-                    
-                    <hr class="border-gray-100">
-
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Reject Qty (Pcs)</label>
-                        <div class="flex items-stretch h-20 rounded-2xl border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
-                            <button type="button" @click="reject_qty = Math.max(0, reject_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
-                                -
-                            </button>
-                            <input type="number" name="reject_qty" value="0" x-model.number="reject_qty" @focus="$event.target.select()" @blur="if (!reject_qty && reject_qty !== 0) reject_qty = 0" class="flex-1 text-center text-5xl font-black text-red-600 border-0 focus:ring-0 w-full bg-transparent p-0">
-                            <button type="button" @click="reject_qty += 1" class="w-24 flex items-center justify-center bg-red-100 hover:bg-red-200 active:bg-red-300 transition text-red-700 text-4xl font-black border-l border-gray-300">
-                                +
-                            </button>
-                        </div>
-                    </div>
 
                     <div>
                         <input type="text" name="remarks" placeholder="Optional notes / remarks..." class="w-full border-gray-300 rounded-lg text-lg p-3 bg-gray-50 focus:bg-white">
                     </div>
                 </div>
+
+                {{-- WIP Warning --}}
+                <div x-show="good_qty > availableWip" class="mt-4 p-2 bg-red-100 border border-red-300 rounded-lg text-xs font-bold text-red-700 text-center">
+                    Warning: Output quantity (<span x-text="good_qty"></span> Pcs) exceeds available WIP (<span x-text="availableWip"></span> Pcs). Please log Input WIP first.
+                </div>
+
                 <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" class="w-full bg-green-600 active:bg-green-700 text-white py-4 rounded-xl text-xl font-black shadow-lg">SAVE LOG</button>
+                    <button type="submit" :disabled="good_qty <= 0 || good_qty > availableWip" :class="good_qty <= 0 || good_qty > availableWip ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-green-600 active:bg-green-700 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE LOG</button>
                 </div>
             </form>
         </div>
@@ -702,6 +802,12 @@
             <form action="{{ route('app.sp-sessions.add-reject', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'reject')" x-data="{ defect: '', quantity: 1 }" class="p-6">
                 @csrf
                 <input type="hidden" name="defect_type" :value="defect">
+                
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-bold text-blue-900">
+                    <span>Available Input WIP:</span>
+                    <span class="text-sm font-black" x-text="formatNum(availableWip) + ' Pcs'"></span>
+                </div>
+
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Defect Type *</label>
@@ -735,8 +841,14 @@
                         <input type="text" name="cause" placeholder="Probable Cause (Optional)..." class="w-full border-gray-300 rounded-lg text-lg p-3 bg-gray-50 focus:bg-white">
                     </div>
                 </div>
+
+                {{-- WIP Warning --}}
+                <div x-show="quantity > availableWip" class="mt-4 p-2 bg-red-100 border border-red-300 rounded-lg text-xs font-bold text-red-700 text-center">
+                    Warning: Defect quantity (<span x-text="quantity"></span> Pcs) exceeds available WIP (<span x-text="availableWip"></span> Pcs). Please log Input WIP first.
+                </div>
+
                 <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" :disabled="!defect" :class="!defect ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-red-600 active:bg-red-700 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE DEFECT</button>
+                    <button type="submit" :disabled="!defect || quantity > availableWip" :class="!defect || quantity > availableWip ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-red-600 active:bg-red-700 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE DEFECT</button>
                 </div>
             </form>
         </div>
@@ -795,6 +907,11 @@
             </div>
             <form action="{{ route('app.sp-sessions.add-rework', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'rework')" x-data="{ input_qty: 0, recovered_qty: 0, scrapped_qty: 0 }" class="p-6">
                 @csrf
+                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between text-xs font-bold text-yellow-900">
+                    <span>Total Logged Defects Available:</span>
+                    <span class="text-sm font-black" x-text="formatNum(totals.reject) + ' Pcs'"></span>
+                </div>
+
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Input for Rework (Pcs) *</label>
@@ -802,8 +919,8 @@
                             <button type="button" @click="input_qty = Math.max(0, input_qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
                                 -
                             </button>
-                            <input type="number" name="input_qty" value="0" x-model.number="input_qty" @focus="$event.target.select()" @blur="if (!input_qty && input_qty !== 0) input_qty = 0" required class="flex-1 text-center text-5xl font-black text-gray-800 border-0 focus:ring-0 w-full bg-transparent p-0">
-                            <button type="button" @click="input_qty += 1" class="w-24 flex items-center justify-center bg-gray-200 hover:bg-gray-300 active:bg-gray-400 transition text-gray-700 text-4xl font-black border-l border-gray-300">
+                            <input type="number" name="input_qty" value="0" x-model.number="input_qty" :max="totals.reject" @focus="$event.target.select()" @blur="if (!input_qty && input_qty !== 0) input_qty = 0" required class="flex-1 text-center text-5xl font-black text-gray-800 border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <button type="button" @click="if (input_qty < totals.reject) input_qty += 1" class="w-24 flex items-center justify-center bg-gray-200 hover:bg-gray-300 active:bg-gray-400 transition text-gray-700 text-4xl font-black border-l border-gray-300">
                                 +
                             </button>
                         </div>
@@ -836,8 +953,17 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Validation Warnings --}}
+                <div x-show="input_qty > totals.reject" class="mt-4 p-2 bg-red-100 border border-red-300 rounded-lg text-xs font-bold text-red-700 text-center">
+                    Cannot rework more than total logged defects (<span x-text="totals.reject"></span> Pcs).
+                </div>
+                <div x-show="(recovered_qty + scrapped_qty) > input_qty" class="mt-4 p-2 bg-red-100 border border-red-300 rounded-lg text-xs font-bold text-red-700 text-center">
+                    Warning: Recovered (<span x-text="recovered_qty"></span>) + Scrapped (<span x-text="scrapped_qty"></span>) cannot exceed Rework Input (<span x-text="input_qty"></span> Pcs).
+                </div>
+
                 <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" class="w-full bg-yellow-500 active:bg-yellow-600 text-white py-4 rounded-xl text-xl font-black shadow-lg">SAVE REWORK</button>
+                    <button type="submit" :disabled="input_qty <= 0 || input_qty > totals.reject || (recovered_qty + scrapped_qty) > input_qty" :class="input_qty <= 0 || input_qty > totals.reject || (recovered_qty + scrapped_qty) > input_qty ? 'opacity-50 cursor-not-allowed' : ''" class="w-full bg-yellow-500 active:bg-yellow-600 text-white py-4 rounded-xl text-xl font-black shadow-lg transition">SAVE REWORK</button>
                 </div>
             </form>
         </div>
@@ -882,7 +1008,59 @@
         </div>
     </dialog>
 
-    {{-- Modal 6: Manage Line Team / Manpower --}}
+    {{-- Modal 6: Line Team Roster --}}
+    <dialog id="modalTeamRoster" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-xl backdrop:bg-gray-900/60 bg-transparent">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="bg-purple-700 px-6 py-4 flex justify-between items-center text-white flex-shrink-0">
+                <div>
+                    <h3 class="text-xl font-black flex items-center gap-2">Active Line Team</h3>
+                    <p class="text-xs text-purple-200 font-medium mt-0.5" x-text="manpowerEntries.length + ' Worker(s) assigned to {{ $session->unit_line }} Shift {{ $session->shift }}'"></p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalTeamRoster').close()" class="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="p-6 flex-1 overflow-y-auto space-y-3">
+                <template x-if="manpowerEntries.length === 0">
+                    <div class="text-center py-8 text-gray-400">
+                        <p class="text-base font-bold text-gray-500">No team members assigned yet</p>
+                        <p class="text-xs font-medium text-gray-400 mt-1">Add operators, quality inspectors, or helpers assigned to this line shift.</p>
+                    </div>
+                </template>
+
+                <template x-for="m in manpowerEntries" :key="m.id">
+                    <div class="flex items-center justify-between p-3.5 bg-purple-50/60 border border-purple-200/80 rounded-2xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-purple-600 text-white font-black text-sm flex items-center justify-center shadow-xs"
+                                 x-text="(m.operator_name || 'W').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()"></div>
+                            <div>
+                                <h4 class="font-black text-purple-950 text-sm" x-text="m.operator_name"></h4>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="px-2 py-0.5 bg-purple-200/80 text-purple-900 text-[10px] font-black uppercase rounded-md" x-text="m.role || 'Member'"></span>
+                                    <span x-show="m.employee_no" class="text-[11px] font-mono text-purple-700" x-text="'#' + m.employee_no"></span>
+                                </div>
+                            </div>
+                        </div>
+                        @if($session->status === 'running')
+                            <button type="button" @click="removeManpower(m.id)" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200 transition cursor-pointer">
+                                Remove
+                            </button>
+                        @endif
+                    </div>
+                </template>
+            </div>
+
+            @if($session->status === 'running')
+                <div class="p-4 bg-gray-50 border-t border-gray-100 flex-shrink-0">
+                    <button type="button" onclick="document.getElementById('modalTeamRoster').close(); document.getElementById('modalManpower').showModal();"
+                            class="w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider shadow-md transition">
+                        + ADD TEAM MEMBER
+                    </button>
+                </div>
+            @endif
+        </div>
+    </dialog>
+
+    {{-- Modal 7: Manage Line Team / Manpower --}}
     <dialog id="modalManpower" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
         <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
             <div class="bg-purple-600 px-6 py-4 flex justify-between items-center">
@@ -939,6 +1117,51 @@
                 <div class="flex gap-3 mt-6 pt-4 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('modalFinish').close()" class="w-1/3 bg-gray-200 active:bg-gray-300 text-gray-800 py-4 rounded-xl text-lg font-bold">Cancel</button>
                     <button type="submit" class="w-2/3 bg-red-600 active:bg-red-700 text-white py-4 rounded-xl text-xl font-black shadow-lg">FINISH NOW</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    {{-- Modal 8: Resume Downtime (Reason Selection) --}}
+    <dialog id="modalResumeDowntime" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-xl backdrop:bg-gray-900/60 bg-transparent">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-amber-600 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="text-xl font-black flex items-center gap-2">Resume Line Production</h3>
+                    <p class="text-xs text-amber-100 font-medium mt-0.5" x-text="'Line stopped for ' + pausedDurationMinutes + ' Minute(s). Please select Downtime Reason to resume.'"></p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalResumeDowntime').close()" class="text-amber-200 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <form @submit.prevent="submitResumeForm($event)" x-data="{ selectedReason: '' }" class="p-6">
+                @csrf
+                <input type="hidden" name="reason" :value="selectedReason">
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Select Downtime Reason *</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            @foreach($downtimeReasons as $r)
+                                <button type="button" @click="selectedReason = '{{ $r }}'"
+                                        :class="selectedReason === '{{ $r }}' ? 'bg-amber-600 text-white ring-4 ring-amber-200' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'"
+                                        class="py-3.5 px-3 rounded-xl font-bold text-center transition shadow-xs text-xs">
+                                    {{ $r }}
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1">Optional Remarks / Action Taken</label>
+                        <input type="text" name="remarks" placeholder="Countermeasure or breakdown details..." class="w-full border-gray-300 rounded-xl text-sm p-3 bg-gray-50 focus:bg-white">
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-100">
+                    <button type="submit" :disabled="!selectedReason" :class="!selectedReason ? 'opacity-50 cursor-not-allowed' : ''"
+                            class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-4 rounded-xl text-lg font-black shadow-lg transition uppercase tracking-wider">
+                        RESUME PRODUCTION & SAVE DOWNTIME
+                    </button>
                 </div>
             </form>
         </div>

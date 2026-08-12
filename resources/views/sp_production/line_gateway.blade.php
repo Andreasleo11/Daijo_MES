@@ -85,8 +85,15 @@
                                     </div>
                                 </div>
 
-                                <div class="text-xs text-slate-600 font-semibold">
-                                    Target: <strong class="text-slate-950 font-black">{{ number_format($wo->target_qty) }} Pcs</strong>
+                                @php
+                                    $availWip = max(0, ($runningSession->total_input ?? 0) - (($runningSession->total_good ?? 0) + ($runningSession->total_reject ?? 0)));
+                                @endphp
+                                <div class="flex items-center gap-3 text-xs text-slate-600 font-semibold flex-wrap">
+                                    <span>Target: <strong class="text-slate-950 font-black">{{ number_format($wo->target_qty) }} Pcs</strong></span>
+                                    <span>Output: <strong class="text-emerald-700 font-black">{{ number_format($runningSession->total_good ?? 0) }} Pcs</strong></span>
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-black {{ $availWip > 0 ? 'bg-blue-50 text-blue-900 border border-blue-200' : 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse' }}">
+                                        Avail WIP: {{ number_format($availWip) }} Pcs
+                                    </span>
                                 </div>
 
                                 @if($runningSession->is_qc_bypassed)

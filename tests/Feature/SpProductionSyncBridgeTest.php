@@ -55,7 +55,6 @@ class SpProductionSyncBridgeTest extends TestCase
         $session->productionEntries()->create([
             'recorded_at' => $session->started_at->copy()->addMinutes(15),
             'good_qty' => 480,
-            'reject_qty' => 20,
         ]);
 
         // Add a reject entry

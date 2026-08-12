@@ -93,6 +93,7 @@ class SpProductionSessionController extends Controller
             'reworkEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
             'downtimeEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
             'inputEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
+            'manpowerEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
         ])->findOrFail($id);
 
         $defectTypes = [
@@ -131,14 +132,22 @@ class SpProductionSessionController extends Controller
         }
 
         $validated = $request->validate([
-            'good_qty' => 'required|integer|min:0',
-            'reject_qty' => 'required|integer|min:0',
+            'good_qty' => 'required|integer|min:1',
             'remarks' => 'nullable|string',
         ]);
 
+        $newOutput = $validated['good_qty'];
+
+        $currentOutput = $session->total_good + $session->total_reject;
+        if (($currentOutput + $newOutput) > $session->total_input) {
+            $availableWip = max(0, $session->total_input - $currentOutput);
+            return response()->json([
+                'error' => "Total output cannot exceed available Input WIP ({$availableWip} Pcs available out of {$session->total_input} Pcs total). Please log Input WIP first."
+            ], 422);
+        }
+
         $entry = $session->productionEntries()->create([
             'good_qty' => $validated['good_qty'],
-            'reject_qty' => $validated['reject_qty'] ?? 0,
             'recorded_at' => now(),
             'remarks' => $validated['remarks'] ?? null,
         ]);
@@ -155,6 +164,9 @@ class SpProductionSessionController extends Controller
                     'reject' => $session->total_reject,
                     'input' => $session->total_input,
                     'yield' => $session->yield,
+                    'downtime_minutes' => $session->downtimeEntries->sum('duration_minutes') ?? 0,
+                    'rework_in' => $session->total_rework_in,
+                    'rework_recovered' => $session->total_rework_recovered,
                 ]
             ]);
         }
@@ -177,6 +189,14 @@ class SpProductionSessionController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
+        $currentOutput = $session->total_good + $session->total_reject;
+        if (($currentOutput + $validated['quantity']) > $session->total_input) {
+            $availableWip = max(0, $session->total_input - $currentOutput);
+            return response()->json([
+                'error' => "Total output cannot exceed available Input WIP ({$availableWip} Pcs available out of {$session->total_input} Pcs total). Please log Input WIP first."
+            ], 422);
+        }
+
         $entry = $session->rejectEntries()->create($validated);
         $session->recalculateTotals();
 
@@ -190,6 +210,9 @@ class SpProductionSessionController extends Controller
                     'reject' => $session->total_reject,
                     'input' => $session->total_input,
                     'yield' => $session->yield,
+                    'downtime_minutes' => $session->downtimeEntries->sum('duration_minutes') ?? 0,
+                    'rework_in' => $session->total_rework_in,
+                    'rework_recovered' => $session->total_rework_recovered,
                 ]
             ]);
         }
@@ -211,6 +234,18 @@ class SpProductionSessionController extends Controller
             'scrapped_qty' => 'required|integer|min:0',
             'remarks' => 'nullable|string',
         ]);
+
+        if ($validated['input_qty'] > $session->total_reject) {
+            return response()->json([
+                'error' => "Cannot rework more than total logged defects ({$session->total_reject} Pcs)."
+            ], 422);
+        }
+
+        if (($validated['recovered_qty'] + $validated['scrapped_qty']) > $validated['input_qty']) {
+            return response()->json([
+                'error' => 'Recovered + Scrapped quantity cannot exceed Rework Input quantity.'
+            ], 422);
+        }
 
         $entry = $session->reworkEntries()->create($validated);
         $session->recalculateTotals();
@@ -582,5 +617,171 @@ class SpProductionSessionController extends Controller
             }
         }
         return 1;
+    }
+
+    public function pause($id)
+    {
+        $session = SpProductionSession::findOrFail($id);
+
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Only running sessions can be paused.'], 422);
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('sp_production_sessions', 'paused_at')) {
+            return response()->json(['error' => 'The database column "paused_at" is missing. Please run php artisan migrate on your server.'], 422);
+        }
+
+        $session->paused_at = now();
+        $session->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Line paused. Breakdown / Stop timer started.',
+            'paused_at' => $session->paused_at->toIso8601String(),
+        ]);
+    }
+
+    public function resume(Request $request, $id)
+    {
+        $session = SpProductionSession::findOrFail($id);
+
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('sp_production_sessions', 'paused_at')) {
+            return response()->json(['error' => 'The database column "paused_at" is missing. Please run php artisan migrate on your server.'], 422);
+        }
+
+        if (!$session->paused_at) {
+            return response()->json(['error' => 'Session is not currently paused.'], 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $pausedAt = $session->paused_at;
+        $now = now();
+        $durationMinutes = max(1, (int) round($pausedAt->diffInMinutes($now)));
+
+        $downtime = $session->downtimeEntries()->create([
+            'reason' => $validated['reason'],
+            'start_time' => $pausedAt,
+            'resume_time' => $now,
+            'duration_minutes' => $durationMinutes,
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
+
+        $session->paused_at = null;
+        $session->save();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Line resumed. Logged {$durationMinutes}m downtime for '{$downtime->reason}'.",
+            'downtime' => $downtime,
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    public function deleteProductionEntry($sessionId, $entryId)
+    {
+        $session = SpProductionSession::findOrFail($sessionId);
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Cannot delete entries on a finished session.'], 422);
+        }
+
+        $entry = $session->productionEntries()->findOrFail($entryId);
+        $entry->delete();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Production entry removed successfully.',
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    public function deleteRejectEntry($sessionId, $entryId)
+    {
+        $session = SpProductionSession::findOrFail($sessionId);
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Cannot delete entries on a finished session.'], 422);
+        }
+
+        $entry = $session->rejectEntries()->findOrFail($entryId);
+        $entry->delete();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Defect entry removed successfully.',
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    public function deleteDowntimeEntry($sessionId, $entryId)
+    {
+        $session = SpProductionSession::findOrFail($sessionId);
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Cannot delete entries on a finished session.'], 422);
+        }
+
+        $entry = $session->downtimeEntries()->findOrFail($entryId);
+        $entry->delete();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Downtime entry removed successfully.',
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    public function deleteReworkEntry($sessionId, $entryId)
+    {
+        $session = SpProductionSession::findOrFail($sessionId);
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Cannot delete entries on a finished session.'], 422);
+        }
+
+        $entry = $session->reworkEntries()->findOrFail($entryId);
+        $entry->delete();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rework entry removed successfully.',
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    public function deleteInputEntry($sessionId, $entryId)
+    {
+        $session = SpProductionSession::findOrFail($sessionId);
+        if ($session->status !== 'running') {
+            return response()->json(['error' => 'Cannot delete entries on a finished session.'], 422);
+        }
+
+        $entry = $session->inputEntries()->findOrFail($entryId);
+        $entry->delete();
+        $session->recalculateTotals();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Input WIP entry removed successfully.',
+            'totals' => $this->getSessionTotalsArray($session)
+        ]);
+    }
+
+    private function getSessionTotalsArray(SpProductionSession $session): array
+    {
+        return [
+            'good' => $session->total_good,
+            'reject' => $session->total_reject,
+            'input' => $session->total_input,
+            'yield' => $session->yield,
+            'downtime_minutes' => (int) ($session->downtimeEntries()->sum('duration_minutes') ?? 0),
+            'rework_in' => $session->total_rework_in,
+            'rework_recovered' => $session->total_rework_recovered,
+        ];
     }
 }

@@ -16,6 +16,7 @@ class SpProductionSession extends Model
         'shift',
         'status',
         'started_at',
+        'paused_at',
         'finished_at',
         'total_input',
         'total_good',
@@ -39,6 +40,7 @@ class SpProductionSession extends Model
 
     protected $casts = [
         'started_at' => 'datetime',
+        'paused_at' => 'datetime',
         'finished_at' => 'datetime',
         'approved_at' => 'datetime',
         'is_qc_bypassed' => 'boolean',
@@ -103,12 +105,12 @@ class SpProductionSession extends Model
 
     public function defectEntries()
     {
-        return $this->rejectEntries();
+        return $this->hasMany(SpRejectEntry::class, 'session_id');
     }
 
     public function manpowers()
     {
-        return $this->manpowerEntries();
+        return $this->hasMany(SpSessionManpower::class, 'session_id');
     }
 
     public function getYieldAttribute(): float
@@ -127,11 +129,11 @@ class SpProductionSession extends Model
 
     public function recalculateTotals(): void
     {
-        $this->total_good = $this->productionEntries()->sum('good_qty');
-        $this->total_reject = $this->productionEntries()->sum('reject_qty');
-        $this->total_input = $this->inputEntries()->sum('quantity');
-        $this->total_rework_in = $this->reworkEntries()->sum('input_qty');
-        $this->total_rework_recovered = $this->reworkEntries()->sum('recovered_qty');
+        $this->total_good = (int) $this->productionEntries()->sum('good_qty');
+        $this->total_reject = (int) $this->rejectEntries()->sum('quantity');
+        $this->total_input = (int) $this->inputEntries()->sum('quantity');
+        $this->total_rework_in = (int) $this->reworkEntries()->sum('input_qty');
+        $this->total_rework_recovered = (int) $this->reworkEntries()->sum('recovered_qty');
         $this->total_scrap = $this->reworkEntries()->sum('scrapped_qty');
         $this->save();
     }

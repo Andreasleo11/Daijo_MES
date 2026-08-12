@@ -13,7 +13,6 @@ class SpProductionEntry extends Model
         'session_id',
         'recorded_at',
         'good_qty',
-        'reject_qty',
         'remarks',
     ];
 

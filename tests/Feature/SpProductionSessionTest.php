@@ -87,7 +87,6 @@ class SpProductionSessionTest extends TestCase
         $response = $this->actingAs($this->user)
             ->postJson(route('app.sp-sessions.add-production', $this->session->id), [
                 'good_qty' => 100,
-                'reject_qty' => 0
             ]);
 
         $response->assertOk();
@@ -96,7 +95,6 @@ class SpProductionSessionTest extends TestCase
         $this->assertDatabaseHas('sp_production_entries', [
             'session_id' => $this->session->id,
             'good_qty' => 100,
-            'reject_qty' => 0,
             'remarks' => null
         ]);
 

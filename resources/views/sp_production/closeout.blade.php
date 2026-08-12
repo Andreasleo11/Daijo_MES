@@ -57,7 +57,10 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 md:grid-cols-6 gap-3 text-center text-xs">
+                @php
+                    $unusedWip = max(0, $session->total_input - ($session->total_good + $session->total_reject));
+                @endphp
+                <div class="grid grid-cols-3 md:grid-cols-7 gap-3 text-center text-xs">
                     <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                         <span class="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Target Qty</span>
                         <span class="text-base font-black text-slate-800">{{ number_format($wo->target_qty ?? 0) }}</span>
@@ -65,6 +68,10 @@
                     <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200">
                         <span class="block text-[10px] font-black text-blue-600 uppercase tracking-wider">Total Input</span>
                         <span class="text-base font-black text-blue-900">{{ number_format($session->total_input) }}</span>
+                    </div>
+                    <div class="bg-indigo-50 p-2.5 rounded-xl border border-indigo-200">
+                        <span class="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">Leftover WIP</span>
+                        <span class="text-base font-black text-indigo-900">{{ number_format($unusedWip) }}</span>
                     </div>
                     <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
                         <span class="block text-[10px] font-black text-emerald-600 uppercase tracking-wider">Good (OK)</span>
@@ -75,7 +82,7 @@
                         <span class="text-base font-black text-red-800">{{ number_format($session->total_reject) }}</span>
                     </div>
                     <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-200">
-                        <span class="block text-[10px] font-black text-purple-600 uppercase tracking-wider">Rework Recovered</span>
+                        <span class="block text-[10px] font-black text-purple-600 uppercase tracking-wider">Rework Rec</span>
                         <span class="text-base font-black text-purple-800">{{ number_format($session->total_rework_recovered) }}</span>
                     </div>
                     <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200">

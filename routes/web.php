@@ -809,9 +809,16 @@ Route::middleware('auth')->group(function (){
         Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');
         Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
         Route::post('sp-sessions/{session}/downtime', [\App\Http\Controllers\SpProductionSessionController::class, 'addDowntime'])->name('sp-sessions.add-downtime');
+        Route::post('sp-sessions/{session}/pause', [\App\Http\Controllers\SpProductionSessionController::class, 'pause'])->name('sp-sessions.pause');
+        Route::post('sp-sessions/{session}/resume', [\App\Http\Controllers\SpProductionSessionController::class, 'resume'])->name('sp-sessions.resume');
         Route::post('sp-sessions/{session}/input', [\App\Http\Controllers\SpProductionSessionController::class, 'addInput'])->name('sp-sessions.add-input');
         Route::post('sp-sessions/{session}/manpower', [\App\Http\Controllers\SpProductionSessionController::class, 'addManpower'])->name('sp-sessions.add-manpower');
         Route::delete('sp-sessions/{session}/manpower/{manpower}', [\App\Http\Controllers\SpProductionSessionController::class, 'removeManpower'])->name('sp-sessions.remove-manpower');
+        Route::delete('sp-sessions/{session}/production/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteProductionEntry'])->name('sp-sessions.delete-production');
+        Route::delete('sp-sessions/{session}/reject/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteRejectEntry'])->name('sp-sessions.delete-reject');
+        Route::delete('sp-sessions/{session}/downtime/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteDowntimeEntry'])->name('sp-sessions.delete-downtime');
+        Route::delete('sp-sessions/{session}/rework/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteReworkEntry'])->name('sp-sessions.delete-rework');
+        Route::delete('sp-sessions/{session}/input/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteInputEntry'])->name('sp-sessions.delete-input');
     });
 
     Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');

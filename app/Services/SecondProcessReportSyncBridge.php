@@ -143,7 +143,17 @@ class SecondProcessReportSyncBridge
                     $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
                 }
                 $hourlyData[$hourNum]['ok'] += $entry->good_qty;
-                $hourlyData[$hourNum]['ng'] += $entry->reject_qty;
+            }
+
+            foreach ($session->rejectEntries as $reject) {
+                $rejectTime = $reject->created_at ?: now();
+                $diffMinutes = max(0, $startTime->diffInMinutes($rejectTime));
+                $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
+
+                if (!isset($hourlyData[$hourNum])) {
+                    $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
+                }
+                $hourlyData[$hourNum]['ng'] += $reject->quantity;
             }
 
             $runningAccumulation = 0;
