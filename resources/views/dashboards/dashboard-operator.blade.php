@@ -982,10 +982,53 @@
             
                 <div class="flex gap-6 items-start w-full">
                     <!-- Profile Section -->
-                    <div id="dashboardSection" class="bg-white p-6 rounded-lg shadow-md w-[300px] flex flex-col items-center">
-                        <img id="profileImage" class="w-40 h-40 rounded-full border-2 border-gray-300 object-cover" 
-                            src="{{ asset('default-avatar.png') }}" alt="Profile Picture">
-                        <h2 class="mt-4 text-xl font-bold text-center">Welcome, <span id="operatorName"></span></h2>
+                    <div id="dashboardSection" class="bg-white p-5 rounded-2xl shadow-md w-full sm:w-[320px] flex flex-col items-center border border-gray-100">
+                        <div class="flex flex-col items-center text-center w-full">
+                            <img id="profileImage" class="w-28 h-28 rounded-full border-4 border-indigo-100 object-cover shadow-sm" 
+                                src="{{ asset('default-avatar.png') }}" alt="Profile Picture">
+                            <h2 class="mt-3 text-lg font-bold text-gray-800">
+                                Welcome, <span id="operatorName"></span>
+                            </h2>
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full mt-1">Operator Utama (1)</span>
+                        </div>
+
+                        <!-- Additional Operators Section (Operator 2 & 3) -->
+                        <div class="w-full mt-4 pt-4 border-t border-gray-100">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-gray-600 uppercase tracking-wider">Operator Tambahan</span>
+                                <span id="operatorCountBadge" class="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">1 / 3</span>
+                            </div>
+
+                            <!-- Rendered list of additional active operators -->
+                            <div id="activeAdditionalOperatorsList" class="space-y-2 mb-3"></div>
+
+                            <!-- Dropdown select wrapper to add 1 by 1 -->
+                            <div id="addOperatorSelectWrapper" class="hidden mb-2">
+                                <div class="space-y-2 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
+                                    <label class="block text-[11px] font-bold text-gray-700">Pilih Operator Tambahan:</label>
+                                    <select id="select_additional_operator" class="w-full border border-gray-300 rounded-xl text-xs p-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                                        <option value="">-- Pilih Operator --</option>
+                                        @foreach(($allOperators ?? []) as $op)
+                                            <option value="{{ $op->name }}">
+                                                {{ $op->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="flex gap-2 justify-end">
+                                        <button type="button" id="btnCancelAddOperator" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                                            Batal
+                                        </button>
+                                        <button type="button" id="btnConfirmAddOperator" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition">
+                                            + Tambah
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" id="btnShowAddOperator" class="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition">
+                                <span>➕</span> <span>Tambah Operator (Maks 3)</span>
+                            </button>
+                        </div>
                     </div>
                   
 
@@ -1514,6 +1557,8 @@
                         <input type="hidden" id="datas" name="datas" value="{{ json_encode($datas) }}" />
                         <input type="hidden" id="activedic" name="activedic" value="{{ $activeDIC }}" />
                         <input type="hidden" id="nik" name="nik" x-model="nikInput" />
+                        <input type="hidden" id="pic_2" name="pic_2" />
+                        <input type="hidden" id="pic_3" name="pic_3" />
 
         
                         <!-- Grid Layout for 2 Columns -->
@@ -2494,6 +2539,106 @@
         document.addEventListener("DOMContentLoaded", initializeTimer);
 
 
+            const serverAssignedOperators = @json($assignedOperators ?? []);
+            const allOperatorProfiles = {
+                @foreach(($allOperators ?? []) as $op)
+                    "{{ addslashes($op->name) }}": "{{ $op->profile_picture ? asset('storage/' . $op->profile_picture) : asset('default-avatar.png') }}",
+                @endforeach
+            };
+
+            function renderAdditionalOperators() {
+                const op1 = localStorage.getItem('operator_name') || '';
+                let op2 = localStorage.getItem('operator_name_2') || '';
+                let op3 = localStorage.getItem('operator_name_3') || '';
+                const defaultAvatar = "{{ asset('default-avatar.png') }}";
+
+                const list = $('#activeAdditionalOperatorsList');
+                if (!list.length) return;
+                list.empty();
+
+                let count = 1;
+
+                if (op2) {
+                    count++;
+                    const op2Pic = allOperatorProfiles[op2] || defaultAvatar;
+                    list.append(`
+                        <div class="flex items-center justify-between bg-indigo-50/70 border border-indigo-100 rounded-xl p-2 shadow-xs">
+                            <div class="flex items-center gap-2.5">
+                                <img src="${op2Pic}" class="w-8 h-8 rounded-full border border-indigo-200 object-cover shadow-xs" alt="Operator 2 Profile">
+                                <div>
+                                    <span class="text-xs font-bold text-gray-800 block">${op2}</span>
+                                    <span class="text-[9px] text-indigo-600 font-semibold uppercase block">Operator 2</span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="removeAdditionalOperator(2)" class="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition text-xs font-bold" title="Hapus Operator 2">
+                                ✕
+                            </button>
+                        </div>
+                    `);
+                }
+
+                if (op3) {
+                    count++;
+                    const op3Pic = allOperatorProfiles[op3] || defaultAvatar;
+                    list.append(`
+                        <div class="flex items-center justify-between bg-indigo-50/70 border border-indigo-100 rounded-xl p-2 shadow-xs">
+                            <div class="flex items-center gap-2.5">
+                                <img src="${op3Pic}" class="w-8 h-8 rounded-full border border-indigo-200 object-cover shadow-xs" alt="Operator 3 Profile">
+                                <div>
+                                    <span class="text-xs font-bold text-gray-800 block">${op3}</span>
+                                    <span class="text-[9px] text-indigo-600 font-semibold uppercase block">Operator 3</span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="removeAdditionalOperator(3)" class="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition text-xs font-bold" title="Hapus Operator 3">
+                                ✕
+                            </button>
+                        </div>
+                    `);
+                }
+
+                $('#operatorCountBadge').text(`${count} / 3`);
+
+                if (count >= 3) {
+                    $('#btnShowAddOperator').addClass('hidden');
+                    $('#addOperatorSelectWrapper').addClass('hidden');
+                } else {
+                    $('#btnShowAddOperator').removeClass('hidden');
+                }
+
+                $('#pic_2').val(op2);
+                $('#pic_3').val(op3);
+            }
+
+            function syncOperatorsToDB() {
+                const op1 = localStorage.getItem('operator_name') || '';
+                const op2 = localStorage.getItem('operator_name_2') || '';
+                const op3 = localStorage.getItem('operator_name_3') || '';
+                const operators = [op1, op2, op3].filter(Boolean);
+
+                $.ajax({
+                    url: "{{ route('updateEmployeeName') }}",
+                    type: "POST",
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { operators: operators }
+                });
+            }
+
+            window.removeAdditionalOperator = function(index) {
+                if (index === 2) {
+                    const op3 = localStorage.getItem('operator_name_3');
+                    if (op3) {
+                        localStorage.setItem('operator_name_2', op3);
+                        localStorage.removeItem('operator_name_3');
+                    } else {
+                        localStorage.removeItem('operator_name_2');
+                    }
+                } else if (index === 3) {
+                    localStorage.removeItem('operator_name_3');
+                }
+                renderAdditionalOperators();
+                syncOperatorsToDB();
+            };
+
             document.addEventListener("DOMContentLoaded", function () {
                     // Check if user is already verified (persistent login)
                     if (localStorage.getItem("verified")) {
@@ -2508,6 +2653,55 @@
                             $('#loginSection').addClass('hidden');
                         }
                     }
+
+                    if (serverAssignedOperators && serverAssignedOperators.length > 1) {
+                        if (serverAssignedOperators[1] && !localStorage.getItem('operator_name_2')) {
+                            localStorage.setItem('operator_name_2', serverAssignedOperators[1]);
+                        }
+                        if (serverAssignedOperators[2] && !localStorage.getItem('operator_name_3')) {
+                            localStorage.setItem('operator_name_3', serverAssignedOperators[2]);
+                        }
+                    }
+
+                    $('#btnShowAddOperator').on('click', function() {
+                        $('#addOperatorSelectWrapper').removeClass('hidden');
+                        $(this).addClass('hidden');
+                    });
+
+                    $('#btnCancelAddOperator').on('click', function() {
+                        $('#addOperatorSelectWrapper').addClass('hidden');
+                        $('#btnShowAddOperator').removeClass('hidden');
+                    });
+
+                    $('#btnConfirmAddOperator').on('click', function() {
+                        const selected = $('#select_additional_operator').val();
+                        if (!selected) {
+                            alert("Silakan pilih nama operator terlebih dahulu.");
+                            return;
+                        }
+
+                        const op1 = localStorage.getItem('operator_name') || '';
+                        const op2 = localStorage.getItem('operator_name_2') || '';
+                        const op3 = localStorage.getItem('operator_name_3') || '';
+
+                        if (selected === op1 || selected === op2 || selected === op3) {
+                            alert("Operator " + selected + " sudah terdaftar sebagai operator aktif.");
+                            return;
+                        }
+
+                        if (!op2) {
+                            localStorage.setItem('operator_name_2', selected);
+                        } else if (!op3) {
+                            localStorage.setItem('operator_name_3', selected);
+                        }
+
+                        $('#select_additional_operator').val('');
+                        $('#addOperatorSelectWrapper').addClass('hidden');
+                        renderAdditionalOperators();
+                        syncOperatorsToDB();
+                    });
+
+                    renderAdditionalOperators();
                 });
 
             function scanModeHandler(deactivateScanModeFlag) {
@@ -2621,6 +2815,8 @@
 
                         localStorage.removeItem('nik');
                         localStorage.removeItem('operator_name');
+                        localStorage.removeItem('operator_name_2');
+                        localStorage.removeItem('operator_name_3');
                         localStorage.removeItem('profile_picture');
 
                         // Reset UI elements
@@ -2664,12 +2860,20 @@
                         this.nikInput = localStorage.getItem('nik') || '';
                     }
 
-                    // Securely set NIK in scan form hidden input
+                    // Securely set NIK, pic_2, pic_3 in scan form hidden input
                     const form = document.getElementById('scanForm');
                     if (form) {
                         const nikHiddenInput = form.querySelector('input[name="nik"]');
                         if (nikHiddenInput) {
                             nikHiddenInput.value = this.nikInput;
+                        }
+                        const pic2HiddenInput = form.querySelector('input[name="pic_2"]');
+                        if (pic2HiddenInput) {
+                            pic2HiddenInput.value = localStorage.getItem('operator_name_2') || '';
+                        }
+                        const pic3HiddenInput = form.querySelector('input[name="pic_3"]');
+                        if (pic3HiddenInput) {
+                            pic3HiddenInput.value = localStorage.getItem('operator_name_3') || '';
                         }
                     }
 

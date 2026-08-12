@@ -109,7 +109,7 @@ class PpicDailyProductionExport implements FromView, WithTitle, ShouldAutoSize, 
                 } elseif (!empty($plan->actual_quantity) && $plan->actual_quantity > 0) {
                     $dicActualTotal = (int) $plan->actual_quantity;
                 } else {
-                    $dicActualTotal = (int) $plan->scannedData->sum('quantity');
+                    $dicActualTotal = 0;
                 }
 
                 // If DIC has pair items (multiple distinct item codes), divide Actual Qty by number of pair items
