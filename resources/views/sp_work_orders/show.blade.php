@@ -344,10 +344,17 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right space-x-1 whitespace-nowrap">
-                                        <a href="{{ route('app.sp-sessions.show', $session->id) }}"
-                                            class="inline-block px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-lg border border-gray-300 transition uppercase tracking-wider">
-                                            Open Screen
-                                        </a>
+                                        @if($session->status === 'running')
+                                            <a href="{{ route('app.sp-sessions.show', $session->id) }}"
+                                                class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-lg transition uppercase tracking-wider shadow-xs">
+                                                Open Operator Screen
+                                            </a>
+                                        @else
+                                            <a href="{{ route('app.sp-sessions.show', $session->id) }}"
+                                                class="inline-block px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition uppercase tracking-wider">
+                                                View Logs
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty

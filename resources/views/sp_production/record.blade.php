@@ -1464,13 +1464,13 @@
         </div>
     </dialog>
 
-    {{-- Modal 7: Finish Production (Executive Shift Closeout Form) --}}
-    <dialog id="modalFinish" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/60 bg-transparent">
+    {{-- Modal 7: Finish Production (Streamlined Confirmation) --}}
+    <dialog id="modalFinish" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-md backdrop:bg-gray-900/60 bg-transparent">
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div class="bg-red-700 px-6 py-4 flex justify-between items-center text-white">
                 <div>
-                    <h3 class="text-xl font-black flex items-center gap-2">Complete Production Session</h3>
-                    <p class="text-xs text-red-100 font-medium mt-0.5">Work Order #{{ $session->workOrder->wo_number }} — Shift Closeout</p>
+                    <h3 class="text-lg font-black flex items-center gap-2">Finish Production Shift</h3>
+                    <p class="text-xs text-red-100 font-medium mt-0.5">Work Order #{{ $session->workOrder->wo_number }}</p>
                 </div>
                 <button type="button" onclick="document.getElementById('modalFinish').close()" class="text-red-200 hover:text-white text-2xl font-bold">&times;</button>
             </div>
@@ -1478,66 +1478,29 @@
             <form action="{{ route('app.sp-sessions.finish', $session->id) }}" method="POST" class="p-6">
                 @csrf
 
-                {{-- Executive Shift Performance Summary Scorecard --}}
-                <div class="mb-5">
-                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Shift Performance Summary</label>
-                    <div class="grid grid-cols-2 gap-2.5 text-center">
-                        {{-- Good Output --}}
-                        <div class="p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl">
-                            <span class="block text-[10px] font-black uppercase tracking-wider text-emerald-700">Good Output</span>
-                            <strong class="text-lg font-black text-emerald-950" x-text="formatNum(totals.good) + ' Pcs'"></strong>
-                            <span class="block text-[9px] font-bold text-emerald-700/80 mt-0.5" x-text="formatNum(totals.direct_good || (totals.good - (totals.rework_recovered || 0))) + ' Direct • ' + formatNum(totals.rework_recovered || 0) + ' Rec.'"></span>
-                        </div>
-
-                        {{-- Final Scrap --}}
-                        <div class="p-3 bg-red-50 border border-red-200/80 rounded-2xl">
-                            <span class="block text-[10px] font-black uppercase tracking-wider text-red-700">Final Scrap</span>
-                            <strong class="text-lg font-black text-red-950" x-text="formatNum(totals.reject) + ' Pcs'"></strong>
-                            <span class="block text-[9px] font-bold text-red-700/80 mt-0.5" x-text="formatNum(totals.raw_reject || totals.reject) + ' Raw Defects'"></span>
-                        </div>
-
-                        {{-- Total Downtime --}}
-                        <div class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl">
-                            <span class="block text-[10px] font-black uppercase tracking-wider text-amber-800">Total Downtime</span>
-                            <strong class="text-lg font-black text-amber-950" x-text="formatNum(totals.downtime_minutes) + ' Mins'"></strong>
-                            <span class="block text-[9px] font-bold text-amber-700 mt-0.5" x-text="elapsedTime"></span>
-                        </div>
-
-                        {{-- WO Progress --}}
-                        <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                            <span class="block text-[10px] font-black uppercase tracking-wider text-slate-600">Target Completion</span>
-                            <strong class="text-lg font-black text-slate-950" x-text="progressPct + '%'"></strong>
-                            <span class="block text-[9px] font-bold text-slate-500 mt-0.5" x-text="formatNum(totals.good) + ' / ' + formatNum(targetQty) + ' Pcs'"></span>
-                        </div>
-                    </div>
-                </div>
-
                 {{-- Unfinished Rework Warning Notice --}}
-                <div x-show="reworkPending > 0" class="mb-5 p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2 text-xs font-bold text-amber-900">
+                <div x-show="reworkPending > 0" class="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2 text-xs font-bold text-amber-900">
                     <span class="text-base leading-none">⚠️</span>
                     <div>
                         <strong class="font-black">Active Rework Warning:</strong>
                         <p class="font-medium text-amber-800 mt-0.5">
-                            <span x-text="reworkPending"></span> Pcs are still sitting at the Rework Bench. Completing this session will finalize totals and archive active repair logs.
+                            <span x-text="reworkPending"></span> Pcs are still sitting at the Rework Bench.
                         </p>
                     </div>
                 </div>
 
-                {{-- Shift Handover Notes --}}
-                <div class="mb-6">
-                    <label class="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">Shift Handover & Operator Notes</label>
-                    <textarea name="remarks" rows="2" placeholder="Optional notes for next shift operator or line supervisor..."
-                              class="w-full border-slate-300 rounded-2xl text-xs p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 font-medium placeholder-slate-400"></textarea>
+                <div class="mb-6 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs text-slate-600 font-medium leading-relaxed">
+                    Ready to complete this production session? Clicking below will open the <strong>Mandatory Close-Out Report</strong> where you record paint/material lots, downtime countermeasures, and shift handover.
                 </div>
 
-                <div class="flex gap-3 pt-3 border-t border-slate-100">
+                <div class="flex gap-3">
                     <button type="button" onclick="document.getElementById('modalFinish').close()"
                             class="w-1/3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer">
                         Cancel
                     </button>
                     <button type="submit"
-                            class="w-2/3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider shadow-lg transition cursor-pointer flex items-center justify-center gap-2">
-                        <span>PROCEED TO CLOSE-OUT REPORT →</span>
+                            class="w-2/3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white py-3.5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <span>PROCEED TO CLOSE-OUT →</span>
                     </button>
                 </div>
             </form>
