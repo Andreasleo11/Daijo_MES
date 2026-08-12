@@ -414,8 +414,32 @@
                                         <div x-show="item.change_type === 'NEW'">
                                             SPK baru pertama kali dirilis dengan Planned Target: <span class="font-black text-emerald-600 text-sm" x-text="item.new_planned_qty"></span>
                                         </div>
-                                        <div x-show="item.change_type === 'QTY_CHANGE'">
-                                            Planned Target diubah dari <span class="font-bold text-gray-500" x-text="item.old_planned_qty"></span> ➔ <span class="font-black text-indigo-700 text-sm" x-text="item.new_planned_qty"></span>
+                                        <div x-show="item.change_type === 'QTY_CHANGE'" class="space-y-1">
+                                            <template x-if="item.old_planned_qty !== null && item.new_planned_qty !== null && item.old_planned_qty !== item.new_planned_qty">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <span>🎯 Planned Target:</span>
+                                                    <span class="font-bold text-gray-500" x-text="item.old_planned_qty"></span>
+                                                    <span>➔</span>
+                                                    <span class="font-black text-indigo-700 text-sm" x-text="item.new_planned_qty"></span>
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-black"
+                                                          :class="(item.new_planned_qty - item.old_planned_qty) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'"
+                                                          x-text="((item.new_planned_qty - item.old_planned_qty) > 0 ? '+' : '') + (item.new_planned_qty - item.old_planned_qty)">
+                                                    </span>
+                                                </div>
+                                            </template>
+                                            
+                                            <template x-if="item.old_completed_qty !== null && item.new_completed_qty !== null && item.old_completed_qty !== item.new_completed_qty">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <span>✅ Completed Qty:</span>
+                                                    <span class="font-bold text-gray-500" x-text="item.old_completed_qty"></span>
+                                                    <span>➔</span>
+                                                    <span class="font-black text-indigo-700 text-sm" x-text="item.new_completed_qty"></span>
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-black"
+                                                          :class="(item.new_completed_qty - item.old_completed_qty) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'"
+                                                          x-text="((item.new_completed_qty - item.old_completed_qty) > 0 ? '+' : '') + (item.new_completed_qty - item.old_completed_qty)">
+                                                    </span>
+                                                </div>
+                                            </template>
                                         </div>
                                         <div x-show="item.change_type === 'STATUS_CHANGE'">
                                             Status produksi diubah dari <span class="font-bold" x-text="item.old_status"></span> ➔ <span class="font-bold text-indigo-600" x-text="item.new_status"></span>
