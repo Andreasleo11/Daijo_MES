@@ -129,12 +129,18 @@ class SpProductionSession extends Model
 
     public function recalculateTotals(): void
     {
-        $this->total_good = (int) $this->productionEntries()->sum('good_qty');
-        $this->total_reject = (int) $this->rejectEntries()->sum('quantity');
-        $this->total_input = (int) $this->inputEntries()->sum('quantity');
+        $directGood = (int) $this->productionEntries()->sum('good_qty');
+        $rawReject = (int) $this->rejectEntries()->sum('quantity');
+        $reworkRecovered = (int) $this->reworkEntries()->sum('recovered_qty');
+        $reworkScrapped = (int) $this->reworkEntries()->sum('scrapped_qty');
+
         $this->total_rework_in = (int) $this->reworkEntries()->sum('input_qty');
-        $this->total_rework_recovered = (int) $this->reworkEntries()->sum('recovered_qty');
-        $this->total_scrap = $this->reworkEntries()->sum('scrapped_qty');
+        $this->total_rework_recovered = $reworkRecovered;
+        $this->total_scrap = $reworkScrapped;
+
+        $this->total_good = $directGood + $reworkRecovered;
+        $this->total_reject = max(0, $rawReject - $reworkRecovered);
+        $this->total_input = (int) $this->inputEntries()->sum('quantity');
         $this->save();
     }
 }

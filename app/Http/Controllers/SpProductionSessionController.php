@@ -85,7 +85,10 @@ class SpProductionSessionController extends Controller
 
     public function show($id)
     {
-        $session = SpProductionSession::with([
+        $session = SpProductionSession::findOrFail($id);
+        $session->recalculateTotals();
+
+        $session->load([
             'workOrder',
             'operator',
             'productionEntries' => fn($q) => $q->orderBy('recorded_at', 'desc'),
@@ -94,7 +97,7 @@ class SpProductionSessionController extends Controller
             'downtimeEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
             'inputEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
             'manpowerEntries' => fn($q) => $q->orderBy('created_at', 'desc'),
-        ])->findOrFail($id);
+        ]);
 
         $defectTypes = [
             'Flash',
@@ -269,43 +272,97 @@ class SpProductionSessionController extends Controller
             return response()->json(['error' => 'Session is not running.'], 422);
         }
 
+        $isAjax = $request->expectsJson() || $request->ajax() || $request->wantsJson();
+
+        // Mode A: Issue to Rework Bench (Cycle 1)
+        if ($request->has('issue_qty') || ($request->has('input_qty') && !$request->has('recovered_qty') && !$request->has('scrapped_qty'))) {
+            $validated = $request->validate([
+                'issue_qty' => 'nullable|integer|min:1',
+                'input_qty' => 'nullable|integer|min:1',
+                'remarks' => 'nullable|string',
+            ]);
+
+            $qty = (int) ($validated['issue_qty'] ?? $validated['input_qty']);
+            $availableDefectStock = max(0, $session->total_reject - $session->total_rework_in);
+
+            if ($qty > $availableDefectStock) {
+                return response()->json([
+                    'error' => "Cannot issue more than available defect stock ({$availableDefectStock} Pcs available out of {$session->total_reject} Pcs total logged defects)."
+                ], 422);
+            }
+
+            $entry = $session->reworkEntries()->create([
+                'input_qty' => $qty,
+                'recovered_qty' => 0,
+                'scrapped_qty' => 0,
+                'remarks' => $validated['remarks'] ?? 'Issued to Rework Bench',
+            ]);
+            $session->recalculateTotals();
+
+            if ($isAjax) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "{$qty} Pcs issued to Rework Bench successfully.",
+                    'entry' => $entry,
+                    'totals' => $this->getSessionTotalsArray($session)
+                ]);
+            }
+            return redirect()->back()->with('success', "{$qty} Pcs issued to Rework Bench.");
+        }
+
+        // Mode B: Log Rework Outcome (Cycle 2 or Single-Step Fallback)
         $validated = $request->validate([
-            'input_qty' => 'required|integer|min:1',
+            'input_qty' => 'nullable|integer|min:0',
             'recovered_qty' => 'required|integer|min:0',
             'scrapped_qty' => 'required|integer|min:0',
             'remarks' => 'nullable|string',
         ]);
 
-        if ($validated['input_qty'] > $session->total_reject) {
-            return response()->json([
-                'error' => "Cannot rework more than total logged defects ({$session->total_reject} Pcs)."
-            ], 422);
+        $totalOutcome = $validated['recovered_qty'] + $validated['scrapped_qty'];
+        if ($totalOutcome < 1) {
+            return response()->json(['error' => 'Please enter at least 1 recovered or scrapped piece.'], 422);
         }
 
-        if (($validated['recovered_qty'] + $validated['scrapped_qty']) > $validated['input_qty']) {
-            return response()->json([
-                'error' => 'Recovered + Scrapped quantity cannot exceed Rework Input quantity.'
-            ], 422);
+        $pendingReworkWip = max(0, $session->total_rework_in - ($session->total_rework_recovered + (int)$session->total_scrap));
+
+        $inputQty = (int) ($validated['input_qty'] ?? 0);
+        if ($inputQty > 0) {
+            if ($inputQty > $session->total_reject) {
+                return response()->json(['error' => "Cannot rework more than total logged defects ({$session->total_reject} Pcs)."], 422);
+            }
+            if ($totalOutcome > $inputQty) {
+                return response()->json(['error' => 'Recovered + Scrapped quantity cannot exceed Rework Input quantity.'], 422);
+            }
+
+            $entry = $session->reworkEntries()->create([
+                'input_qty' => $inputQty,
+                'recovered_qty' => $validated['recovered_qty'],
+                'scrapped_qty' => $validated['scrapped_qty'],
+                'remarks' => $validated['remarks'] ?? null,
+            ]);
+        } else {
+            if ($totalOutcome > $pendingReworkWip && $session->total_rework_in > 0) {
+                return response()->json(['error' => "Outcome ({$totalOutcome} Pcs) cannot exceed pending Rework Bench WIP ({$pendingReworkWip} Pcs)."], 422);
+            }
+
+            $effectiveInput = ($session->total_rework_in === 0) ? $totalOutcome : 0;
+
+            $entry = $session->reworkEntries()->create([
+                'input_qty' => $effectiveInput,
+                'recovered_qty' => $validated['recovered_qty'],
+                'scrapped_qty' => $validated['scrapped_qty'],
+                'remarks' => $validated['remarks'] ?? 'Rework Outcome Logged',
+            ]);
         }
 
-        $entry = $session->reworkEntries()->create($validated);
         $session->recalculateTotals();
 
-        if ($request->wantsJson()) {
+        if ($isAjax) {
             return response()->json([
                 'success' => true,
-                'message' => 'Rework recorded successfully.',
+                'message' => 'Rework outcome recorded successfully.',
                 'entry' => $entry,
-                'totals' => [
-                    'input' => $session->total_input,
-                    'good' => $session->total_good,
-                    'reject' => $session->total_reject,
-                    'yield' => $session->yield,
-                    'rework_in' => $session->total_rework_in,
-                    'rework_recovered' => $session->total_rework_recovered,
-                    'scrap' => $session->total_scrap,
-                    'downtime_minutes' => $session->downtimeEntries()->sum('duration_minutes'),
-                ]
+                'totals' => $this->getSessionTotalsArray($session)
             ]);
         }
 
@@ -815,14 +872,25 @@ class SpProductionSessionController extends Controller
 
     private function getSessionTotalsArray(SpProductionSession $session): array
     {
+        $directGood = (int) $session->productionEntries()->sum('good_qty');
+        $reworkIn = (int) $session->total_rework_in;
+        $reworkRecovered = (int) $session->total_rework_recovered;
+        $reworkScrapped = (int) $session->total_scrap;
+        $reworkPending = max(0, $reworkIn - ($reworkRecovered + $reworkScrapped));
+        $rawReject = (int) $session->rejectEntries()->sum('quantity');
+
         return [
             'good' => $session->total_good,
+            'direct_good' => $directGood,
             'reject' => $session->total_reject,
+            'raw_reject' => $rawReject,
             'input' => $session->total_input,
             'yield' => $session->yield,
             'downtime_minutes' => (int) ($session->downtimeEntries()->sum('duration_minutes') ?? 0),
-            'rework_in' => $session->total_rework_in,
-            'rework_recovered' => $session->total_rework_recovered,
+            'rework_in' => $reworkIn,
+            'rework_recovered' => $reworkRecovered,
+            'rework_scrapped' => $reworkScrapped,
+            'rework_pending' => $reworkPending,
         ];
     }
 }
