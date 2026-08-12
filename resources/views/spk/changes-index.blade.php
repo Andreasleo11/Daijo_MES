@@ -169,12 +169,12 @@
         <!-- TAB 1: DATA MASTER SPK AKTIFF -->
         <div x-show="activeTab === 'master'" class="bg-white rounded-b-2xl shadow-sm border border-t-0 border-gray-100 overflow-hidden">
             <div class="p-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between text-xs">
-                <span class="font-extrabold text-gray-700">Daftar Seluruh Data SPK Master Hasil Sync SAP Terbaru:</span>
-                <span class="text-gray-500">Total {{ number_format(count($masterSpks)) }} SPK</span>
+                <span class="font-extrabold text-gray-700">Daftar Data SPK Master Hasil Sync SAP Terbaru:</span>
+                <span class="text-gray-500 font-bold">Total {{ number_format($masterSpks->total()) }} SPK</span>
             </div>
-            <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left text-gray-700">
-                    <thead class="bg-gray-100 text-gray-600 uppercase text-[9px] font-black sticky top-0 border-b border-gray-200">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-[9px] font-black border-b border-gray-200">
                         <tr>
                             <th class="py-3 px-4">#</th>
                             <th class="py-3 px-4">No. SPK</th>
@@ -192,7 +192,7 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse($masterSpks as $index => $spk)
                             <tr class="hover:bg-gray-50/70 transition">
-                                <td class="py-3 px-4 text-gray-400 font-bold">{{ $index + 1 }}</td>
+                                <td class="py-3 px-4 text-gray-400 font-bold">{{ $masterSpks->firstItem() + $index }}</td>
                                 <td class="py-3 px-4 font-black text-gray-800">
                                     <button type="button" @click="fetchHistory('{{ $spk->spk_number }}')" class="hover:text-indigo-600 hover:underline cursor-pointer">
                                         {{ $spk->spk_number }}
@@ -226,6 +226,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($masterSpks->hasPages())
+                <div class="p-4 border-t border-gray-100 bg-gray-50">
+                    {{ $masterSpks->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- TAB 2: LOG AUDIT PERUBAHAN SPK -->
@@ -472,7 +478,7 @@
     <script>
         function spkManager() {
             return {
-                activeTab: 'master', // 'master' or 'logs'
+                activeTab: '{{ request()->has("log_page") ? "logs" : "master" }}',
                 isSyncing: false,
                 showHistoryModal: false,
                 loadingHistory: false,

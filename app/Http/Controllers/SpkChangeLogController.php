@@ -48,7 +48,7 @@ class SpkChangeLogController extends Controller
                   ->orWhere('production_status', 'like', "%{$search}%");
             });
         }
-        $masterSpks = $masterQuery->get();
+        $masterSpks = $masterQuery->paginate(25, ['*'], 'master_page')->withQueryString();
 
         // 3. Batches for filter
         $batches = SpkChangeLog::select('sync_batch_id', DB::raw('MAX(created_at) as created_at'))
