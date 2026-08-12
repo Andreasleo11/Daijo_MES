@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SpkChangeLog;
+use App\Models\SpkMaster;
+use App\Models\ApiLog;
 use App\Services\SpkMasterService;
 use Illuminate\Support\Facades\DB;
 
@@ -11,47 +13,69 @@ class SpkChangeLogController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SpkChangeLog::with('masterItem')->latest();
+        // 1. Fetch Change Logs
+        $logQuery = SpkChangeLog::with('masterItem')->latest();
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
+            $logQuery->where(function ($q) use ($search) {
                 $q->where('spk_number', 'like', "%{$search}%")
                   ->orWhere('item_code', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('change_type')) {
-            $query->where('change_type', $request->change_type);
+            $logQuery->where('change_type', $request->change_type);
         }
 
         if ($request->filled('batch_id')) {
-            $query->where('sync_batch_id', $request->batch_id);
+            $logQuery->where('sync_batch_id', $request->batch_id);
         }
 
         if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->date);
+            $logQuery->whereDate('created_at', $request->date);
         }
 
-        $logs = $query->paginate(25)->withQueryString();
+        $logs = $logQuery->paginate(30, ['*'], 'log_page')->withQueryString();
 
-        // Get unique batch list for filter dropdown
+        // 2. Fetch Master SPK List
+        $masterQuery = SpkMaster::with('masterItem');
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $masterQuery->where(function ($q) use ($search) {
+                $q->where('spk_number', 'like', "%{$search}%")
+                  ->orWhere('item_code', 'like', "%{$search}%")
+                  ->orWhere('production_status', 'like', "%{$search}%");
+            });
+        }
+        $masterSpks = $masterQuery->get();
+
+        // 3. Batches for filter
         $batches = SpkChangeLog::select('sync_batch_id', DB::raw('MAX(created_at) as created_at'))
             ->groupBy('sync_batch_id')
             ->orderByDesc('created_at')
             ->take(30)
             ->get();
 
-        // Summary statistics
+        // 4. Last Sync info from ApiLog or SpkChangeLog
+        $lastApiLog = ApiLog::where('api_name', 'SPK_SYNC')->latest()->first();
+        $lastSyncTime = $lastApiLog ? $lastApiLog->created_at : SpkChangeLog::latest()->value('created_at');
+        $lastSyncStatus = $lastApiLog ? $lastApiLog->status : 'N/A';
+        $lastSyncMessage = $lastApiLog ? $lastApiLog->message : 'Belum ada log sync';
+
+        // 5. Summary Statistics
         $stats = [
-            'total_changes' => SpkChangeLog::count(),
-            'total_new' => SpkChangeLog::where('change_type', 'NEW')->count(),
+            'total_master_spk' => SpkMaster::count(),
+            'total_changes'    => SpkChangeLog::count(),
+            'total_new'        => SpkChangeLog::where('change_type', 'NEW')->count(),
             'total_qty_change' => SpkChangeLog::where('change_type', 'QTY_CHANGE')->count(),
-            'total_removed' => SpkChangeLog::where('change_type', 'REMOVED')->count(),
-            'last_sync' => SpkChangeLog::latest()->value('created_at'),
+            'total_removed'    => SpkChangeLog::where('change_type', 'REMOVED')->count(),
+            'last_sync'        => $lastSyncTime,
+            'last_sync_status' => $lastSyncStatus,
+            'last_sync_message'=> $lastSyncMessage,
         ];
 
-        return view('spk.changes-index', compact('logs', 'batches', 'stats'));
+        return view('spk.changes-index', compact('logs', 'masterSpks', 'batches', 'stats'));
     }
 
     public function getHistory($spkNumber)

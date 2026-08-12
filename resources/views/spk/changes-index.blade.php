@@ -1,20 +1,42 @@
 <x-app-layout>
-    <div class="p-6 max-w-7xl mx-auto space-y-6" x-data="spkChangeManager()">
+    <div class="p-6 max-w-7xl mx-auto space-y-6" x-data="spkManager()">
         
-        <!-- Header & Action Bar -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <!-- Header & Sync Status Bar -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-black text-gray-800 flex items-center gap-2">
-                    📋 Audit & Log Perubahan SPK (SAP Sync)
+                    📋 Data Master & Log Perubahan SPK (SAP Sync)
                 </h1>
                 <p class="text-sm text-gray-500 mt-1">
-                    Memantau riwayat SPK baru, perubahan target quantity, serta SPK yang ditutup/dihapus secara real-time.
+                    Monitoring data master SPK aktif serta riwayat perubahan quantity dan status dari SAP.
                 </p>
+                
+                <!-- Last Sync Information -->
+                <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                    <span class="font-bold text-gray-400">Terakhir Diberbarui:</span>
+                    @if($stats['last_sync'])
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-extrabold rounded-lg border border-indigo-100 shadow-2xs">
+                            🕒 {{ \Carbon\Carbon::parse($stats['last_sync'])->format('d M Y H:i:s') }} ({{ \Carbon\Carbon::parse($stats['last_sync'])->diffForHumans() }})
+                        </span>
+                    @else
+                        <span class="text-gray-400 italic">Belum ada data sync</span>
+                    @endif
+
+                    @if($stats['last_sync_status'] === 'success')
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-md text-[11px]">
+                            🟢 Sync Sukses
+                        </span>
+                    @elseif($stats['last_sync_status'] === 'failed')
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 font-bold rounded-md text-[11px]">
+                            🔴 Sync Gagal
+                        </span>
+                    @endif
+                </div>
             </div>
 
-            <!-- Trigger Sync Now Button -->
+            <!-- Trigger Sync Button -->
             <button @click="triggerSyncNow()" :disabled="isSyncing"
-                class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-extrabold px-5 py-3 rounded-xl shadow-md transition-all cursor-pointer">
+                class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-md transition-all cursor-pointer">
                 <svg x-show="!isSyncing" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -41,12 +63,12 @@
         <!-- Summary Statistics Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xl">
-                    📊
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xl">
+                    📦
                 </div>
                 <div>
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Total Perubahan</span>
-                    <span class="text-2xl font-black text-gray-800">{{ number_format($stats['total_changes']) }}</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Total Master SPK</span>
+                    <span class="text-2xl font-black text-gray-800">{{ number_format($stats['total_master_spk']) }}</span>
                 </div>
             </div>
 
@@ -86,16 +108,16 @@
             <form method="GET" action="{{ route('spk.changes.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <!-- Search Input -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Cari SPK / Item Code:</label>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Ketik No SPK atau Item Code..."
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Cari SPK / Item Code / Status:</label>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Ketik No SPK, Item Code, Status..."
                         class="w-full border border-gray-300 rounded-xl text-xs p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
 
                 <!-- Change Type Filter -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Jenis Perubahan:</label>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Filter Jenis Log:</label>
                     <select name="change_type" class="w-full border border-gray-300 rounded-xl text-xs p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">Semua Perubahan</option>
+                        <option value="">Semua Perubahan Log</option>
                         <option value="NEW" {{ request('change_type') == 'NEW' ? 'selected' : '' }}>🟢 SPK BARU</option>
                         <option value="QTY_CHANGE" {{ request('change_type') == 'QTY_CHANGE' ? 'selected' : '' }}>🟡 PERUBAHAN QTY</option>
                         <option value="STATUS_CHANGE" {{ request('change_type') == 'STATUS_CHANGE' ? 'selected' : '' }}>🔵 PERUBAHAN STATUS</option>
@@ -105,7 +127,7 @@
 
                 <!-- Batch Sync Filter -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Sesi Sinkronisasi (Batch):</label>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Filter Sesi Sync (Batch):</label>
                     <select name="batch_id" class="w-full border border-gray-300 rounded-xl text-xs p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="">Semua Batch Sesi</option>
                         @foreach($batches as $b)
@@ -119,7 +141,7 @@
                 <!-- Submit / Reset Buttons -->
                 <div class="flex items-end gap-2">
                     <button type="submit" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer">
-                        🔍 Filter
+                        🔍 Cari & Filter
                     </button>
                     <a href="{{ route('spk.changes.index') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-xl text-xs transition">
                         Reset
@@ -128,11 +150,89 @@
             </form>
         </div>
 
-        <!-- Comparison Table -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <!-- Tab Navigation Switcher -->
+        <div class="flex border-b border-gray-200 bg-white rounded-t-2xl px-4 pt-2 shadow-xs">
+            <button @click="activeTab = 'master'"
+                :class="activeTab === 'master' ? 'border-b-2 border-indigo-600 text-indigo-600 font-black' : 'text-gray-500 font-bold hover:text-gray-700'"
+                class="py-3 px-6 text-xs transition cursor-pointer flex items-center gap-2">
+                <span>📦 Data Master SPK Aktif</span>
+                <span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-[10px]" x-text="{{ count($masterSpks) }}"></span>
+            </button>
+            <button @click="activeTab = 'logs'"
+                :class="activeTab === 'logs' ? 'border-b-2 border-indigo-600 text-indigo-600 font-black' : 'text-gray-500 font-bold hover:text-gray-700'"
+                class="py-3 px-6 text-xs transition cursor-pointer flex items-center gap-2">
+                <span>📜 Log Audit Perubahan SPK</span>
+                <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px]" x-text="{{ $logs->total() }}"></span>
+            </button>
+        </div>
+
+        <!-- TAB 1: DATA MASTER SPK AKTIFF -->
+        <div x-show="activeTab === 'master'" class="bg-white rounded-b-2xl shadow-sm border border-t-0 border-gray-100 overflow-hidden">
+            <div class="p-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between text-xs">
+                <span class="font-extrabold text-gray-700">Daftar Seluruh Data SPK Master Hasil Sync SAP Terbaru:</span>
+                <span class="text-gray-500">Total {{ number_format(count($masterSpks)) }} SPK</span>
+            </div>
+            <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table class="w-full text-xs text-left text-gray-700">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-[9px] font-black sticky top-0 border-b border-gray-200">
+                        <tr>
+                            <th class="py-3 px-4">#</th>
+                            <th class="py-3 px-4">No. SPK</th>
+                            <th class="py-3 px-4">Item Code</th>
+                            <th class="py-3 px-4">Part Name</th>
+                            <th class="py-3 px-4 text-center">Planned Qty</th>
+                            <th class="py-3 px-4 text-center">Completed Qty</th>
+                            <th class="py-3 px-4 text-center">Status</th>
+                            <th class="py-3 px-4 text-center">Post Date</th>
+                            <th class="py-3 px-4 text-center">Due Date</th>
+                            <th class="py-3 px-4 text-center">Warehouse</th>
+                            <th class="py-3 px-4 text-center">Riwayat</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($masterSpks as $index => $spk)
+                            <tr class="hover:bg-gray-50/70 transition">
+                                <td class="py-3 px-4 text-gray-400 font-bold">{{ $index + 1 }}</td>
+                                <td class="py-3 px-4 font-black text-gray-800">
+                                    <button type="button" @click="fetchHistory('{{ $spk->spk_number }}')" class="hover:text-indigo-600 hover:underline cursor-pointer">
+                                        {{ $spk->spk_number }}
+                                    </button>
+                                </td>
+                                <td class="py-3 px-4 font-bold text-gray-800">{{ $spk->item_code }}</td>
+                                <td class="py-3 px-4 font-semibold text-gray-600">{{ optional($spk->masterItem)->item_name ?? '-' }}</td>
+                                <td class="py-3 px-4 text-center font-black text-indigo-700 text-sm">{{ number_format($spk->planned_quantity) }}</td>
+                                <td class="py-3 px-4 text-center font-bold text-emerald-600">{{ number_format($spk->completed_quantity) }}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase bg-gray-100 text-gray-800">
+                                        {{ $spk->production_status ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-center font-semibold text-gray-500">{{ $spk->post_date ?? '-' }}</td>
+                                <td class="py-3 px-4 text-center font-semibold text-gray-500">{{ $spk->due_date ?? '-' }}</td>
+                                <td class="py-3 px-4 text-center font-bold text-gray-700">{{ $spk->warehouse ?? '-' }}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <button type="button" @click="fetchHistory('{{ $spk->spk_number }}')" class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-md text-[11px] transition cursor-pointer">
+                                        📜 Riwayat
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="11" class="py-8 text-center text-sm font-bold text-gray-400">
+                                    Belum ada data master SPK. Klik "SINKRONKAN SPK SEKARANG" untuk menarik data dari SAP.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 2: LOG AUDIT PERUBAHAN SPK -->
+        <div x-show="activeTab === 'logs'" class="bg-white rounded-b-2xl shadow-sm border border-t-0 border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left text-gray-700">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-[9px] font-black border-b border-gray-200">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-[9px] font-black border-b border-gray-200">
                         <tr>
                             <th class="py-3.5 px-5">Waktu Sesi Sync</th>
                             <th class="py-3.5 px-5">No. SPK</th>
@@ -141,7 +241,7 @@
                             <th class="py-3.5 px-5 text-center">Planned Qty (Lama ➔ Baru)</th>
                             <th class="py-3.5 px-5 text-center">Completed Qty</th>
                             <th class="py-3.5 px-5 text-center">Status SAP</th>
-                            <th class="py-3.5 px-5 text-center">Aksi / Timeline</th>
+                            <th class="py-3.5 px-5 text-center">Opsi / Timeline</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -346,8 +446,9 @@
 
     <!-- Script Alpine.js for Manager -->
     <script>
-        function spkChangeManager() {
+        function spkManager() {
             return {
+                activeTab: 'master', // 'master' or 'logs'
                 isSyncing: false,
                 showHistoryModal: false,
                 loadingHistory: false,
