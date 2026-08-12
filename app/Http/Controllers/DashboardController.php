@@ -948,6 +948,12 @@ class DashboardController extends Controller
 
         $setupMolders = OperatorUser::where('position', 'Setup Mold')->get();
         $adjusters    = OperatorUser::where('position', 'Adjuster')->get();
+        $allOperators = OperatorUser::orderBy('name', 'asc')->get();
+
+        $assignedOperators = [];
+        if ($machineJob && !empty($machineJob->employee_name)) {
+            $assignedOperators = array_values(array_filter(array_map('trim', explode(',', $machineJob->employee_name))));
+        }
 
         $activeMould = MouldChangeLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
         $activeAdjust = AdjustMachineLog::where('user_id', $userId)->whereNull('end_time')->latest()->first();
@@ -1018,7 +1024,9 @@ class DashboardController extends Controller
             'activeStateStartTime',
             'defaultNextItemCode',
             'setupMolders',
-            'adjusters'
+            'adjusters',
+            'allOperators',
+            'assignedOperators'
         ));
     }
 
@@ -1124,18 +1132,30 @@ class DashboardController extends Controller
         }
     }
 
-    // function untuk update remark (operator)
+    // function untuk update remark & operator pic & actual (operator)
     public function updateRemark(Request $request, $id)
     {
         $request->validate([
-            'remark' => 'nullable|string|max:255',
+            'remark'            => 'nullable|string',
+            'actual_production' => 'nullable|integer|min:0',
+            'pic'               => 'nullable|string',
+            'pic_2'             => 'nullable|string',
+            'pic_3'             => 'nullable|string',
         ]);
 
         $remark = HourlyRemark::findOrFail($id);
-        $remark->remark = $request->remark;
+        if ($request->has('remark')) $remark->remark = $request->remark;
+        if ($request->has('actual_production')) $remark->actual_production = $request->actual_production;
+        if ($request->has('pic')) $remark->pic = $request->pic;
+        if ($request->has('pic_2')) $remark->pic_2 = $request->pic_2;
+        if ($request->has('pic_3')) $remark->pic_3 = $request->pic_3;
         $remark->save();
 
-        return response()->json(['success' => true]);
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Remark updated successfully']);
+        }
+
+        return back()->with('success', 'Remark updated successfully');
     }
 
     // function untuk update employee name di table machine job (operator)
@@ -1573,14 +1593,20 @@ class DashboardController extends Controller
                 ->sum('quantity');
         }
 
+        $pic2 = $request->input('pic_2');
+        $pic3 = $request->input('pic_3');
+
         $isAchieve = 0;
 
         if ($hourlyRemark) {
-            $hourlyRemark->update([
+            $updateData = [
                 'actual' => $totalActual,
                 'is_achieve' => $isAchieve,
                 'updated_at' => now(),
-            ]);
+            ];
+            if ($pic2 !== null) $updateData['pic_2'] = $pic2;
+            if ($pic3 !== null) $updateData['pic_3'] = $pic3;
+            $hourlyRemark->update($updateData);
         } else {
             HourlyRemark::create([
                 'dic_id' => $dicId,
@@ -1590,6 +1616,8 @@ class DashboardController extends Controller
                 'actual' => $totalActual,
                 'is_achieve' => $isAchieve,
                 'pic' => $user,
+                'pic_2' => $pic2,
+                'pic_3' => $pic3,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -2501,7 +2529,9 @@ class DashboardController extends Controller
             'start_time' => $startTime->format('H:i:s'),
             'end_time' => $endTime->format('H:i:s'),
             'target' => $target,
-            'pic' => $request->nik,
+            'pic' => $request->nik ?: $request->pic,
+            'pic_2' => $request->pic_2,
+            'pic_3' => $request->pic_3,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

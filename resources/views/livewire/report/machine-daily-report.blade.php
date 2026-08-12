@@ -152,78 +152,159 @@
                                     $hourlySum = (int) $plan->hourlyRemarks->sum('actual_production');
                                     $actualQty = $hourlySum > 0
                                         ? $hourlySum
-                                        : ((!empty($plan->actual_quantity) && $plan->actual_quantity > 0) ? (int)$plan->actual_quantity : (int)$scannedOk);
+                                        : ((!empty($plan->actual_quantity) && $plan->actual_quantity > 0) ? (int)$plan->actual_quantity : 0);
                                     $achievePercent = $plan->quantity > 0 ? round(($scannedOk / $plan->quantity) * 100) : 0;
                                     
                                     $cycleTime = (!empty($plan->temporal_cycle_time) && $plan->temporal_cycle_time > 0)
                                         ? $plan->temporal_cycle_time
                                         : ($plan->masterItem?->cycle_time ?? null);
+
+                                    // Extract distinct item codes (Pair items: Kanan & Kiri) like Excel Export
+                                    $scannedItemCodes = $plan->scannedData->pluck('item_code')->filter()->unique()->toArray();
+                                    $distinctItemCodes = array_values(array_unique(array_filter(array_merge([$plan->item_code], $scannedItemCodes))));
+                                    $isPair = count($distinctItemCodes) > 1;
                                 @endphp
-                                <tr class="hover:bg-gray-50/30 transition-colors">
-                                    <td class="py-4 px-6 text-xs font-black text-gray-700">Shift {{ $plan->shift }}</td>
-                                    <td class="py-4 px-6 text-xs font-bold text-gray-800">{{ $plan->item_code }}</td>
-                                    <td class="py-4 px-6 text-xs font-semibold text-gray-500">{{ optional($plan->masterItem)->item_name ?? '-' }}</td>
-                                    <td class="py-4 px-6 text-xs font-bold text-center">
-                                        @if($cycleTime)
-                                            <span class="inline-block px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold rounded-lg text-xs">
-                                                {{ number_format((float)$cycleTime, 1) }}s
-                                            </span>
-                                        @else
-                                            <span class="text-gray-400 italic text-[11px]">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-4 px-6 text-xs text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            @if(!empty($plan->material_lot))
-                                                <span class="inline-block px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 font-extrabold rounded-lg text-xs tracking-tight uppercase">
-                                                    {{ $plan->material_lot }}
+                                <tbody x-data="{ showPairDetail: false }" class="divide-y divide-gray-100">
+                                    <tr class="hover:bg-gray-50/30 transition-colors">
+                                        <td class="py-4 px-6 text-xs font-black text-gray-700">Shift {{ $plan->shift }}</td>
+                                        <td class="py-4 px-6 text-xs font-bold text-gray-800">
+                                            <div>{{ $plan->item_code }}</div>
+                                            @if($isPair)
+                                                <button @click="showPairDetail = !showPairDetail" type="button" class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-black rounded-md transition-colors cursor-pointer shadow-2xs">
+                                                    <span x-show="!showPairDetail" class="flex items-center gap-1">
+                                                        🔽 Detail Pair ({{ count($distinctItemCodes) }})
+                                                    </span>
+                                                    <span x-show="showPairDetail" class="flex items-center gap-1">
+                                                        🔼 Tutup Detail
+                                                    </span>
+                                                </button>
+                                            @endif
+                                        </td>
+                                        <td class="py-4 px-6 text-xs font-semibold text-gray-500">{{ optional($plan->masterItem)->item_name ?? '-' }}</td>
+                                        <td class="py-4 px-6 text-xs font-bold text-center">
+                                            @if($cycleTime)
+                                                <span class="inline-block px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold rounded-lg text-xs">
+                                                    {{ number_format((float)$cycleTime, 1) }}s
                                                 </span>
                                             @else
-                                                <span class="text-gray-300 italic text-[11px]">-</span>
+                                                <span class="text-gray-400 italic text-[11px]">-</span>
                                             @endif
-                                            <button wire:click="openLotModal({{ $plan->id }})" title="Set Lot Material" class="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
-                                                ✏️
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-6 text-xs text-center">
-                                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                                            @forelse($plan->accessoryLots as $acc)
-                                                <span class="inline-block px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 font-extrabold rounded-lg text-[10px] tracking-tight">
-                                                    {{ $acc->accessory_name }}: {{ $acc->accessory_lot }}
-                                                </span>
-                                            @empty
-                                                <span class="text-gray-300 italic text-[11px]">-</span>
-                                            @endforelse
-                                            <button wire:click="openAccessoryModal({{ $plan->id }})" title="Kelola Lot Accessories" class="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors">
-                                                ⚙️
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-6 text-xs font-bold text-gray-700 text-center">{{ number_format($plan->quantity) }}</td>
-                                    <td class="py-4 px-6 text-xs font-bold text-green-600 text-center">{{ number_format($scannedOk) }}</td>
-                                    <td class="py-4 px-6 text-xs font-bold text-blue-600 text-center">{{ number_format($actualQty) }}</td>
-                                    <td class="py-4 px-6 text-center">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <div class="w-24 bg-gray-100 h-2 rounded-full overflow-hidden">
-                                                <div class="bg-green-500 h-full rounded-full" style="width: {{ min($achievePercent, 100) }}%"></div>
+                                        </td>
+                                        <td class="py-4 px-6 text-xs text-center">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                @if(!empty($plan->material_lot))
+                                                    <span class="inline-block px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 font-extrabold rounded-lg text-xs tracking-tight uppercase">
+                                                        {{ $plan->material_lot }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-gray-300 italic text-[11px]">-</span>
+                                                @endif
+                                                <button wire:click="openLotModal({{ $plan->id }})" title="Set Lot Material" class="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
+                                                    ✏️
+                                                </button>
                                             </div>
-                                            <span class="text-xs font-black text-gray-600">{{ $achievePercent }}%</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-6 text-center">
-                                        @if($plan->is_done == 1)
-                                            <span class="inline-block px-3 py-1 bg-green-50 text-green-700 border border-green-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Done</span>
-                                        @elseif($plan->is_done == 99)
-                                            <span class="inline-block px-3 py-1 bg-red-50 text-red-700 border border-red-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Expired</span>
-                                        @else
-                                            <span class="inline-block px-3 py-1 bg-orange-50 text-orange-700 border border-orange-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Active</span>
-                                        @endif
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td class="py-4 px-6 text-xs text-center">
+                                            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                                @forelse($plan->accessoryLots as $acc)
+                                                    <span class="inline-block px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 font-extrabold rounded-lg text-[10px] tracking-tight">
+                                                        {{ $acc->accessory_name }}: {{ $acc->accessory_lot }}
+                                                    </span>
+                                                @empty
+                                                    <span class="text-gray-300 italic text-[11px]">-</span>
+                                                @endforelse
+                                                <button wire:click="openAccessoryModal({{ $plan->id }})" title="Kelola Lot Accessories" class="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors">
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6 text-xs font-bold text-gray-700 text-center">{{ number_format($plan->quantity) }}</td>
+                                        <td class="py-4 px-6 text-xs font-bold text-green-600 text-center">{{ number_format($scannedOk) }}</td>
+                                        <td class="py-4 px-6 text-xs font-bold text-blue-600 text-center">{{ number_format($actualQty) }}</td>
+                                        <td class="py-4 px-6 text-center">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <div class="w-24 bg-gray-100 h-2 rounded-full overflow-hidden">
+                                                    <div class="bg-green-500 h-full rounded-full" style="width: {{ min($achievePercent, 100) }}%"></div>
+                                                </div>
+                                                <span class="text-xs font-black text-gray-600">{{ $achievePercent }}%</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            @if($plan->is_done == 1)
+                                                <span class="inline-block px-3 py-1 bg-green-50 text-green-700 border border-green-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Done</span>
+                                            @elseif($plan->is_done == 99)
+                                                <span class="inline-block px-3 py-1 bg-red-50 text-red-700 border border-red-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Expired</span>
+                                            @else
+                                                <span class="inline-block px-3 py-1 bg-orange-50 text-orange-700 border border-orange-100 font-bold uppercase text-[9px] tracking-widest rounded-lg">Active</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+
+                                    @if($isPair)
+                                        <tr x-show="showPairDetail" x-transition class="bg-indigo-50/30">
+                                            <td colspan="11" class="py-3 px-6">
+                                                <div class="bg-white rounded-xl p-3.5 border border-indigo-100 shadow-sm">
+                                                    <div class="flex items-center justify-between mb-2.5 pb-2 border-b border-indigo-50">
+                                                        <span class="text-xs font-black text-indigo-900 flex items-center gap-1.5 uppercase tracking-wide">
+                                                            📦 Detail Rincian Item (Pair / Multiple Item Code Breakdown):
+                                                        </span>
+                                                        <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                            {{ count($distinctItemCodes) }} Sub-Item
+                                                        </span>
+                                                    </div>
+                                                    <div class="overflow-x-auto">
+                                                        <table class="w-full text-xs text-gray-700 border border-gray-100 rounded-lg">
+                                                            <thead>
+                                                                <tr class="bg-indigo-50/50 text-indigo-900 uppercase text-[9px] font-black border-b border-indigo-100">
+                                                                    <th class="py-2.5 px-4 text-left">Item Code</th>
+                                                                    <th class="py-2.5 px-4 text-left">Part Name</th>
+                                                                    <th class="py-2.5 px-4 text-center">Cycle Time</th>
+                                                                    <th class="py-2.5 px-4 text-center">Scanned (OK)</th>
+                                                                    <th class="py-2.5 px-4 text-center">Actual Qty</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-100">
+                                                                @foreach($distinctItemCodes as $subCode)
+                                                                    @php
+                                                                        $subMaster = \App\Models\MasterListItem::where('item_code', $subCode)->first();
+                                                                        $subPartName = $subMaster?->item_name ?? $subMaster?->part_name ?? ($subCode === $plan->item_code ? (optional($plan->masterItem)->item_name ?? '-') : '-');
+                                                                        $subScanned = $plan->scannedData->where('item_code', $subCode)->sum('quantity');
+                                                                        
+                                                                        $pairCount = count($distinctItemCodes);
+                                                                        $subActual = ($actualQty > 0)
+                                                                            ? ($pairCount > 1 ? (int) round($actualQty / $pairCount) : $actualQty)
+                                                                            : 0;
+
+                                                                        $subCT = $subMaster?->cycle_time ?? ($subCode === $plan->item_code ? $cycleTime : null);
+                                                                    @endphp
+                                                                    <tr class="hover:bg-indigo-50/20 transition-colors">
+                                                                        <td class="py-2.5 px-4 font-black text-gray-800 flex items-center gap-2">
+                                                                            <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
+                                                                            {{ $subCode }}
+                                                                        </td>
+                                                                        <td class="py-2.5 px-4 font-bold text-gray-600">{{ $subPartName }}</td>
+                                                                        <td class="py-2.5 px-4 text-center font-extrabold text-indigo-700">
+                                                                            {{ $subCT ? number_format((float)$subCT, 1).'s' : '-' }}
+                                                                        </td>
+                                                                        <td class="py-2.5 px-4 text-center font-black text-green-600">
+                                                                            {{ number_format($subScanned) }}
+                                                                        </td>
+                                                                        <td class="py-2.5 px-4 text-center font-black text-blue-600">
+                                                                            {{ number_format($subActual) }}
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                </tbody>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="py-8 text-center text-xs font-bold text-gray-400">Tidak ada rencana produksi untuk tanggal ini.</td>
+                                    <td colspan="11" class="py-8 text-center text-xs font-bold text-gray-400">Tidak ada rencana produksi untuk tanggal ini.</td>
                                 </tr>
                             @endforelse
                         </tbody>

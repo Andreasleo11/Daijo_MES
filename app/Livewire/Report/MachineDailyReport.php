@@ -297,7 +297,7 @@ class MachineDailyReport extends Component
                     'actual' => $r->actual_production ?? 0,
                     'ng' => $r->NG ?? 0,
                     'ng_list' => $ngList,
-                    'pic' => $r->pic ?? '-',
+                    'pic' => $r->pics_string ?: ($r->pic ?? '-'),
                     'remark' => $r->remark ?? '',
                 ];
             }
@@ -312,13 +312,17 @@ class MachineDailyReport extends Component
             ];
         }
 
-        // 6. Operator names per shift (derived from unique HourlyRemark PICs)
+        // 6. Operator names per shift (derived from unique HourlyRemark PICs: pic, pic_2, pic_3)
         $operatorNames = [1 => '-', 2 => '-', 3 => '-'];
         foreach ([1, 2, 3] as $shift) {
-            $pics = $hourlyRemarks->filter(fn($r) => $r->dailyItemCode->shift == $shift)
-                ->pluck('pic')
-                ->filter(fn($p) => !empty($p) && $p !== '-')
-                ->unique();
+            $shiftRemarks = $hourlyRemarks->filter(fn($r) => $r->dailyItemCode->shift == $shift);
+            $pics = collect();
+            foreach ($shiftRemarks as $r) {
+                if (!empty($r->pic) && $r->pic !== '-') $pics->push($r->pic);
+                if (!empty($r->pic_2) && $r->pic_2 !== '-') $pics->push($r->pic_2);
+                if (!empty($r->pic_3) && $r->pic_3 !== '-') $pics->push($r->pic_3);
+            }
+            $pics = $pics->unique();
             if ($pics->isNotEmpty()) {
                 $operatorNames[$shift] = $pics->join(', ');
             }

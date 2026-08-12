@@ -18,9 +18,21 @@ class HourlyRemark extends Model
         'remark',
         'is_achieve',
         'pic',
+        'pic_2',
+        'pic_3',
         'actual_production',
         'NG',
     ];
+
+    public function getPicsArrayAttribute()
+    {
+        return array_values(array_filter([$this->pic, $this->pic_2, $this->pic_3]));
+    }
+
+    public function getPicsStringAttribute()
+    {
+        return implode(', ', $this->pics_array);
+    }
 
     public function dailyItemCode()
     {
