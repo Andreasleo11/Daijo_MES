@@ -175,6 +175,8 @@ new class extends Component {
 
                 <!-- 7. Dropdown: Barcode & Scan -->
                 <livewire:parent-dropdown label="Barcode & Scan" :initiallyOpen="false" :childRoutes="[
+                    ['name' => 'barcode.custom.form', 'label' => 'Custom Barcode Generator'],
+                    ['name' => 'barcode.custom.logs', 'label' => 'Custom Barcode Logs'],
                     ['name' => 'barcodeindex', 'label' => 'Generate Barcode'],
                     ['name' => 'inandout.index', 'label' => 'Scan Barcode In/Out'],
                     ['name' => 'list.barcode', 'label' => 'Scan Document Log'],
@@ -281,6 +283,8 @@ new class extends Component {
                 @if (auth()->user()?->can('view-store-links'))
                     {{-- Consolidated Packaging Menu --}}
                     <livewire:parent-dropdown label="Packaging Menu" :initiallyOpen="false" :childRoutes="[
+                        ['name' => 'barcode.custom.form', 'label' => 'Custom Barcode Generator'],
+                        ['name' => 'barcode.custom.logs', 'label' => 'Custom Barcode Logs'],
                         ['name' => 'barcodeindex', 'label' => 'Generate Barcode'],
                         ['name' => 'barcode.box_master.index', 'label' => 'Master Box Data'],
                         ['name' => 'barcode.box_detail.index', 'label' => 'Master Box Detail'],
