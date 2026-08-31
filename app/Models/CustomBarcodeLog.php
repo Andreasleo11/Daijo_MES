@@ -26,6 +26,7 @@ class CustomBarcodeLog extends Model
         'prod_date',
         'operator',
         'customer',
+        'barcode_type',
         'is_trial',
         'remark',
     ];

@@ -81,7 +81,12 @@
                             <th class="px-3 py-2 text-center">Cavity</th>
                             <th class="px-3 py-2 text-center">Cycle Time (s)</th>
                             <th class="px-3 py-2 text-center">Cust Code</th>
-                            <th class="px-3 py-2 text-center">Project Code</th>
+                            <th class="px-3 py-2 text-center">Family</th>
+                            <th class="px-3 py-2 text-center">Foreign Desc</th>
+                            <th class="px-3 py-2 text-center">Color</th>
+                            <th class="px-3 py-2 text-center">Half Code 1</th>
+                            <th class="px-3 py-2 text-center">Half Code 2</th>
+                            <th class="px-3 py-2 text-center">Position</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-blue-100 text-gray-700">
@@ -96,7 +101,12 @@
                                 <td class="px-3 py-2 text-center">{{ $row['cavity'] ?? '0' }}</td>
                                 <td class="px-3 py-2 text-center">{{ $row['cycle_time'] ?? '0' }}</td>
                                 <td class="px-3 py-2 text-center">{{ $row['customer_code'] ?? '-' }}</td>
-                                <td class="px-3 py-2 text-center font-bold text-indigo-700">{{ $row['project_code'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['family'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['description_in_foreign_lang'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['color'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['half_code_1'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['half_code_2'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">{{ $row['position'] ?? '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -145,15 +155,20 @@
                 <thead class="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider">
                     <tr>
                         <th class="px-4 py-3">Item Code</th>
-                        <th class="px-4 py-3 w-1/5">Item Name</th>
-                        <th class="px-4 py-3 text-center">Tipe Mesin</th>
-                        <th class="px-4 py-3 text-center">Std Pack Qty</th>
-                        <th class="px-4 py-3 text-center">Setup Time (m)</th>
-                        <th class="px-4 py-3 text-center">Pair</th>
-                        <th class="px-4 py-3 text-center">Cavity</th>
-                        <th class="px-4 py-3 text-center">Cycle Time (s)</th>
-                        <th class="px-4 py-3 text-center">Cust Code</th>
-                        <th class="px-4 py-3 text-center">Project Code</th>
+                        <th class="px-4 py-3 w-1/6">Item Name</th>
+                        <th class="px-3 py-3 text-center">Tipe Mesin</th>
+                        <th class="px-3 py-3 text-center">Std Pack Qty</th>
+                        <th class="px-3 py-3 text-center">Setup Time (m)</th>
+                        <th class="px-3 py-3 text-center">Pair</th>
+                        <th class="px-3 py-3 text-center">Cavity</th>
+                        <th class="px-3 py-3 text-center">Cycle Time (s)</th>
+                        <th class="px-3 py-3 text-center">Cust Code</th>
+                        <th class="px-3 py-3 text-center">Family</th>
+                        <th class="px-3 py-3 text-center">Foreign Desc</th>
+                        <th class="px-3 py-3 text-center">Color</th>
+                        <th class="px-3 py-3 text-center">Half Code 1</th>
+                        <th class="px-3 py-3 text-center">Half Code 2</th>
+                        <th class="px-3 py-3 text-center">Position</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 text-gray-800">
@@ -260,23 +275,93 @@
                                 @endif
                             </td>
 
-                            <!-- Project Code -->
-                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'project_code')">
-                                @if($editingItemId === $item->id && $editingField === 'project_code')
+                            <!-- Family -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'family')">
+                                @if($editingItemId === $item->id && $editingField === 'family')
                                     <div class="flex items-center justify-center space-x-1">
                                         <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
                                                class="w-24 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
                                     </div>
                                 @else
                                     <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600 font-semibold text-indigo-700" title="Double click to edit">
-                                        {{ $item->project_code ?: '—' }}
+                                        {{ $item->family ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Foreign Description -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'description_in_foreign_lang')">
+                                @if($editingItemId === $item->id && $editingField === 'description_in_foreign_lang')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-28 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600" title="Double click to edit">
+                                        {{ $item->description_in_foreign_lang ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Color -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'color')">
+                                @if($editingItemId === $item->id && $editingField === 'color')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-20 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600" title="Double click to edit">
+                                        {{ $item->color ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Half Code 1 -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'half_code_1')">
+                                @if($editingItemId === $item->id && $editingField === 'half_code_1')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-20 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600" title="Double click to edit">
+                                        {{ $item->half_code_1 ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Half Code 2 -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'half_code_2')">
+                                @if($editingItemId === $item->id && $editingField === 'half_code_2')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-20 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600" title="Double click to edit">
+                                        {{ $item->half_code_2 ?: '—' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Position -->
+                            <td class="px-2 py-2 text-center" wire:dblclick="startEdit({{ $item->id }}, 'position')">
+                                @if($editingItemId === $item->id && $editingField === 'position')
+                                    <div class="flex items-center justify-center space-x-1">
+                                        <input type="text" wire:model.defer="editingValue" wire:keydown.enter="saveEdit" wire:keydown.escape="cancelEdit" 
+                                               class="w-20 text-center rounded border-gray-300 p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500" autofocus>
+                                    </div>
+                                @else
+                                    <span class="cursor-pointer border-b border-dashed border-gray-400 hover:text-blue-600" title="Double click to edit">
+                                        {{ $item->position ?: '—' }}
                                     </span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-6 text-gray-500 font-semibold">No master items found.</td>
+                            <td colspan="15" class="text-center py-6 text-gray-500 font-semibold">No master items found.</td>
                         </tr>
                     @endforelse
                 </tbody>

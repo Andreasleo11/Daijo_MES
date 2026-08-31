@@ -73,6 +73,12 @@ class MasterListManager extends Component
             'cycle_time' => 'nullable|integer|min:0',
             'customer_code' => 'nullable|string|max:255',
             'project_code' => 'nullable|string|max:255',
+            'family' => 'nullable|string|max:255',
+            'description_in_foreign_lang' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:255',
+            'half_code_1' => 'nullable|string|max:255',
+            'half_code_2' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
         ];
 
         $validated = $this->validate([
@@ -99,6 +105,47 @@ class MasterListManager extends Component
         }
 
         $this->cancelEdit();
+    }
+
+    private function parseNumeric($val, $default = 0)
+    {
+        if ($val === null || $val === '') {
+            return $default;
+        }
+        if (is_numeric($val)) {
+            return (int) round((float) $val);
+        }
+        $str = trim((string) $val);
+        if ($str === '' || $str === '-') {
+            return $default;
+        }
+        // Handle thousands separators formatted like 6.000.000 or 1,600,000
+        if (substr_count($str, '.') > 1) {
+            $str = str_replace('.', '', $str);
+            if (strlen($str) > 3 && substr($str, -3) === '000') {
+                $str = substr($str, 0, -3);
+            }
+        } elseif (substr_count($str, ',') > 1) {
+            $str = str_replace(',', '', $str);
+            if (strlen($str) > 3 && substr($str, -3) === '000') {
+                $str = substr($str, 0, -3);
+            }
+        } else {
+            $clean = str_replace(',', '', $str);
+            if (is_numeric($clean)) {
+                return (int) round((float) $clean);
+            }
+        }
+        return is_numeric($str) ? (int) round((float) $str) : $default;
+    }
+
+    private function parseString($val, $default = '0')
+    {
+        if ($val === null) {
+            return $default;
+        }
+        $str = trim((string) $val);
+        return $str === '' ? $default : $str;
     }
 
     public function updatedFile()
@@ -132,26 +179,31 @@ class MasterListManager extends Component
             $mappedRows = [];
             foreach ($rows as $row) {
                 // Ensure item_code is present (column index 1)
-                $itemCode = isset($row[1]) ? trim(strval($row[1])) : '';
+                $itemCode = isset($row[1]) ? trim((string) $row[1]) : '';
                 if (empty($itemCode)) {
                     continue;
                 }
 
                 // Cycle time calculation: Column 9 (Standard Time) * 60, rounded down
                 $cycleTimeRaw = isset($row[9]) ? $row[9] : 0;
-                $cycleTime = (int) floor(floatval($cycleTimeRaw) * 60);
+                $cycleTime = (int) floor(floatval(str_replace(',', '.', (string) $cycleTimeRaw)) * 60);
 
                 $mappedRows[] = [
                     'item_code' => $itemCode,
-                    'item_name' => isset($row[2]) ? trim(strval($row[2])) : '',
-                    'tipe_mesin' => isset($row[3]) ? trim(strval($row[3])) : '0',
-                    'standart_packaging_list' => isset($row[4]) ? (int)$row[4] : 0,
-                    'setup_time_minute' => isset($row[5]) ? (int)$row[5] : 0,
-                    'pair' => isset($row[6]) ? (int)$row[6] : 0,
-                    'cavity' => isset($row[7]) ? (int)$row[7] : 0,
-                    'customer_code' => isset($row[8]) ? trim(strval($row[8])) : '0',
+                    'item_name' => $this->parseString($row[2] ?? '', ''),
+                    'tipe_mesin' => $this->parseString($row[3] ?? '', '0'),
+                    'standart_packaging_list' => $this->parseNumeric($row[4] ?? 0, 0),
+                    'setup_time_minute' => $this->parseNumeric($row[5] ?? 0, 0),
+                    'pair' => $this->parseNumeric($row[6] ?? 0, 0),
+                    'cavity' => $this->parseNumeric($row[7] ?? 0, 0),
+                    'customer_code' => $this->parseString($row[8] ?? '', '0'),
                     'cycle_time' => $cycleTime,
-                    'project_code' => isset($row[10]) ? trim(strval($row[10])) : '0',
+                    'family' => $this->parseString($row[10] ?? '', '0'),
+                    'description_in_foreign_lang' => $this->parseString($row[11] ?? '', '0'),
+                    'color' => $this->parseString($row[12] ?? '', '0'),
+                    'half_code_1' => $this->parseString($row[13] ?? '', '0'),
+                    'half_code_2' => $this->parseString($row[14] ?? '', '0'),
+                    'position' => $this->parseString($row[15] ?? '', '0'),
                 ];
             }
 
@@ -200,7 +252,13 @@ class MasterListManager extends Component
         $chunk = array_slice($allRows, $offset, $chunkSize);
         $processed = 0;
 
-        DB::transaction(function () use ($chunk, &$processed) {
+        $fieldsToTrack = [
+            'item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute',
+            'pair', 'cavity', 'customer_code', 'cycle_time',
+            'family', 'description_in_foreign_lang', 'color', 'half_code_1', 'half_code_2', 'position'
+        ];
+
+        DB::transaction(function () use ($chunk, &$processed, $fieldsToTrack) {
             foreach ($chunk as $data) {
                 if (empty($data['item_code'])) {
                     $processed++;
@@ -211,12 +269,17 @@ class MasterListManager extends Component
 
                 if ($item) {
                     // Update item (Upsert)
-                    $oldValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']);
+                    $oldValues = $item->only($fieldsToTrack);
                     
                     // SAP Owned fields are always updated
                     $item->item_name = $data['item_name'] ?? $item->item_name;
                     $item->customer_code = $data['customer_code'] ?? $item->customer_code;
-                    $item->project_code = $data['project_code'] ?? $item->project_code;
+                    $item->family = $data['family'] ?? $item->family;
+                    $item->description_in_foreign_lang = $data['description_in_foreign_lang'] ?? $item->description_in_foreign_lang;
+                    $item->color = $data['color'] ?? $item->color;
+                    $item->half_code_1 = $data['half_code_1'] ?? $item->half_code_1;
+                    $item->half_code_2 = $data['half_code_2'] ?? $item->half_code_2;
+                    $item->position = $data['position'] ?? $item->position;
 
                     // MES Owned fields are only updated if hardSync is enabled
                     if ($this->hardSync) {
@@ -229,15 +292,15 @@ class MasterListManager extends Component
                     }
 
                     if ($item->isDirty()) {
-                        $newValues = $item->only(['item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']);
+                        $newValues = $item->only($fieldsToTrack);
                         $item->save();
 
                         // Log differences
                         $diffOld = [];
                         $diffNew = [];
                         foreach ($newValues as $k => $v) {
-                            if ($oldValues[$k] != $v) {
-                                $diffOld[$k] = $oldValues[$k];
+                            if (($oldValues[$k] ?? null) != $v) {
+                                $diffOld[$k] = $oldValues[$k] ?? null;
                                 $diffNew[$k] = $v;
                             }
                         }
@@ -264,7 +327,13 @@ class MasterListManager extends Component
                     $item->cavity = (int)($data['cavity'] ?? 0);
                     $item->customer_code = $data['customer_code'] ?? '0';
                     $item->cycle_time = (int)($data['cycle_time'] ?? 0);
-                    $item->project_code = $data['project_code'] ?? '0';
+                    $item->project_code = '0';
+                    $item->family = $data['family'] ?? '0';
+                    $item->description_in_foreign_lang = $data['description_in_foreign_lang'] ?? '0';
+                    $item->color = $data['color'] ?? '0';
+                    $item->half_code_1 = $data['half_code_1'] ?? '0';
+                    $item->half_code_2 = $data['half_code_2'] ?? '0';
+                    $item->position = $data['position'] ?? '0';
                     $item->save();
 
                     MasterItemLog::create([
@@ -272,7 +341,7 @@ class MasterListManager extends Component
                         'item_code' => $item->item_code,
                         'action' => 'excel_import_create',
                         'old_values' => null,
-                        'new_values' => $item->only(['item_code', 'item_name', 'tipe_mesin', 'standart_packaging_list', 'setup_time_minute', 'pair', 'cavity', 'customer_code', 'cycle_time', 'project_code']),
+                        'new_values' => $item->only(array_merge(['item_code'], $fieldsToTrack)),
                     ]);
                 }
 
