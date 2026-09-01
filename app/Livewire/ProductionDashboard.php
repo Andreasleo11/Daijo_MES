@@ -82,7 +82,16 @@ class ProductionDashboard extends Component
                 'K0750A', 'K0750B', 'K0450A',
             ])
             ->orWhere('name', 'LIKE', 'K%')
-            ->orWhere('name', 'REGEXP', '^[0-9]');
+            ->orWhere('name', 'LIKE', '0%')
+            ->orWhere('name', 'LIKE', '1%')
+            ->orWhere('name', 'LIKE', '2%')
+            ->orWhere('name', 'LIKE', '3%')
+            ->orWhere('name', 'LIKE', '4%')
+            ->orWhere('name', 'LIKE', '5%')
+            ->orWhere('name', 'LIKE', '6%')
+            ->orWhere('name', 'LIKE', '7%')
+            ->orWhere('name', 'LIKE', '8%')
+            ->orWhere('name', 'LIKE', '9%');
         })->get(['id', 'name']);
         
         $this->allMachines = $machineUsers->map(function($user) {
@@ -221,8 +230,7 @@ class ProductionDashboard extends Component
     {
         [$startDate, $endDate] = $this->getDateRange();
 
-        // Production data & chart
-        $data = $this->productionService->getProductionData(
+        $data = $this->productionService->getAllDashboardData(
             $startDate,
             $endDate,
             $this->itemCode,
@@ -233,59 +241,12 @@ class ProductionDashboard extends Component
         $this->chartData = $data['chart_data'] ?? [];
         $this->summary = $data['summary'] ?? [];
         $this->purgingDetails = $data['purging_details'] ?? [];
-
-        $this->ngBreakdown = $this->productionService->getNgBreakdown(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        ) ?? [];
-
-        // Downtime analysis
-        $this->downtimeAnalysis = $this->productionService->getDowntimeAnalysis(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        );
-
-        // Top problematic remarks
-        $this->topRemarks = $this->productionService->getTopProblematicRemarks(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        );
-
-        // Machine working hours
-        $this->machineWorkingHours = $this->productionService->getMachineWorkingHours(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        );
-
-        // Shift Adjuster, Mould Change & NG Analysis
-        $this->shiftPersonnelAnalysis = $this->productionService->getShiftPersonnelAndNgAnalysis(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        );
-
-        // Adjuster Daily NG Trend (for Monthly / Weekly / Daily views)
-        $this->adjusterNgTrend = $this->productionService->getAdjusterNgTrendChartData(
-            $startDate,
-            $endDate,
-            $this->itemCode,
-            $this->machineUserId,
-            $this->plant
-        );
+        $this->ngBreakdown = $data['ng_breakdown'] ?? [];
+        $this->downtimeAnalysis = $data['downtime_analysis'] ?? [];
+        $this->topRemarks = $data['top_remarks'] ?? [];
+        $this->machineWorkingHours = $data['machine_working_hours'] ?? [];
+        $this->shiftPersonnelAnalysis = $data['shift_personnel_analysis'] ?? [];
+        $this->adjusterNgTrend = $data['adjuster_ng_trend'] ?? [];
 
         $this->dispatch('chartDataUpdated', chartData: $this->chartData);
         $this->dispatch('adjusterChartDataUpdated', adjusterChartData: $this->adjusterNgTrend);
