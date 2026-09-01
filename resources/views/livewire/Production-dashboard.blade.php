@@ -178,8 +178,8 @@
                         </span>
                     @endif
                     @if($viewType === 'daily')
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
-                            Date: {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                            Date: {{ date('d M Y', strtotime($selectedDate)) }}
                         </span>
                     @endif
                     @if($itemCode)
@@ -814,7 +814,7 @@
                         @foreach($topRemarks as $index => $remark)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm text-gray-700">
-                                {{ \Carbon\Carbon::parse($remark['date'])->format('d M Y') }}
+                                {{ date('d M Y', strtotime($remark['date'])) }}
                             </td>
                             <td class="px-4 py-3 text-sm font-medium text-gray-900">
                                 {{ $remark['hour'] }}
@@ -1182,7 +1182,7 @@
                                             #{{ $detail['dic_id'] }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {{ \Carbon\Carbon::parse($detail['date'])->format('d M Y') }}
+                                            {{ date('d M Y', strtotime($detail['date'])) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             Shift {{ $detail['shift'] }}

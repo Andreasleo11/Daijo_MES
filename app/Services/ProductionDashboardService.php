@@ -1260,9 +1260,15 @@ class ProductionDashboardService
         }
 
         if ($plant === 'karawang') {
-            $query->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
+            $krwIds = User::where(function($q) {
+                $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%');
+            })->pluck('id')->toArray();
+            $query->whereIn('user_id', $krwIds);
         } elseif ($plant === 'kbn') {
-            $query->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
+            $kbnIds = User::where(function($q) {
+                $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%');
+            })->pluck('id')->toArray();
+            $query->whereIn('user_id', $kbnIds);
         }
 
         return $query->orderBy('item_code')
