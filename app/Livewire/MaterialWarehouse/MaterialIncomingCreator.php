@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 class MaterialIncomingCreator extends Component
 {
     // Header Fields
+    public ?int $whse_id = null;
+    public array $warehouses = [];
     public string $document_no = '';
     public string $incoming_type = 'SUPPLIER'; // SUPPLIER vs RETURN_PRODUCTION
     public string $supplier_name = '';
@@ -32,6 +34,17 @@ class MaterialIncomingCreator extends Component
 
     public function mount(MaterialWarehouseService $mwhService): void
     {
+        $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+
+        if (!$this->whse_id) {
+            $this->whse_id = $this->warehouses[0]['id'] ?? 1;
+        }
+
         $this->arrival_date = now()->format('Y-m-d');
         $this->document_no  = $mwhService->generateDocumentNo();
 
@@ -40,6 +53,11 @@ class MaterialIncomingCreator extends Component
         $reqOutgoingCode = request()->query('outgoing_code');
         $reqReturnedFrom = request()->query('returned_from');
         $reqItemCode     = request()->query('item_code');
+        $reqWhseId       = request()->query('whse_id');
+
+        if ($reqWhseId) {
+            $this->whse_id = (int)$reqWhseId;
+        }
 
         if ($reqType === 'RETURN_PRODUCTION') {
             $this->incoming_type = 'RETURN_PRODUCTION';
@@ -63,6 +81,14 @@ class MaterialIncomingCreator extends Component
                 $this->items[0]['item_code']        = $mat->item_code;
                 $this->items[0]['item_description'] = $mat->item_description ?? '';
             }
+        }
+    }
+
+    public function updatedWhseId(): void
+    {
+        // Reset selected position_id in all item rows when branch changes
+        foreach ($this->items as &$item) {
+            $item['position_id'] = '';
         }
     }
 
@@ -117,6 +143,7 @@ class MaterialIncomingCreator extends Component
     public function saveIncoming(MaterialWarehouseService $mwhService): void
     {
         $this->validate([
+            'whse_id'                => 'required|exists:mwh_warehouses,id',
             'incoming_type'          => 'required|in:SUPPLIER,RETURN_PRODUCTION',
             'arrival_date'           => 'required|date',
             'supplier_name'          => 'nullable|string|max:255',
@@ -139,12 +166,13 @@ class MaterialIncomingCreator extends Component
             DB::beginTransaction();
 
             $header = MwhIncomingHeader::create([
+                'whse_id'                 => $this->whse_id,
                 'document_no'             => $mwhService->generateDocumentNo(),
                 'incoming_type'           => $this->incoming_type,
                 'supplier_name'           => $this->incoming_type === 'SUPPLIER' ? (trim($this->supplier_name) ?: null) : null,
                 'returned_from'           => $this->incoming_type === 'RETURN_PRODUCTION' ? (trim($this->returned_from) ?: null) : null,
                 'po_number'               => trim($this->po_number) ?: null,
-                'original_outgoing_code' => trim($this->original_outgoing_code) ?: null,
+                'original_outgoing_code'  => trim($this->original_outgoing_code) ?: null,
                 'arrival_date'            => $this->arrival_date,
                 'remarks'                 => trim($this->remarks) ?: null,
             ]);
@@ -170,9 +198,10 @@ class MaterialIncomingCreator extends Component
                     $currentStored = MwhPallet::where('position_id', $targetPosId)->where('current_qty', '>', 0)->sum('current_qty');
                     $availableCap = $targetPos ? ($targetPos->max_capacity - $currentStored) : 0;
 
-                    // If selected target slot does not have enough capacity for this pallet, find next available empty/partial slot
+                    // If selected target slot does not have enough capacity for this pallet, find next available empty/partial slot in same warehouse
                     if ($availableCap < $palletQty) {
-                        $nextPos = MwhPosition::whereIn('status', ['EMPTY', 'PARTIAL'])
+                        $nextPos = MwhPosition::whereHas('rack', fn($q) => $q->where('whse_id', $this->whse_id))
+                            ->whereIn('status', ['EMPTY', 'PARTIAL'])
                             ->where('id', '!=', $targetPosId)
                             ->get()
                             ->first(function($p) use ($palletQty) {
@@ -194,6 +223,7 @@ class MaterialIncomingCreator extends Component
 
                         try {
                             $pallet = MwhPallet::create([
+                                'whse_id'            => $this->whse_id,
                                 'pallet_id'          => $palletId,
                                 'incoming_header_id' => $header->id,
                                 'item_code'          => $itemCode,
@@ -253,13 +283,18 @@ class MaterialIncomingCreator extends Component
 
     public function render()
     {
-        $positions = MwhPosition::with('rack')
-            ->whereIn('status', ['EMPTY', 'PARTIAL'])
-            ->orderBy('position_code', 'asc')
-            ->get();
+        $positionsQuery = MwhPosition::with('rack')
+            ->whereIn('status', ['EMPTY', 'PARTIAL']);
+
+        if ($this->whse_id) {
+            $positionsQuery->whereHas('rack', fn($q) => $q->where('whse_id', $this->whse_id));
+        }
+
+        $positions = $positionsQuery->orderBy('position_code', 'asc')->get();
 
         return view('livewire.material-warehouse.material-incoming-creator', [
-            'positions' => $positions,
+            'warehouses' => $this->warehouses,
+            'positions'  => $positions,
         ]);
     }
 }

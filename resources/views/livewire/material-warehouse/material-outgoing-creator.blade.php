@@ -40,6 +40,39 @@
             </div>
         </div>
 
+        <!-- Branch / Warehouse Switcher Bar -->
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider pl-2 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    PILIH BRANCH OUTGOING:
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach($warehouses as $wh)
+                        <button 
+                            wire:click="$set('whse_id', {{ $wh['id'] }})"
+                            style="{{ $whse_id == $wh['id'] ? 'background-color: #d97706 !important; color: #ffffff !important;' : 'background-color: #f3f4f6; color: #374151;' }}"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs {{ $whse_id == $wh['id'] ? 'bg-amber-600 text-white ring-2 ring-amber-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' }}"
+                        >
+                            <span>🏭</span>
+                            <span style="{{ $whse_id == $wh['id'] ? 'color: #ffffff !important;' : 'color: #1f2937;' }}">{{ $wh['whse_name'] }}</span>
+                            <span 
+                                style="{{ $whse_id == $wh['id'] ? 'background-color: #b45309 !important; color: #fef3c7 !important;' : 'background-color: #e5e7eb; color: #4b5563;' }}"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold {{ $whse_id == $wh['id'] ? 'bg-amber-700 text-amber-100' : 'bg-gray-200 text-gray-600' }}"
+                            >
+                                {{ $wh['whse_code'] }}
+                            </span>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+            <div class="text-xs text-gray-400 font-medium pr-2">
+                Memfilter rekomendasi FIFO pallet dari lokasi branch terpilih.
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
 
             <!-- Left Panel: Search Part Code & FIFO Recommendations -->

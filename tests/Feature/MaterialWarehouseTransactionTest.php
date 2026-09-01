@@ -22,6 +22,15 @@ class MaterialWarehouseTransactionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
+
+        config(['database.default' => 'sqlite']);
+        config(['database.connections.sqlite' => [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]]);
+
         $this->createTestSchema();
     }
 
@@ -82,9 +91,13 @@ class MaterialWarehouseTransactionTest extends TestCase
         if (!Schema::hasTable('mwh_incoming_headers')) {
             Schema::create('mwh_incoming_headers', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->id();
+                $table->foreignId('whse_id')->nullable();
                 $table->string('document_no')->unique();
+                $table->string('incoming_type')->default('SUPPLIER');
                 $table->string('supplier_name')->nullable();
+                $table->string('returned_from')->nullable();
                 $table->string('po_number')->nullable();
+                $table->string('original_outgoing_code')->nullable();
                 $table->date('arrival_date');
                 $table->text('remarks')->nullable();
                 $table->timestamps();
@@ -95,6 +108,7 @@ class MaterialWarehouseTransactionTest extends TestCase
         if (!Schema::hasTable('mwh_pallets')) {
             Schema::create('mwh_pallets', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->id();
+                $table->foreignId('whse_id')->nullable();
                 $table->string('pallet_id')->unique();
                 $table->foreignId('incoming_header_id')->nullable();
                 $table->string('item_code');
@@ -114,6 +128,7 @@ class MaterialWarehouseTransactionTest extends TestCase
         if (!Schema::hasTable('mwh_outgoings')) {
             Schema::create('mwh_outgoings', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->id();
+                $table->foreignId('whse_id')->nullable();
                 $table->string('outgoing_code')->unique();
                 $table->string('pallet_id');
                 $table->foreignId('position_id')->nullable();
@@ -484,5 +499,79 @@ class MaterialWarehouseTransactionTest extends TestCase
             ->assertSee('RESIN ABS NATURAL HI-IMPACT')
             ->assertSee('MPLT-SC-001')
             ->assertSee('OUT-SC-001');
+    }
+
+    public function test_branch_separation_between_kbn_and_karawang()
+    {
+        $kbn = MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+        $krw = MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+
+        $rackKbn = MwhRack::create(['whse_id' => $kbn->id, 'rack_code' => 'RAK-KBN-01']);
+        $posKbn = MwhPosition::create([
+            'rack_id'       => $rackKbn->id,
+            'level_no'      => 1,
+            'slot_no'       => 1,
+            'position_code' => 'RAK-KBN-01-L01-S01',
+            'max_capacity'  => 1000,
+        ]);
+
+        $rackKrw = MwhRack::create(['whse_id' => $krw->id, 'rack_code' => 'RAK-KRW-01']);
+        $posKrw = MwhPosition::create([
+            'rack_id'       => $rackKrw->id,
+            'level_no'      => 1,
+            'slot_no'       => 1,
+            'position_code' => 'RAK-KRW-01-L01-S01',
+            'max_capacity'  => 1000,
+        ]);
+
+        $mat = MasterListMaterial::firstOrCreate([
+            'item_code' => 'MAT-BRANCH-TEST',
+        ], [
+            'item_description' => 'TEST RESIN FOR BRANCH SEPARATION',
+            'purchasing_uom'   => 'KG',
+        ]);
+
+        $role = \App\Models\Role::firstOrCreate(['name' => 'ADMIN']);
+        $user = User::create([
+            'name'     => 'Branch User',
+            'email'    => 'branch_' . uniqid() . '@example.com',
+            'role_id'  => $role->id,
+            'password' => bcrypt('password'),
+        ]);
+
+        $this->actingAs($user);
+
+        // 1. Store incoming in Karawang
+        Livewire::test(MaterialIncomingCreator::class)
+            ->set('whse_id', $krw->id)
+            ->set('arrival_date', '2026-09-01')
+            ->set('items.0.item_code', 'MAT-BRANCH-TEST')
+            ->set('items.0.qty', '500')
+            ->set('items.0.position_id', $posKrw->id)
+            ->call('saveIncoming')
+            ->assertHasNoErrors();
+
+        $krwPallet = MwhPallet::where('item_code', 'MAT-BRANCH-TEST')->where('whse_id', $krw->id)->first();
+        $this->assertNotNull($krwPallet);
+        $this->assertEquals(500.00, $krwPallet->current_qty);
+
+        // 2. FIFO recommendation in Karawang must return this pallet, while KBN must NOT return it
+        $mwhService = app(MaterialWarehouseService::class);
+        $krwFifo = $mwhService->getFifoRecommendations('MAT-BRANCH-TEST', $krw->id);
+        $kbnFifo = $mwhService->getFifoRecommendations('MAT-BRANCH-TEST', $kbn->id);
+
+        $this->assertCount(1, $krwFifo);
+        $this->assertCount(0, $kbnFifo);
+
+        // 3. Rack mapping with Karawang filter sees Karawang rack, KBN sees KBN rack
+        Livewire::test(\App\Livewire\MaterialWarehouse\RackMapping::class)
+            ->set('selectedWhseId', $krw->id)
+            ->assertSee('RAK-KRW-01')
+            ->assertDontSee('RAK-KBN-01');
+
+        Livewire::test(\App\Livewire\MaterialWarehouse\RackMapping::class)
+            ->set('selectedWhseId', $kbn->id)
+            ->assertSee('RAK-KBN-01')
+            ->assertDontSee('RAK-KRW-01');
     }
 }

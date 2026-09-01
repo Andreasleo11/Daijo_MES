@@ -118,16 +118,26 @@ class MaterialWarehouseService
     }
 
     /**
-     * Get FIFO recommended pallets for a given item code.
+     * Get FIFO recommended pallets for a given item code, optionally filtered by warehouse.
      */
-    public function getFifoRecommendations(string $itemCode)
+    public function getFifoRecommendations(string $itemCode, ?int $whseId = null)
     {
-        return MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+        $query = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
             ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
+            ->leftJoin('mwh_positions', 'mwh_pallets.position_id', '=', 'mwh_positions.id')
+            ->leftJoin('mwh_racks', 'mwh_positions.rack_id', '=', 'mwh_racks.id')
             ->where('mwh_pallets.item_code', $itemCode)
             ->where('mwh_pallets.current_qty', '>', 0)
-            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL'])
-            ->select('mwh_pallets.*')
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL']);
+
+        if ($whseId) {
+            $query->where(function ($q) use ($whseId) {
+                $q->where('mwh_pallets.whse_id', $whseId)
+                  ->orWhere('mwh_racks.whse_id', $whseId);
+            });
+        }
+
+        return $query->select('mwh_pallets.*')
             ->orderByRaw('COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)) ASC')
             ->orderBy('mwh_pallets.id', 'asc')
             ->get();
@@ -139,7 +149,7 @@ class MaterialWarehouseService
     public function processOutgoingPicking(string $palletId, float $qtyTaken, string $outgoingDate, ?string $issuedTo = null, ?string $remarks = null): MwhOutgoing
     {
         return DB::transaction(function () use ($palletId, $qtyTaken, $outgoingDate, $issuedTo, $remarks) {
-            $pallet = MwhPallet::where('pallet_id', $palletId)->firstOrFail();
+            $pallet = MwhPallet::with('position.rack')->where('pallet_id', $palletId)->firstOrFail();
 
             if ($pallet->is_qc_hold) {
                 $reason = $pallet->qc_hold_reason ?: 'Tanpa keterangan';
@@ -154,6 +164,7 @@ class MaterialWarehouseService
             $newStatus = $newQty <= 0 ? 'EMPTY' : 'PARTIAL';
 
             $oldPositionId = $pallet->position_id;
+            $palletWhseId = $pallet->whse_id ?: ($pallet->position?->rack?->whse_id ?? 1);
 
             $pallet->update([
                 'current_qty' => $newQty,
@@ -162,6 +173,7 @@ class MaterialWarehouseService
             ]);
 
             $outgoing = MwhOutgoing::create([
+                'whse_id'       => $palletWhseId,
                 'outgoing_code' => $this->generateOutgoingCode(),
                 'pallet_id'     => $pallet->pallet_id,
                 'position_id'   => $oldPositionId,

@@ -18,4 +18,19 @@ class MwhWarehouse extends Model
     {
         return $this->hasMany(MwhRack::class, 'whse_id');
     }
+
+    public function incomingHeaders()
+    {
+        return $this->hasMany(MwhIncomingHeader::class, 'whse_id');
+    }
+
+    public function pallets()
+    {
+        return $this->hasMany(MwhPallet::class, 'whse_id');
+    }
+
+    public function outgoings()
+    {
+        return $this->hasMany(MwhOutgoing::class, 'whse_id');
+    }
 }

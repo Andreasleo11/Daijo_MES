@@ -13,6 +13,7 @@ class MwhOutgoing extends Model
     protected $table = 'mwh_outgoings';
 
     protected $fillable = [
+        'whse_id',
         'outgoing_code',
         'pallet_id',
         'position_id',
@@ -28,6 +29,11 @@ class MwhOutgoing extends Model
         'qty_taken'     => 'decimal:2',
         'outgoing_date' => 'date',
     ];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(MwhWarehouse::class, 'whse_id');
+    }
 
     public function pallet()
     {

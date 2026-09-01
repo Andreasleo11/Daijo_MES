@@ -14,6 +14,8 @@ class MaterialOutgoingCreator extends Component
     use WithPagination;
 
     // Form Picking Fields
+    public ?int $whse_id = null;
+    public array $warehouses = [];
     public string $selected_item_code = '';
     public string $selected_item_description = '';
     public string $selected_pallet_id = '';
@@ -28,12 +30,31 @@ class MaterialOutgoingCreator extends Component
     public array $materialSearchResults = [];
     public array $fifoRecommendations = [];
 
-    protected $queryString = ['selected_item_code'];
+    protected $queryString = ['selected_item_code', 'whse_id'];
 
     public function mount(): void
     {
+        $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+
+        if (!$this->whse_id) {
+            $this->whse_id = $this->warehouses[0]['id'] ?? 1;
+        }
+
         $this->outgoing_date = now()->format('Y-m-d');
 
+        if ($this->selected_item_code) {
+            $this->selectMaterial($this->selected_item_code);
+        }
+    }
+
+    public function updatedWhseId(): void
+    {
+        $this->reset(['selected_pallet_id', 'selectedPallet']);
         if ($this->selected_item_code) {
             $this->selectMaterial($this->selected_item_code);
         }
@@ -64,8 +85,8 @@ class MaterialOutgoingCreator extends Component
             $this->selected_item_description = $mat->item_description ?? '';
             $this->materialSearchResults     = [];
 
-            // Get FIFO recommendations
-            $this->fifoRecommendations = $mwhService->getFifoRecommendations($mat->item_code)->toArray();
+            // Get FIFO recommendations filtered by selected warehouse
+            $this->fifoRecommendations = $mwhService->getFifoRecommendations($mat->item_code, $this->whse_id)->toArray();
         }
     }
 
@@ -147,13 +168,22 @@ class MaterialOutgoingCreator extends Component
 
     public function render()
     {
-        $outgoings = MwhOutgoing::with(['position.rack', 'material', 'pallet'])
-            ->orderBy('outgoing_date', 'desc')
+        $query = MwhOutgoing::with(['position.rack', 'material', 'pallet', 'warehouse']);
+
+        if ($this->whse_id) {
+            $query->where(function($q) {
+                $q->where('whse_id', $this->whse_id)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $this->whse_id));
+            });
+        }
+
+        $outgoings = $query->orderBy('outgoing_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(15);
 
         return view('livewire.material-warehouse.material-outgoing-creator', [
-            'outgoings' => $outgoings,
+            'warehouses' => $this->warehouses,
+            'outgoings'  => $outgoings,
         ]);
     }
 }

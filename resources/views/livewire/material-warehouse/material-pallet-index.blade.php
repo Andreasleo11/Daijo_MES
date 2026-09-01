@@ -30,6 +30,43 @@
             </div>
         </div>
 
+        <!-- Branch / Warehouse Switcher Bar -->
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider pl-2 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    PILIH BRANCH:
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach($warehouses as $wh)
+                        <button 
+                            wire:click="$set('whse_id', {{ $wh['id'] }})"
+                            style="{{ $whse_id == $wh['id'] ? 'background-color: #059669 !important; color: #ffffff !important;' : 'background-color: #f3f4f6; color: #374151;' }}"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs {{ $whse_id == $wh['id'] ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' }}"
+                        >
+                            <span>🏭</span>
+                            <span style="{{ $whse_id == $wh['id'] ? 'color: #ffffff !important;' : 'color: #1f2937;' }}">{{ $wh['whse_name'] }}</span>
+                            <span 
+                                style="{{ $whse_id == $wh['id'] ? 'background-color: #047857 !important; color: #d1fae5 !important;' : 'background-color: #e5e7eb; color: #4b5563;' }}"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold {{ $whse_id == $wh['id'] ? 'bg-emerald-700 text-emerald-100' : 'bg-gray-200 text-gray-600' }}"
+                            >
+                                {{ $wh['whse_code'] }}
+                            </span>
+                        </button>
+                    @endforeach
+                    <button 
+                        wire:click="$set('whse_id', 'ALL')"
+                        style="{{ $whse_id === 'ALL' ? 'background-color: #1f2937 !important; color: #ffffff !important;' : 'background-color: #f3f4f6; color: #4b5563;' }}"
+                        class="px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs {{ $whse_id === 'ALL' ? 'bg-gray-800 text-white ring-2 ring-gray-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600' }}"
+                    >
+                        🌐 Semua Branch
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Filter & Search Bar -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="relative w-full md:w-96">

@@ -244,6 +244,10 @@
 
             <table class="details-table">
                 <tr>
+                    <td class="lbl">BRANCH / GUDANG:</td>
+                    <td class="val" style="font-weight: 900;">{{ $pallet->warehouse?->whse_name ?? ($pallet->position?->rack?->warehouse?->whse_name ?? 'GUDANG MATERIAL KBN') }}</td>
+                </tr>
+                <tr>
                     <td class="lbl">PART CODE:</td>
                     <td class="val val-code">{{ $pallet->item_code }}</td>
                 </tr>

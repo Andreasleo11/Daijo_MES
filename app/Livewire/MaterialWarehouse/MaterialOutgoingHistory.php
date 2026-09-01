@@ -14,6 +14,8 @@ class MaterialOutgoingHistory extends Component
 
     // Filter & Search State
     public string $search = '';
+    public $whse_id = 'ALL';
+    public array $warehouses = [];
     public ?string $fromDate = null;
     public ?string $toDate = null;
     public string $selectedItemCode = '';
@@ -29,6 +31,7 @@ class MaterialOutgoingHistory extends Component
 
     protected $queryString = [
         'search'           => ['except' => ''],
+        'whse_id'          => ['except' => 'ALL'],
         'fromDate'         => ['except' => ''],
         'toDate'           => ['except' => ''],
         'selectedItemCode' => ['except' => ''],
@@ -39,6 +42,13 @@ class MaterialOutgoingHistory extends Component
 
     public function mount(): void
     {
+        $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+
         if (empty($this->fromDate)) {
             $this->fromDate = now()->startOfMonth()->format('Y-m-d');
         }
@@ -48,6 +58,7 @@ class MaterialOutgoingHistory extends Component
     }
 
     public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedWhseId(): void { $this->resetPage(); }
     public function updatedFromDate(): void { $this->resetPage(); }
     public function updatedToDate(): void { $this->resetPage(); }
     public function updatedSelectedItemCode(): void { $this->resetPage(); }
@@ -137,6 +148,15 @@ class MaterialOutgoingHistory extends Component
     {
         $query = MwhOutgoing::with(['position.rack', 'material', 'pallet']);
 
+        // Filter Warehouse Branch
+        if ($this->whse_id && $this->whse_id !== 'ALL') {
+            $whseId = (int)$this->whse_id;
+            $query->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+        }
+
         // Filter Date Range
         if ($this->fromDate) {
             $query->whereDate('outgoing_date', '>=', $this->fromDate);
@@ -206,6 +226,7 @@ class MaterialOutgoingHistory extends Component
             ->pluck('issued_to');
 
         return view('livewire.material-warehouse.material-outgoing-history', [
+            'warehouses'         => $this->warehouses,
             'outgoings'          => $outgoings,
             'stats'              => $statsData,
             'selectedOutgoing'   => $selectedOutgoing,
