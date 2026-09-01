@@ -140,6 +140,9 @@ class ProductionDashboard extends Component
 
     public function updatedPlant()
     {
+        $this->machineUserId = null;
+        $this->itemCode = null;
+        $this->itemCodeSearch = '';
         $this->updateFilteredMachines();
         $this->updateItemCodes();
         $this->loadData();
