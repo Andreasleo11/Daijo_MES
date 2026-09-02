@@ -81,6 +81,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('spk:sync')->dailyAt('15:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('17:00')->timezone('Asia/Jakarta');
         $schedule->command('spk:sync')->dailyAt('23:00')->timezone('Asia/Jakarta');
+
+        // Otomatis backup database MySQL setiap hari jam 21:00 WIB (9 malam, menyimpan 14 hari terakhir)
+        $schedule->command('db:backup --keep-days=14')
+            ->dailyAt('21:00')
+            ->timezone('Asia/Jakarta')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/db_backup.log'));
     }
 
     /**
