@@ -383,8 +383,16 @@ Route::middleware('auth')->group(function (){
         if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
             abort(403);
         }
-        return view('admin.user_role_manager.index');
+        $currentTab = request()->query('tab', 'users');
+        return view('admin.user_role_manager.index', compact('currentTab'));
     })->name('admin.user-role-manager');
+
+    Route::get('/admin/roles', function () {
+        if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
+            abort(403);
+        }
+        return view('admin.user_role_manager.index', ['currentTab' => 'roles']);
+    })->name('admin.roles');
 
     // untuk update spk secara manual 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');

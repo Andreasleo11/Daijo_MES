@@ -57,8 +57,8 @@ new class extends Component {
                     wire:navigate />
 
                 @if (auth()->user()?->can('manage-users-roles'))
-                    <livewire:sidebar-link href="{{ route('admin.user-role-manager') }}" label="User Role Management"
-                        :active="request()->routeIs('admin.user-role-manager')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('admin.user-role-manager') }}" label="User & Role Management"
+                        :active="request()->routeIs('admin.user-role-manager') || request()->routeIs('admin.roles')" wire:navigate />
                 @endif
 
                 <!-- 1. Dropdown: Dashboard All -->
@@ -73,6 +73,7 @@ new class extends Component {
                 <!-- 2. Dropdown: Master Data & Setting -->
                 <livewire:parent-dropdown label="Master Data & Setting" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule'],
+                    ['name' => 'admin.roles', 'label' => 'Roles Management'],
                     ['name' => 'admin.master-list-manager', 'label' => 'Master List Manager'],
                     ['name' => 'admin.customer-delivery-manager', 'label' => 'Master Customer Delivery'],
                     ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
