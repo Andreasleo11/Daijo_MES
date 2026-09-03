@@ -283,6 +283,8 @@ new class extends Component {
                         ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
                         ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
                         ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                        ['name' => 'second-process-reports.index', 'label' => 'Daily Production Report'],
+                        ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
                     ]" />
                 @endif
 
