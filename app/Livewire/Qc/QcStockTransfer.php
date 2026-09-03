@@ -14,6 +14,7 @@ class QcStockTransfer extends Component
 {
     use WithPagination;
 
+    public string $plant            = 'karawang'; // 'karawang' (KRFFI) or 'kbn' (FFI)
     public string $filterDate       = '';
     public string $filterSpk        = '';
     public string $filterItemCode   = '';
@@ -40,12 +41,13 @@ class QcStockTransfer extends Component
     public function updatingFilterWarehouse(): void{ $this->resetPage(); }
     public function updatingFilterQcStatus(): void { $this->resetPage(); }
 
-    private function baseQuery()
+    protected function baseQuery()
     {
+        $targetWarehouse = ($this->plant === 'kbn') ? 'FFI' : 'KRFFI';
+
         return DB::table('production_summary')
             ->where('sap_sent', 1) // Must be receipted to SAP first
-            ->whereIn('warehouse', ['FFI', 'KRFFI'])
-            ->when($this->filterWarehouse, fn($q) => $q->where('warehouse', $this->filterWarehouse))
+            ->where('warehouse', $targetWarehouse)
             ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate))
             ->when($this->filterSpk, fn($q) => $q->where('spk_code', 'like', "%{$this->filterSpk}%"))
             ->when($this->filterQcStatus === 'pending', fn($q) => $q->whereIn(DB::raw('COALESCE(qc_status, 0)'), [0, 2]))
@@ -121,10 +123,11 @@ class QcStockTransfer extends Component
 
     public function getStatsProperty()
     {
+        $targetWarehouse = ($this->plant === 'kbn') ? 'FFI' : 'KRFFI';
+
         $base = DB::table('production_summary')
             ->where('sap_sent', 1)
-            ->whereIn('warehouse', ['FFI', 'KRFFI'])
-            ->when($this->filterWarehouse, fn($q) => $q->where('warehouse', $this->filterWarehouse))
+            ->where('warehouse', $targetWarehouse)
             ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate));
 
         $res = (clone $base)
@@ -214,8 +217,9 @@ class QcStockTransfer extends Component
             $ngQty = (int)($this->ngInputs[$scannedDataId] ?? 0);
             $remarks = $this->remarksInputs[$scannedDataId] ?? null;
             $userId = Auth::id();
+            $isKbn = ($this->plant === 'kbn');
 
-            $res = $service->processSingleBoxInspection($scannedDataId, $ngQty, $userId, $remarks);
+            $res = $service->processSingleBoxInspection($scannedDataId, $ngQty, $userId, $remarks, $isKbn);
 
             if ($res['success']) {
                 $this->dispatch('push-notification', [
@@ -267,7 +271,8 @@ class QcStockTransfer extends Component
             }
 
             $userId = Auth::id();
-            $res = $service->processSummaryInspection($summaryId, $boxNgMap, $userId);
+            $isKbn = ($this->plant === 'kbn');
+            $res = $service->processSummaryInspection($summaryId, $boxNgMap, $userId, null, $isKbn);
 
             if ($res['success']) {
                 $this->dispatch('push-notification', [

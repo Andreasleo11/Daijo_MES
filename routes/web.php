@@ -452,6 +452,7 @@ Route::middleware('auth')->group(function (){
 
     Route::get('/receipt-production-logs', ReceiptProductionLogs::class)->name('receipt-production-logs');
     Route::get('/qc-stock-transfer', \App\Livewire\Qc\QcStockTransfer::class)->name('qc-stock-transfer');
+    Route::get('/qc-stock-transfer-kbn', \App\Livewire\Qc\QcStockTransferKbn::class)->name('qc-stock-transfer-kbn');
 
 
 

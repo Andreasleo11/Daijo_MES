@@ -36,6 +36,7 @@
                         $ngVal = (int)($ngInputs[$boxId] ?? 0);
                         $okVal = max(0, $boxQty - $ngVal);
                         $log = $box['log'];
+                        $isKbn = ($plant === 'kbn' || $item->warehouse === 'FFI');
                         $whOk = $item->warehouse === 'KRFFI' ? 'KRFG' : 'FG';
                         $whNg = $item->warehouse === 'KRFFI' ? 'KRRJCT' : 'RJCT';
                     @endphp
@@ -68,21 +69,35 @@
                         </td>
                         <td class="p-2 text-center text-[11px]">
                             @if($isInspected)
-                                <div class="font-bold">OK: <span class="text-green-600">{{ $log['ok_to_warehouse'] }}</span></div>
-                                @if($log['ng_qty'] > 0)
-                                    <div class="font-bold">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] }}</span></div>
+                                @if($isKbn)
+                                    <div class="text-[10px] text-gray-400 font-semibold italic">OK: Tidak ke SAP</div>
+                                    @if($log['ng_qty'] > 0)
+                                        <div class="font-bold">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] ?: 'RJCT' }}</span></div>
+                                    @endif
+                                @else
+                                    <div class="font-bold">OK: <span class="text-green-600">{{ $log['ok_to_warehouse'] }}</span></div>
+                                    @if($log['ng_qty'] > 0)
+                                        <div class="font-bold">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] }}</span></div>
+                                    @endif
                                 @endif
                             @else
-                                <div class="font-semibold text-gray-600">OK → <span class="text-green-600 font-bold">{{ $whOk }}</span></div>
-                                @if($ngVal > 0)
-                                    <div class="font-semibold text-gray-600">NG → <span class="text-red-600 font-bold">{{ $whNg }}</span></div>
+                                @if($isKbn)
+                                    <div class="text-[10px] text-gray-400 font-semibold italic">OK: Tidak ke SAP</div>
+                                    @if($ngVal > 0)
+                                        <div class="font-semibold text-gray-600">NG → <span class="text-red-600 font-bold">RJCT</span></div>
+                                    @endif
+                                @else
+                                    <div class="font-semibold text-gray-600">OK → <span class="text-green-600 font-bold">{{ $whOk }}</span></div>
+                                    @if($ngVal > 0)
+                                        <div class="font-semibold text-gray-600">NG → <span class="text-red-600 font-bold">{{ $whNg }}</span></div>
+                                    @endif
                                 @endif
                             @endif
                         </td>
                         <td class="p-2 text-center">
                             @if($isInspected)
                                 <div class="flex flex-col gap-0.5 items-center">
-                                    @if($log['ok_qty'] > 0)
+                                    @if(!$isKbn && $log['ok_qty'] > 0)
                                         @if($log['ok_sap_status'] == 1)
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-100 text-green-700">OK: SUKSES</span>
                                         @elseif($log['ok_sap_status'] == 2)
@@ -102,6 +117,8 @@
                                         @else
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-700">NG: PENDING</span>
                                         @endif
+                                    @elseif($isKbn)
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-100 text-green-700">✓ ALL OK</span>
                                     @endif
                                 </div>
                             @else
@@ -110,7 +127,7 @@
                         </td>
                         <td class="p-2 text-center">
                             @if($isInspected)
-                                @if($log['ok_sap_status'] == 2 || $log['ng_sap_status'] == 2)
+                                @if((!$isKbn && $log['ok_sap_status'] == 2) || $log['ng_sap_status'] == 2)
                                     <button wire:click="retryTransfer({{ $log['id'] }})" wire:loading.attr="disabled" class="bg-red-600 disabled:opacity-50 text-white border-none px-2 py-1 rounded text-[10px] font-bold cursor-pointer">
                                         Retry SAP
                                     </button>
@@ -142,6 +159,7 @@
                 $ngVal = (int)($ngInputs[$boxId] ?? 0);
                 $okVal = max(0, $boxQty - $ngVal);
                 $log = $box['log'];
+                $isKbn = ($plant === 'kbn' || $item->warehouse === 'FFI');
                 $whOk = $item->warehouse === 'KRFFI' ? 'KRFG' : 'FG';
                 $whNg = $item->warehouse === 'KRFFI' ? 'KRRJCT' : 'RJCT';
             @endphp
@@ -190,31 +208,49 @@
                 <div class="flex justify-between items-center text-[10px] mb-3 px-1">
                     <div class="text-gray-600">
                         @if($isInspected)
-                            <span class="font-bold">OK: <span class="text-green-600">{{ $log['ok_to_warehouse'] }}</span></span>
-                            @if($log['ng_qty'] > 0)
-                                <span class="font-bold ml-2">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] }}</span></span>
+                            @if($isKbn)
+                                <span class="text-gray-400 italic">OK: Tidak ke SAP</span>
+                                @if($log['ng_qty'] > 0)
+                                    <span class="font-bold ml-2">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] ?: 'RJCT' }}</span></span>
+                                @endif
+                            @else
+                                <span class="font-bold">OK: <span class="text-green-600">{{ $log['ok_to_warehouse'] }}</span></span>
+                                @if($log['ng_qty'] > 0)
+                                    <span class="font-bold ml-2">NG: <span class="text-red-600">{{ $log['ng_to_warehouse'] }}</span></span>
+                                @endif
                             @endif
                         @else
-                            <span class="font-semibold">OK → <span class="text-green-600 font-bold">{{ $whOk }}</span></span>
-                            @if($ngVal > 0)
-                                <span class="font-semibold ml-2">NG → <span class="text-red-600 font-bold">{{ $whNg }}</span></span>
+                            @if($isKbn)
+                                <span class="text-gray-400 italic">OK: Tidak ke SAP</span>
+                                @if($ngVal > 0)
+                                    <span class="font-semibold ml-2">NG → <span class="text-red-600 font-bold">RJCT</span></span>
+                                @endif
+                            @else
+                                <span class="font-semibold">OK → <span class="text-green-600 font-bold">{{ $whOk }}</span></span>
+                                @if($ngVal > 0)
+                                    <span class="font-semibold ml-2">NG → <span class="text-red-600 font-bold">{{ $whNg }}</span></span>
+                                @endif
                             @endif
                         @endif
                     </div>
                     <div class="text-right">
                         @if($isInspected)
-                            @if($log['ok_sap_status'] == 1)
+                            @if(!$isKbn && $log['ok_sap_status'] == 1)
                                 <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700">OK: SUKSES</span>
-                            @elseif($log['ok_sap_status'] == 2)
+                            @elseif(!$isKbn && $log['ok_sap_status'] == 2)
                                 <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700">OK: GAGAL ⚠</span>
                                 <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[150px] leading-tight text-right">{{ $log['ok_sap_error'] }}</div>
                             @endif
 
-                            @if($log['ng_sap_status'] == 1)
-                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700 ml-1">NG: SUKSES</span>
-                            @elseif($log['ng_sap_status'] == 2)
-                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700 ml-1">NG: GAGAL ⚠</span>
-                                <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[150px] leading-tight text-right">{{ $log['ng_sap_error'] }}</div>
+                            @if($log['ng_qty'] > 0)
+                                @if($log['ng_sap_status'] == 1)
+                                    <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700 ml-1">NG: SUKSES</span>
+                                @elseif($log['ng_sap_status'] == 2)
+                                    <span class="px-1.5 py-0.5 rounded font-extrabold bg-red-100 text-red-700 ml-1">NG: GAGAL ⚠</span>
+                                    <div class="text-[9px] text-red-600 font-semibold mt-0.5 max-w-[150px] leading-tight text-right">{{ $log['ng_sap_error'] }}</div>
+                                @endif
+                            @elseif($isKbn)
+                                <span class="px-1.5 py-0.5 rounded font-extrabold bg-green-100 text-green-700">✓ ALL OK</span>
                             @endif
                         @endif
                     </div>
@@ -223,7 +259,7 @@
                 {{-- Submit / Action Button --}}
                 <div>
                     @if($isInspected)
-                        @if($log['ok_sap_status'] == 2 || $log['ng_sap_status'] == 2)
+                        @if((!$isKbn && $log['ok_sap_status'] == 2) || $log['ng_sap_status'] == 2)
                             <button wire:click="retryTransfer({{ $log['id'] }})" class="w-full bg-red-600 text-white border-none py-2 rounded text-xs font-bold cursor-pointer">
                                 Retry Transfer SAP
                             </button>

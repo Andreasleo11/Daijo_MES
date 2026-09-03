@@ -32,6 +32,7 @@ class DailyItemCode extends Model
         'temporal_cycle_time',
         'temporal_cycletime',
         'temporal_cavity',
+        'temporal_cavity',
         'resin_usage',
     ];
 
