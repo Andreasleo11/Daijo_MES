@@ -279,12 +279,11 @@ new class extends Component {
                         :active="request()->routeIs('receipt-production-logs')" wire:navigate />
 
                     <!-- sub Second Process -->
-                    <livewire:sidebar-link href="{{ route('sp-work-orders.index') }}"
-                        label="Work Orders" :active="request()->routeIs('sp-work-orders.index')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('second-process.dashboard') }}"
-                        label="Floor Overview Dashboard" :active="request()->routeIs('second-process.dashboard')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('first-piece-inspections.index') }}"
-                        label="First Piece Inspections" :active="request()->routeIs('first-piece-inspections.index')" wire:navigate />
+                    <livewire:parent-dropdown label="Second Process" :childRoutes="[
+                        ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                        ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
+                        ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                    ]" />
                 @endif
 
                 <!-- Store Links -->
