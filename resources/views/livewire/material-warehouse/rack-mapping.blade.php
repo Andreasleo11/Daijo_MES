@@ -17,12 +17,55 @@
                     </div>
                 </div>
                 
-                <button wire:click="$set('showFifoSummaryModal', true)" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap active:scale-95">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>📊 SUMMARY STOCK & FIFO</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button wire:click="$set('showFifoSummaryModal', true)" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span>📊 SUMMARY STOCK & FIFO</span>
+                    </button>
+                </div>
             </div>
         @endif
+
+        <!-- Branch / Warehouse Switcher Tabs -->
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider pl-2 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    PILIH BRANCH:
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach($warehouses as $wh)
+                        <button 
+                            wire:click="$set('selectedWhseId', {{ $wh['id'] }})"
+                            style="{{ $selectedWhseId == $wh['id'] ? 'background-color: #059669 !important; color: #ffffff !important;' : 'background-color: #f3f4f6; color: #374151;' }}"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs {{ $selectedWhseId == $wh['id'] ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' }}"
+                        >
+                            <span>🏭</span>
+                            <span style="{{ $selectedWhseId == $wh['id'] ? 'color: #ffffff !important;' : 'color: #1f2937;' }}">{{ $wh['whse_name'] }}</span>
+                            <span 
+                                style="{{ $selectedWhseId == $wh['id'] ? 'background-color: #047857 !important; color: #d1fae5 !important;' : 'background-color: #e5e7eb; color: #4b5563;' }}"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold {{ $selectedWhseId == $wh['id'] ? 'bg-emerald-700 text-emerald-100' : 'bg-gray-200 text-gray-600' }}"
+                            >
+                                {{ $wh['whse_code'] }}
+                            </span>
+                        </button>
+                    @endforeach
+                    <button 
+                        wire:click="$set('selectedWhseId', 'ALL')"
+                        style="{{ $selectedWhseId === 'ALL' ? 'background-color: #1f2937 !important; color: #ffffff !important;' : 'background-color: #f3f4f6; color: #4b5563;' }}"
+                        class="px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs {{ $selectedWhseId === 'ALL' ? 'bg-gray-800 text-white ring-2 ring-gray-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600' }}"
+                    >
+                        🌐 Semua Branch
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-xs text-gray-400 font-medium pr-2 hidden md:block">
+                Total: {{ count($racks) }} Rak Terdaftar
+            </div>
+        </div>
 
         <!-- Header, Search Bar & Actions -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -92,7 +135,7 @@
 
                 <!-- FIFO Summary Button (In Main Header) -->
                 @if (!$isViewOnly)
-                    <button wire:click="$set('showFifoSummaryModal', true)" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95">
+                    <button wire:click="$set('showFifoSummaryModal', true)" style="background-color: #0f766e !important; color: #ffffff !important;" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                         <span>SUMMARY FIFO</span>
                     </button>
@@ -100,7 +143,7 @@
 
                 <!-- Add Rack Button (Hidden in View-Only) -->
                 @if (!$isViewOnly)
-                    <button wire:click="$set('showAddRackModal', true)" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <button wire:click="$set('showAddRackModal', true)" style="background-color: #059669 !important; color: #ffffff !important;" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         <span>ADD RACK</span>
                     </button>

@@ -22,6 +22,12 @@ class MasterListItem extends Model
         'customer_code',
         'cycle_time',
         'project_code',
+        'family',
+        'description_in_foreign_lang',
+        'color',
+        'half_code_1',
+        'half_code_2',
+        'position',
     ];
     
 

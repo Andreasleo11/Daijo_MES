@@ -14,6 +14,8 @@ class MaterialPalletIndex extends Component
 
     public string $search = '';
     public string $statusFilter = 'ALL';
+    public $whse_id = 'ALL';
+    public array $warehouses = [];
     public int $perPage = 25;
 
     // Relocation Modal State
@@ -29,7 +31,17 @@ class MaterialPalletIndex extends Component
     public bool $isQcHold = false;
     public string $qcHoldReason = '';
 
-    protected $queryString = ['search', 'statusFilter'];
+    protected $queryString = ['search', 'statusFilter', 'whse_id'];
+
+    public function mount(): void
+    {
+        $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+    }
 
     public function updatingSearch(): void
     {
@@ -37,6 +49,11 @@ class MaterialPalletIndex extends Component
     }
 
     public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingWhseId(): void
     {
         $this->resetPage();
     }
@@ -171,6 +188,13 @@ class MaterialPalletIndex extends Component
                     $query->where('is_qc_hold', true);
                 }
             })
+            ->when($this->whse_id && $this->whse_id !== 'ALL', function ($query) {
+                $whseId = (int)$this->whse_id;
+                $query->where(function($q) use ($whseId) {
+                    $q->where('mwh_pallets.whse_id', $whseId)
+                      ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+                });
+            })
             ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
             ->select('mwh_pallets.*')
             ->orderByRaw('COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)) DESC')
@@ -183,6 +207,7 @@ class MaterialPalletIndex extends Component
             ->get();
 
         return view('livewire.material-warehouse.material-pallet-index', [
+            'warehouses'         => $this->warehouses,
             'pallets'            => $pallets,
             'availablePositions' => $availablePositions,
         ]);

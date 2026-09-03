@@ -13,6 +13,7 @@ class MwhIncomingHeader extends Model
     protected $table = 'mwh_incoming_headers';
 
     protected $fillable = [
+        'whse_id',
         'document_no',
         'incoming_type',
         'supplier_name',
@@ -27,6 +28,11 @@ class MwhIncomingHeader extends Model
     protected $casts = [
         'arrival_date' => 'date',
     ];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(MwhWarehouse::class, 'whse_id');
+    }
 
     public function pallets()
     {

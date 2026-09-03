@@ -127,15 +127,32 @@
                                             <div class="text-slate-400">Op: {{ $log->operator }}</div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 whitespace-nowrap text-xs space-y-1">
+                                        <div>
+                                            @if(($log->barcode_type ?? 'default') === 'sharp')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                                    SHARP
+                                                </span>
+                                            @elseif(($log->barcode_type ?? 'default') === 'yanfeng')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                    YANFENG
+                                                </span>
+                                            @elseif(($log->barcode_type ?? 'default') === 'itsp')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                                    ITSP
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                                    Standard
+                                                </span>
+                                            @endif
+                                        </div>
                                         @if($log->is_trial)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-                                                TRIAL
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                                Standard
-                                            </span>
+                                            <div>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                                                    TRIAL
+                                                </span>
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700 text-xs max-w-xs break-words">

@@ -40,7 +40,8 @@ class MaterialQrLookup extends Component
 
         if ($code) {
             $this->palletData = MwhPallet::with([
-                'position.rack',
+                'warehouse',
+                'position.rack.warehouse',
                 'material',
                 'incomingHeader',
                 'outgoings.position.rack'

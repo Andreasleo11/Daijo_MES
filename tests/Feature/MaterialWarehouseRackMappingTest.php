@@ -74,6 +74,65 @@ class MaterialWarehouseRackMappingTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+
+        \Illuminate\Support\Facades\Schema::create('master_list_materials', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->string('item_code')->unique();
+            $table->string('item_description')->nullable();
+            $table->string('purchasing_uom')->default('KG');
+            $table->string('preferred_supplier')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        \Illuminate\Support\Facades\Schema::create('mwh_incoming_headers', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->foreignId('whse_id')->nullable();
+            $table->string('document_no');
+            $table->string('incoming_type')->default('SUPPLIER');
+            $table->string('supplier_name')->nullable();
+            $table->string('returned_from')->nullable();
+            $table->string('po_number')->nullable();
+            $table->string('original_outgoing_code')->nullable();
+            $table->date('arrival_date')->nullable();
+            $table->text('remarks')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        \Illuminate\Support\Facades\Schema::create('mwh_pallets', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->foreignId('whse_id')->nullable();
+            $table->string('pallet_id')->unique();
+            $table->foreignId('incoming_header_id')->nullable();
+            $table->string('item_code');
+            $table->string('lot_no')->nullable();
+            $table->decimal('initial_qty', 10, 2)->default(0);
+            $table->decimal('current_qty', 10, 2)->default(0);
+            $table->string('uom')->default('KG');
+            $table->foreignId('position_id')->nullable();
+            $table->string('status')->default('STORED');
+            $table->boolean('is_qc_hold')->default(false);
+            $table->string('qc_hold_reason')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        \Illuminate\Support\Facades\Schema::create('mwh_outgoings', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->foreignId('whse_id')->nullable();
+            $table->string('outgoing_code');
+            $table->string('pallet_id');
+            $table->foreignId('position_id')->nullable();
+            $table->string('item_code');
+            $table->decimal('qty_taken', 10, 2);
+            $table->string('uom')->default('KG');
+            $table->date('outgoing_date')->nullable();
+            $table->string('issued_to')->nullable();
+            $table->text('remarks')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
     }
 
     public function test_can_render_material_warehouse_rack_mapping()

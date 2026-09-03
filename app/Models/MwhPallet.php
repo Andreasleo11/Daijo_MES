@@ -13,6 +13,7 @@ class MwhPallet extends Model
     protected $table = 'mwh_pallets';
 
     protected $fillable = [
+        'whse_id',
         'pallet_id',
         'incoming_header_id',
         'item_code',
@@ -32,6 +33,11 @@ class MwhPallet extends Model
         'current_qty' => 'decimal:2',
         'is_qc_hold'  => 'boolean',
     ];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(MwhWarehouse::class, 'whse_id');
+    }
 
     public function incomingHeader()
     {

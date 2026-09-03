@@ -37,6 +37,8 @@ class RackMapping extends Component
     public bool $isViewOnly = false;
 
     // UI & Filter State
+    public $selectedWhseId = 'ALL';
+    public array $warehouses = [];
     public $showDetail = false;
     public string $searchTerm = '';
     public string $selectedItemFilter = '';
@@ -45,6 +47,7 @@ class RackMapping extends Component
     public ?string $expandedFifoItemCode = null;
 
     protected $queryString = [
+        'selectedWhseId' => ['except' => 'ALL'],
         'searchTerm' => ['except' => ''],
         'selectedItemFilter' => ['except' => ''],
         'selectedAreaFilter' => ['except' => 'ALL'],
@@ -52,6 +55,18 @@ class RackMapping extends Component
 
     public function mount(?MaterialWarehouseService $mwhService = null): void
     {
+        $this->warehouses = MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            // Seed defaults if empty
+            MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+
+        if ($this->selectedWhseId === 'ALL' || empty($this->selectedWhseId)) {
+            $this->selectedWhseId = $this->warehouses[0]['id'] ?? 1;
+        }
+
         $mwhService = $mwhService ?? app(MaterialWarehouseService::class);
         $positions = MwhPosition::all();
         foreach ($positions as $pos) {
@@ -134,8 +149,10 @@ class RackMapping extends Component
             'new_created_at.required' => 'Tanggal masuk (FIFO) harus diisi.',
         ]);
 
-        $pos = MwhPosition::find($this->selectedPositionId);
+        $pos = MwhPosition::with('rack')->find($this->selectedPositionId);
         if (!$pos) return;
+
+        $targetWhseId = $pos->rack?->whse_id ?? (($this->selectedWhseId && $this->selectedWhseId !== 'ALL') ? (int)$this->selectedWhseId : 1);
 
         try {
             DB::beginTransaction();
@@ -144,6 +161,7 @@ class RackMapping extends Component
             $createdAtTimestamp = date('Y-m-d H:i:s', strtotime($this->new_created_at . ' ' . now()->format('H:i:s')));
 
             $header = MwhIncomingHeader::create([
+                'whse_id'       => $targetWhseId,
                 'document_no'   => $mwhService->generateDocumentNo(),
                 'supplier_name' => trim($this->new_supplier_name) ?: null,
                 'po_number'     => trim($this->new_po_number) ?: null,
@@ -167,6 +185,7 @@ class RackMapping extends Component
 
                     try {
                         MwhPallet::create([
+                            'whse_id'            => $targetWhseId,
                             'pallet_id'          => $palletId,
                             'incoming_header_id' => $header->id,
                             'item_code'          => strtoupper(trim($this->new_item_code)),
@@ -210,20 +229,19 @@ class RackMapping extends Component
 
     public function toggleQcHoldPallet($palletId, ?string $reason = null): void
     {
-        try {
-            $pallet = MwhPallet::find($palletId);
-            if ($pallet) {
-                $newHold = !$pallet->is_qc_hold;
-                $pallet->update([
-                    'is_qc_hold'     => $newHold,
-                    'qc_hold_reason' => $newHold ? (trim($reason ?: '') ?: 'QC Hold by User') : null,
-                ]);
+        $pallet = MwhPallet::findOrFail($palletId);
+        $newStatus = !$pallet->is_qc_hold;
+        
+        $pallet->update([
+            'is_qc_hold' => $newStatus,
+            'qc_hold_reason' => $newStatus ? (trim($reason) ?: 'Di-hold oleh QC saat monitoring mapping') : null,
+        ]);
 
-                $statusLabel = $newHold ? 'di-HOLD QC' : 'di-RELEASE (OK)';
-                session()->flash('success', "Status QC Pallet {$pallet->pallet_id} berhasil diubah menjadi {$statusLabel}.");
-            }
-        } catch (\Exception $e) {
-            session()->flash('error', 'Gagal merubah status QC Hold: ' . $e->getMessage());
+        $statusText = $newStatus ? 'di-HOLD (Karantina QC)' : 'di-RELEASE (Bebas QC)';
+        session()->flash('success', "Status Pallet {$pallet->pallet_id} berhasil diubah menjadi {$statusText}.");
+        
+        if ($this->selectedPositionId) {
+            $this->selectPosition($this->selectedPositionId);
         }
     }
 
@@ -232,21 +250,23 @@ class RackMapping extends Component
         try {
             DB::beginTransaction();
 
-            $pallet = MwhPallet::find($palletId);
-            if ($pallet) {
-                $posId = $pallet->position_id;
-                $palletCode = $pallet->pallet_id;
+            $pallet = MwhPallet::findOrFail($palletId);
+            $posId = $pallet->position_id;
+            $palletCode = $pallet->pallet_id;
 
-                // Also delete related outgoing transaction history for this test pallet
-                \App\Models\MwhOutgoing::where('pallet_id', $palletCode)->delete();
-                $pallet->delete();
+            // Also delete related outgoing transaction history for this pallet
+            \App\Models\MwhOutgoing::where('pallet_id', $palletCode)->delete();
+            $pallet->delete();
 
-                if ($posId) {
-                    $mwhService->updatePositionStatus($posId);
-                }
+            if ($posId) {
+                $mwhService->updatePositionStatus($posId);
+            }
 
-                DB::commit();
-                session()->flash('success', "Pallet {$palletCode} berhasil dihapus dari slot.");
+            DB::commit();
+            session()->flash('success', "Pallet {$palletCode} berhasil dihapus dari slot.");
+            
+            if ($this->selectedPositionId) {
+                $this->selectPosition($this->selectedPositionId);
             }
         } catch (\Exception $e) {
             DB::rollBack();
@@ -256,29 +276,30 @@ class RackMapping extends Component
 
     public function saveSettings()
     {
+        $this->validate([
+            'editPositionCode' => [
+                'required', 
+                Rule::unique('mwh_positions', 'position_code')
+                    ->ignore($this->selectedPositionId)
+                    ->whereNull('deleted_at')
+            ],
+            'editSlotLabel' => 'nullable|string',
+            'editMaxCapacity' => 'required|numeric|min:0',
+            'editStatus' => 'required|in:EMPTY,PARTIAL,FULL',
+        ]);
+
         $pos = MwhPosition::find($this->selectedPositionId);
         if ($pos) {
-            $this->validate([
-                'editPositionCode' => [
-                    'required',
-                    'string',
-                    Rule::unique('mwh_positions', 'position_code')->ignore($pos->id)->whereNull('deleted_at')
-                ],
-                'editSlotLabel' => 'nullable|string|max:255',
-                'editMaxCapacity' => 'required|numeric|min:0',
-                'editStatus' => 'required|in:EMPTY,PARTIAL,FULL',
-                'editLastItemCode' => 'nullable|string|max:255',
-            ]);
-
             $pos->update([
                 'position_code' => strtoupper($this->editPositionCode),
                 'slot_label' => $this->editSlotLabel,
                 'max_capacity' => $this->editMaxCapacity,
                 'status' => $this->editStatus,
-                'last_item_code' => $this->editLastItemCode,
+                'last_item_code' => $this->editLastItemCode ?: null,
             ]);
 
             session()->flash('success', 'Pengaturan slot ' . $pos->position_code . ' berhasil disimpan.');
+            $this->showDetail = false;
         }
     }
 
@@ -286,18 +307,26 @@ class RackMapping extends Component
     {
         $pos = MwhPosition::find($this->selectedPositionId);
         if ($pos) {
-            $pos->update([
-                'status' => 'EMPTY',
-                'last_item_code' => null
-            ]);
+            try {
+                DB::beginTransaction();
 
-            MwhPallet::where('position_id', $pos->id)
-                ->where('current_qty', '>', 0)
-                ->update(['status' => 'EMPTY', 'current_qty' => 0]);
-            
-            $this->editStatus = 'EMPTY';
-            $this->editLastItemCode = null;
-            session()->flash('success', 'Status slot ' . $pos->position_code . ' telah di-reset menjadi EMPTY.');
+                MwhPallet::where('position_id', $pos->id)->update([
+                    'position_id' => null,
+                    'status' => 'EMPTY',
+                ]);
+
+                $pos->update([
+                    'status' => 'EMPTY',
+                    'last_item_code' => null,
+                ]);
+
+                DB::commit();
+                session()->flash('success', 'Slot ' . $pos->position_code . ' berhasil direset (kosong).');
+                $this->showDetail = false;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                session()->flash('error', 'Gagal mereset slot: ' . $e->getMessage());
+            }
         }
     }
 
@@ -309,8 +338,16 @@ class RackMapping extends Component
 
     public function createNewRack()
     {
+        $targetWhseId = ($this->selectedWhseId && $this->selectedWhseId !== 'ALL') 
+            ? (int)$this->selectedWhseId 
+            : (MwhWarehouse::where('whse_code', 'KBN')->first()?->id ?? 1);
+
         $this->validate([
-            'newRackCode' => ['required', Rule::unique('mwh_racks', 'rack_code')->whereNull('deleted_at')],
+            'newRackCode' => [
+                'required', 
+                Rule::unique('mwh_racks', 'rack_code')
+                    ->where(fn($q) => $q->where('whse_id', $targetWhseId)->whereNull('deleted_at'))
+            ],
             'newLevels' => 'required|integer|min:1',
             'newSlotsPerLevel' => 'required|integer|min:1',
             'newMaxCapacity' => 'required|numeric|min:0',
@@ -319,10 +356,7 @@ class RackMapping extends Component
         try {
             DB::beginTransaction();
 
-            $whse = MwhWarehouse::firstOrCreate(
-                ['whse_code' => 'MTR-01'],
-                ['whse_name' => 'Gudang Material Utama']
-            );
+            $whse = MwhWarehouse::find($targetWhseId) ?? MwhWarehouse::first();
 
             $rack = MwhRack::create([
                 'whse_id' => $whse->id,
@@ -346,7 +380,7 @@ class RackMapping extends Component
             }
 
             DB::commit();
-            session()->flash('success', 'Rak Material ' . $rack->rack_code . ' berhasil dibuat.');
+            session()->flash('success', "Rak Material {$rack->rack_code} ({$whse->whse_name}) berhasil dibuat.");
             
             $this->reset(['newRackCode', 'showAddRackModal']);
             $this->newMaxCapacity = 1000;
@@ -363,18 +397,17 @@ class RackMapping extends Component
 
             $rack = MwhRack::find($rackId);
             if ($rack) {
-                MwhPosition::where('rack_id', $rack->id)->delete();
-                $rackCode = $rack->rack_code;
+                $posIds = $rack->positions()->pluck('id');
+                MwhPallet::whereIn('position_id', $posIds)->update([
+                    'position_id' => null,
+                    'status' => 'EMPTY',
+                ]);
+
+                $rack->positions()->delete();
                 $rack->delete();
 
                 DB::commit();
-                session()->flash('success', 'Rak Material ' . $rackCode . ' beserta seluruh slotnya berhasil dihapus.');
-                
-                $this->selectedPositionId = null;
-                $this->showDetail = false;
-            } else {
-                DB::rollBack();
-                session()->flash('error', 'Rak material tidak ditemukan.');
+                session()->flash('success', 'Rak Material ' . $rack->rack_code . ' dan seluruh slotnya berhasil dihapus.');
             }
         } catch (\Exception $e) {
             DB::rollBack();
@@ -390,16 +423,33 @@ class RackMapping extends Component
 
     public function render()
     {
-        $racks = MwhRack::with(['positions' => function($query) {
+        $rackQuery = MwhRack::with(['warehouse', 'positions' => function($query) {
             $query->orderBy('level_no', 'desc')
                   ->orderBy('slot_no', 'asc')
                   ->with(['pallets' => function($pq) {
                       $pq->where('current_qty', '>', 0)->with('material');
                   }]);
-        }])->get();
+        }]);
 
-        $availableItemCodes = MwhPallet::query()
-            ->where('current_qty', '>', 0)
+        if ($this->selectedWhseId && $this->selectedWhseId !== 'ALL') {
+            $rackQuery->where('whse_id', $this->selectedWhseId);
+        }
+
+        $racks = $rackQuery->get();
+
+        $activeWhseId = ($this->selectedWhseId && $this->selectedWhseId !== 'ALL') ? (int)$this->selectedWhseId : null;
+
+        $availableItemCodesQuery = MwhPallet::query()
+            ->where('current_qty', '>', 0);
+        
+        if ($activeWhseId) {
+            $availableItemCodesQuery->where(function($q) use ($activeWhseId) {
+                $q->where('whse_id', $activeWhseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $activeWhseId));
+            });
+        }
+
+        $availableItemCodes = $availableItemCodesQuery
             ->distinct()
             ->orderBy('item_code', 'asc')
             ->pluck('item_code')
@@ -411,7 +461,11 @@ class RackMapping extends Component
 
         if (strlen($queryStr) > 0 || strlen($itemFilter) > 0) {
             $matchingPositionIds = MwhPosition::query()
-                ->where(function($q) use ($queryStr, $itemFilter) {
+                ->where(function($q) use ($queryStr, $itemFilter, $activeWhseId) {
+                    if ($activeWhseId) {
+                        $q->whereHas('rack', fn($rq) => $rq->where('whse_id', $activeWhseId));
+                    }
+
                     if (strlen($itemFilter) > 0) {
                         $q->whereHas('pallets', function($pq) use ($itemFilter) {
                             $pq->where('current_qty', '>', 0)->where('item_code', $itemFilter);
@@ -447,7 +501,7 @@ class RackMapping extends Component
         $searchSuggestions = [];
         if (strlen($queryStr) >= 2) {
             $st = '%' . $queryStr . '%';
-            $searchSuggestions = MwhPallet::with('material')
+            $sugQuery = MwhPallet::with('material')
                 ->where('current_qty', '>', 0)
                 ->where(function($q) use ($st) {
                     $q->where('item_code', 'like', $st)
@@ -456,7 +510,16 @@ class RackMapping extends Component
                       ->orWhereHas('material', function($mq) use ($st) {
                           $mq->where('item_description', 'like', $st);
                       });
-                })
+                });
+
+            if ($activeWhseId) {
+                $sugQuery->where(function($q) use ($activeWhseId) {
+                    $q->where('whse_id', $activeWhseId)
+                      ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $activeWhseId));
+                });
+            }
+
+            $searchSuggestions = $sugQuery
                 ->limit(10)
                 ->get()
                 ->map(function($p) {
@@ -476,14 +539,21 @@ class RackMapping extends Component
         $activeItemSummary = null;
 
         if (strlen($targetItemCode) > 0) {
-            $itemPallets = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+            $itemPalletsQuery = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
                 ->where('current_qty', '>', 0)
                 ->where(function($q) use ($targetItemCode) {
                     $q->where('item_code', $targetItemCode)
                       ->orWhere('item_code', 'like', '%' . $targetItemCode . '%');
-                })
-                ->orderBy('created_at', 'asc')
-                ->get();
+                });
+
+            if ($activeWhseId) {
+                $itemPalletsQuery->where(function($q) use ($activeWhseId) {
+                    $q->where('whse_id', $activeWhseId)
+                      ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $activeWhseId));
+                });
+            }
+
+            $itemPallets = $itemPalletsQuery->orderBy('created_at', 'asc')->get();
 
             if ($itemPallets->isNotEmpty()) {
                 // Priority 1: Check for exact item_code match with $targetItemCode
@@ -512,7 +582,7 @@ class RackMapping extends Component
 
         $selectedPosData = $this->selectedPositionId 
             ? MwhPosition::with([
-                'rack', 
+                'rack.warehouse', 
                 'pallets' => function($q) {
                     $q->where('current_qty', '>', 0)
                       ->with(['material', 'incomingHeader']);
@@ -522,9 +592,17 @@ class RackMapping extends Component
 
         $fifoSummaryData = [];
         if ($this->showFifoSummaryModal) {
-            $groupedPallets = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
-                ->where('current_qty', '>', 0)
-                ->orderBy('created_at', 'asc')
+            $fifoQuery = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+                ->where('current_qty', '>', 0);
+
+            if ($activeWhseId) {
+                $fifoQuery->where(function($q) use ($activeWhseId) {
+                    $q->where('whse_id', $activeWhseId)
+                      ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $activeWhseId));
+                });
+            }
+
+            $groupedPallets = $fifoQuery->orderBy('created_at', 'asc')
                 ->get()
                 ->groupBy('item_code');
 
@@ -575,6 +653,7 @@ class RackMapping extends Component
         ksort($groupedRacks);
 
         return view('livewire.material-warehouse.rack-mapping', [
+            'warehouses'          => $this->warehouses,
             'racks'               => $racks,
             'groupedRacks'        => $groupedRacks,
             'availableAreas'      => $availableAreas,

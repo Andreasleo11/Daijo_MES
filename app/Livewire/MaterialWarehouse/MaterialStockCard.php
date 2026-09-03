@@ -17,6 +17,8 @@ class MaterialStockCard extends Component
     public string $selectedItemCode = '';
     public string $search = '';
     public string $filterType = 'ALL'; // ALL, INCOMING, OUTGOING
+    public $whse_id = 'ALL';
+    public array $warehouses = [];
     public ?string $fromDate = null;
     public ?string $toDate = null;
     public string $sortDirection = 'DESC'; // DESC (Terbaru -> Terlama), ASC (Terlama -> Terbaru)
@@ -24,6 +26,7 @@ class MaterialStockCard extends Component
 
     protected $queryString = [
         'selectedItemCode' => ['except' => ''],
+        'whse_id'          => ['except' => 'ALL'],
         'search'           => ['except' => ''],
         'filterType'       => ['except' => 'ALL'],
         'fromDate'         => ['except' => ''],
@@ -34,8 +37,21 @@ class MaterialStockCard extends Component
 
     public function getActiveMaterialsProperty()
     {
-        $incomingCodes = MwhPallet::whereNotNull('item_code')->select('item_code')->distinct()->pluck('item_code');
-        $outgoingCodes = MwhOutgoing::whereNotNull('item_code')->select('item_code')->distinct()->pluck('item_code');
+        $palQ = MwhPallet::whereNotNull('item_code');
+        $outQ = MwhOutgoing::whereNotNull('item_code');
+
+        if ($this->whse_id && $this->whse_id !== 'ALL') {
+            $whseId = (int)$this->whse_id;
+            $palQ->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+            $outQ->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+        }
+
+        $incomingCodes = $palQ->select('item_code')->distinct()->pluck('item_code');
+        $outgoingCodes = $outQ->select('item_code')->distinct()->pluck('item_code');
 
         $activeCodes = $incomingCodes->merge($outgoingCodes)->unique()->filter()->values();
 
@@ -58,6 +74,13 @@ class MaterialStockCard extends Component
 
     public function mount(): void
     {
+        $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        if (empty($this->warehouses)) {
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KBN'], ['whse_name' => 'Gudang Material KBN']);
+            \App\Models\MwhWarehouse::firstOrCreate(['whse_code' => 'KRW'], ['whse_name' => 'Gudang Material Karawang']);
+            $this->warehouses = \App\Models\MwhWarehouse::orderBy('id', 'asc')->get()->toArray();
+        }
+
         // Default to today's date if not set in request URL
         if (empty($this->fromDate)) {
             $this->fromDate = now()->format('Y-m-d');
@@ -65,6 +88,11 @@ class MaterialStockCard extends Component
         if (empty($this->toDate)) {
             $this->toDate = now()->format('Y-m-d');
         }
+    }
+
+    public function updatingWhseId(): void
+    {
+        $this->resetPage();
     }
 
     public function updatingSelectedItemCode(): void
@@ -124,6 +152,16 @@ class MaterialStockCard extends Component
         $palletQuery = MwhPallet::query();
         $outgoingQuery = MwhOutgoing::query();
 
+        if ($this->whse_id && $this->whse_id !== 'ALL') {
+            $whseId = (int)$this->whse_id;
+            $palletQuery->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+            $outgoingQuery->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+        }
+
         if (!empty($this->selectedItemCode)) {
             $palletQuery->where('item_code', $this->selectedItemCode);
             $outgoingQuery->where('item_code', $this->selectedItemCode);
@@ -135,7 +173,13 @@ class MaterialStockCard extends Component
         $summary['total_outgoing'] = (float) (clone $outgoingQuery)->sum('qty_taken');
 
         // 2. Fetch Incoming movements (MwhPallet records)
-        $incomingsQuery = MwhPallet::with(['incomingHeader', 'position']);
+        $incomingsQuery = MwhPallet::with(['incomingHeader', 'position.rack']);
+        if ($this->whse_id && $this->whse_id !== 'ALL') {
+            $whseId = (int)$this->whse_id;
+            $incomingsQuery->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+        }
         if (!empty($this->selectedItemCode)) {
             $incomingsQuery->where('item_code', $this->selectedItemCode);
         }
@@ -177,7 +221,13 @@ class MaterialStockCard extends Component
         });
 
         // 3. Fetch Outgoing movements (MwhOutgoing records)
-        $outgoingsQuery = MwhOutgoing::with(['pallet.position', 'position']);
+        $outgoingsQuery = MwhOutgoing::with(['pallet.position.rack', 'position.rack']);
+        if ($this->whse_id && $this->whse_id !== 'ALL') {
+            $whseId = (int)$this->whse_id;
+            $outgoingsQuery->where(function($q) use ($whseId) {
+                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+            });
+        }
         if (!empty($this->selectedItemCode)) {
             $outgoingsQuery->where('item_code', $this->selectedItemCode);
         }
@@ -321,6 +371,7 @@ class MaterialStockCard extends Component
         );
 
         return view('livewire.material-warehouse.material-stock-card', [
+            'warehouses'          => $this->warehouses,
             'materials'           => $materials,
             'selectedMaterial'    => $selectedMaterial,
             'movements'           => $paginatedMovements,

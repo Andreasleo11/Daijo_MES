@@ -11,16 +11,36 @@
         {{-- Filters Section --}}
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                {{-- Plant Filter --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Plant</label>
+                    <select wire:model.live="plant" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-semibold text-gray-800">
+                        <option value="">All Plants</option>
+                        <option value="karawang">Plant Karawang (K)</option>
+                        <option value="kbn">Plant KBN</option>
+                    </select>
+                </div>
+
                 {{-- View Type --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">View Type</label>
                     <select wire:model.live="viewType" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="monthly">Monthly</option>
                         <option value="weekly">Weekly</option>
+                        <option value="daily">Daily (Per Hari)</option>
                     </select>
                 </div>
 
-                {{-- Year --}}
+                {{-- Date (only shown for daily view) --}}
+                @if($viewType === 'daily')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                    <input type="date" wire:model.live="selectedDate" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                @endif
+
+                {{-- Year (shown for monthly & weekly view) --}}
+                @if($viewType !== 'daily')
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
                     <select wire:model.live="year" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -29,8 +49,10 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
 
-                {{-- Month --}}
+                {{-- Month (shown for monthly & weekly view) --}}
+                @if($viewType !== 'daily')
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
                     <select wire:model.live="month" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -39,6 +61,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
 
                 {{-- Week (only shown for weekly view) --}}
                 @if($viewType === 'weekly')
@@ -118,7 +141,15 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Machine</label>
                     <select wire:model.live="machineUserId" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">All Machines</option>
+                        <option value="">
+                            @if($plant === 'karawang')
+                                All Karawang Machines ({{ count($machines) }})
+                            @elseif($plant === 'kbn')
+                                All KBN Machines ({{ count($machines) }})
+                            @else
+                                All Machines ({{ count($machines) }})
+                            @endif
+                        </option>
                         @foreach($machines as $machine)
                             <option value="{{ $machine['id'] }}">{{ $machine['name'] }}</option>
                         @endforeach
@@ -127,26 +158,42 @@
             </div>
 
             {{-- Reset Button & Filter Info --}}
-            <div class="mt-4 flex items-center gap-4">
+            <div class="mt-4 flex flex-wrap items-center gap-4">
                 <button 
                     wire:click="resetFilters" 
-                    class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                 >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
                     Reset Filters
                 </button>
                 
-                @if($itemCode || $machineUserId)
-                <div class="text-sm text-gray-500">
-                    Active filters: 
-                    @if($itemCode)
-                        <span class="font-medium">Item: {{ $itemCode }}</span>
+                @if($plant || $itemCode || $machineUserId || $viewType === 'daily')
+                <div class="text-sm text-gray-500 flex flex-wrap items-center gap-2">
+                    <span>Active filters:</span>
+                    @if($plant)
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold {{ $plant === 'karawang' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800' }}">
+                            Plant: {{ $plant === 'karawang' ? 'Karawang' : 'KBN' }}
+                        </span>
                     @endif
-                    @if($itemCode && $machineUserId) | @endif
+                    @if($viewType === 'daily')
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                            Date: {{ date('d M Y', strtotime($selectedDate)) }}
+                        </span>
+                    @endif
+                    @if($itemCode)
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-800">
+                            Item: {{ $itemCode }}
+                        </span>
+                    @endif
                     @if($machineUserId)
                         @php
-                            $selectedMachine = collect($machines)->firstWhere('id', $machineUserId);
+                            $selectedMachine = collect($allMachines)->firstWhere('id', $machineUserId);
                         @endphp
-                        <span class="font-medium">Machine: {{ $selectedMachine['name'] ?? $machineUserId }}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
+                            Machine: {{ $selectedMachine['name'] ?? $machineUserId }}
+                        </span>
                     @endif
                 </div>
                 @endif
@@ -238,7 +285,370 @@
             </div>
         </div>
 
-        {{-- ✅ NEW: Downtime & Machine Hours Cards (3-column grid) --}}
+        {{-- ========================================================================= --}}
+        {{-- Section: Shift Performance: Adjuster & Change Mould Tracking --}}
+        {{-- ========================================================================= --}}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6" x-data="{ showShiftLogs: false, activeLogTab: 'all' }">
+            {{-- Section Title & Header Summary --}}
+            <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-6 border-b gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </span>
+                        <h2 class="text-xl font-bold text-gray-800">Shift Performance: Adjuster, Change Mould & NG Tracking</h2>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Performa output, NG produk, serta penanggung jawab Adjuster dan Change Mould per shift</p>
+                </div>
+
+                {{-- Quick Summary Stats --}}
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+                        <span class="text-gray-500 font-medium">Total Adjust:</span>
+                        <span class="font-bold text-blue-700 ml-1">{{ $shiftPersonnelAnalysis['total_adjust_count'] ?? 0 }}x</span>
+                    </div>
+                    <div class="px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-xs">
+                        <span class="text-gray-500 font-medium">Total Change Mould:</span>
+                        <span class="font-bold text-purple-700 ml-1">{{ $shiftPersonnelAnalysis['total_mould_change_count'] ?? 0 }}x</span>
+                    </div>
+                    <div class="px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-lg text-xs">
+                        <span class="text-gray-500 font-medium">Total Setup Time:</span>
+                        <span class="font-bold text-orange-700 ml-1">{{ number_format($shiftPersonnelAnalysis['total_setup_time_minutes'] ?? 0, 1) }}m</span>
+                    </div>
+                    <button 
+                        @click="showShiftLogs = !showShiftLogs"
+                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                    >
+                        <span x-text="showShiftLogs ? 'Tutup Log' : 'Detail Log'"></span>
+                        <svg class="w-3.5 h-3.5 transition-transform" :class="showShiftLogs ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- 3 Shift Cards Grid (Shift 1, Shift 2, Shift 3) --}}
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-4">
+                @foreach([1, 2, 3] as $shiftNum)
+                    @php
+                        $shiftData = $shiftPersonnelAnalysis['shifts'][$shiftNum] ?? [];
+                        $ngRate = $shiftData['ng_rate'] ?? 0;
+                        
+                        // Theme styling
+                        $borderTop = match($shiftNum) {
+                            1 => 'border-t-4 border-amber-500',
+                            2 => 'border-t-4 border-emerald-500',
+                            3 => 'border-t-4 border-indigo-500',
+                            default => 'border-t-4 border-blue-500'
+                        };
+                        $shiftBadgeClass = match($shiftNum) {
+                            1 => 'bg-amber-100 text-amber-800 border-amber-300',
+                            2 => 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                            3 => 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                            default => 'bg-blue-100 text-blue-800 border-blue-300'
+                        };
+                        $ngBadgeClass = $ngRate > 5 
+                            ? 'bg-red-100 text-red-800 border-red-300' 
+                            : ($ngRate > 2 
+                                ? 'bg-yellow-100 text-yellow-800 border-yellow-300' 
+                                : 'bg-green-100 text-green-800 border-green-300');
+                    @endphp
+
+                    <div class="bg-gray-50/60 rounded-xl border border-gray-200 p-5 flex flex-col justify-between {{ $borderTop }} shadow-sm hover:shadow transition overflow-hidden">
+                        <div class="min-w-0">
+                            {{-- Shift Card Header --}}
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="min-w-0">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $shiftBadgeClass }}">
+                                        {{ $shiftData['name'] ?? "Shift $shiftNum" }}
+                                    </span>
+                                    <p class="text-[11px] text-gray-500 mt-1 font-mono font-medium truncate">🕒 {{ $shiftData['time_range'] ?? '-' }}</p>
+                                </div>
+                                <div class="text-right shrink-0 ml-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border {{ $ngBadgeClass }}">
+                                        {{ number_format($ngRate, 2) }}% NG
+                                    </span>
+                                    <p class="text-[10px] text-gray-500 mt-0.5">{{ number_format($shiftData['total_ng'] ?? 0) }} NG pcs</p>
+                                </div>
+                            </div>
+
+                            {{-- Responsible Personnel (PIC) Card --}}
+                            <div class="bg-white rounded-lg p-3.5 border border-gray-200/80 mb-4 space-y-2.5 shadow-xs overflow-hidden">
+                                <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Penanggung Jawab Shift</div>
+                                
+                                {{-- Adjuster PIC --}}
+                                <div class="bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 overflow-hidden">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
+                                                🔧
+                                            </span>
+                                            <span class="text-[10px] font-bold uppercase text-blue-700 tracking-wide">Adjuster</span>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="text-xs font-bold text-blue-700">{{ $shiftData['adjust_count'] ?? 0 }}x</span>
+                                            <span class="text-[10px] text-gray-500 font-mono ml-0.5">({{ number_format($shiftData['adjust_duration_minutes'] ?? 0, 1) }}m)</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs font-semibold text-gray-800 break-words line-clamp-2 pl-6" title="{{ $shiftData['adjusters_str'] ?? '-' }}">
+                                        {{ $shiftData['adjusters_str'] ?? 'No Log' }}
+                                    </div>
+                                </div>
+
+                                {{-- Change Mould PIC --}}
+                                <div class="bg-purple-50/70 border border-purple-100 rounded-lg p-2.5 overflow-hidden">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                            <span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
+                                                🔄
+                                            </span>
+                                            <span class="text-[10px] font-bold uppercase text-purple-700 tracking-wide">Change Mould</span>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="text-xs font-bold text-purple-700">{{ $shiftData['mould_change_count'] ?? 0 }}x</span>
+                                            <span class="text-[10px] text-gray-500 font-mono ml-0.5">({{ number_format($shiftData['mould_change_duration_minutes'] ?? 0, 1) }}m)</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs font-semibold text-gray-800 break-words line-clamp-2 pl-6" title="{{ $shiftData['mould_changers_str'] ?? '-' }}">
+                                        {{ $shiftData['mould_changers_str'] ?? 'No Log' }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Shift Output & Performance KPI Grid --}}
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div class="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
+                                    <span class="text-[10px] font-medium text-gray-500 uppercase">Actual Output</span>
+                                    <p class="text-base font-bold text-gray-800 mt-0.5">{{ number_format($shiftData['total_actual'] ?? 0) }}</p>
+                                    <span class="text-[10px] text-gray-400">Target: {{ number_format($shiftData['total_target'] ?? 0) }}</span>
+                                </div>
+                                <div class="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
+                                    <span class="text-[10px] font-medium text-gray-500 uppercase">Setup Downtime</span>
+                                    <p class="text-base font-bold text-orange-600 mt-0.5">{{ number_format($shiftData['total_setup_minutes'] ?? 0, 1) }}m</p>
+                                    <span class="text-[10px] text-gray-400">Adjust + Mould</span>
+                                </div>
+                            </div>
+
+                            {{-- Achievement Rate Progress Bar --}}
+                            <div class="mb-4 bg-white p-2.5 rounded-lg border border-gray-200">
+                                <div class="flex justify-between items-center text-xs mb-1">
+                                    <span class="text-gray-600 font-medium">Achievement</span>
+                                    <span class="font-bold {{ ($shiftData['achievement_rate'] ?? 0) >= 100 ? 'text-green-600' : 'text-blue-600' }}">
+                                        {{ number_format($shiftData['achievement_rate'] ?? 0, 1) }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="h-2 rounded-full {{ ($shiftData['achievement_rate'] ?? 0) >= 100 ? 'bg-green-500' : 'bg-blue-500' }}" style="width: {{ min(100, $shiftData['achievement_rate'] ?? 0) }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Top Defect Types in this Shift --}}
+                        @if(!empty($shiftData['top_ng_types']))
+                        <div class="border-t pt-3 mt-1">
+                            <div class="text-[11px] font-bold text-gray-500 mb-2 flex items-center justify-between">
+                                <span>Defect Dominan (Top NG):</span>
+                                <span class="text-[10px] text-gray-400">{{ count($shiftData['top_ng_types']) }} jenis</span>
+                            </div>
+                            <div class="space-y-1.5">
+                                @foreach($shiftData['top_ng_types'] as $ngType)
+                                <div class="flex items-center text-xs">
+                                    <span class="text-gray-700 w-28 truncate font-medium" title="{{ $ngType['name'] }}">{{ $ngType['name'] }}</span>
+                                    <div class="flex-1 mx-2 bg-gray-200 rounded-full h-1.5">
+                                        <div class="bg-red-500 h-1.5 rounded-full" style="width: {{ $ngType['percent'] }}%"></div>
+                                    </div>
+                                    <span class="text-[11px] font-semibold text-red-600 w-16 text-right">{{ number_format($ngType['quantity']) }} ({{ $ngType['percent'] }}%)</span>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @else
+                        <div class="border-t pt-3 mt-1 text-center text-xs text-gray-400 italic">
+                            Tidak ada data NG pada shift ini
+                        </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Detail Activity Log Table (Expandable) --}}
+            <div x-show="showShiftLogs" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="mt-4 pt-4 border-t border-gray-200" style="display: none;">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <span>📋 Log Aktivitas Adjust Machine & Change Mould</span>
+                        <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full font-semibold">
+                            {{ count($shiftPersonnelAnalysis['all_logs'] ?? []) }} Total Data
+                        </span>
+                    </h3>
+
+                    {{-- Shift Filter Tabs inside table --}}
+                    <div class="flex items-center gap-1.5 text-xs">
+                        <button @click="activeLogTab = 'all'" :class="activeLogTab === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-2.5 py-1 rounded font-medium transition">
+                            Semua
+                        </button>
+                        <button @click="activeLogTab = '1'" :class="activeLogTab === '1' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-2.5 py-1 rounded font-medium transition">
+                            Shift 1
+                        </button>
+                        <button @click="activeLogTab = '2'" :class="activeLogTab === '2' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-2.5 py-1 rounded font-medium transition">
+                            Shift 2
+                        </button>
+                        <button @click="activeLogTab = '3'" :class="activeLogTab === '3' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-2.5 py-1 rounded font-medium transition">
+                            Shift 3
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-80 border border-gray-200 rounded-lg">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-100 text-gray-700 uppercase font-semibold sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2.5">Waktu / Shift</th>
+                                <th class="px-3 py-2.5">Tipe Aktivitas</th>
+                                <th class="px-3 py-2.5">Mesin</th>
+                                <th class="px-3 py-2.5">Item Code</th>
+                                <th class="px-3 py-2.5">PIC</th>
+                                <th class="px-3 py-2.5 text-right">Durasi (Menit)</th>
+                                <th class="px-3 py-2.5 text-center">Status</th>
+                                <th class="px-3 py-2.5">Remark</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            @forelse($shiftPersonnelAnalysis['all_logs'] ?? [] as $log)
+                                <tr x-show="activeLogTab === 'all' || activeLogTab === '{{ $log['shift'] }}'" class="hover:bg-gray-50">
+                                    <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-800">
+                                        <div>{{ $log['start_time'] }} - {{ $log['end_time'] }}</div>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold {{ $log['shift'] === 1 ? 'bg-amber-100 text-amber-800' : ($log['shift'] === 2 ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800') }}">
+                                            Shift {{ $log['shift'] }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap">
+                                        @if($log['type'] === 'adjust')
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                                🔧 Adjust Machine
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">
+                                                🔄 Mould Change
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap font-semibold text-gray-700">
+                                        {{ $log['machine_name'] }}
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap font-mono text-gray-600">
+                                        {{ $log['item_code'] }}
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap font-bold text-gray-800">
+                                        {{ $log['pic'] }}
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap text-right font-mono font-bold {{ $log['is_overtime'] ? 'text-red-600' : 'text-gray-800' }}">
+                                        {{ number_format($log['duration_minutes'], 1) }}m
+                                        <div class="text-[10px] text-gray-400 font-normal">Target: {{ $log['target_minutes'] }}m</div>
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap text-center">
+                                        @if($log['is_overtime'])
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                                                Overtime
+                                            </span>
+                                        @else
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+                                                Normal
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-600 max-w-xs truncate" title="{{ $log['remark'] }}">
+                                        {{ $log['remark'] ?: '-' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="px-4 py-8 text-center text-gray-400 italic">
+                                        Tidak ada log Adjust Machine atau Mould Change untuk periode / filter ini.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- ========================================================================= --}}
+        {{-- Section: Trend NG Harian per Adjuster (Line Chart) --}}
+        {{-- ========================================================================= --}}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-4 border-b gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                            </svg>
+                        </span>
+                        <h2 class="text-xl font-bold text-gray-800">Trend NG Harian per Adjuster</h2>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Perbandingan jumlah NG produk (pcs) setiap hari berdasarkan adjuster yang bertugas pada shift tersebut</p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-gray-100 text-gray-700 rounded-md">
+                        Total Adjuster: {{ count($adjusterNgTrend['adjuster_summaries'] ?? []) }} Orang
+                    </span>
+                </div>
+            </div>
+
+            {{-- Line Chart Container --}}
+            <div class="h-80 mb-6" wire:ignore>
+                <canvas id="adjusterNgChart"></canvas>
+            </div>
+
+            {{-- Adjuster Performance Summary Cards / Leaderboard --}}
+            @if(!empty($adjusterNgTrend['adjuster_summaries']))
+            <div class="border-t pt-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Akumulasi NG & Output per Adjuster (Periode Ini):</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    @foreach($adjusterNgTrend['adjuster_summaries'] as $adjSummary)
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-3 flex flex-col justify-between hover:bg-gray-100/80 transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {{ $adjSummary['color'] }};"></span>
+                                    <span class="text-xs font-bold text-gray-800 truncate" title="{{ $adjSummary['name'] }}">{{ $adjSummary['name'] }}</span>
+                                </div>
+                                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold {{ $adjSummary['ng_rate'] > 5 ? 'bg-red-100 text-red-700' : ($adjSummary['ng_rate'] > 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') }}">
+                                    {{ number_format($adjSummary['ng_rate'], 2) }}% NG
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-center my-2">
+                                <div class="bg-white rounded p-1.5 border border-gray-200/60">
+                                    <div class="text-[10px] text-gray-400">Total NG</div>
+                                    <div class="text-xs font-bold text-red-600">{{ number_format($adjSummary['total_ng']) }} pcs</div>
+                                </div>
+                                <div class="bg-white rounded p-1.5 border border-gray-200/60">
+                                    <div class="text-[10px] text-gray-400">Total Output</div>
+                                    <div class="text-xs font-bold text-gray-800">{{ number_format($adjSummary['total_actual']) }} pcs</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-gray-500 pt-1 border-t border-gray-200/60">
+                            <span>Adjust: {{ $adjSummary['adjust_count'] }}x</span>
+                            <span>Durasi: {{ number_format($adjSummary['adjust_minutes'], 1) }}m</span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @else
+            <div class="text-center py-6 text-gray-400 text-xs italic">
+                Tidak ada data adjuster yang tercatat pada periode ini.
+            </div>
+            @endif
+        </div>
+
+        {{-- Downtime & Machine Hours Cards (3-column grid) --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             {{-- Downtime Summary Card --}}
             <div class="bg-white rounded-lg shadow-md p-6">
@@ -404,7 +814,7 @@
                         @foreach($topRemarks as $index => $remark)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm text-gray-700">
-                                {{ \Carbon\Carbon::parse($remark['date'])->format('d M Y') }}
+                                {{ date('d M Y', strtotime($remark['date'])) }}
                             </td>
                             <td class="px-4 py-3 text-sm font-medium text-gray-900">
                                 {{ $remark['hour'] }}
@@ -559,7 +969,9 @@
                                         const dataIndex = tooltipItems[0].dataIndex;
                                         const dayInfo = rawChartData[dataIndex];
                                         if (dayInfo && typeof dayInfo.working_hours !== 'undefined') {
-                                            return 'Active Hours: ' + dayInfo.working_hours + ' hrs';
+                                            return (dayInfo.date && dayInfo.date.includes(':'))
+                                                ? 'Active Machines: ' + dayInfo.working_hours
+                                                : 'Active Hours: ' + dayInfo.working_hours + ' hrs';
                                         }
                                     }
                                     return '';
@@ -607,11 +1019,106 @@
             console.log('✅ Chart created!');
         }
 
+        let adjusterNgChart = null;
+
+        function initAdjusterChart(chartData) {
+            console.log('🔵 initAdjusterChart called with data:', chartData);
+            const ctx = document.getElementById('adjusterNgChart');
+            if (!ctx) {
+                console.error('❌ Adjuster chart canvas not found!');
+                return;
+            }
+
+            if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+                console.warn('⚠️ No adjuster chart data to display');
+                if (adjusterNgChart) {
+                    adjusterNgChart.destroy();
+                    adjusterNgChart = null;
+                }
+                return;
+            }
+
+            if (adjusterNgChart) {
+                console.log('🔄 Updating existing adjuster chart...');
+                adjusterNgChart.data.labels = chartData.labels;
+                adjusterNgChart.data.datasets = chartData.datasets;
+                adjusterNgChart.update('active');
+                console.log('✅ Adjuster chart updated!');
+                return;
+            }
+
+            console.log('🆕 Creating new adjuster chart...');
+            adjusterNgChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: chartData.datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                font: {
+                                    size: 11,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed.y.toLocaleString() + ' pcs NG';
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'NG Quantity (pcs)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Adjuster chart created!');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 DOM Content Loaded');
             const initialData = @json($chartData);
             console.log('📊 Initial chart data:', initialData);
             initChart(initialData);
+
+            const initialAdjusterData = @json($adjusterNgTrend);
+            console.log('📊 Initial adjuster chart data:', initialAdjusterData);
+            initAdjusterChart(initialAdjusterData);
         });
 
         document.addEventListener('livewire:init', () => {
@@ -620,10 +1127,16 @@
             Livewire.on('chartDataUpdated', (event) => {
                 console.log('🎯 chartDataUpdated event received!');
                 const data = event.chartData;
-                console.log('📊 Chart data extracted:', data);
-                
                 if (data) {
                     initChart(data);
+                }
+            });
+
+            Livewire.on('adjusterChartDataUpdated', (event) => {
+                console.log('🎯 adjusterChartDataUpdated event received!');
+                const adjData = event.adjusterChartData;
+                if (adjData) {
+                    initAdjusterChart(adjData);
                 }
             });
         });
@@ -669,7 +1182,7 @@
                                             #{{ $detail['dic_id'] }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {{ \Carbon\Carbon::parse($detail['date'])->format('d M Y') }}
+                                            {{ date('d M Y', strtotime($detail['date'])) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             Shift {{ $detail['shift'] }}

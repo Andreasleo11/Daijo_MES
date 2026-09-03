@@ -87,19 +87,21 @@
                         </div>
 
                         <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-1">
-                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lokasi Slot Rak</span>
+                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lokasi Slot Rak & Branch</span>
                             <div class="text-base font-black font-mono text-gray-900">
                                 {{ $palletData->position ? $palletData->position->position_code : 'Unassigned' }}
                             </div>
-                            <div class="text-xs text-gray-500">Label: {{ $palletData->position ? ($palletData->position->slot_label ?: '-') : '-' }}</div>
+                            <div class="text-xs text-gray-500">
+                                🏭 {{ $palletData->warehouse?->whse_name ?? ($palletData->position?->rack?->warehouse?->whse_name ?? 'Gudang Material KBN') }}
+                            </div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium text-gray-700 border-t border-gray-100 pt-4">
+                        <div><span class="text-gray-400">Branch Gudang:</span> <strong class="text-emerald-800">{{ $palletData->warehouse?->whse_name ?? ($palletData->position?->rack?->warehouse?->whse_name ?? 'Gudang Material KBN') }}</strong></div>
                         <div><span class="text-gray-400">Tgl Kedatangan:</span> <strong class="font-mono text-emerald-800">{{ $palletData->incomingHeader && $palletData->incomingHeader->arrival_date ? $palletData->incomingHeader->arrival_date->format('d M Y') : ($palletData->created_at ? $palletData->created_at->timezone('Asia/Jakarta')->format('d M Y') : '-') }}</strong></div>
                         <div><span class="text-gray-400">Lot / Batch No:</span> <strong class="font-mono text-gray-900">{{ $palletData->lot_no ?: '-' }}</strong></div>
                         <div><span class="text-gray-400">Supplier:</span> <strong>{{ $palletData->incomingHeader ? ($palletData->incomingHeader->supplier_name ?: '-') : '-' }}</strong></div>
-                        <div><span class="text-gray-400">PO Number:</span> <strong class="font-mono">{{ $palletData->incomingHeader ? ($palletData->incomingHeader->po_number ?: '-') : '-' }}</strong></div>
                     </div>
 
                     <!-- Movement Outgoing History Timeline -->

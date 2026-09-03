@@ -30,6 +30,43 @@
             </div>
         </div>
 
+        <!-- Branch / Warehouse Switcher Bar -->
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    PILIH BRANCH:
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach($warehouses as $wh)
+                        <button 
+                            wire:click="$set('whse_id', {{ $wh['id'] }})"
+                            style="{{ $whse_id == $wh['id'] ? 'background-color: #e11d48 !important; color: #ffffff !important;' : 'background-color: #f1f5f9; color: #334155;' }}"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs {{ $whse_id == $wh['id'] ? 'bg-rose-600 text-white ring-2 ring-rose-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-700' }}"
+                        >
+                            <span>🏭</span>
+                            <span style="{{ $whse_id == $wh['id'] ? 'color: #ffffff !important;' : 'color: #1e293b;' }}">{{ $wh['whse_name'] }}</span>
+                            <span 
+                                style="{{ $whse_id == $wh['id'] ? 'background-color: #be123c !important; color: #ffe4e6 !important;' : 'background-color: #e2e8f0; color: #475569;' }}"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold {{ $whse_id == $wh['id'] ? 'bg-rose-700 text-rose-100' : 'bg-slate-200 text-slate-600' }}"
+                            >
+                                {{ $wh['whse_code'] }}
+                            </span>
+                        </button>
+                    @endforeach
+                    <button 
+                        wire:click="$set('whse_id', 'ALL')"
+                        style="{{ $whse_id === 'ALL' ? 'background-color: #1e293b !important; color: #ffffff !important;' : 'background-color: #f1f5f9; color: #475569;' }}"
+                        class="px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs {{ $whse_id === 'ALL' ? 'bg-slate-800 text-white ring-2 ring-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600' }}"
+                    >
+                        🌐 Semua Branch
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Flash Messages -->
         @if (session()->has('success'))
             <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in duration-200">

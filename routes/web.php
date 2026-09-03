@@ -358,7 +358,8 @@ Route::get('/public/material-pallet/{palletId}', function (\Illuminate\Http\Requ
     }
 
     $pallet = \App\Models\MwhPallet::with([
-        'position.rack',
+        'warehouse',
+        'position.rack.warehouse',
         'material',
         'incomingHeader',
         'outgoings.position.rack'
@@ -419,7 +420,7 @@ Route::middleware('auth')->group(function (){
         Route::get('/stock-card', \App\Livewire\MaterialWarehouse\MaterialStockCard::class)->name('stock-card.index');
         Route::get('/qr-lookup', \App\Livewire\MaterialWarehouse\MaterialQrLookup::class)->name('qr-lookup');
         Route::get('/pallet/print/{palletId}', function ($palletId) {
-            $pallet = \App\Models\MwhPallet::with(['incomingHeader', 'position', 'material'])->where('pallet_id', $palletId)->firstOrFail();
+            $pallet = \App\Models\MwhPallet::with(['incomingHeader', 'position.rack.warehouse', 'material', 'warehouse'])->where('pallet_id', $palletId)->firstOrFail();
             return view('material-warehouse.material_pallet_print', compact('pallet'));
         })->name('pallet.print');
     });

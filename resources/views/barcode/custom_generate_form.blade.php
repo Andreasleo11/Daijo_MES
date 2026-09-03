@@ -38,13 +38,66 @@
                     <!-- Grid Layout for Fields -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+                        <!-- Barcode Template / Type Selection -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold text-slate-800 mb-2">Tipe / Format Label Barcode <span class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                <label class="relative flex items-start p-3.5 rounded-xl border-2 cursor-pointer transition focus:outline-none border-indigo-600 bg-indigo-50/40 text-indigo-900" id="card_type_default">
+                                    <input type="radio" name="barcode_type" value="default" checked class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 mt-0.5">
+                                    <div class="ml-3">
+                                        <span class="block text-sm font-bold">Standard Default</span>
+                                        <span class="block text-xs text-slate-500 mt-0.5">Format standar dengan QR Code 2D (12 label / sheet)</span>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-start p-3.5 rounded-xl border-2 cursor-pointer transition focus:outline-none border-slate-200 hover:border-slate-300 bg-white text-slate-800" id="card_type_sharp">
+                                    <input type="radio" name="barcode_type" value="sharp" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 mt-0.5">
+                                    <div class="ml-3">
+                                        <span class="block text-sm font-bold flex items-center gap-1.5">
+                                            Customer SHARP
+                                            <span class="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold px-2 py-0.5 rounded">SHARP</span>
+                                        </span>
+                                        <span class="block text-xs text-slate-500 mt-0.5">Kode tahun & bulan di pojok atas, tanggal cetak rata kanan</span>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-start p-3.5 rounded-xl border-2 cursor-pointer transition focus:outline-none border-slate-200 hover:border-slate-300 bg-white text-slate-800" id="card_type_yanfeng">
+                                    <input type="radio" name="barcode_type" value="yanfeng" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 mt-0.5">
+                                    <div class="ml-3">
+                                        <span class="block text-sm font-bold flex items-center gap-1.5">
+                                            Customer YANFENG
+                                            <span class="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded">YANFENG</span>
+                                        </span>
+                                        <span class="block text-xs text-slate-500 mt-0.5">Format standar + nomor QAD (Foreign Name) di pojok kanan atas Item Code</span>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-start p-3.5 rounded-xl border-2 cursor-pointer transition focus:outline-none border-slate-200 hover:border-slate-300 bg-white text-slate-800" id="card_type_itsp">
+                                    <input type="radio" name="barcode_type" value="itsp" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 mt-0.5">
+                                    <div class="ml-3">
+                                        <span class="block text-sm font-bold flex items-center gap-1.5">
+                                            Customer PT. ITSP
+                                            <span class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded">ITSP</span>
+                                        </span>
+                                        <span class="block text-xs text-slate-500 mt-0.5">Part Tag (8 label/sheet): Model, Part Code, Color, Position (RH/LH), Half Code & SP</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- Item Code -->
                         <div>
                             <label for="item_code" class="block text-sm font-semibold text-slate-700 mb-2">Item Code <span class="text-red-500">*</span></label>
                             <select id="item_code" name="item_code" required class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">-- Select Item Code --</option>
                                 @foreach($items as $item)
-                                    <option value="{{ $item->item_code }}" data-name="{{ $item->item_name }}">
+                                    <option value="{{ $item->item_code }}" 
+                                        data-name="{{ $item->item_name }}" 
+                                        data-qad="{{ ($item->description_in_foreign_lang && $item->description_in_foreign_lang !== '0') ? $item->description_in_foreign_lang : '' }}"
+                                        data-model="{{ ($item->family && $item->family !== '0') ? $item->family : '' }}"
+                                        data-color="{{ ($item->color && $item->color !== '0') ? $item->color : '' }}"
+                                        data-position="{{ ($item->position && $item->position !== '0') ? $item->position : '' }}"
+                                    >
                                         {{ $item->item_code }}
                                     </option>
                                 @endforeach
@@ -55,6 +108,38 @@
                         <div>
                             <label for="item_name" class="block text-sm font-semibold text-slate-700 mb-2">Item Name</label>
                             <input type="text" id="item_name" readonly placeholder="Select an Item Code first" class="block w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg shadow-sm focus:outline-none">
+                        </div>
+
+                        <!-- QAD / Part Code / Foreign Name -->
+                        <div id="qad_container">
+                            <label for="qad" class="block text-sm font-semibold text-slate-700 mb-2">
+                                QAD / Part Code <span class="text-xs font-normal text-slate-500">(Foreign Name)</span>
+                            </label>
+                            <input type="text" id="qad" name="qad" placeholder="Otomatis terisi dari data master (Foreign Name)" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <!-- Model (Family) -->
+                        <div>
+                            <label for="model" class="block text-sm font-semibold text-slate-700 mb-2">
+                                Model <span class="text-xs font-normal text-slate-500">(Khusus ITSP / Family)</span>
+                            </label>
+                            <input type="text" id="model" name="model" placeholder="Otomatis terisi dari Family" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <!-- Color -->
+                        <div>
+                            <label for="color" class="block text-sm font-semibold text-slate-700 mb-2">
+                                Color <span class="text-xs font-normal text-slate-500">(Khusus ITSP)</span>
+                            </label>
+                            <input type="text" id="color" name="color" placeholder="Otomatis terisi dari Color" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <!-- Position -->
+                        <div>
+                            <label for="position" class="block text-sm font-semibold text-slate-700 mb-2">
+                                Position <span class="text-xs font-normal text-slate-500">(Khusus ITSP: Right -> RH, Left -> LH)</span>
+                            </label>
+                            <input type="text" id="position" name="position" placeholder="Otomatis terisi dari Position (RH / LH)" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
 
                         <!-- SPK Number Selection -->
@@ -141,12 +226,18 @@
                     </div>
 
                     <!-- Options -->
-                    <div class="pt-6 border-t flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
+                    <div class="pt-6 border-t flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex flex-wrap items-center gap-6">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="is_trial" name="is_trial" value="1" class="sr-only peer">
                                 <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                                 <span class="ml-3 text-sm font-semibold text-slate-700 select-none">TRIAL Label (Adds '\tTRIAL' to QR data)</span>
+                            </label>
+
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="is_sp" name="is_sp" value="1" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                                <span class="ml-3 text-sm font-semibold text-slate-700 select-none">SP Label (Menampilkan badge 'SP' di bawah No SPK khusus ITSP)</span>
                             </label>
                         </div>
                     </div>
@@ -227,15 +318,32 @@
                                             <div class="text-slate-400">Op: {{ $log->operator }}</div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 whitespace-nowrap text-xs space-y-1">
+                                        <div>
+                                            @if(($log->barcode_type ?? 'default') === 'sharp')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                                    SHARP
+                                                </span>
+                                            @elseif(($log->barcode_type ?? 'default') === 'yanfeng')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                    YANFENG
+                                                </span>
+                                            @elseif(($log->barcode_type ?? 'default') === 'itsp')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                                    ITSP
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                                    Standard
+                                                </span>
+                                            @endif
+                                        </div>
                                         @if($log->is_trial)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-                                                TRIAL
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                                Standard
-                                            </span>
+                                            <div>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                                                    TRIAL
+                                                </span>
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700 text-xs max-w-xs break-words">
@@ -268,19 +376,91 @@
         document.addEventListener('DOMContentLoaded', function () {
             const itemCodeSelect = document.getElementById('item_code');
             const itemNameInput = document.getElementById('item_name');
+            const qadInput = document.getElementById('qad');
+            const modelInput = document.getElementById('model');
+            const colorInput = document.getElementById('color');
+            const positionInput = document.getElementById('position');
             const spkSelect = document.getElementById('spk_select');
             const manualSpkToggle = document.getElementById('manual_spk_toggle');
             const spkSelectContainer = document.getElementById('spk_select_container');
             const spkInputContainer = document.getElementById('spk_input_container');
             const spkInput = document.getElementById('spk_input');
+            const customerInput = document.getElementById('customer');
+            const warehouseInput = document.getElementById('warehouse');
+            const barcodeTypeRadios = document.querySelectorAll('input[name="barcode_type"]');
+            const cardDefault = document.getElementById('card_type_default');
+            const cardSharp = document.getElementById('card_type_sharp');
+            const cardYanfeng = document.getElementById('card_type_yanfeng');
+            const cardItsp = document.getElementById('card_type_itsp');
 
-            // Handle Item Code Change (Auto fill Name & fetch SPKs via AJAX)
+            // Handle Barcode Type Switch
+            barcodeTypeRadios.forEach(radio => {
+                radio.addEventListener('change', function () {
+                    // Reset all cards
+                    [cardDefault, cardSharp, cardYanfeng, cardItsp].forEach(card => {
+                        if (card) {
+                            card.classList.remove(
+                                'border-indigo-600', 'bg-indigo-50/40', 'text-indigo-900',
+                                'border-emerald-600', 'bg-emerald-50/40', 'text-emerald-900',
+                                'border-amber-600', 'bg-amber-50/40', 'text-amber-900'
+                            );
+                            card.classList.add('border-slate-200', 'bg-white', 'text-slate-800');
+                        }
+                    });
+
+                    if (this.value === 'sharp') {
+                        cardSharp.classList.add('border-indigo-600', 'bg-indigo-50/40', 'text-indigo-900');
+                        cardSharp.classList.remove('border-slate-200', 'bg-white', 'text-slate-800');
+
+                        customerInput.value = 'SHARP';
+                        if (warehouseInput.value === 'WFI') {
+                            warehouseInput.value = 'FFI';
+                        }
+                    } else if (this.value === 'yanfeng') {
+                        cardYanfeng.classList.add('border-emerald-600', 'bg-emerald-50/40', 'text-emerald-900');
+                        cardYanfeng.classList.remove('border-slate-200', 'bg-white', 'text-slate-800');
+
+                        customerInput.value = 'YANFENG';
+                        if (warehouseInput.value === 'WFI') {
+                            warehouseInput.value = 'FFI';
+                        }
+                    } else if (this.value === 'itsp') {
+                        cardItsp.classList.add('border-amber-600', 'bg-amber-50/40', 'text-amber-900');
+                        cardItsp.classList.remove('border-slate-200', 'bg-white', 'text-slate-800');
+
+                        customerInput.value = 'PT. ITSP';
+                        if (warehouseInput.value === 'WFI') {
+                            warehouseInput.value = 'FFI';
+                        }
+                    } else {
+                        cardDefault.classList.add('border-indigo-600', 'bg-indigo-50/40', 'text-indigo-900');
+                        cardDefault.classList.remove('border-slate-200', 'bg-white', 'text-slate-800');
+
+                        if (customerInput.value === 'SHARP' || customerInput.value === 'YANFENG' || customerInput.value === 'PT. ITSP') {
+                            customerInput.value = '';
+                        }
+                        if (warehouseInput.value === 'FFI') {
+                            warehouseInput.value = 'WFI';
+                        }
+                    }
+                });
+            });
+
+            // Handle Item Code Change (Auto fill Name, QAD, Model, Color, Position & fetch SPKs via AJAX)
             itemCodeSelect.addEventListener('change', function () {
                 const selectedOption = itemCodeSelect.options[itemCodeSelect.selectedIndex];
                 const itemName = selectedOption.getAttribute('data-name');
+                const itemQad = selectedOption.getAttribute('data-qad');
+                const itemModel = selectedOption.getAttribute('data-model');
+                const itemColor = selectedOption.getAttribute('data-color');
+                const itemPosition = selectedOption.getAttribute('data-position');
                 const itemCode = this.value;
 
                 itemNameInput.value = itemName || '';
+                if (qadInput) qadInput.value = itemQad || '';
+                if (modelInput) modelInput.value = itemModel || '';
+                if (colorInput) colorInput.value = itemColor || '';
+                if (positionInput) positionInput.value = itemPosition || '';
 
                 if (!itemCode) {
                     spkSelect.innerHTML = '<option value="">-- Select Item Code First --</option>';

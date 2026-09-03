@@ -61,7 +61,17 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">🏢 Branch / Gudang *</label>
+                        <select wire:model.live="whse_id" class="w-full px-3 py-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-900 focus:ring-2 focus:ring-emerald-500">
+                            @foreach($warehouses as $wh)
+                                <option value="{{ $wh['id'] }}">{{ $wh['whse_name'] }} ({{ $wh['whse_code'] }})</option>
+                            @endforeach
+                        </select>
+                        @error('whse_id') <span class="text-[10px] text-rose-500 font-bold block mt-1">{{ $message }}</span> @enderror
+                    </div>
+
                     <div>
                         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No. Dokumen (Auto)</label>
                         <input type="text" wire:model="document_no" readonly class="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-600 cursor-not-allowed">
