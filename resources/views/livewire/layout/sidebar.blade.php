@@ -277,6 +277,15 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data SPK ke SAP"
                         :active="request()->routeIs('receipt-production-logs')" wire:navigate />
+
+                    <!-- sub Second Process -->
+                    <livewire:parent-dropdown label="Second Process" :childRoutes="[
+                        ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                        ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
+                        ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                        ['name' => 'second-process-reports.index', 'label' => 'Daily Production Report'],
+                        ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                    ]" />
                 @endif
 
                 <!-- Store Links -->
@@ -365,9 +374,17 @@ new class extends Component {
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
+                <!-- Second Process Links -->
                 @if (auth()->user()?->can('view-second-process-links') && !auth()->user()?->can('view-quality-links'))
                     <livewire:sidebar-link href="{{ route('second-process-reports.index') }}"
                         label="Daily Production Report" :active="request()->routeIs('second-process-reports.*')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('sp-approvals.index') }}"
+                        label="Production Approvals" :active="request()->routeIs('sp-approvals.*')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('second-process.report-analytics') }}"
+                        label="Daily Report Analytics" :active="request()->routeIs('second-process.report-analytics.*')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('sp-work-orders.index') }}"
+                        label="Work Orders" :active="request()->routeIs('sp-work-orders.index')" wire:navigate />
+                    
                 @endif
 
                 @if (auth()->user()?->can('view-quality-links'))
