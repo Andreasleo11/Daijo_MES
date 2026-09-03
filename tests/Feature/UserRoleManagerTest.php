@@ -18,6 +18,7 @@ class UserRoleManagerTest extends TestCase
     protected Role $adminRole;
     protected User $superAdmin;
     protected User $admin;
+    protected User $operatorUser;
     protected User $targetUser;
 
     protected function setUp(): void
@@ -27,6 +28,7 @@ class UserRoleManagerTest extends TestCase
         // Create or retrieve roles according to hierarchy
         $this->superAdminRole = Role::firstOrCreate(['name' => 'SUPER-ADMIN']);
         $this->adminRole = Role::firstOrCreate(['name' => 'ADMIN']);
+        $operatorRole = Role::firstOrCreate(['name' => 'OPERATOR']);
 
         // Create Super Admin User
         $this->superAdmin = User::create([
@@ -48,6 +50,16 @@ class UserRoleManagerTest extends TestCase
             'is_active' => true,
         ]);
 
+        // Create non-admin operator user
+        $this->operatorUser = User::create([
+            'name' => 'Operator User',
+            'email' => 'operator@test.com',
+            'username' => 'operator',
+            'password' => Hash::make('password123'),
+            'role_id' => $operatorRole->id,
+            'is_active' => true,
+        ]);
+
         // Create target user whose password we will change
         $this->targetUser = User::create([
             'name' => 'Target User',
@@ -61,7 +73,7 @@ class UserRoleManagerTest extends TestCase
 
     public function test_non_superadmin_cannot_access_user_role_manager(): void
     {
-        $this->actingAs($this->admin);
+        $this->actingAs($this->operatorUser);
 
         Livewire::test(UserRoleManager::class)
             ->assertStatus(403);
@@ -125,8 +137,8 @@ class UserRoleManagerTest extends TestCase
 
         $component = Livewire::test(UserRoleManager::class);
 
-        // Switch to normal admin before calling the action
-        $this->actingAs($this->admin);
+        // Switch to non-admin operator before calling the action
+        $this->actingAs($this->operatorUser);
 
         $component->call('selectUserForPasswordChange', $this->targetUser->id)
             ->assertStatus(403);
