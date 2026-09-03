@@ -50,12 +50,12 @@ class QcTransferLog extends Model
     }
 
     /**
-     * Cek apakah kedua transfer (OK + NG) sudah selesai (success atau skip karena qty=0)
+     * Cek apakah kedua transfer (OK + NG) sudah selesai (success atau skip karena qty=0 / null target)
      */
     public function isFullyTransferred(): bool
     {
-        $okDone = $this->ok_qty == 0 || $this->ok_sap_status == 1;
-        $ngDone = $this->ng_qty == 0 || $this->ng_sap_status == 1;
+        $okDone = empty($this->ok_to_warehouse) || $this->ok_qty == 0 || $this->ok_sap_status == 1;
+        $ngDone = empty($this->ng_to_warehouse) || $this->ng_qty == 0 || $this->ng_sap_status == 1;
         return $okDone && $ngDone;
     }
 }

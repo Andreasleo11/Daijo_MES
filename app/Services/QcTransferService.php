@@ -14,9 +14,9 @@ class QcTransferService extends BaseSapService
      * Process inspection for a single box (production_scanned_data row)
      * and execute SAP inventory transfers atomically.
      */
-    public function processSingleBoxInspection(int $scannedDataId, int $ngQty, ?int $userId = null, ?string $remarks = null): array
+    public function processSingleBoxInspection(int $scannedDataId, int $ngQty, ?int $userId = null, ?string $remarks = null, bool $isKbn = false): array
     {
-        return DB::transaction(function () use ($scannedDataId, $ngQty, $userId, $remarks) {
+        return DB::transaction(function () use ($scannedDataId, $ngQty, $userId, $remarks, $isKbn) {
             $scannedData = DB::table('production_scanned_data')->find($scannedDataId);
             if (!$scannedData) {
                 return ['success' => false, 'message' => 'Data box tidak ditemukan.'];
@@ -40,10 +40,21 @@ class QcTransferService extends BaseSapService
 
             $okQty = $originalQty - $ngQty;
             $fromWh = strtoupper(trim($scannedData->warehouse ?: $summary->warehouse));
-            $whMap = QcTransferLog::WAREHOUSE_MAP[$fromWh] ?? ['ok' => 'FG', 'ng' => 'RJCT'];
 
-            $okToWh = $whMap['ok'];
-            $ngToWh = $ngQty > 0 ? $whMap['ng'] : null;
+            if ($isKbn || $fromWh === 'FFI') {
+                // Mode KBN: OK quantity TIDAK dikirim ke SAP, hanya Reject (NG) yang dikirim ke RJCT
+                $okToWh = null;
+                $okSapStatus = 1; // Mark OK as completed/skipped
+                $ngToWh = $ngQty > 0 ? 'RJCT' : null;
+                $ngSapStatus = $ngQty > 0 ? 0 : 1;
+            } else {
+                // Mode Karawang: OK -> KRFG, NG -> KRRJCT
+                $whMap = QcTransferLog::WAREHOUSE_MAP[$fromWh] ?? ['ok' => 'KRFG', 'ng' => 'KRRJCT'];
+                $okToWh = $whMap['ok'];
+                $okSapStatus = $okQty > 0 ? 0 : 1;
+                $ngToWh = $ngQty > 0 ? $whMap['ng'] : null;
+                $ngSapStatus = $ngQty > 0 ? 0 : 1;
+            }
 
             // 1. Create QcTransferLog entry
             $log = QcTransferLog::create([
@@ -57,9 +68,9 @@ class QcTransferService extends BaseSapService
                 'ok_qty'                => $okQty,
                 'ng_qty'                => $ngQty,
                 'ok_to_warehouse'       => $okToWh,
-                'ok_sap_status'         => $okQty > 0 ? 0 : 1, // If okQty is 0, mark as completed (1)
+                'ok_sap_status'         => $okSapStatus,
                 'ng_to_warehouse'       => $ngToWh,
-                'ng_sap_status'         => $ngQty > 0 ? 0 : 1, // If ngQty is 0, mark as completed (1)
+                'ng_sap_status'         => $ngSapStatus,
                 'inspected_by'          => $userId,
                 'remarks'               => $remarks,
             ]);
@@ -72,7 +83,7 @@ class QcTransferService extends BaseSapService
 
             $sapSuccess = ($transferResult['ok_success'] ?? true) && ($transferResult['ng_success'] ?? true);
             $msg = $sapSuccess
-                ? "Inspeksi box {$scannedData->label} berhasil diproses & terkirim ke SAP."
+                ? "Inspeksi box {$scannedData->label} berhasil diproses" . ($isKbn ? " (Reject dikirim ke RJCT, OK tidak ditransfer)." : " & terkirim ke SAP.")
                 : "Inspeksi box {$scannedData->label} tersimpan, namun SAP Transfer Gagal: " . implode(', ', $transferResult['messages'] ?? []);
 
             return [
@@ -88,7 +99,7 @@ class QcTransferService extends BaseSapService
      * Process inspection for multiple boxes in a summary at once.
      * $boxNgMap format: [ scanned_data_id => ng_qty, ... ]
      */
-    public function processSummaryInspection(int $summaryId, array $boxNgMap, ?int $userId = null, ?string $remarks = null): array
+    public function processSummaryInspection(int $summaryId, array $boxNgMap, ?int $userId = null, ?string $remarks = null, bool $isKbn = false): array
     {
         $summary = DB::table('production_summary')->find($summaryId);
         if (!$summary || $summary->sap_sent != 1) {
@@ -100,7 +111,7 @@ class QcTransferService extends BaseSapService
         $failCount = 0;
 
         foreach ($boxNgMap as $scannedDataId => $ngQty) {
-            $res = $this->processSingleBoxInspection((int)$scannedDataId, (int)$ngQty, $userId, $remarks);
+            $res = $this->processSingleBoxInspection((int)$scannedDataId, (int)$ngQty, $userId, $remarks, $isKbn);
             if ($res['success']) {
                 $successCount++;
             } else {
@@ -129,8 +140,8 @@ class QcTransferService extends BaseSapService
         $ngResult = true;
         $messages = [];
 
-        // 1. Transfer OK items (if ok_qty > 0 and not yet transferred)
-        if ($log->ok_qty > 0 && $log->ok_sap_status != 1) {
+        // 1. Transfer OK items (if ok_qty > 0 and ok_to_warehouse is defined and not yet transferred)
+        if ($log->ok_qty > 0 && !empty($log->ok_to_warehouse) && $log->ok_sap_status != 1) {
             $okResult = $this->sendTransferLineToSap(
                 $log,
                 'OK',

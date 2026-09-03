@@ -389,8 +389,10 @@ new class extends Component {
                 @endif
 
                 @if (auth()->user()?->can('view-quality-links'))
-                    <livewire:sidebar-link href="{{ route('qc-stock-transfer') }}" label="QC Stock Transfer"
+                    <livewire:sidebar-link href="{{ route('qc-stock-transfer') }}" label="QC Transfer (Karawang)"
                         :active="request()->routeIs('qc-stock-transfer')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('qc-stock-transfer-kbn') }}" label="QC Transfer (KBN)"
+                        :active="request()->routeIs('qc-stock-transfer-kbn')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
                         :active="request()->routeIs('ipqc-inspections.*')" wire:navigate />
                 @endif

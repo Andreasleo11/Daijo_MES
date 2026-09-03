@@ -31,8 +31,30 @@
 
     {{-- Header --}}
     <div class="mb-4 sm:mb-6">
-        <div class="text-[10px] sm:text-xs font-bold tracking-widest text-[#9A9590] uppercase mb-1">Quality Control</div>
-        <h1 class="text-xl sm:text-2xl font-extrabold text-[#1A1816]">QC Stock Transfer (FFI → FG / RJCT)</h1>
+        <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] sm:text-xs font-bold tracking-widest text-[#9A9590] uppercase">Quality Control</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold {{ $plant === 'kbn' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">
+                PLANT {{ strtoupper($plant) }}
+            </span>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-[#1A1816]">
+            @if($plant === 'kbn')
+                QC Stock Transfer - KBN (FFI → RJCT)
+            @else
+                QC Stock Transfer - Karawang (KRFFI → KRFG / KRRJCT)
+            @endif
+        </h1>
+        @if($plant === 'kbn')
+            <div class="mt-2.5 p-3 bg-amber-50/90 border-l-4 border-amber-500 text-amber-900 rounded-r-md text-xs font-medium flex items-center gap-2">
+                <span class="text-base">ℹ️</span>
+                <span><strong>Khusus KBN:</strong> Hanya barang <strong>Reject (NG)</strong> yang akan ditransfer ke gudang <strong>RJCT</strong> di SAP. Barang <strong>OK</strong> tidak akan diproses/ditransfer ke SAP.</span>
+            </div>
+        @else
+            <div class="mt-2.5 p-3 bg-blue-50/90 border-l-4 border-blue-500 text-blue-900 rounded-r-md text-xs font-medium flex items-center gap-2">
+                <span class="text-base">ℹ️</span>
+                <span><strong>Khusus Karawang:</strong> Barang <strong>OK</strong> ditransfer ke <strong>KRFG</strong>, dan barang <strong>NG</strong> ditransfer ke <strong>KRRJCT</strong> di SAP.</span>
+            </div>
+        @endif
     </div>
 
     {{-- Stats Cards --}}
@@ -74,12 +96,10 @@
             <input type="text" wire:model.live.debounce.300ms="filterItemCode" placeholder="Cari Item..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-            <label class="text-[10px] font-bold text-[#78716C] uppercase">Warehouse Asal</label>
-            <select wire:model.live="filterWarehouse" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
-                <option value="">Semua Gudang</option>
-                <option value="FFI">FFI</option>
-                <option value="KRFFI">KRFFI</option>
-            </select>
+            <label class="text-[10px] font-bold text-[#78716C] uppercase">Gudang Asal</label>
+            <div class="px-3 py-1.5 bg-gray-100 border border-gray-300 rounded text-xs sm:text-sm font-extrabold text-gray-800">
+                {{ $plant === 'kbn' ? 'FFI (KBN)' : 'KRFFI (Karawang)' }}
+            </div>
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
             <label class="text-[10px] font-bold text-[#78716C] uppercase">Status QC</label>
