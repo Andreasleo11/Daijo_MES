@@ -39,27 +39,46 @@ class ProductionDashboardService
     }
 
     /**
-     * Fast determination of shift (1, 2, 3) from timestamp string
+     * Parse raw UTC timestamp into Asia/Jakarta (WIB) Carbon instance
+     */
+    public static function getLocalCarbon($rawTime): Carbon
+    {
+        if ($rawTime instanceof Carbon) {
+            return $rawTime->copy()->setTimezone('Asia/Jakarta');
+        }
+        return Carbon::parse($rawTime, 'UTC')->setTimezone('Asia/Jakarta');
+    }
+
+    /**
+     * Determination of shift (1, 2, 3) and production date from local (WIB) timestamp
      * Shift 1: 07:30 - 15:30
      * Shift 2: 15:30 - 23:30
-     * Shift 3: 23:30 - 07:30
+     * Shift 3: 23:30 - 07:30 (next day)
      */
-    private static function getShiftFromTimeStr(string $timeStr): int
+    public static function getProductionDateAndShift(Carbon $localTime): array
     {
-        // Extract HH:MM:SS or HH:MM
-        if (strlen($timeStr) > 10) {
-            $timePart = substr($timeStr, 11, 8);
-        } else {
-            $timePart = $timeStr;
-        }
+        $timePart = $localTime->format('H:i:s');
+        $datePart = $localTime->format('Y-m-d');
 
         if ($timePart >= '07:30:00' && $timePart < '15:30:00') {
-            return 1;
+            return ['date' => $datePart, 'shift' => 1];
         } elseif ($timePart >= '15:30:00' && $timePart < '23:30:00') {
-            return 2;
+            return ['date' => $datePart, 'shift' => 2];
         } else {
-            return 3;
+            $prodDate = ($timePart < '07:30:00')
+                ? $localTime->copy()->subDay()->format('Y-m-d')
+                : $datePart;
+            return ['date' => $prodDate, 'shift' => 3];
         }
+    }
+
+    /**
+     * Backward-compatible determination of shift (1, 2, 3)
+     */
+    public static function getShiftFromTimeStr(string $timeStr): int
+    {
+        $localTime = self::getLocalCarbon($timeStr);
+        return self::getProductionDateAndShift($localTime)['shift'];
     }
 
     /**
@@ -120,9 +139,9 @@ class ProductionDashboardService
             ->get(['item_code', 'cycle_time', 'setup_time_minute'])
             ->keyBy('item_code');
 
-        // 3. Shift Time Window for Logs (07:30 start to next day 07:30 end)
-        $windowStart = $startDate->copy()->startOfDay()->setTime(7, 30, 0);
-        $windowEnd = $endDate->copy()->addDay()->startOfDay()->setTime(7, 30, 0);
+        // 3. Shift Time Window for Logs (07:30 Jakarta time of startDate to 07:30 Jakarta time next day after endDate)
+        $windowStartUtc = Carbon::parse($startDateStr . ' 07:30:00', 'Asia/Jakarta')->setTimezone('UTC');
+        $windowEndUtc = Carbon::parse($endDateStr . ' 07:30:00', 'Asia/Jakarta')->addDay()->setTimezone('UTC');
 
         // Strict plant filtering for Adjust and Mould Change logs
         $effectivePlant = $plant;
@@ -135,30 +154,32 @@ class ProductionDashboardService
 
         $adjustQuery = AdjustMachineLog::query()
             ->with(['user:id,name'])
-            ->where('created_at', '>=', $windowStart->format('Y-m-d H:i:s'))
-            ->where('created_at', '<', $windowEnd->format('Y-m-d H:i:s'));
-
-        if ($effectivePlant === 'karawang') {
-            $krwMachineIds = ($plant === 'karawang' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'LIKE', 'K%')->pluck('id')->toArray();
-            $adjustQuery->whereIn('user_id', $krwMachineIds);
-        } elseif ($effectivePlant === 'kbn') {
-            $kbnMachineIds = ($plant === 'kbn' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'NOT LIKE', 'K%')->pluck('id')->toArray();
-            $adjustQuery->whereIn('user_id', $kbnMachineIds);
-        }
-        $adjustLogsRaw = $adjustQuery->get();
+            ->where('created_at', '>=', $windowStartUtc->format('Y-m-d H:i:s'))
+            ->where('created_at', '<', $windowEndUtc->format('Y-m-d H:i:s'));
 
         $mouldQuery = MouldChangeLog::query()
             ->with(['user:id,name'])
-            ->where('created_at', '>=', $windowStart->format('Y-m-d H:i:s'))
-            ->where('created_at', '<', $windowEnd->format('Y-m-d H:i:s'));
+            ->where('created_at', '>=', $windowStartUtc->format('Y-m-d H:i:s'))
+            ->where('created_at', '<', $windowEndUtc->format('Y-m-d H:i:s'));
 
-        if ($effectivePlant === 'karawang') {
+        if ($itemCode) {
+            $adjustQuery->where('item_code', $itemCode);
+            $mouldQuery->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $adjustQuery->where('user_id', $machineUserId);
+            $mouldQuery->where('user_id', $machineUserId);
+        } elseif ($effectivePlant === 'karawang') {
             $krwMachineIds = ($plant === 'karawang' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'LIKE', 'K%')->pluck('id')->toArray();
+            $adjustQuery->whereIn('user_id', $krwMachineIds);
             $mouldQuery->whereIn('user_id', $krwMachineIds);
         } elseif ($effectivePlant === 'kbn') {
             $kbnMachineIds = ($plant === 'kbn' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'NOT LIKE', 'K%')->pluck('id')->toArray();
+            $adjustQuery->whereIn('user_id', $kbnMachineIds);
             $mouldQuery->whereIn('user_id', $kbnMachineIds);
         }
+        $adjustLogsRaw = $adjustQuery->get();
         $mouldLogsRaw = $mouldQuery->get();
 
         // 4. In-Memory Process All Sections Fast
@@ -786,12 +807,13 @@ class ProductionDashboardService
         $allActivityLogs = [];
         $processedAdjustLogs = [];
         foreach ($adjustLogsRaw as $log) {
-            $createdStr = (string)$log->created_at;
-            $shiftNum = self::getShiftFromTimeStr($createdStr);
+            $localCreated = self::getLocalCarbon($log->created_at);
+            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shiftNum = $shiftInfo['shift'];
 
             $durationMin = 0;
             if ($log->end_time) {
-                $startSec = strtotime($createdStr);
+                $startSec = strtotime((string)$log->created_at);
                 $endSec = strtotime((string)$log->end_time);
                 $durationMin = max(0, round(($endSec - $startSec) / 60, 1));
             }
@@ -801,6 +823,8 @@ class ProductionDashboardService
                 : ($masterItems[$log->item_code] ?? null);
             $targetSetupMin = $setupTimeSec ?? 30;
 
+            $localEnd = $log->end_time ? self::getLocalCarbon($log->end_time) : null;
+
             $entry = [
                 'id'               => $log->id,
                 'type'             => 'adjust',
@@ -809,13 +833,14 @@ class ProductionDashboardService
                 'machine_name'     => $log->user->name ?? 'Unknown',
                 'item_code'        => $log->item_code ?? '-',
                 'pic'              => trim($log->pic ?? '') ?: 'Unknown',
-                'start_time'       => date('d M H:i', strtotime($createdStr)),
-                'end_time'         => $log->end_time ? date('H:i', strtotime((string)$log->end_time)) : 'In Progress',
+                'start_time'       => $localCreated->format('d M H:i'),
+                'end_time'         => $localEnd ? $localEnd->format('H:i') : 'In Progress',
                 'duration_minutes' => $durationMin,
                 'target_minutes'   => $targetSetupMin,
                 'is_overtime'      => ($durationMin > $targetSetupMin && $targetSetupMin > 0),
                 'remark'           => $log->remark ?? '',
-                'created_at'       => $createdStr,
+                'created_at'       => $localCreated->format('Y-m-d H:i:s'),
+                'prod_date'        => $shiftInfo['date'],
             ];
             $processedAdjustLogs[] = $entry;
             $allActivityLogs[] = $entry;
@@ -824,12 +849,13 @@ class ProductionDashboardService
         // Format and categorize Mould Change Logs fast
         $processedMouldLogs = [];
         foreach ($mouldLogsRaw as $log) {
-            $createdStr = (string)$log->created_at;
-            $shiftNum = self::getShiftFromTimeStr($createdStr);
+            $localCreated = self::getLocalCarbon($log->created_at);
+            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shiftNum = $shiftInfo['shift'];
 
             $durationMin = 0;
             if ($log->end_time) {
-                $startSec = strtotime($createdStr);
+                $startSec = strtotime((string)$log->created_at);
                 $endSec = strtotime((string)$log->end_time);
                 $durationMin = max(0, round(($endSec - $startSec) / 60, 1));
             }
@@ -839,6 +865,8 @@ class ProductionDashboardService
                 : ($masterItems[$log->item_code] ?? null);
             $targetSetupMin = $setupTimeSec ?? 60;
 
+            $localEnd = $log->end_time ? self::getLocalCarbon($log->end_time) : null;
+
             $entry = [
                 'id'               => $log->id,
                 'type'             => 'mould_change',
@@ -847,13 +875,14 @@ class ProductionDashboardService
                 'machine_name'     => $log->user->name ?? 'Unknown',
                 'item_code'        => $log->item_code ?? '-',
                 'pic'              => trim($log->pic ?? '') ?: 'Unknown',
-                'start_time'       => date('d M H:i', strtotime($createdStr)),
-                'end_time'         => $log->end_time ? date('H:i', strtotime((string)$log->end_time)) : 'In Progress',
+                'start_time'       => $localCreated->format('d M H:i'),
+                'end_time'         => $localEnd ? $localEnd->format('H:i') : 'In Progress',
                 'duration_minutes' => $durationMin,
                 'target_minutes'   => $targetSetupMin,
                 'is_overtime'      => ($durationMin > $targetSetupMin && $targetSetupMin > 0),
                 'remark'           => $log->remark ?? '',
-                'created_at'       => $createdStr,
+                'created_at'       => $localCreated->format('Y-m-d H:i:s'),
+                'prod_date'        => $shiftInfo['date'],
             ];
             $processedMouldLogs[] = $entry;
             $allActivityLogs[] = $entry;
@@ -962,8 +991,11 @@ class ProductionDashboardService
         ?string $machineUserId = null,
         ?string $plant = null
     ): array {
-        $windowStart = $startDate->copy()->startOfDay()->setTime(7, 30, 0);
-        $windowEnd = $endDate->copy()->addDay()->startOfDay()->setTime(7, 30, 0);
+        $startDateStr = $startDate->format('Y-m-d');
+        $endDateStr = $endDate->format('Y-m-d');
+
+        $windowStartUtc = Carbon::parse($startDateStr . ' 07:30:00', 'Asia/Jakarta')->setTimezone('UTC');
+        $windowEndUtc = Carbon::parse($endDateStr . ' 07:30:00', 'Asia/Jakarta')->addDay()->setTimezone('UTC');
 
         $masterItems = MasterListItem::pluck('setup_time_minute', 'item_code');
 
@@ -977,31 +1009,35 @@ class ProductionDashboardService
 
         $adjustQuery = AdjustMachineLog::query()
             ->with(['user:id,name'])
-            ->where('created_at', '>=', $windowStart->format('Y-m-d H:i:s'))
-            ->where('created_at', '<', $windowEnd->format('Y-m-d H:i:s'));
-
-        if ($effectivePlant === 'karawang') {
-            $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
-        } elseif ($effectivePlant === 'kbn') {
-            $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
-        }
-        $adjustLogsRaw = $adjustQuery->get();
+            ->where('created_at', '>=', $windowStartUtc->format('Y-m-d H:i:s'))
+            ->where('created_at', '<', $windowEndUtc->format('Y-m-d H:i:s'));
 
         $mouldQuery = MouldChangeLog::query()
             ->with(['user:id,name'])
-            ->where('created_at', '>=', $windowStart->format('Y-m-d H:i:s'))
-            ->where('created_at', '<', $windowEnd->format('Y-m-d H:i:s'));
+            ->where('created_at', '>=', $windowStartUtc->format('Y-m-d H:i:s'))
+            ->where('created_at', '<', $windowEndUtc->format('Y-m-d H:i:s'));
 
-        if ($effectivePlant === 'karawang') {
+        if ($itemCode) {
+            $adjustQuery->where('item_code', $itemCode);
+            $mouldQuery->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $adjustQuery->where('user_id', $machineUserId);
+            $mouldQuery->where('user_id', $machineUserId);
+        } elseif ($effectivePlant === 'karawang') {
+            $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
             $mouldQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
         } elseif ($effectivePlant === 'kbn') {
+            $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
             $mouldQuery->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
         }
+        $adjustLogsRaw = $adjustQuery->get();
         $mouldLogsRaw = $mouldQuery->get();
 
         $dicQuery = DailyItemCode::query()
             ->with(['hourlyRemarks.ngDetails.ngType', 'user:id,name'])
-            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+            ->whereBetween('start_date', [$startDateStr, $endDateStr]);
 
         if ($itemCode) $dicQuery->where('item_code', $itemCode);
         if ($machineUserId) $dicQuery->where('user_id', $machineUserId);
@@ -1045,20 +1081,10 @@ class ProductionDashboardService
             $pic = trim($log->pic ?? '');
             if (empty($pic)) continue;
 
-            $createdStr = (string)$log->created_at;
-            $timePart = substr($createdStr, 11, 8);
-            $datePart = substr($createdStr, 0, 10);
-
-            if ($timePart >= '07:30:00' && $timePart < '15:30:00') {
-                $shift = 1;
-                $prodDate = $datePart;
-            } elseif ($timePart >= '15:30:00' && $timePart < '23:30:00') {
-                $shift = 2;
-                $prodDate = $datePart;
-            } else {
-                $shift = 3;
-                $prodDate = ($timePart < '07:30:00') ? date('Y-m-d', strtotime($datePart . ' -1 day')) : $datePart;
-            }
+            $localCreated = self::getLocalCarbon($log->created_at);
+            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shift = $shiftInfo['shift'];
+            $prodDate = $shiftInfo['date'];
 
             if (!isset($shiftAdjustersMap[$prodDate][$shift])) {
                 $shiftAdjustersMap[$prodDate][$shift] = [];
@@ -1079,7 +1105,7 @@ class ProductionDashboardService
             }
             $adjusterStats[$pic]['adjust_count']++;
             if ($log->end_time) {
-                $startSec = strtotime($createdStr);
+                $startSec = strtotime((string)$log->created_at);
                 $endSec = strtotime((string)$log->end_time);
                 $adjusterStats[$pic]['adjust_minutes'] += max(0, ($endSec - $startSec) / 60);
             }
@@ -1203,8 +1229,11 @@ class ProductionDashboardService
         ?string $machineUserId = null,
         ?string $plant = null
     ): array {
-        $windowStart = $startDate->copy()->startOfDay()->setTime(7, 30, 0);
-        $windowEnd = $endDate->copy()->addDay()->startOfDay()->setTime(7, 30, 0);
+        $startDateStr = $startDate->format('Y-m-d');
+        $endDateStr = $endDate->format('Y-m-d');
+
+        $windowStartUtc = Carbon::parse($startDateStr . ' 07:30:00', 'Asia/Jakarta')->setTimezone('UTC');
+        $windowEndUtc = Carbon::parse($endDateStr . ' 07:30:00', 'Asia/Jakarta')->addDay()->setTimezone('UTC');
 
         $effectivePlant = $plant;
         if (!$effectivePlant && $machineUserId) {
@@ -1216,10 +1245,16 @@ class ProductionDashboardService
 
         $adjustQuery = AdjustMachineLog::query()
             ->with(['user:id,name'])
-            ->where('created_at', '>=', $windowStart->format('Y-m-d H:i:s'))
-            ->where('created_at', '<', $windowEnd->format('Y-m-d H:i:s'));
+            ->where('created_at', '>=', $windowStartUtc->format('Y-m-d H:i:s'))
+            ->where('created_at', '<', $windowEndUtc->format('Y-m-d H:i:s'));
 
-        if ($effectivePlant === 'karawang') {
+        if ($itemCode) {
+            $adjustQuery->where('item_code', $itemCode);
+        }
+
+        if ($machineUserId) {
+            $adjustQuery->where('user_id', $machineUserId);
+        } elseif ($effectivePlant === 'karawang') {
             $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
         } elseif ($effectivePlant === 'kbn') {
             $adjustQuery->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
@@ -1228,7 +1263,7 @@ class ProductionDashboardService
 
         $dicQuery = DailyItemCode::query()
             ->with(['hourlyRemarks.ngDetails'])
-            ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+            ->whereBetween('start_date', [$startDateStr, $endDateStr]);
 
         if ($itemCode) $dicQuery->where('item_code', $itemCode);
         if ($machineUserId) $dicQuery->where('user_id', $machineUserId);
