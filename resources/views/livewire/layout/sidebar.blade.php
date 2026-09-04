@@ -191,6 +191,7 @@ new class extends Component {
                     ['name' => 'production-summary-monitor', 'label' => 'Cek Stock Program ke SAP'],
                     ['name' => 'wms.sap-sync-monitor-delivery', 'label' => 'SAP Sync Monitor'],
                     ['name' => 'qc-stock-transfer', 'label' => 'QC Stock Transfer (FFI → FG/RJCT)'],
+                    ['name' => 'api.dashboard', 'label' => 'API Log Dashboard'],
                 ]" />
             @else
                 @if (
@@ -262,6 +263,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('wms.sap-sync-monitor-delivery') }}" label="SAP Sync Monitor"
                         :active="request()->routeIs('wms.sap-sync-monitor*')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('api.dashboard') }}" label="API Log Dashboard"
+                        :active="request()->routeIs('api.dashboard')" wire:navigate />
                 @endif
 
 
