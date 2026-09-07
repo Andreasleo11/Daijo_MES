@@ -36,6 +36,7 @@ class SpProductionSession extends Model
         'absent_employees',
         'next_production_schedule',
         'output_destination',
+        'second_process_report_id',
     ];
 
     protected $casts = [
@@ -61,6 +62,11 @@ class SpProductionSession extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function secondProcessReport()
+    {
+        return $this->belongsTo(SecondProcessReport::class, 'second_process_report_id');
     }
 
     public function qcBypassedBy()

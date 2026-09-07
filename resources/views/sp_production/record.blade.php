@@ -153,6 +153,7 @@
                     reworkEntries: @json($session->reworkEntries),
                     inputEntries: @json($session->inputEntries),
                     manpowerEntries: @json($session->manpowerEntries),
+                    roleLabels: @json(config('mes.sp_manpower_roles', [])),
 
                     pausedAt: {{ $session->paused_at ? "'" . $session->paused_at->toIso8601String() . "'" : "null" }},
                     pausedDurationMinutes: 0,
@@ -627,23 +628,30 @@
                         }
                     },
 
-                    parseUtc(dateString) {
-                        if (!dateString) return null;
-                        if (typeof dateString === 'string') {
-                            if (!dateString.endsWith('Z') && !dateString.includes('+')) {
-                                return new Date(dateString.replace(' ', 'T') + 'Z');
-                            }
-                        }
-                        return new Date(dateString);
-                    },
                     formatTime(dateString) {
-                        const d = this.parseUtc(dateString);
-                        if (!d || isNaN(d)) return '-';
+                        if (!dateString) return '-';
+                        if (typeof dateString === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(dateString.trim())) {
+                            return dateString.trim();
+                        }
+                        let s = typeof dateString === 'string' ? dateString.trim() : dateString;
+                        if (typeof s === 'string' && !s.includes('+') && !s.endsWith('Z')) {
+                            s = s.replace(' ', 'T') + 'Z';
+                        }
+                        const d = new Date(s);
+                        if (isNaN(d.getTime())) return typeof dateString === 'string' ? dateString : '-';
                         return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
                     },
                     formatHM(dateString) {
-                        const d = this.parseUtc(dateString);
-                        if (!d || isNaN(d)) return '-';
+                        if (!dateString) return '-';
+                        if (typeof dateString === 'string' && /^\d{2}:\d{2}$/.test(dateString.trim())) {
+                            return dateString.trim();
+                        }
+                        let s = typeof dateString === 'string' ? dateString.trim() : dateString;
+                        if (typeof s === 'string' && !s.includes('+') && !s.endsWith('Z')) {
+                            s = s.replace(' ', 'T') + 'Z';
+                        }
+                        const d = new Date(s);
+                        if (isNaN(d.getTime())) return typeof dateString === 'string' ? dateString : '-';
                         return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
                     },
                     formatNum(num) {
@@ -1031,7 +1039,7 @@
                                             </span>
                                         </template>
                                         <template x-if="item.role !== undefined || item.streamType === 'manpower'">
-                                            <span>Team Member Added: <strong class="text-purple-800" x-text="item.operator_name || ('Worker #' + (item.user_id || item.id))"></strong> <span class="text-slate-400 font-normal" x-text="item.role ? '(' + item.role + ')' : ''"></span></span>
+                                            <span>Team Member Added: <strong class="text-purple-800" x-text="item.operator_name || ('Worker #' + (item.user_id || item.id))"></strong> <span class="text-slate-400 font-normal" x-text="item.role ? '(' + (roleLabels[item.role] || item.role) + ')' : ''"></span></span>
                                         </template>
                                     </td>
                                     <td class="px-4 py-2.5 text-right font-black text-xs">
@@ -1050,7 +1058,7 @@
                                         <span x-show="item.source !== undefined || item.streamType === 'input'"
                                               :class="item.source === 'reworkable' ? 'text-purple-700' : 'text-blue-700'"
                                               x-text="'+' + formatNum(item.quantity || 0) + (item.source === 'reworkable' ? ' Rework' : ' WIP')"></span>
-                                        <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="text-purple-700" x-text="item.role || 'Team'"></span>
+                                        <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="text-purple-700" x-text="roleLabels[item.role] || item.role || 'Team'"></span>
                                     </td>
                                     <td class="px-4 py-2.5 text-center whitespace-nowrap">
                                         @if($session->status === 'running')
@@ -1592,19 +1600,35 @@
                 <h3 class="text-lg font-black text-white">+ Add Line Team Member</h3>
                 <button type="button" onclick="document.getElementById('modalManpower').close()" class="text-purple-200 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            <form action="{{ route('app.sp-sessions.add-manpower', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'manpower')" class="p-6">
+            <form action="{{ route('app.sp-sessions.add-manpower', $session->id) }}" method="POST"
+                  @submit.prevent="submitForm($event, 'manpower'); selectedRole = 'loading'; customRole = ''"
+                  x-data="{ selectedRole: 'loading', customRole: '' }" class="p-6">
                 @csrf
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Worker Role / Position *</label>
-                        <select name="role" required class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white font-bold text-purple-700">
-                            <option value="Main Operator">Main Operator</option>
-                            <option value="Quality Inspector">Quality Inspector</option>
-                            <option value="Assembly Operator">Assembly Operator</option>
-                            <option value="Buffing Operator">Buffing Operator</option>
-                            <option value="Packing Operator">Packing Operator</option>
-                            <option value="Helper">Helper / Material Feeder</option>
+                        <select x-model="selectedRole" :name="selectedRole === '__custom__' ? '' : 'role'" required
+                                class="w-full border-gray-300 rounded-xl text-lg p-3 bg-gray-50 focus:bg-white font-bold text-purple-700">
+                            @foreach(config('mes.sp_manpower_roles', [
+                                'loading'  => 'Loading / Input',
+                                'sprayer'  => 'Sprayer',
+                                'checker'  => 'Checker',
+                                'qc'       => 'QC',
+                                'packing'  => 'Packing',
+                                'operator' => 'Operator',
+                                'leader'   => 'Leader',
+                            ]) as $roleKey => $roleLabel)
+                                <option value="{{ $roleKey }}">{{ $roleLabel }}</option>
+                            @endforeach
+                            <option value="__custom__">Other (custom)...</option>
                         </select>
+
+                        <div x-show="selectedRole === '__custom__'" class="mt-2" x-cloak>
+                            <input type="text" :name="selectedRole === '__custom__' ? 'role' : ''"
+                                   x-model="customRole" :required="selectedRole === '__custom__'"
+                                   placeholder="Type custom role..."
+                                   class="w-full border-gray-300 rounded-xl text-base p-3 bg-white font-bold text-purple-900 focus:ring-2 focus:ring-purple-500">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Operator Name *</label>

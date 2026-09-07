@@ -3,12 +3,22 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | MES Operating Timezone (UTC+7 / WIB)
+    |--------------------------------------------------------------------------
+    |
+    | Define the primary operational timezone for shop floor logs and shifts.
+    |
+    */
+    'timezone' => env('MES_TIMEZONE', 'Asia/Jakarta'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Factory Shift Schedules
     |--------------------------------------------------------------------------
     |
     | Define the start and end times for each shift.
     | This is used by dashboards to auto-detect the current active shift.
-    | Times should be in 'H:i' format. The timezone used is defined in app.timezone (Asia/Jakarta).
+    | Times should be in 'H:i' format.
     |
     */
     'shifts' => [
@@ -84,5 +94,24 @@ return [
         'Silk Screen',
         'Tampoprint',
         'Cat',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Manpower Roles
+    |--------------------------------------------------------------------------
+    |
+    | Standard worker roles/positions for Second Process production lines,
+    | aligned with legacy SecondProcessReport manpower schema.
+    |
+    */
+    'sp_manpower_roles' => [
+        'loading'  => 'Loading / Input',
+        'sprayer'  => 'Sprayer',
+        'checker'  => 'Checker',
+        'qc'       => 'QC',
+        'packing'  => 'Packing',
+        'operator' => 'Operator',
+        'leader'   => 'Leader',
     ],
 ];

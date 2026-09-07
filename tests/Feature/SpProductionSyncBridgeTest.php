@@ -123,5 +123,90 @@ class SpProductionSyncBridgeTest extends TestCase
             'masalah' => 'Material Delay',
             'loss_time_minutes' => 25,
         ]);
+
+        // Assert 1-to-1 foreign key linkage
+        $this->assertEquals($legacyReport->id, $session->fresh()->second_process_report_id);
+        $this->assertEquals($session->id, $legacyReport->sp_production_session_id);
+    }
+
+    public function test_multiple_approved_sessions_on_same_line_and_shift_create_distinct_reports(): void
+    {
+        Gate::define('approve-sp-sessions', fn () => true);
+
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $wo = SpWorkOrder::create([
+            'wo_number' => 'WO-MULTI-001',
+            'planned_date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PN-MULTI-SAME',
+            'part_name' => 'Panel X',
+            'model' => 'Model X',
+            'customer' => 'Customer A',
+            'target_qty' => 1000,
+            'status' => 'released',
+            'created_by' => $user->id,
+        ]);
+
+        // Session 1
+        $session1 = SpProductionSession::create([
+            'work_order_id' => $wo->id,
+            'operator_id' => $user->id,
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'status' => 'completed',
+            'started_at' => now()->subHours(6),
+            'finished_at' => now()->subHours(3),
+            'total_input' => 300,
+            'total_good' => 290,
+            'total_reject' => 10,
+        ]);
+
+        // Session 2 (same line, shift, date, part)
+        $session2 = SpProductionSession::create([
+            'work_order_id' => $wo->id,
+            'operator_id' => $user->id,
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'status' => 'completed',
+            'started_at' => now()->subHours(3),
+            'finished_at' => now(),
+            'total_input' => 200,
+            'total_good' => 195,
+            'total_reject' => 5,
+        ]);
+
+        // Approve Session 1
+        $this->post(route('sp-approvals.approve', $session1->id));
+
+        // Approve Session 2
+        $this->post(route('sp-approvals.approve', $session2->id));
+
+        // Assert strictly 2 distinct reports exist!
+        $this->assertEquals(2, SecondProcessReport::where('part_number', 'PN-MULTI-SAME')->count());
+
+        $session1->refresh();
+        $session2->refresh();
+
+        $this->assertNotNull($session1->second_process_report_id);
+        $this->assertNotNull($session2->second_process_report_id);
+        $this->assertNotEquals($session1->second_process_report_id, $session2->second_process_report_id);
+
+        $report1 = SecondProcessReport::find($session1->second_process_report_id);
+        $report2 = SecondProcessReport::find($session2->second_process_report_id);
+
+        $this->assertEquals(290, $report1->jumlah_ok);
+        $this->assertEquals(195, $report2->jumlah_ok);
+        $this->assertEquals('Approved', $report1->status);
+        $this->assertEquals('Approved', $report2->status);
+
+        // Revert Session 1 back for correction
+        $this->post(route('sp-approvals.reject', $session1->id), ['reason' => 'Recount needed']);
+
+        // Assert Report 1 is demoted to Draft, while Report 2 remains Approved
+        $this->assertEquals('Draft', $report1->fresh()->status);
+        $this->assertEquals('Approved', $report2->fresh()->status);
     }
 }

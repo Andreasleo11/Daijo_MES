@@ -9,7 +9,7 @@
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>S{{ $shift }}</span>
                     <span class="text-slate-300">•</span>
-                    <span class="font-mono text-slate-700">{{ \Carbon\Carbon::now('Asia/Jakarta')->format('d M Y') }}</span>
+                    <span class="font-mono text-slate-700">{{ \Carbon\Carbon::now(config('mes.timezone', 'Asia/Jakarta'))->format('d M Y') }}</span>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@
                         <div class="bg-slate-50/80 px-6 py-2.5 border-b border-slate-100 flex justify-between items-center text-xs">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span class="font-black text-emerald-950 uppercase tracking-wide">Running since {{ $runningSession->started_at?->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }}</span>
+                                <span class="font-black text-emerald-950 uppercase tracking-wide">Running since {{ $runningSession->started_at?->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('d M Y, H:i') }}</span>
                             </div>
                         </div>
 

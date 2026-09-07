@@ -58,12 +58,18 @@ class SecondProcessReport extends Model
         'ipqc_inspector_name',
         'ipqc_checker_name',
         'ipqc_overall_judgement',
+        'sp_production_session_id',
     ];
 
     protected $casts = [
         'next_production_schedule' => 'array',
         'ipqc_selected_measurements' => 'array',
     ];
+
+    public function spProductionSession()
+    {
+        return $this->belongsTo(SpProductionSession::class, 'sp_production_session_id');
+    }
 
     public function materials()
     {

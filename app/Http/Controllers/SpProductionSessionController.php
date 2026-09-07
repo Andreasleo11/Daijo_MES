@@ -64,7 +64,7 @@ class SpProductionSessionController extends Controller
             'work_order_id' => $workOrder->id,
             'operator_id' => auth()->id(),
             'unit_line' => $workOrder->unit_line,
-            'shift' => $this->getCurrentShift(Carbon::now('Asia/Jakarta')),
+            'shift' => $this->getCurrentShift(Carbon::now(config('mes.timezone', 'Asia/Jakarta'))),
             'status' => 'running',
             'started_at' => now(),
             'is_qc_bypassed' => $isBypassed,
@@ -380,12 +380,11 @@ class SpProductionSessionController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        $sessionDate = $session->started_at
-            ? $session->started_at->setTimezone('Asia/Jakarta')->format('Y-m-d')
-            : Carbon::now('Asia/Jakarta')->format('Y-m-d');
+        $tz = config('mes.timezone', 'Asia/Jakarta');
+        $sessionDate = $session->started_at?->setTimezone($tz)->format('Y-m-d') ?? Carbon::now($tz)->format('Y-m-d');
 
-        $startDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['start_time']}", 'Asia/Jakarta')->setTimezone('UTC');
-        $resumeDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['resume_time']}", 'Asia/Jakarta')->setTimezone('UTC');
+        $startDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['start_time']}", $tz);
+        $resumeDT = Carbon::createFromFormat('Y-m-d H:i', "{$sessionDate} {$validated['resume_time']}", $tz);
 
         if ($resumeDT->lt($startDT)) {
             $resumeDT->addDay();
@@ -395,8 +394,8 @@ class SpProductionSessionController extends Controller
 
         $entry = $session->downtimeEntries()->create([
             'reason' => $validated['reason'],
-            'start_time' => $startDT,
-            'resume_time' => $resumeDT,
+            'start_time' => $startDT->utc(),
+            'resume_time' => $resumeDT->utc(),
             'duration_minutes' => $duration,
             'remarks' => $validated['remarks'] ?? null,
         ]);
@@ -647,7 +646,7 @@ class SpProductionSessionController extends Controller
         }
 
         // Active date & shift filter (locked to today)
-        $now = Carbon::now('Asia/Jakarta');
+        $now = Carbon::now(config('mes.timezone', 'Asia/Jakarta'));
         $date = $now->format('Y-m-d');
         $currentShift = $this->getCurrentShift($now);
 

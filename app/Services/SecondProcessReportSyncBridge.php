@@ -34,7 +34,7 @@ class SecondProcessReportSyncBridge
 
             $wo = $session->workOrder;
 
-            $dateStr = $session->started_at ? $session->started_at->format('Y-m-d') : now()->format('Y-m-d');
+            $dateStr = $session->started_at?->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('Y-m-d') ?? Carbon::now(config('mes.timezone', 'Asia/Jakarta'))->format('Y-m-d');
             $unitLine = $session->unit_line ?: ($wo->unit_line ?? 'Line 1');
             $shift = $session->shift ?: ($wo->shift ?? '1');
             $partNumber = $wo->part_number ?? '-';
@@ -49,41 +49,51 @@ class SecondProcessReportSyncBridge
             }
             $repairan = max($inputReworkable, (int) $session->total_rework_recovered);
 
-            // Find or create matching legacy report
-            $report = SecondProcessReport::updateOrCreate(
-                [
-                    'date' => $dateStr,
-                    'unit_line' => $unitLine,
-                    'shift' => $shift,
-                    'part_number' => $partNumber,
-                ],
-                [
-                    'process_prod' => $wo->process_prod ?? 'Second Process',
-                    'status' => 'Approved',
-                    'model' => $wo->model ?? '-',
-                    'part_name' => $wo->part_name ?? '-',
-                    'customer' => $wo->customer ?? '-',
-                    'target_per_hour' => (int) ceil(($wo->target_qty ?? 0) / 8),
-                    'jml_input_wip' => $inputWip,
-                    'repairan' => $repairan,
-                    'jumlah_output' => $session->total_good + $session->total_reject,
-                    'jumlah_ok' => $session->total_good,
-                    'jumlah_ng' => $session->total_reject,
-                    'ng_prosentase' => $session->yield > 0 ? round(100 - $session->yield, 2) : 0,
-                    'jml_ng_lebur' => $session->total_scrap,
-                    'leader_name' => $session->operator->name ?? null,
-                    'leader_signed_at' => $session->finished_at,
-                    'created_by_name' => $session->operator->name ?? null,
-                    'created_by_signed_at' => $session->finished_at,
-                    'production_notes' => $session->production_notes ?? $session->remarks,
-                    'ng_remarks' => $session->ng_remarks,
-                    'absent_employees' => $session->absent_employees,
-                    'next_production_schedule' => $session->next_production_schedule,
-                    'output_destination' => $session->output_destination,
-                    'acknowledged_by_name' => $session->approvedBy->name ?? null,
-                    'acknowledged_signed_at' => $session->approved_at,
-                ]
-            );
+            $reportData = [
+                'sp_production_session_id' => $session->id,
+                'date' => $dateStr,
+                'unit_line' => $unitLine,
+                'shift' => $shift,
+                'part_number' => $partNumber,
+                'process_prod' => $wo->process_prod ?? 'Second Process',
+                'status' => 'Approved',
+                'model' => $wo->model ?? '-',
+                'part_name' => $wo->part_name ?? '-',
+                'customer' => $wo->customer ?? '-',
+                'target_per_hour' => (int) ceil(($wo->target_qty ?? 0) / 8),
+                'jml_input_wip' => $inputWip,
+                'repairan' => $repairan,
+                'jumlah_output' => $session->total_good + $session->total_reject,
+                'jumlah_ok' => $session->total_good,
+                'jumlah_ng' => $session->total_reject,
+                'ng_prosentase' => $session->yield > 0 ? round(100 - $session->yield, 2) : 0,
+                'jml_ng_lebur' => $session->total_scrap,
+                'leader_name' => $session->operator->name ?? null,
+                'leader_signed_at' => $session->finished_at,
+                'created_by_name' => $session->operator->name ?? null,
+                'created_by_signed_at' => $session->finished_at,
+                'production_notes' => $session->production_notes ?? $session->remarks,
+                'ng_remarks' => $session->ng_remarks,
+                'absent_employees' => $session->absent_employees,
+                'next_production_schedule' => $session->next_production_schedule,
+                'output_destination' => $session->output_destination,
+                'acknowledged_by_name' => $session->approvedBy->name ?? null,
+                'acknowledged_signed_at' => $session->approved_at,
+            ];
+
+            // Strictly 1-to-1: update existing linked report if re-approving, otherwise create new
+            if ($session->second_process_report_id) {
+                $report = SecondProcessReport::find($session->second_process_report_id);
+            } else {
+                $report = null;
+            }
+
+            if ($report) {
+                $report->update($reportData);
+            } else {
+                $report = SecondProcessReport::create($reportData);
+                $session->update(['second_process_report_id' => $report->id]);
+            }
 
             // Sync NG Defect Records
             $report->ngRecords()->delete();
@@ -203,22 +213,11 @@ class SecondProcessReportSyncBridge
      */
     public function handleSessionReversion(SpProductionSession $session): void
     {
-        $wo = $session->workOrder;
-        if (!$wo) return;
-
-        $dateStr = $session->started_at ? $session->started_at->format('Y-m-d') : now()->format('Y-m-d');
-        $unitLine = $session->unit_line ?: $wo->unit_line;
-        $shift = $session->shift ?: $wo->shift;
-
-        $report = SecondProcessReport::where([
-            'date' => $dateStr,
-            'unit_line' => $unitLine,
-            'shift' => $shift,
-            'part_number' => $wo->part_number,
-        ])->first();
-
-        if ($report) {
-            $report->update(['status' => 'Draft']);
+        if ($session->second_process_report_id) {
+            $report = SecondProcessReport::find($session->second_process_report_id);
+            if ($report) {
+                $report->update(['status' => 'Draft']);
+            }
         }
     }
 }

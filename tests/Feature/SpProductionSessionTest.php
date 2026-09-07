@@ -152,6 +152,12 @@ class SpProductionSessionTest extends TestCase
             'reason' => 'Machine Breakdown',
             'duration_minutes' => 30
         ]);
+
+        $entry = \App\Models\SpDowntimeEntry::where('session_id', $this->session->id)->first();
+        $this->assertEquals(30, $entry->duration_minutes);
+        // Start time was input as 10:00 WIB and stored in DB as 03:00 UTC
+        $this->assertEquals('03:00', $entry->start_time->format('H:i'));
+        $this->assertEquals('10:00', $entry->start_time->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('H:i'));
     }
 
     public function test_can_log_input_wip()

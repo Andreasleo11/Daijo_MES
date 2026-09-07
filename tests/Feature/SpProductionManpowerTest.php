@@ -47,21 +47,62 @@ class SpProductionManpowerTest extends TestCase
             'total_reject' => 0,
         ]);
 
-        // Add Manpower
-        $response = $this->post(route('app.sp-sessions.add-manpower', $session->id), [
+        // Verify floor screen renders manpower options from config('mes.sp_manpower_roles')
+        $responseScreen = $this->get(route('app.sp-sessions.show', $session->id));
+        $responseScreen->assertOk();
+        $responseScreen->assertSee('Loading / Input');
+        $responseScreen->assertSee('Sprayer');
+        $responseScreen->assertSee('Packing');
+        $responseScreen->assertSee('Other (custom)...');
+
+        // Add Standard Manpower (e.g. Sprayer)
+        $response1 = $this->post(route('app.sp-sessions.add-manpower', $session->id), [
             'operator_name' => 'John Doe',
             'employee_no' => 'EMP-1001',
-            'role' => 'Quality Inspector',
+            'role' => 'sprayer',
+        ]);
+        $response1->assertRedirect();
+
+        // Add Infeed & Outfeed Manpower (loading & packing)
+        $this->post(route('app.sp-sessions.add-manpower', $session->id), [
+            'operator_name' => 'Alice Loading',
+            'employee_no' => 'EMP-1002',
+            'role' => 'loading',
+        ]);
+        $this->post(route('app.sp-sessions.add-manpower', $session->id), [
+            'operator_name' => 'Bob Packing',
+            'employee_no' => 'EMP-1003',
+            'role' => 'packing',
         ]);
 
-        $response->assertRedirect();
+        // Add Custom Manpower Role
+        $response2 = $this->post(route('app.sp-sessions.add-manpower', $session->id), [
+            'operator_name' => 'Charlie Custom',
+            'employee_no' => 'EMP-1004',
+            'role' => 'Buffing Specialist',
+        ]);
+        $response2->assertRedirect();
+
         $this->assertDatabaseHas('sp_session_manpowers', [
             'session_id' => $session->id,
             'operator_name' => 'John Doe',
-            'role' => 'Quality Inspector',
+            'role' => 'sprayer',
         ]);
-
-        $manpower = $session->manpowerEntries()->first();
+        $this->assertDatabaseHas('sp_session_manpowers', [
+            'session_id' => $session->id,
+            'operator_name' => 'Alice Loading',
+            'role' => 'loading',
+        ]);
+        $this->assertDatabaseHas('sp_session_manpowers', [
+            'session_id' => $session->id,
+            'operator_name' => 'Bob Packing',
+            'role' => 'packing',
+        ]);
+        $this->assertDatabaseHas('sp_session_manpowers', [
+            'session_id' => $session->id,
+            'operator_name' => 'Charlie Custom',
+            'role' => 'Buffing Specialist',
+        ]);
 
         // Complete session
         $session->update(['status' => 'completed', 'finished_at' => now()]);
@@ -77,7 +118,22 @@ class SpProductionManpowerTest extends TestCase
         $this->assertDatabaseHas('second_process_manpowers', [
             'report_id' => $legacyReport->id,
             'name' => 'John Doe',
-            'role' => 'Quality Inspector',
+            'role' => 'sprayer',
+        ]);
+        $this->assertDatabaseHas('second_process_manpowers', [
+            'report_id' => $legacyReport->id,
+            'name' => 'Alice Loading',
+            'role' => 'loading',
+        ]);
+        $this->assertDatabaseHas('second_process_manpowers', [
+            'report_id' => $legacyReport->id,
+            'name' => 'Bob Packing',
+            'role' => 'packing',
+        ]);
+        $this->assertDatabaseHas('second_process_manpowers', [
+            'report_id' => $legacyReport->id,
+            'name' => 'Charlie Custom',
+            'role' => 'Buffing Specialist',
         ]);
     }
 }

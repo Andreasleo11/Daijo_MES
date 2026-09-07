@@ -20,7 +20,7 @@
             $lineSlug = array_search($session->unit_line, $spLines) ?: \Illuminate\Support\Str::slug($session->unit_line);
             $gatewayUrl = route('sp-sessions.line-gateway', [
                 'lineSlug' => $lineSlug,
-                'date' => $session->started_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
+                'date' => $session->started_at?->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('Y-m-d') ?? \Carbon\Carbon::now(config('mes.timezone', 'Asia/Jakarta'))->format('Y-m-d'),
                 'shift' => $session->shift ?? 1,
             ]);
             $directGood = (int) $session->productionEntries()->sum('good_qty');
@@ -313,7 +313,7 @@
                                             </span>
                                         </div>
                                         <div class="text-[10px] font-mono text-slate-400">
-                                            {{ $dt->start_time ? $dt->start_time->format('H:i') : '-' }} – {{ $dt->resume_time ? $dt->resume_time->format('H:i') : '-' }}
+                                            {{ $dt->start_time ? $dt->start_time->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('H:i') : '-' }} – {{ $dt->resume_time ? $dt->resume_time->setTimezone(config('mes.timezone', 'Asia/Jakarta'))->format('H:i') : '-' }}
                                         </div>
                                     </div>
 

@@ -274,34 +274,24 @@
                                             <input type="hidden" name="manpower[{{ $index }}][no]"
                                                 class="mp-no-input" value="{{ $loop->iteration }}">
                                             @php
-                                                $isCustom = !in_array($mp->role, [
-                                                    'loading',
-                                                    'sprayer',
-                                                    'checker',
-                                                    'qc',
-                                                    'operator',
-                                                    'leader',
+                                                $spRoles = config('mes.sp_manpower_roles', [
+                                                    'loading'  => 'Loading / Input',
+                                                    'sprayer'  => 'Sprayer',
+                                                    'checker'  => 'Checker',
+                                                    'qc'       => 'QC',
+                                                    'packing'  => 'Packing',
+                                                    'operator' => 'Operator',
+                                                    'leader'   => 'Leader',
                                                 ]);
+                                                $isCustom = !array_key_exists($mp->role, $spRoles);
                                             @endphp
                                             <select
                                                 class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select"
                                                 onchange="toggleCustomRole(this, {{ $index }})">
-                                                <option value="loading"
-                                                    {{ $mp->role == 'loading' ? 'selected' : '' }}>Loading / Input /
-                                                    Packing</option>
-                                                <option value="sprayer"
-                                                    {{ $mp->role == 'sprayer' ? 'selected' : '' }}>Sprayer</option>
-                                                <option value="checker"
-                                                    {{ $mp->role == 'checker' ? 'selected' : '' }}>Checker</option>
-                                                <option value="qc" {{ $mp->role == 'qc' ? 'selected' : '' }}>QC
-                                                </option>
-                                                <option value="operator"
-                                                    {{ $mp->role == 'operator' ? 'selected' : '' }}>Operator</option>
-                                                <option value="leader" {{ $mp->role == 'leader' ? 'selected' : '' }}>
-                                                    Leader</option>
-                                                <option value="__custom__" {{ $isCustom ? 'selected' : '' }}>Other
-                                                    (custom)
-                                                    ...</option>
+                                                @foreach($spRoles as $roleKey => $roleLabel)
+                                                    <option value="{{ $roleKey }}" {{ $mp->role == $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
+                                                @endforeach
+                                                <option value="__custom__" {{ $isCustom ? 'selected' : '' }}>Other (custom)...</option>
                                             </select>
                                             <input type="text" name="manpower[{{ $index }}][role]"
                                                 value="{{ $mp->role }}"
@@ -336,12 +326,17 @@
                                             <select
                                                 class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select"
                                                 onchange="toggleCustomRole(this, 0)">
-                                                <option value="loading">Loading / Input / Packing</option>
-                                                <option value="sprayer">Sprayer</option>
-                                                <option value="checker">Checker</option>
-                                                <option value="qc">QC</option>
-                                                <option value="operator">Operator</option>
-                                                <option value="leader">Leader</option>
+                                                @foreach(config('mes.sp_manpower_roles', [
+                                                    'loading'  => 'Loading / Input',
+                                                    'sprayer'  => 'Sprayer',
+                                                    'checker'  => 'Checker',
+                                                    'qc'       => 'QC',
+                                                    'packing'  => 'Packing',
+                                                    'operator' => 'Operator',
+                                                    'leader'   => 'Leader',
+                                                ]) as $roleKey => $roleLabel)
+                                                    <option value="{{ $roleKey }}">{{ $roleLabel }}</option>
+                                                @endforeach
                                                 <option value="__custom__">Other (custom)...</option>
                                             </select>
                                             <input type="text" name="manpower[0][role]" value="loading"
@@ -1925,12 +1920,17 @@
             <td class="px-4 py-2">
                 <input type="hidden" name="manpower[${manpowerIndex}][no]" class="mp-no-input" value="${nextNo}">
                 <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, ${manpowerIndex})">
-                    <option value="loading">Loading / Input / Packing</option>
-                    <option value="sprayer">Sprayer</option>
-                    <option value="checker">Checker</option>
-                    <option value="qc">QC</option>
-                    <option value="operator">Operator</option>
-                    <option value="leader">Leader</option>
+                    @foreach(config('mes.sp_manpower_roles', [
+                        'loading'  => 'Loading / Input',
+                        'sprayer'  => 'Sprayer',
+                        'checker'  => 'Checker',
+                        'qc'       => 'QC',
+                        'packing'  => 'Packing',
+                        'operator' => 'Operator',
+                        'leader'   => 'Leader',
+                    ]) as $roleKey => $roleLabel)
+                        <option value="{{ $roleKey }}">{{ $roleLabel }}</option>
+                    @endforeach
                     <option value="__custom__">Other (custom)...</option>
                 </select>
                 <input type="text" name="manpower[${manpowerIndex}][role]" value="loading" class="w-full text-xs rounded border-gray-300 py-1 role-input hidden" placeholder="Type custom role..." readonly>
