@@ -654,21 +654,16 @@
 
             function rejectBuilder(presetList) {
                 return {
-                    searchQuery: '',
                     presetList: presetList || [],
                     stagedItems: [],
+                    showCustom: false,
+                    showCause: false,
+                    customName: '',
                     cause: '',
 
-                    get filteredPresets() {
-                        const q = (this.searchQuery || '').trim().toLowerCase();
-                        if (!q) return this.presetList;
-                        return this.presetList.filter(p => p.toLowerCase().includes(q));
-                    },
-
-                    get showCustomAdd() {
-                        const q = (this.searchQuery || '').trim();
-                        if (!q) return false;
-                        return !this.presetList.some(p => p.toLowerCase() === q.toLowerCase());
+                    getDefectCount(name) {
+                        const item = this.stagedItems.find(i => i.defect_type.toLowerCase() === name.toLowerCase());
+                        return item ? item.quantity : 0;
                     },
 
                     addDefect(name) {
@@ -680,11 +675,28 @@
                         } else {
                             this.stagedItems.push({ defect_type: cleanName, quantity: 1 });
                         }
-                        this.searchQuery = '';
+                    },
+
+                    decrementDefect(name) {
+                        const idx = this.stagedItems.findIndex(i => i.defect_type.toLowerCase() === name.toLowerCase());
+                        if (idx !== -1) {
+                            if (this.stagedItems[idx].quantity > 1) {
+                                this.stagedItems[idx].quantity -= 1;
+                            } else {
+                                this.stagedItems.splice(idx, 1);
+                            }
+                        }
                     },
 
                     removeDefect(idx) {
                         this.stagedItems.splice(idx, 1);
+                    },
+
+                    addCustomDefect() {
+                        if (this.customName && this.customName.trim()) {
+                            this.addDefect(this.customName.trim());
+                            this.customName = '';
+                        }
                     },
 
                     get totalDefectQty() {
@@ -700,9 +712,11 @@
                     },
 
                     resetCounts() {
-                        this.searchQuery = '';
                         this.stagedItems = [];
+                        this.customName = '';
                         this.cause = '';
+                        this.showCustom = false;
+                        this.showCause = false;
                     }
                 };
             }
@@ -916,6 +930,15 @@
                 {{-- Sub-Hero Action Strip (Action Triggers Only) --}}
                 <div class="flex items-center justify-end gap-3 mt-3 flex-shrink-0">
                     <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
+                        {{-- Issue to Rework Trigger --}}
+                        <button type="button" x-show="availableDefectsForRework > 0" x-cloak
+                                onclick="document.getElementById('modalIssueRework').showModal()"
+                                title="Issue unsorted defect stock to rework bench"
+                                class="px-3.5 py-2 bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                            <span>Issue to Rework</span>
+                            <span class="bg-yellow-600 text-white px-1.5 py-0.5 rounded-md text-[10px] font-black" x-text="availableDefectsForRework + ' Pcs'"></span>
+                        </button>
+
                         {{-- Log Downtime Trigger (Manual Stoppages) --}}
                         <button type="button" onclick="document.getElementById('modalDowntime').showModal()"
                                 title="Log Micro-stoppages or Past Downtime"
@@ -1103,13 +1126,13 @@
         </div>
     </dialog>
 
-    {{-- Modal 2: Log Defect (Zero-Scroll Search-As-You-Type Builder) --}}
+    {{-- Modal 2: Log Defect (Quick Grid Batch) --}}
     <dialog id="modalReject" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-xl backdrop:bg-gray-900/60 bg-transparent">
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div class="bg-red-600 px-6 py-4 flex justify-between items-center text-white">
                 <div>
                     <h3 class="text-xl font-black">Log Defect Entries</h3>
-                    <p class="text-xs text-red-100 font-medium mt-0.5">Search or type defects, assign quantities, and submit batch</p>
+                    <p class="text-xs text-red-100 font-medium mt-0.5">Tap common defects to add (+1 per tap) or stage multiple</p>
                 </div>
                 <button type="button" onclick="document.getElementById('modalReject').close()" class="text-red-200 hover:text-white text-2xl font-bold">&times;</button>
             </div>
@@ -1121,75 +1144,65 @@
             <form action="{{ route('app.sp-sessions.add-reject', $session->id) }}" method="POST"
                   @submit.prevent="submitMultiRejectForm($event)"
                   x-data="rejectBuilder({{ json_encode($presetDefects) }})"
-                  class="p-6">
+                  class="p-5 sm:p-6 space-y-4">
                 @csrf
 
-                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-bold text-blue-900">
+                {{-- WIP Balance Pill --}}
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-bold text-blue-900">
                     <span>Available Input WIP:</span>
                     <span class="text-sm font-black" x-text="formatNum(availableWip) + ' Pcs'"></span>
                 </div>
 
-                {{-- Search / Type Defect Input --}}
-                <div class="relative mb-4">
-                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Search or Type Defect Name</label>
-                    <div class="flex items-center gap-2">
-                        <input type="text" x-model="searchQuery"
-                               @keydown.enter.prevent="if (searchQuery.trim()) { addDefect(searchQuery); }"
-                               placeholder="Type e.g. Flash, Burn Mark, or custom defect..."
-                               class="flex-1 text-sm font-bold border-slate-300 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900 placeholder-slate-400">
-                        <button type="button" @click="if (searchQuery.trim()) addDefect(searchQuery)"
-                                class="px-4 py-3 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer flex-shrink-0">
-                            + ADD
-                        </button>
-                    </div>
-
-                    {{-- Search Dropdown Suggestions --}}
-                    <div x-show="searchQuery.trim().length > 0" x-cloak
-                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
-                        <template x-for="p in filteredPresets" :key="p">
+                {{-- Quick Grid of Common Defects --}}
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Common Defects (Tap to add +1)</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <template x-for="p in presetList" :key="p">
                             <button type="button" @click="addDefect(p)"
-                                    class="w-full text-left px-4 py-2.5 hover:bg-red-50 transition flex items-center justify-between cursor-pointer">
-                                <span class="font-bold text-sm text-slate-800" x-text="p"></span>
-                                <span class="text-xs font-black text-red-600">+ Select</span>
-                            </button>
-                        </template>
-
-                        <template x-if="showCustomAdd">
-                            <button type="button" @click="addDefect(searchQuery)"
-                                    class="w-full text-left px-4 py-2.5 bg-red-50 hover:bg-red-100 transition flex items-center justify-between cursor-pointer border-t border-red-200">
-                                <span>Add Custom Defect: <strong class="text-red-700 font-black" x-text="'&quot;' + searchQuery.trim() + '&quot;'"></strong></span>
-                                <span class="text-xs font-black text-red-700">+ Add Custom</span>
+                                    :class="getDefectCount(p) > 0 ? 'bg-red-50 border-red-500 text-red-900 shadow-xs ring-2 ring-red-200' : 'bg-slate-50 hover:bg-red-50/50 border-slate-200 text-slate-800'"
+                                    class="p-3.5 rounded-xl border-2 font-bold text-sm flex items-center justify-between transition cursor-pointer select-none active:scale-95 text-left">
+                                <span class="truncate flex-1 pr-1" x-text="p"></span>
+                                <div class="flex items-center gap-1">
+                                    <template x-if="getDefectCount(p) > 0">
+                                        <span class="px-2 py-0.5 rounded-lg bg-red-600 text-white font-black text-xs shadow-xs" x-text="getDefectCount(p)"></span>
+                                    </template>
+                                    <template x-if="getDefectCount(p) === 0">
+                                        <span class="text-slate-400 font-black text-base leading-none">+</span>
+                                    </template>
+                                </div>
                             </button>
                         </template>
                     </div>
                 </div>
 
-                {{-- Staged Defects List (Visible ONLY when at least 1 defect added) --}}
-                <div x-show="stagedItems.length > 0" x-cloak class="mb-4">
-                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                        Staged Defect Entries (<span x-text="stagedItems.length"></span>)
-                    </label>
+                {{-- Staged Defect Summary --}}
+                <div x-show="stagedItems.length > 0" x-cloak class="pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-black uppercase tracking-wider text-slate-600">
+                            Staged for Submission (<span x-text="totalDefectQty"></span> Pcs across <span x-text="stagedItems.length"></span> types)
+                        </label>
+                        <button type="button" @click="resetCounts()" class="text-[11px] font-bold text-slate-400 hover:text-red-600 cursor-pointer">Clear All</button>
+                    </div>
 
-                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                    <div class="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
                         <template x-for="(item, idx) in stagedItems" :key="item.defect_type + '-' + idx">
-                            <div class="p-2.5 bg-red-50/80 border border-red-200 rounded-xl flex items-center justify-between gap-3">
-                                <span class="font-black text-sm text-red-950 flex-1 truncate" x-text="item.defect_type"></span>
+                            <div class="p-2 bg-red-50/70 border border-red-200 rounded-xl flex items-center justify-between gap-2">
+                                <span class="font-black text-xs sm:text-sm text-red-950 truncate flex-1" x-text="item.defect_type"></span>
 
-                                {{-- Counter & Remove --}}
-                                <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    <button type="button" @click="item.quantity = Math.max(1, (parseInt(item.quantity) || 1) - 1)"
-                                            class="w-7 h-7 rounded-lg bg-white border border-red-200 text-red-700 font-black text-base flex items-center justify-center hover:bg-red-100 transition cursor-pointer">
+                                {{-- Stepper Controls --}}
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    <button type="button" @click="decrementDefect(item.defect_type)"
+                                            class="w-7 h-7 rounded-lg bg-white border border-red-200 text-red-700 font-black text-sm flex items-center justify-center hover:bg-red-100 transition cursor-pointer select-none">
                                         -
                                     </button>
                                     <input type="number" min="1" x-model.number="item.quantity" @focus="$event.target.select()"
-                                           class="w-12 h-7 text-center font-black text-sm border border-red-200 rounded-lg bg-white text-red-700 p-0 focus:ring-red-500">
+                                           class="w-12 h-7 text-center font-black text-xs sm:text-sm border border-red-200 rounded-lg bg-white text-red-700 p-0 focus:ring-red-500">
                                     <button type="button" @click="item.quantity = (parseInt(item.quantity) || 0) + 1"
-                                            class="w-7 h-7 rounded-lg bg-red-600 text-white font-black text-base flex items-center justify-center hover:bg-red-500 transition cursor-pointer">
+                                            class="w-7 h-7 rounded-lg bg-red-600 text-white font-black text-sm flex items-center justify-center hover:bg-red-500 transition cursor-pointer select-none">
                                         +
                                     </button>
-
                                     <button type="button" @click="removeDefect(idx)"
-                                            class="w-7 h-7 ml-1 text-slate-400 hover:text-red-600 font-bold text-lg flex items-center justify-center transition cursor-pointer" title="Remove">
+                                            class="w-7 h-7 text-slate-400 hover:text-red-600 font-bold text-base flex items-center justify-center transition cursor-pointer" title="Remove">
                                         &times;
                                     </button>
                                 </div>
@@ -1198,62 +1211,50 @@
                     </div>
                 </div>
 
-                {{-- Probable Cause Optional --}}
-                <div x-show="stagedItems.length > 0" x-cloak class="mb-4">
-                    <input type="text" x-model="cause" placeholder="Probable Cause for this batch (Optional)..."
-                           class="w-full border-slate-300 rounded-xl text-xs p-2.5 bg-slate-50 focus:bg-white font-medium">
+                {{-- Optional Expandable Toggles (Clean, Zero Distraction by Default) --}}
+                <div class="pt-1 flex flex-col gap-2">
+                    <div class="flex items-center gap-3 text-xs font-bold text-slate-500">
+                        <button type="button" @click="showCustom = !showCustom" class="hover:text-red-600 underline cursor-pointer">
+                            <span x-text="showCustom ? '− Hide Custom Defect' : '+ Other / Custom Defect'"></span>
+                        </button>
+                        <span>•</span>
+                        <button type="button" @click="showCause = !showCause" class="hover:text-slate-800 underline cursor-pointer">
+                            <span x-text="showCause ? '− Hide Note / Cause' : '+ Add Note / Cause (Optional)'"></span>
+                        </button>
+                    </div>
+
+                    {{-- Expandable Custom Defect Input --}}
+                    <div x-show="showCustom" x-cloak class="flex items-center gap-2 pt-1">
+                        <input type="text" x-model="customName"
+                               @keydown.enter.prevent="addCustomDefect()"
+                               placeholder="Type unlisted defect name..."
+                               class="flex-1 text-xs font-bold border-slate-300 rounded-xl p-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900">
+                        <button type="button" @click="addCustomDefect()"
+                                class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs rounded-xl transition cursor-pointer">
+                            + Add
+                        </button>
+                    </div>
+
+                    {{-- Expandable Cause / Note --}}
+                    <div x-show="showCause" x-cloak class="pt-1">
+                        <input type="text" x-model="cause" placeholder="Optional probable cause / notes for this batch..."
+                               class="w-full border-slate-300 rounded-xl text-xs p-2.5 bg-slate-50 focus:bg-white font-medium">
+                    </div>
                 </div>
 
                 {{-- WIP Warning --}}
-                <div x-show="totalDefectQty > availableWip" class="mb-4 p-2 bg-red-100 border border-red-300 rounded-xl text-xs font-bold text-red-700 text-center">
+                <div x-show="totalDefectQty > availableWip" class="p-2 bg-red-100 border border-red-300 rounded-xl text-xs font-bold text-red-700 text-center">
                     Warning: Total defect quantity (<span x-text="totalDefectQty"></span> Pcs) exceeds available WIP (<span x-text="availableWip"></span> Pcs).
                 </div>
 
-                <div>
+                {{-- Big Submit Button --}}
+                <div class="pt-2">
                     <button type="submit"
                             :disabled="totalDefectQty <= 0 || stagedItems.length === 0 || totalDefectQty > availableWip"
-                            :class="(totalDefectQty <= 0 || stagedItems.length === 0 || totalDefectQty > availableWip) ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-red-600 hover:bg-red-500 active:bg-red-700 shadow-lg'"
-                            class="w-full text-white py-3.5 rounded-xl text-base font-black uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2">
-                        <span x-text="totalDefectQty > 0 ? ('SUBMIT ' + totalDefectQty + ' DEFECT(S) (' + stagedItems.length + ' TYPES)') : 'ADD DEFECT TYPES TO SUBMIT'"></span>
+                            :class="(totalDefectQty <= 0 || stagedItems.length === 0 || totalDefectQty > availableWip) ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-red-600 hover:bg-red-500 active:bg-red-700 shadow-lg cursor-pointer'"
+                            class="w-full text-white py-4 rounded-xl text-base font-black uppercase tracking-wider transition flex items-center justify-center gap-2">
+                        <span x-text="totalDefectQty > 0 ? ('SUBMIT ' + totalDefectQty + ' DEFECT(S) (' + stagedItems.length + ' TYPES)') : 'TAP COMMON DEFECT TO LOG'"></span>
                     </button>
-                </div>
-
-                {{-- Defect Lifecycle & Rework Status Breakdown (2-Cycle Rework) --}}
-                <div x-show="(totals.raw_reject || totals.reject) > 0" class="mt-5 pt-4 border-t border-slate-200">
-                    <div class="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                        <span>Defect Lifecycle & Rework Status</span>
-                        <span class="text-slate-500 font-bold" x-text="formatNum(totals.raw_reject || totals.reject) + ' Pcs Logged'"></span>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 mb-3 text-center text-xs">
-                        {{-- 1. Unsorted Defect Stock --}}
-                        <div class="p-2 rounded-xl bg-amber-50 border border-amber-200">
-                            <span class="block text-[10px] font-bold text-amber-800 uppercase">Available to Rework</span>
-                            <strong class="text-sm font-black text-amber-950" x-text="formatNum(availableDefectsForRework) + ' Pcs'"></strong>
-                        </div>
-
-                        {{-- 2. Completed Outcomes --}}
-                        <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
-                            <span class="block text-[10px] font-bold text-emerald-800 uppercase">Completed</span>
-                            <div class="text-[11px] font-black text-emerald-950 leading-tight">
-                                <span class="text-emerald-700" x-text="formatNum(totals.rework_recovered) + ' OK'"></span> / 
-                                <span class="text-red-700" x-text="formatNum(totals.rework_scrapped) + ' Scrap'"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2">
-                        <button type="button" x-show="availableDefectsForRework > 0"
-                                onclick="document.getElementById('modalReject').close(); document.getElementById('modalIssueRework').showModal();"
-                                class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white font-black text-xs rounded-xl shadow-xs transition uppercase tracking-wider cursor-pointer">
-                            Issue to Rework (<span x-text="availableDefectsForRework"></span> Pcs)
-                        </button>
-                        <button type="button" x-show="reworkPending > 0"
-                                onclick="document.getElementById('modalReject').close(); document.getElementById('modalCompleteRework').showModal();"
-                                class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition uppercase tracking-wider cursor-pointer">
-                            Complete Outcome (<span x-text="reworkPending"></span> Pcs)
-                        </button>
-                    </div>
                 </div>
             </form>
         </div>
