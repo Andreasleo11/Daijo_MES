@@ -23,17 +23,17 @@ class MaterialFifoService
         // 1. Outgoings in period
         $outgoingQuery = MwhOutgoing::query();
         if ($whseId) {
-            $outgoingQuery->where('whse_id', $whseId);
+            $outgoingQuery->where('mwh_outgoings.whse_id', $whseId);
         }
         if ($fromDate) {
-            $outgoingQuery->whereDate('outgoing_date', '>=', $fromDate);
+            $outgoingQuery->whereDate('mwh_outgoings.outgoing_date', '>=', $fromDate);
         }
         if ($toDate) {
-            $outgoingQuery->whereDate('outgoing_date', '<=', $toDate);
+            $outgoingQuery->whereDate('mwh_outgoings.outgoing_date', '<=', $toDate);
         }
 
         $totalOutgoingsCount = (int) $outgoingQuery->count();
-        $totalOutgoingQty    = (float) $outgoingQuery->sum('qty_taken');
+        $totalOutgoingQty    = (float) $outgoingQuery->sum('mwh_outgoings.qty_taken');
 
         // 2. FIFO Deviations
         $deviations = $preloadedDeviations !== null 
@@ -47,24 +47,24 @@ class MaterialFifoService
             : 100.0;
 
         // 3. Current active warehouse inventory
-        $palletQuery = MwhPallet::where('current_qty', '>', 0)
-            ->whereIn('status', ['STORED', 'PARTIAL']);
+        $palletQuery = MwhPallet::where('mwh_pallets.current_qty', '>', 0)
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL']);
 
         if ($whseId) {
-            $palletQuery->where('whse_id', $whseId);
+            $palletQuery->where('mwh_pallets.whse_id', $whseId);
         }
 
         $totalActivePallets = (int) $palletQuery->count();
-        $totalActiveStockKg = (float) $palletQuery->sum('current_qty');
+        $totalActiveStockKg = (float) $palletQuery->sum('mwh_pallets.current_qty');
 
         // 4. QC Hold inventory
-        $qcHoldQuery = MwhPallet::where('current_qty', '>', 0)
-            ->where('is_qc_hold', true);
+        $qcHoldQuery = MwhPallet::where('mwh_pallets.current_qty', '>', 0)
+            ->where('mwh_pallets.is_qc_hold', true);
         if ($whseId) {
-            $qcHoldQuery->where('whse_id', $whseId);
+            $qcHoldQuery->where('mwh_pallets.whse_id', $whseId);
         }
         $qcHoldPalletsCount = (int) $qcHoldQuery->count();
-        $qcHoldQtyKg        = (float) $qcHoldQuery->sum('current_qty');
+        $qcHoldQtyKg        = (float) $qcHoldQuery->sum('mwh_pallets.current_qty');
 
         // 5. Overaged active inventory (>60 days) - Database-agnostic fast SQL
         $sixtyDaysAgo = now()->subDays(60)->format('Y-m-d');
@@ -142,17 +142,17 @@ class MaterialFifoService
             'material',
             'warehouse',
             'position.rack'
-        ])->orderBy('outgoing_date', 'desc')
-          ->orderBy('id', 'desc');
+        ])->orderBy('mwh_outgoings.outgoing_date', 'desc')
+          ->orderBy('mwh_outgoings.id', 'desc');
 
         if ($whseId) {
-            $outgoingsQuery->where('whse_id', $whseId);
+            $outgoingsQuery->where('mwh_outgoings.whse_id', $whseId);
         }
         if ($fromDate) {
-            $outgoingsQuery->whereDate('outgoing_date', '>=', $fromDate);
+            $outgoingsQuery->whereDate('mwh_outgoings.outgoing_date', '>=', $fromDate);
         }
         if ($toDate) {
-            $outgoingsQuery->whereDate('outgoing_date', '<=', $toDate);
+            $outgoingsQuery->whereDate('mwh_outgoings.outgoing_date', '<=', $toDate);
         }
 
         $outgoings = $outgoingsQuery->get();
@@ -263,11 +263,11 @@ class MaterialFifoService
         $whseId = ($whseId && is_numeric($whseId)) ? (int) $whseId : null;
 
         $palletsQuery = MwhPallet::with(['incomingHeader', 'position.rack', 'material'])
-            ->where('current_qty', '>', 0)
-            ->whereIn('status', ['STORED', 'PARTIAL']);
+            ->where('mwh_pallets.current_qty', '>', 0)
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL']);
 
         if ($whseId) {
-            $palletsQuery->where('whse_id', $whseId);
+            $palletsQuery->where('mwh_pallets.whse_id', $whseId);
         }
 
         $pallets = $palletsQuery->get();
@@ -349,19 +349,19 @@ class MaterialFifoService
         $whseId = ($whseId && is_numeric($whseId)) ? (int) $whseId : null;
 
         $palletsQuery = MwhPallet::with(['incomingHeader', 'position.rack', 'material', 'warehouse'])
-            ->where('current_qty', '>', 0)
-            ->whereIn('status', ['STORED', 'PARTIAL']);
+            ->where('mwh_pallets.current_qty', '>', 0)
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL']);
 
         if ($whseId) {
-            $palletsQuery->where('whse_id', $whseId);
+            $palletsQuery->where('mwh_pallets.whse_id', $whseId);
         }
 
         if (!empty(trim($search))) {
             $term = '%' . trim($search) . '%';
             $palletsQuery->where(function ($q) use ($term) {
-                $q->where('item_code', 'like', $term)
-                  ->orWhere('lot_no', 'like', $term)
-                  ->orWhere('pallet_id', 'like', $term)
+                $q->where('mwh_pallets.item_code', 'like', $term)
+                  ->orWhere('mwh_pallets.lot_no', 'like', $term)
+                  ->orWhere('mwh_pallets.pallet_id', 'like', $term)
                   ->orWhereHas('material', fn($mq) => $mq->where('item_description', 'like', $term));
             });
         }
@@ -463,11 +463,11 @@ class MaterialFifoService
         // Incoming volumes
         $incomingQuery = MwhPallet::query();
         if ($whseId) {
-            $incomingQuery->where('whse_id', $whseId);
+            $incomingQuery->where('mwh_pallets.whse_id', $whseId);
         }
-        $incomings = $incomingQuery->whereDate('created_at', '>=', $start->format('Y-m-d'))
-            ->whereDate('created_at', '<=', $end->format('Y-m-d'))
-            ->selectRaw('DATE(created_at) as date_val, SUM(initial_qty) as total_in')
+        $incomings = $incomingQuery->whereDate('mwh_pallets.created_at', '>=', $start->format('Y-m-d'))
+            ->whereDate('mwh_pallets.created_at', '<=', $end->format('Y-m-d'))
+            ->selectRaw('DATE(mwh_pallets.created_at) as date_val, SUM(mwh_pallets.initial_qty) as total_in')
             ->groupBy('date_val')
             ->pluck('total_in', 'date_val')
             ->toArray();
@@ -475,11 +475,11 @@ class MaterialFifoService
         // Outgoing volumes
         $outgoingQuery = MwhOutgoing::query();
         if ($whseId) {
-            $outgoingQuery->where('whse_id', $whseId);
+            $outgoingQuery->where('mwh_outgoings.whse_id', $whseId);
         }
-        $outgoings = $outgoingQuery->whereDate('outgoing_date', '>=', $start->format('Y-m-d'))
-            ->whereDate('outgoing_date', '<=', $end->format('Y-m-d'))
-            ->selectRaw('DATE(outgoing_date) as date_val, SUM(qty_taken) as total_out')
+        $outgoings = $outgoingQuery->whereDate('mwh_outgoings.outgoing_date', '>=', $start->format('Y-m-d'))
+            ->whereDate('mwh_outgoings.outgoing_date', '<=', $end->format('Y-m-d'))
+            ->selectRaw('DATE(mwh_outgoings.outgoing_date) as date_val, SUM(mwh_outgoings.qty_taken) as total_out')
             ->groupBy('date_val')
             ->pluck('total_out', 'date_val')
             ->toArray();

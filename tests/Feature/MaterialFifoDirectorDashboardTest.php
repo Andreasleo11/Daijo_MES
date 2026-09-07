@@ -422,16 +422,28 @@ class MaterialFifoDirectorDashboardTest extends TestCase
 
     public function test_livewire_fifo_dashboard_component_renders_and_interacts()
     {
-        $this->seedStandardTestData();
+        $data = $this->seedStandardTestData();
 
         Livewire::test(MaterialFifoDirectorDashboard::class)
             ->assertStatus(200)
             ->assertSee('FIFO Compliance Rate')
             ->assertSee('Material FIFO Executive Dashboard')
+            ->set('whse_id', $data['warehouse']->id)
+            ->assertSet('whse_id', $data['warehouse']->id)
             ->set('activeTab', 'deviations')
             ->assertSet('activeTab', 'deviations')
             ->set('activeTab', 'queue')
             ->assertSet('activeTab', 'queue')
+            ->set('activeTab', 'aging')
+            ->assertSet('activeTab', 'aging')
+            ->set('activeTab', 'overview')
+            ->assertSet('activeTab', 'overview')
+            ->set('preset', 'today')
+            ->assertSet('preset', 'today')
+            ->set('preset', '7_days')
+            ->assertSet('preset', '7_days')
+            ->set('preset', '30_days')
+            ->assertSet('preset', '30_days')
             ->set('preset', 'this_month')
             ->assertSet('preset', 'this_month');
     }
