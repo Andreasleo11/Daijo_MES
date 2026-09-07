@@ -134,12 +134,20 @@ class SpProductionSession extends Model
         $reworkRecovered = (int) $this->reworkEntries()->sum('recovered_qty');
         $reworkScrapped = (int) $this->reworkEntries()->sum('scrapped_qty');
 
+        $internalRecovered = (int) $this->reworkEntries()
+            ->where('remarks', 'not like', 'From Reworkable Input%')
+            ->sum('recovered_qty');
+        $externalScrapped = (int) $this->reworkEntries()
+            ->where('remarks', 'like', 'From Reworkable Input%')
+            ->sum('scrapped_qty');
+
         $this->total_rework_in = (int) $this->reworkEntries()->sum('input_qty');
         $this->total_rework_recovered = $reworkRecovered;
         $this->total_scrap = $reworkScrapped;
 
         $this->total_good = $directGood + $reworkRecovered;
-        $this->total_reject = max(0, $rawReject - $reworkRecovered);
+        $netLineReject = max(0, $rawReject - $internalRecovered);
+        $this->total_reject = max($netLineReject + $externalScrapped, $reworkScrapped);
         $this->total_input = (int) $this->inputEntries()->sum('quantity');
         $this->save();
     }

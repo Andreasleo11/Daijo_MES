@@ -275,14 +275,15 @@ class SpProductionSessionController extends Controller
             ]);
 
             $qty = (int) ($validated['issue_qty'] ?? $validated['input_qty']);
+            $rawReject = (int) $session->rejectEntries()->sum('quantity');
             $internalReworkIn = (int) $session->reworkEntries()
                 ->where('remarks', 'not like', 'From Reworkable Input%')
                 ->sum('input_qty');
-            $availableDefectStock = max(0, $session->total_reject - $internalReworkIn);
+            $availableDefectStock = max(0, $rawReject - $internalReworkIn);
 
             if ($qty > $availableDefectStock) {
                 return response()->json([
-                    'error' => "Cannot issue more than available defect stock ({$availableDefectStock} Pcs available out of {$session->total_reject} Pcs total logged defects)."
+                    'error' => "Cannot issue more than available defect stock ({$availableDefectStock} Pcs available out of {$rawReject} Pcs total logged defects)."
                 ], 422);
             }
 
@@ -528,13 +529,17 @@ class SpProductionSessionController extends Controller
 
     public function closeout($id)
     {
-        $session = SpProductionSession::with([
+        $session = SpProductionSession::findOrFail($id);
+        $session->recalculateTotals();
+
+        $session->load([
             'workOrder',
             'operator',
             'materials',
             'downtimeEntries',
             'manpowerEntries',
-        ])->findOrFail($id);
+            'inputEntries' => fn($q) => $q->orderBy('created_at', 'asc')->orderBy('id', 'asc'),
+        ]);
 
         $troubleCategories = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
 

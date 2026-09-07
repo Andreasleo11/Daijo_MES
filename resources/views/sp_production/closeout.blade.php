@@ -24,7 +24,37 @@
                 'shift' => $session->shift ?? 1,
             ]);
             $directGood = (int) $session->productionEntries()->sum('good_qty');
-            $unusedWip = max(0, $session->total_input - ($session->total_good + $session->total_reject));
+            $finalScrap = max($session->total_reject, $session->total_scrap);
+            $unusedWip = max(0, $session->total_input - ($session->total_good + $finalScrap));
+
+            $defaultPartMaterials = [];
+            $wipCounter = 1;
+            $repairanCounter = 1;
+
+            if ($session->inputEntries && $session->inputEntries->isNotEmpty()) {
+                foreach ($session->inputEntries as $entry) {
+                    $isRework = (($entry->source ?? '') === 'reworkable');
+                    $name = $isRework ? ('Repairan ' . $repairanCounter++) : ('WIP ' . $wipCounter++);
+                    $defaultPartMaterials[] = [
+                        'item_name' => $name,
+                        'lot_number' => $entry->pallet_number ?: ($entry->remarks ?: ''),
+                        'qty' => $entry->quantity ?? '',
+                        'uom' => 'Pcs',
+                    ];
+                }
+            }
+
+            if (empty($defaultPartMaterials)) {
+                $defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
+                foreach ($defaultParts as $name) {
+                    $defaultPartMaterials[] = [
+                        'item_name' => $name,
+                        'lot_number' => '',
+                        'qty' => '',
+                        'uom' => 'Pcs',
+                    ];
+                }
+            }
         @endphp
 
         {{-- Flash Success Banner --}}
@@ -113,8 +143,16 @@
                     {{-- Final Scrap --}}
                     <div class="bg-red-50/70 p-3.5 rounded-2xl border border-red-200/80">
                         <span class="block text-[10px] font-black text-red-700 uppercase tracking-wider">Final Scrap</span>
-                        <span class="text-lg font-black text-red-950 leading-tight block">{{ number_format($session->total_reject) }} Pcs</span>
-                        <span class="text-[9px] font-bold text-red-700/80">Net Defect Write-off</span>
+                        <span class="text-lg font-black text-red-950 leading-tight block">{{ number_format($finalScrap) }} Pcs</span>
+                        <span class="text-[9px] font-bold text-red-700/80 truncate block">
+                            @if($session->total_scrap > 0 && ($finalScrap - $session->total_scrap) > 0)
+                                {{ number_format($session->total_scrap) }} Scrapped • {{ number_format($finalScrap - $session->total_scrap) }} Line Defect
+                            @elseif($session->total_scrap > 0)
+                                {{ number_format($session->total_scrap) }} Scrapped on Bench
+                            @else
+                                Net Defect Write-off
+                            @endif
+                        </span>
                     </div>
 
                     {{-- Total Downtime --}}
@@ -129,7 +167,7 @@
                         <span class="block text-[10px] font-black text-purple-700 uppercase tracking-wider">Process Yield Rate</span>
                         <div class="flex items-baseline gap-2">
                             <span class="text-xl font-black text-purple-950">{{ number_format($session->yield, 1) }}%</span>
-                            <span class="text-[10px] font-bold text-purple-700">({{ number_format($session->total_good) }} / {{ number_format($session->total_good + $session->total_reject) }} Processed)</span>
+                            <span class="text-[10px] font-bold text-purple-700">({{ number_format($session->total_good) }} / {{ number_format($session->total_good + $finalScrap) }} Processed)</span>
                         </div>
                     </div>
                 </div>
@@ -199,7 +237,14 @@
                 {{-- Part / WIP Materials Sub-table --}}
                 <div class="space-y-3 pt-2">
                     <div class="flex justify-between items-center">
-                        <span class="text-[11px] font-black text-slate-700 uppercase tracking-wider">Item Parts / WIP Lots</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-black text-slate-700 uppercase tracking-wider">Item Parts / WIP Lots</span>
+                            @if($session->inputEntries && $session->inputEntries->isNotEmpty())
+                                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                    ✓ Pre-filled from {{ $session->inputEntries->count() }} Input Log{{ $session->inputEntries->count() > 1 ? 's' : '' }}
+                                </span>
+                            @endif
+                        </div>
                         <button type="button" @click="addPartRow()" class="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-800 font-black text-xs rounded-xl border border-blue-200 transition cursor-pointer">
                             + Add Part / WIP Item
                         </button>
@@ -405,15 +450,15 @@
                             });
                         });
 
-                        // Default Part presets
-                        const defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
-                        defaultParts.forEach(name => {
+                        // Default Part presets (derived from session input logs)
+                        const defaultParts = @json($defaultPartMaterials);
+                        defaultParts.forEach(part => {
                             this.partMaterials.push({
                                 globalIndex: this.nextGlobalIndex++,
-                                item_name: name,
-                                lot_number: '',
-                                qty: '',
-                                uom: ''
+                                item_name: part.item_name || '',
+                                lot_number: part.lot_number || '',
+                                qty: part.qty !== '' ? part.qty : '',
+                                uom: part.uom || 'Pcs'
                             });
                         });
                     }
@@ -441,7 +486,7 @@
                         item_name: '',
                         lot_number: '',
                         qty: '',
-                        uom: ''
+                        uom: 'Pcs'
                     });
                 },
 
