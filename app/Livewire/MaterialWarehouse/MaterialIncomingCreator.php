@@ -223,16 +223,17 @@ class MaterialIncomingCreator extends Component
 
                         try {
                             $pallet = MwhPallet::create([
-                                'whse_id'            => $this->whse_id,
-                                'pallet_id'          => $palletId,
-                                'incoming_header_id' => $header->id,
-                                'item_code'          => $itemCode,
-                                'lot_no'             => $lotNo,
-                                'initial_qty'        => $palletQty,
-                                'current_qty'        => $palletQty,
-                                'uom'                => 'KG',
-                                'position_id'        => $targetPosId,
-                                'status'             => 'STORED',
+                                'whse_id'             => $this->whse_id,
+                                'pallet_id'           => $palletId,
+                                'incoming_header_id'  => $header->id,
+                                'item_code'           => $itemCode,
+                                'lot_no'              => $lotNo,
+                                'initial_qty'         => $palletQty,
+                                'current_qty'         => $palletQty,
+                                'uom'                 => 'KG',
+                                'position_id'         => $targetPosId,
+                                'initial_position_id' => $targetPosId,
+                                'status'              => 'STORED',
                             ]);
                             $inserted = true;
                         } catch (\Illuminate\Database\QueryException $qe) {

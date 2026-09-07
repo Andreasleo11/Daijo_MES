@@ -261,7 +261,7 @@
                 </tr>
                 <tr>
                     <td class="lbl">SLOT RAK:</td>
-                    <td class="val val-slot">{{ $pallet->position ? $pallet->position->position_code : 'UNASSIGNED' }}</td>
+                    <td class="val val-slot">{{ $pallet->position ? $pallet->position->position_code : ($pallet->initialPosition ? $pallet->initialPosition->position_code : ($pallet->outgoings?->first()?->position?->position_code ?: 'UNASSIGNED')) }}</td>
                 </tr>
                 <tr>
                     <td class="lbl">LOT / BATCH:</td>

@@ -135,13 +135,16 @@
                     <!-- Slot Location -->
                     <div class="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-1">
                         <span class="text-[9px] font-black text-emerald-800 uppercase tracking-widest block">Lokasi Slot Rak</span>
+                        @php
+                            $effectivePos = $pallet->position ?: ($pallet->initialPosition ?: ($pallet->outgoings?->first()?->position ?: null));
+                        @endphp
                         <span class="font-mono font-black text-emerald-950 block text-base">
-                            {{ $pallet->position ? $pallet->position->position_code : 'Unassigned' }}
+                            {{ $effectivePos ? $effectivePos->position_code : 'Unassigned' }}
                         </span>
                         <span class="text-[11px] text-emerald-700 font-bold block">
-                            {{ $pallet->position ? ($pallet->position->slot_label ?: 'Slot') : 'Slot -' }}
-                            @if ($pallet->position && $pallet->position->rack)
-                                &bull; Rak {{ $pallet->position->rack->rack_code }}
+                            {{ $effectivePos ? ($effectivePos->slot_label ?: 'Slot') : 'Slot -' }}
+                            @if ($effectivePos && $effectivePos->rack)
+                                &bull; Rak {{ $effectivePos->rack->rack_code }}
                             @endif
                         </span>
                     </div>

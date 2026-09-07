@@ -152,7 +152,7 @@ class MaterialPalletIndex extends Component
 
     public function render()
     {
-        $pallets = MwhPallet::with(['position.rack', 'material', 'incomingHeader'])
+        $pallets = MwhPallet::with(['position.rack', 'initialPosition.rack', 'outgoings.position', 'material', 'incomingHeader'])
             ->when($this->search, function ($query) {
                 $s = '%' . trim($this->search) . '%';
                 $query->where(function ($q) use ($s) {
@@ -161,6 +161,9 @@ class MaterialPalletIndex extends Component
                       ->orWhere('lot_no', 'like', $s)
                       ->orWhere('qc_hold_reason', 'like', $s)
                       ->orWhereHas('position', function ($posQ) use ($s) {
+                          $posQ->where('position_code', 'like', $s);
+                      })
+                      ->orWhereHas('initialPosition', function ($posQ) use ($s) {
                           $posQ->where('position_code', 'like', $s);
                       });
                 });
