@@ -162,15 +162,7 @@ class SpProductionSessionController extends Controller
                 'success' => true,
                 'message' => 'Production recorded successfully.',
                 'entry' => $entry,
-                'totals' => [
-                    'good' => $session->total_good,
-                    'reject' => $session->total_reject,
-                    'input' => $session->total_input,
-                    'yield' => $session->yield,
-                    'downtime_minutes' => $session->downtimeEntries->sum('duration_minutes') ?? 0,
-                    'rework_in' => $session->total_rework_in,
-                    'rework_recovered' => $session->total_rework_recovered,
-                ]
+                'totals' => $this->getSessionTotalsArray($session)
             ]);
         }
 
@@ -283,7 +275,10 @@ class SpProductionSessionController extends Controller
             ]);
 
             $qty = (int) ($validated['issue_qty'] ?? $validated['input_qty']);
-            $availableDefectStock = max(0, $session->total_reject - $session->total_rework_in);
+            $internalReworkIn = (int) $session->reworkEntries()
+                ->where('remarks', 'not like', 'From Reworkable Input%')
+                ->sum('input_qty');
+            $availableDefectStock = max(0, $session->total_reject - $internalReworkIn);
 
             if ($qty > $availableDefectStock) {
                 return response()->json([
@@ -435,28 +430,40 @@ class SpProductionSessionController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
+        $source = in_array(strtolower($validated['source'] ?? ''), ['reworkable', 'rework']) ? 'reworkable' : ($validated['source'] ?? 'wip');
+
         $entry = $session->inputEntries()->create([
             'quantity' => $validated['quantity'],
-            'source' => $validated['source'] ?? 'manual',
+            'source' => $source,
             'pallet_number' => $validated['pallet_number'] ?? null,
             'remarks' => $validated['remarks'] ?? null,
         ]);
 
+        $reworkEntry = null;
+        if ($source === 'reworkable') {
+            $reworkEntry = $session->reworkEntries()->create([
+                'input_qty' => $validated['quantity'],
+                'recovered_qty' => 0,
+                'scrapped_qty' => 0,
+                'remarks' => "From Reworkable Input #{$entry->id}" . (!empty($validated['pallet_number']) ? " ({$validated['pallet_number']})" : ''),
+            ]);
+        }
+
         $session->recalculateTotals();
+
+        $entryLabel = $entry->source === 'reworkable' ? 'Reworkable' : 'Input WIP';
 
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Input quantity recorded successfully.',
+                'message' => "{$entryLabel} quantity recorded successfully.",
                 'entry' => $entry,
-                'totals' => [
-                    'input' => $session->total_input,
-                    'yield' => $session->yield,
-                ]
+                'rework_entry' => $reworkEntry,
+                'totals' => $this->getSessionTotalsArray($session)
             ]);
         }
 
-        return redirect()->back()->with('success', 'Input quantity recorded successfully.');
+        return redirect()->back()->with('success', "{$entryLabel} quantity recorded successfully.");
     }
 
     public function addManpower(Request $request, $id)
@@ -830,12 +837,41 @@ class SpProductionSessionController extends Controller
         }
 
         $entry = $session->reworkEntries()->findOrFail($entryId);
+
+        $deletedInputEntryId = null;
+        if (preg_match('/^From Reworkable Input #(\d+)/', $entry->remarks ?? '', $matches)) {
+            $inputId = (int) $matches[1];
+            $linkedInput = $session->inputEntries()->find($inputId);
+            if ($linkedInput) {
+                $session->refresh();
+                $processedRework = $session->total_rework_recovered + (int) $session->total_scrap;
+                $remainingReworkIn = $session->total_rework_in - $entry->input_qty;
+                if ($processedRework > $remainingReworkIn) {
+                    return response()->json([
+                        'error' => 'Cannot delete rework entry: parts have already been processed or recovered on the rework bench.'
+                    ], 422);
+                }
+
+                $totalOutput = $session->total_good + $session->total_reject;
+                $remainingInput = $session->total_input - $linkedInput->quantity;
+                if ($totalOutput > $remainingInput) {
+                    return response()->json([
+                        'error' => "Cannot delete entry: {$totalOutput} Pcs of output have already been produced, which exceeds remaining input ({$remainingInput} Pcs)."
+                    ], 422);
+                }
+
+                $linkedInput->delete();
+                $deletedInputEntryId = $inputId;
+            }
+        }
+
         $entry->delete();
         $session->recalculateTotals();
 
         return response()->json([
             'success' => true,
             'message' => 'Rework entry removed successfully.',
+            'deleted_input_id' => $deletedInputEntryId,
             'totals' => $this->getSessionTotalsArray($session)
         ]);
     }
@@ -848,12 +884,42 @@ class SpProductionSessionController extends Controller
         }
 
         $entry = $session->inputEntries()->findOrFail($entryId);
+
+        $totalOutput = $session->total_good + $session->total_reject;
+        $remainingInput = $session->total_input - $entry->quantity;
+        if ($totalOutput > $remainingInput) {
+            return response()->json([
+                'error' => "Cannot delete input: {$totalOutput} Pcs of output have already been produced, which exceeds remaining input ({$remainingInput} Pcs)."
+            ], 422);
+        }
+
+        $deletedReworkEntryId = null;
+        if ($entry->source === 'reworkable') {
+            $linkedRework = $session->reworkEntries()
+                ->where('remarks', 'like', "From Reworkable Input #{$entry->id}%")
+                ->first();
+
+            if ($linkedRework) {
+                $session->refresh();
+                $processedRework = $session->total_rework_recovered + (int) $session->total_scrap;
+                $remainingReworkIn = $session->total_rework_in - $linkedRework->input_qty;
+                if ($processedRework > $remainingReworkIn) {
+                    return response()->json([
+                        'error' => 'Cannot delete reworkable input: parts have already been processed or recovered on the rework bench.'
+                    ], 422);
+                }
+                $deletedReworkEntryId = $linkedRework->id;
+                $linkedRework->delete();
+            }
+        }
+
         $entry->delete();
         $session->recalculateTotals();
 
         return response()->json([
             'success' => true,
-            'message' => 'Input WIP entry removed successfully.',
+            'message' => 'Input entry removed successfully.',
+            'deleted_rework_id' => $deletedReworkEntryId,
             'totals' => $this->getSessionTotalsArray($session)
         ]);
     }
@@ -867,15 +933,27 @@ class SpProductionSessionController extends Controller
         $reworkPending = max(0, $reworkIn - ($reworkRecovered + $reworkScrapped));
         $rawReject = (int) $session->rejectEntries()->sum('quantity');
 
+        $inputWip = (int) $session->inputEntries()->where(function ($q) {
+            $q->where('source', '!=', 'reworkable')->orWhereNull('source');
+        })->sum('quantity');
+        $inputReworkable = (int) $session->inputEntries()->where('source', 'reworkable')->sum('quantity');
+
+        $internalReworkIn = (int) $session->reworkEntries()
+            ->where('remarks', 'not like', 'From Reworkable Input%')
+            ->sum('input_qty');
+
         return [
             'good' => $session->total_good,
             'direct_good' => $directGood,
             'reject' => $session->total_reject,
             'raw_reject' => $rawReject,
             'input' => $session->total_input,
+            'input_wip' => $inputWip,
+            'input_reworkable' => $inputReworkable,
             'yield' => $session->yield,
             'downtime_minutes' => (int) ($session->downtimeEntries()->sum('duration_minutes') ?? 0),
             'rework_in' => $reworkIn,
+            'internal_rework_in' => $internalReworkIn,
             'rework_recovered' => $reworkRecovered,
             'rework_scrapped' => $reworkScrapped,
             'rework_pending' => $reworkPending,

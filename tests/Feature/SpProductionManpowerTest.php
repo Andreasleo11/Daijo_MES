@@ -8,6 +8,7 @@ use App\Models\SpProductionSession;
 use App\Models\SpWorkOrder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class SpProductionManpowerTest extends TestCase
@@ -16,6 +17,8 @@ class SpProductionManpowerTest extends TestCase
 
     public function test_operator_can_add_and_remove_line_manpower()
     {
+        Gate::define('approve-sp-sessions', fn () => true);
+
         $user = User::factory()->create();
         $this->actingAs($user);
 

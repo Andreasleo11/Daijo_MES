@@ -10,6 +10,7 @@ use App\Models\SpWorkOrder;
 use App\Models\User;
 use App\Services\SecondProcessReportSyncBridge;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class SpProductionSyncBridgeTest extends TestCase
@@ -18,6 +19,8 @@ class SpProductionSyncBridgeTest extends TestCase
 
     public function test_approving_session_syncs_to_legacy_second_process_report()
     {
+        Gate::define('approve-sp-sessions', fn () => true);
+
         $user = User::factory()->create();
         $this->actingAs($user);
 
@@ -57,12 +60,15 @@ class SpProductionSyncBridgeTest extends TestCase
             'good_qty' => 480,
         ]);
 
-        // Add a reject entry
-        $session->rejectEntries()->create([
+        // Add a reject entry (20 minutes into the session)
+        $reject = $session->rejectEntries()->create([
             'defect_type' => 'Flash',
             'quantity' => 20,
             'cause' => 'High temperature',
         ]);
+        $reject->timestamps = false;
+        $reject->created_at = $session->started_at->copy()->addMinutes(20);
+        $reject->save();
 
         // Add a downtime entry
         $session->downtimeEntries()->create([

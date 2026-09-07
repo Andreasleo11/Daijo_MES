@@ -39,6 +39,16 @@ class SecondProcessReportSyncBridge
             $shift = $session->shift ?: ($wo->shift ?? '1');
             $partNumber = $wo->part_number ?? '-';
 
+            // Calculate WIP vs Reworkable input
+            $inputReworkable = (int) $session->inputEntries->where('source', 'reworkable')->sum('quantity');
+            $inputWip = (int) $session->inputEntries->where(function ($entry) {
+                return ($entry->source ?? '') !== 'reworkable';
+            })->sum('quantity');
+            if ($inputWip === 0 && $session->total_input > 0 && $inputReworkable === 0) {
+                $inputWip = (int) $session->total_input;
+            }
+            $repairan = max($inputReworkable, (int) $session->total_rework_recovered);
+
             // Find or create matching legacy report
             $report = SecondProcessReport::updateOrCreate(
                 [
@@ -54,8 +64,8 @@ class SecondProcessReportSyncBridge
                     'part_name' => $wo->part_name ?? '-',
                     'customer' => $wo->customer ?? '-',
                     'target_per_hour' => (int) ceil(($wo->target_qty ?? 0) / 8),
-                    'jml_input_wip' => $session->total_input,
-                    'repairan' => $session->total_rework_recovered,
+                    'jml_input_wip' => $inputWip,
+                    'repairan' => $repairan,
                     'jumlah_output' => $session->total_good + $session->total_reject,
                     'jumlah_ok' => $session->total_good,
                     'jumlah_ng' => $session->total_reject,

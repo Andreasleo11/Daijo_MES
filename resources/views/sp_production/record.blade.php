@@ -9,9 +9,15 @@
                 return {
                     liveTime: '',
                     elapsedTime: '',
+                    teamCount: {{ $session->manpowerEntries->count() }},
                     init() {
                         this.update();
                         setInterval(() => this.update(), 1000);
+                        window.addEventListener('team-count-changed', (e) => {
+                            if (e.detail && typeof e.detail.count === 'number') {
+                                this.teamCount = e.detail.count;
+                            }
+                        });
                     },
                     update() {
                         const now = new Date();
@@ -76,7 +82,7 @@
                 <button type="button" onclick="document.getElementById('modalTeamRoster').showModal()"
                         class="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-800 font-bold text-xs rounded-xl border border-purple-200 transition cursor-pointer flex items-center gap-1.5">
                     <span>Team</span>
-                    <span class="bg-purple-600 text-white px-1.5 py-0.2 rounded-md text-[10px] font-black">
+                    <span class="bg-purple-600 text-white px-1.5 py-0.2 rounded-md text-[10px] font-black" x-text="teamCount">
                         {{ $session->manpowerEntries->count() }}
                     </span>
                 </button>
@@ -105,6 +111,8 @@
                     tab: 'all',
                     totals: {
                         input: {{ $session->total_input ?? 0 }},
+                        input_wip: {{ $session->inputEntries->where('source', '!=', 'reworkable')->sum('quantity') ?? 0 }},
+                        input_reworkable: {{ $session->inputEntries->where('source', 'reworkable')->sum('quantity') ?? 0 }},
                         good: {{ $session->total_good ?? 0 }},
                         direct_good: {{ $session->productionEntries->sum('good_qty') ?? 0 }},
                         reject: {{ $session->total_reject ?? 0 }},
@@ -113,6 +121,7 @@
                         downtime_count: {{ $session->downtimeEntries->count() ?? 0 }},
                         raw_reject: {{ $session->rejectEntries->sum('quantity') ?? 0 }},
                         rework_in: {{ $session->total_rework_in ?? 0 }},
+                        internal_rework_in: {{ $session->reworkEntries->where('remarks', 'not like', 'From Reworkable Input%')->sum('input_qty') ?? 0 }},
                         rework_recovered: {{ $session->total_rework_recovered ?? 0 }},
                         rework_scrapped: {{ $session->total_scrap ?? 0 }}
                     },
@@ -124,7 +133,7 @@
                     },
                     get availableDefectsForRework() {
                         const rawRej = parseInt(this.totals.raw_reject !== undefined ? this.totals.raw_reject : this.totals.reject) || 0;
-                        const inQty = parseInt(this.totals.rework_in) || 0;
+                        const inQty = parseInt(this.totals.internal_rework_in !== undefined ? this.totals.internal_rework_in : this.totals.rework_in) || 0;
                         return Math.max(0, rawRej - inQty);
                     },
                     targetQty: {{ $session->workOrder->target_qty ?? 1 }},
@@ -132,6 +141,10 @@
                     liveTime: '',
                     elapsedTime: '',
                     batchSize: 1,
+                    customBatchSize: null,
+                    get isCustomBatch() {
+                        return ![1, 5, 10, 50, 100].includes(this.batchSize);
+                    },
                     quickFlash: false,
                     highlightedEntryId: null,
                     productionEntries: @json($session->productionEntries),
@@ -164,20 +177,50 @@
                     },
 
                     init() {
+                        // Load persistent custom batch size
+                        const savedCustom = localStorage.getItem('sp_custom_batch_size');
+                        if (savedCustom && !isNaN(savedCustom) && parseInt(savedCustom) > 0) {
+                            this.customBatchSize = parseInt(savedCustom);
+                        }
+
                         // Load persistent quick-tap batch size
                         const savedBatch = localStorage.getItem('sp_quick_batch_size');
-                        if (savedBatch && !isNaN(savedBatch)) {
+                        if (savedBatch && !isNaN(savedBatch) && parseInt(savedBatch) > 0) {
                             this.batchSize = parseInt(savedBatch);
                         }
 
                         this.updateClock();
                         setInterval(() => this.updateClock(), 1000);
                         this.recalcProgress();
+
+                        this.$watch('manpowerEntries', (entries) => {
+                            window.dispatchEvent(new CustomEvent('team-count-changed', { detail: { count: entries ? entries.length : 0 } }));
+                        });
                     },
 
                     setBatchSize(size) {
-                        this.batchSize = size;
-                        localStorage.setItem('sp_quick_batch_size', size);
+                        this.batchSize = parseInt(size);
+                        localStorage.setItem('sp_quick_batch_size', this.batchSize);
+                    },
+
+                    applyCustomBatchSize(qty) {
+                        const val = parseInt(qty);
+                        if (!val || val <= 0) return;
+                        this.customBatchSize = val;
+                        this.batchSize = val;
+                        localStorage.setItem('sp_custom_batch_size', val);
+                        localStorage.setItem('sp_quick_batch_size', val);
+                    },
+
+                    openInputModal(type = 'wip') {
+                        const modal = document.getElementById('modalInput');
+                        if (modal) {
+                            modal.showModal();
+                            const target = modal.querySelector('[x-data]') || modal.querySelector('form');
+                            if (target && target._x_dataStack && target._x_dataStack[0]) {
+                                target._x_dataStack[0].source = type;
+                            }
+                        }
                     },
 
                     updateClock() {
@@ -314,22 +357,35 @@
                             const data = await response.json();
                             if (data.success) {
                                 this.manpowerEntries = this.manpowerEntries.filter(m => m.id !== manpowerId);
+                                window.dispatchEvent(new CustomEvent('team-count-changed', { detail: { count: this.manpowerEntries.length } }));
                             }
                         } catch (error) {
                             alert(error.message);
                         }
                     },
 
-                    async deleteEntry(item) {
+                    async deleteEntry(item, explicitType = null) {
                         if (!confirm('Remove this log entry? Session totals will recalculate automatically.')) return;
 
+                        const type = explicitType || item.streamType || (
+                            this.tab === 'defects' ? 'reject' :
+                            (this.tab !== 'all' ? this.tab : null)
+                        ) || (
+                            item.good_qty !== undefined ? 'production' :
+                            item.defect_type !== undefined ? 'reject' :
+                            item.duration_minutes !== undefined ? 'downtime' :
+                            (item.recovered_qty !== undefined || item.scrapped_qty !== undefined) ? 'rework' :
+                            (item.source !== undefined || (item.quantity !== undefined && item.defect_type === undefined)) ? 'input' :
+                            item.role !== undefined ? 'manpower' : null
+                        );
+
                         let endpoint = '';
-                        if (item.streamType === 'production') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/production') }}/${item.id}`;
-                        else if (item.streamType === 'reject') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/reject') }}/${item.id}`;
-                        else if (item.streamType === 'downtime') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/downtime') }}/${item.id}`;
-                        else if (item.streamType === 'rework') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/rework') }}/${item.id}`;
-                        else if (item.streamType === 'input') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/input') }}/${item.id}`;
-                        else if (item.streamType === 'manpower') {
+                        if (type === 'production') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/production') }}/${item.id}`;
+                        else if (type === 'reject') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/reject') }}/${item.id}`;
+                        else if (type === 'downtime') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/downtime') }}/${item.id}`;
+                        else if (type === 'rework') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/rework') }}/${item.id}`;
+                        else if (type === 'input') endpoint = `{{ url('app/sp-sessions/' . $session->id . '/input') }}/${item.id}`;
+                        else if (type === 'manpower') {
                             this.removeManpower(item.id);
                             return;
                         }
@@ -353,11 +409,21 @@
 
                             const data = await response.json();
                             if (data.success) {
-                                if (item.streamType === 'production') this.productionEntries = this.productionEntries.filter(e => e.id !== item.id);
-                                else if (item.streamType === 'reject') this.rejectEntries = this.rejectEntries.filter(e => e.id !== item.id);
-                                else if (item.streamType === 'downtime') this.downtimeEntries = this.downtimeEntries.filter(e => e.id !== item.id);
-                                else if (item.streamType === 'rework') this.reworkEntries = this.reworkEntries.filter(e => e.id !== item.id);
-                                else if (item.streamType === 'input') this.inputEntries = this.inputEntries.filter(e => e.id !== item.id);
+                                if (type === 'production') this.productionEntries = this.productionEntries.filter(e => e.id !== item.id);
+                                else if (type === 'reject') this.rejectEntries = this.rejectEntries.filter(e => e.id !== item.id);
+                                else if (type === 'downtime') this.downtimeEntries = this.downtimeEntries.filter(e => e.id !== item.id);
+                                else if (type === 'rework') {
+                                    this.reworkEntries = this.reworkEntries.filter(e => e.id !== item.id);
+                                    if (data.deleted_input_id) {
+                                        this.inputEntries = this.inputEntries.filter(e => e.id !== data.deleted_input_id);
+                                    }
+                                }
+                                else if (type === 'input') {
+                                    this.inputEntries = this.inputEntries.filter(e => e.id !== item.id);
+                                    if (data.deleted_rework_id) {
+                                        this.reworkEntries = this.reworkEntries.filter(e => e.id !== data.deleted_rework_id);
+                                    }
+                                }
 
                                 if (data.totals) {
                                     this.totals = { ...this.totals, ...data.totals };
@@ -369,21 +435,23 @@
                         }
                     },
 
-                    async quickAddGood() {
+                    async logOneTimeGood(qty) {
+                        const val = parseInt(qty);
+                        if (!val || val <= 0) return;
                         if (this.isPaused) {
                             document.getElementById('modalResumeDowntime').showModal();
                             return;
                         }
 
-                        if (this.batchSize > this.availableWip) {
-                            alert('Available Input WIP (' + this.availableWip + ' Pcs) is less than batch size (+' + this.batchSize + ' Pcs). Please receive stock first.');
-                            document.getElementById('modalInput').showModal();
+                        if (val > this.availableWip) {
+                            alert('Available Input (' + this.availableWip + ' Pcs) is less than requested quantity (+' + val + ' Pcs). Please receive stock first.');
+                            this.openInputModal('wip');
                             return;
                         }
 
                         try {
                             const formData = new FormData();
-                            formData.append('good_qty', this.batchSize);
+                            formData.append('good_qty', val);
                             formData.append('reject_qty', 0);
                             formData.append('_token', '{{ csrf_token() }}');
 
@@ -414,6 +482,10 @@
                         } catch (error) {
                             alert(error.message);
                         }
+                    },
+
+                    quickAddGood() {
+                        return this.logOneTimeGood(this.batchSize);
                     },
 
                     async submitForm(event, type) {
@@ -453,8 +525,16 @@
                                 else if (type === 'reject') this.rejectEntries.unshift(data.entry);
                                 else if (type === 'downtime') this.downtimeEntries.unshift(data.entry);
                                 else if (type === 'rework') this.reworkEntries.unshift(data.entry);
-                                else if (type === 'input') this.inputEntries.unshift(data.entry);
-                                else if (type === 'manpower') this.manpowerEntries.unshift(data.entry);
+                                else if (type === 'input') {
+                                    this.inputEntries.unshift(data.entry);
+                                    if (data.rework_entry) {
+                                        this.reworkEntries.unshift(data.rework_entry);
+                                    }
+                                }
+                                else if (type === 'manpower') {
+                                    this.manpowerEntries.unshift(data.entry);
+                                    window.dispatchEvent(new CustomEvent('team-count-changed', { detail: { count: this.manpowerEntries.length } }));
+                                }
 
                                 if (tabMap[type]) {
                                     this.tab = tabMap[type];
@@ -464,8 +544,9 @@
                                 this.recalcProgress();
                                 form.reset();
 
-                                if (form._x_dataStack) {
-                                    const alpineData = form._x_dataStack[0];
+                                const dataStack = form._x_dataStack || (form.closest('[x-data]') ? form.closest('[x-data]')._x_dataStack : null);
+                                if (dataStack && dataStack[0]) {
+                                    const alpineData = dataStack[0];
                                     if (alpineData) {
                                         if ('good_qty' in alpineData) alpineData.good_qty = 0;
                                         if ('reject_qty' in alpineData) alpineData.reject_qty = 0;
@@ -474,6 +555,7 @@
                                         if ('recovered_qty' in alpineData) alpineData.recovered_qty = 0;
                                         if ('scrapped_qty' in alpineData) alpineData.scrapped_qty = 0;
                                         if ('qty' in alpineData) alpineData.qty = 0;
+                                        if ('source' in alpineData) alpineData.source = 'wip';
                                         if ('defect' in alpineData) alpineData.defect = '';
                                         if ('reason' in alpineData) alpineData.reason = '';
                                     }
@@ -637,9 +719,8 @@
         <div class="bg-white border-b border-gray-200 px-4 py-2.5 shadow-sm flex items-stretch justify-between gap-3 sm:gap-4 flex-shrink-0">
             {{-- Metric 1: Standalone Good Output (Direct Good + Rework Recovered Breakdown) --}}
             <button type="button" @click="tab = 'production'; document.getElementById('modalHistory').showModal()"
-                    class="flex items-center gap-2.5 px-3 py-2 bg-emerald-50/70 hover:bg-emerald-100/80 active:bg-emerald-200 border border-emerald-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    class="px-3 py-2 bg-emerald-50/70 hover:bg-emerald-100/80 active:bg-emerald-200 border border-emerald-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
                     title="Click to view Good Output Logs">
-                <div class="w-7 h-7 rounded-lg bg-emerald-200/60 text-emerald-800 flex items-center justify-center font-black text-xs flex-shrink-0">✓</div>
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">Good Output</span>
                     <div class="text-base sm:text-lg font-black text-emerald-950 leading-tight">
@@ -653,9 +734,8 @@
 
             {{-- Metric 2: Total Logged Defects (Total Raw Defects + Recovered / Scrap Breakdown) --}}
             <button type="button" @click="tab = 'defects'; document.getElementById('modalHistory').showModal()"
-                    class="flex items-center gap-2.5 px-3 py-2 bg-red-50/70 hover:bg-red-100/80 active:bg-red-200 border border-red-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    class="px-3 py-2 bg-red-50/70 hover:bg-red-100/80 active:bg-red-200 border border-red-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
                     title="Click to view Defect Logs">
-                <div class="w-7 h-7 rounded-lg bg-red-200/60 text-red-800 flex items-center justify-center font-black text-xs flex-shrink-0">!</div>
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-red-700 block">Total Defects</span>
                     <div class="text-base sm:text-lg font-black text-red-950 leading-tight">
@@ -670,9 +750,8 @@
             {{-- Metric 2.5: Total Issued Rework KPI Card (Click to view Rework logs) --}}
             <button type="button" x-show="(totals.rework_in || 0) > 0" x-cloak
                     @click="tab = 'rework'; document.getElementById('modalHistory').showModal()"
-                    class="flex items-center gap-2.5 px-3 py-2 bg-yellow-50/70 hover:bg-yellow-100/80 active:bg-yellow-200 border border-yellow-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    class="px-3 py-2 bg-yellow-50/70 hover:bg-yellow-100/80 active:bg-yellow-200 border border-yellow-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
                     title="Click to view Rework Logs">
-                <div class="w-7 h-7 rounded-lg bg-yellow-200/60 text-yellow-900 flex items-center justify-center font-black text-xs flex-shrink-0">r</div>
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-yellow-800 block">Issued Rework</span>
                     <div class="text-base sm:text-lg font-black text-yellow-950 leading-tight">
@@ -681,26 +760,26 @@
                 </div>
             </button>
 
-            {{-- Metric 3: Available WIP Balance (Click to view WIP Input logs) --}}
+            {{-- Metric 3: Available WIP / Input Balance (Click to view Input logs) --}}
             <button type="button" @click="tab = 'input'; document.getElementById('modalHistory').showModal()"
-                    class="flex items-center gap-2.5 px-3 py-2 rounded-2xl border transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    class="px-3 py-2 rounded-2xl border transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
                     :class="availableWip > 0 ? 'bg-blue-50/70 hover:bg-blue-100/80 border-blue-200/80' : 'bg-amber-100/80 hover:bg-amber-200/90 border-amber-300 animate-pulse'"
-                    title="Click to view Input WIP Logs">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0"
-                     :class="availableWip > 0 ? 'bg-blue-200/60 text-blue-800' : 'bg-amber-300/80 text-amber-900'">#</div>
+                    title="Click to view Input WIP / Reworkable Logs">
                 <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider block" :class="availableWip > 0 ? 'text-blue-700' : 'text-amber-800'">Available WIP</span>
+                    <span class="text-[10px] font-black uppercase tracking-wider block" :class="availableWip > 0 ? 'text-blue-700' : 'text-amber-800'">Available Input</span>
                     <div class="text-base sm:text-lg font-black leading-tight" :class="availableWip > 0 ? 'text-blue-950' : 'text-amber-950'">
                         <span x-text="formatNum(availableWip) + ' Pcs'"></span>
+                    </div>
+                    <div class="text-[9px] font-bold text-blue-800/80 truncate" x-show="totals.input_reworkable > 0">
+                        <span x-text="formatNum(totals.input_wip || (totals.input - totals.input_reworkable)) + ' WIP • ' + formatNum(totals.input_reworkable) + ' Rework'"></span>
                     </div>
                 </div>
             </button>
 
             {{-- Metric 4: Downtime Duration (Click to view Downtime logs) --}}
             <button type="button" @click="tab = 'downtime'; document.getElementById('modalHistory').showModal()"
-                    class="flex items-center gap-2.5 px-3 py-2 bg-amber-50/70 hover:bg-amber-100/80 active:bg-amber-200 border border-amber-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
+                    class="px-3 py-2 bg-amber-50/70 hover:bg-amber-100/80 active:bg-amber-200 border border-amber-200/80 rounded-2xl transition cursor-pointer text-left shadow-xs flex-1 max-w-xs"
                     title="Click to view Downtime Logs">
-                <div class="w-7 h-7 rounded-lg bg-amber-200/60 text-amber-900 flex items-center justify-center font-black text-xs flex-shrink-0">m</div>
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 block">Downtime</span>
                     <div class="text-base sm:text-lg font-black text-amber-950 leading-tight">
@@ -729,9 +808,8 @@
 
         {{-- Active Rework Bench Notification Banner (2-Cycle Rework) --}}
         <div x-show="reworkPending > 0" x-cloak class="bg-amber-500 text-white px-4 py-2 flex items-center justify-between text-xs font-bold shadow-md flex-shrink-0">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
-                <span>Active Rework Bench: <strong x-text="formatNum(reworkPending) + ' Pcs'"></strong> undergoing offline repair</span>
+            <div>
+                Active Rework Bench: <strong x-text="formatNum(reworkPending) + ' Pcs'"></strong> undergoing offline repair
             </div>
             <button type="button" onclick="document.getElementById('modalCompleteRework').showModal()"
                     class="px-3 py-1 bg-white text-amber-900 hover:bg-amber-100 active:bg-amber-200 font-black text-xs rounded-xl shadow-xs transition cursor-pointer uppercase tracking-wider">
@@ -741,9 +819,8 @@
 
         {{-- Line Team Warning Banner (0 Operators Assigned) --}}
         <div x-show="manpowerEntries.length === 0" x-cloak class="bg-amber-600 text-white px-4 py-2 flex items-center justify-between text-xs font-bold shadow-md flex-shrink-0">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
-                <span>Line Team Warning: No operators assigned to this running line team yet!</span>
+            <div>
+                Line Team Warning: No operators assigned to this running line team yet!
             </div>
             <button type="button" onclick="document.getElementById('modalManpower').showModal()"
                     class="px-3 py-1 bg-white text-amber-950 hover:bg-amber-100 active:bg-amber-200 font-black text-xs rounded-xl shadow-xs transition cursor-pointer uppercase tracking-wider">
@@ -763,22 +840,33 @@
                          :class="quickFlash && 'ring-8 ring-emerald-300 scale-105 bg-emerald-500'">
                         
                         {{-- Top Integrated Quick Batch Size Selector --}}
-                        <div class="w-full flex items-center justify-between gap-1.5 bg-emerald-700/60 p-1.5 rounded-2xl backdrop-blur-xs flex-shrink-0 z-10" @click.stop>
+                        <div class="w-full flex items-center justify-between gap-1 bg-emerald-700/60 p-1.5 rounded-2xl backdrop-blur-xs flex-shrink-0 z-10" @click.stop>
                             <span class="text-[10px] font-black uppercase tracking-wider text-emerald-200 ml-1 hidden sm:inline">Batch:</span>
                             <div class="flex items-center gap-1 flex-1 justify-around">
                                 <template x-for="size in [1, 5, 10, 50, 100]" :key="size">
                                     <button type="button" @click="setBatchSize(size)"
-                                            :class="batchSize === size ? 'bg-white text-emerald-900 font-black shadow-md scale-105' : 'bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold'"
+                                            :class="batchSize === size && !isCustomBatch ? 'bg-white text-emerald-900 font-black shadow-md scale-105' : 'bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold'"
                                             class="px-2 py-1 rounded-xl transition text-xs sm:text-sm flex-1 text-center cursor-pointer border border-emerald-500/40"
                                             x-text="'+' + size"></button>
                                 </template>
+                                {{-- Inline Configurable Custom Batch Pill (Auto-save) --}}
+                                <div class="flex items-center px-1.5 py-0.5 rounded-xl border transition flex-1 justify-center"
+                                     :class="isCustomBatch ? 'bg-amber-400 text-emerald-950 font-black shadow-md border-amber-300' : 'bg-emerald-800/80 text-white border-emerald-500/40 focus-within:bg-white focus-within:text-emerald-950'">
+                                    <span class="text-xs font-black mr-0.5">+</span>
+                                    <input type="number" min="1" max="9999"
+                                           :value="customBatchSize"
+                                           placeholder="Custom"
+                                           @focus="if (customBatchSize) setBatchSize(customBatchSize); $event.target.select()"
+                                           @input="if ($event.target.value > 0) applyCustomBatchSize($event.target.value)"
+                                           class="w-10 sm:w-12 text-center text-xs sm:text-sm font-black bg-transparent border-0 p-0 focus:ring-0 text-inherit placeholder:text-emerald-200 placeholder:text-[10px]">
+                                </div>
                             </div>
                         </div>
 
                         {{-- Main Tap Target --}}
                         <button type="button" @click="quickAddGood()"
                                 class="w-full flex-1 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform py-2">
-                            <h1 class="text-3xl sm:text-5xl font-black tracking-tight drop-shadow-md uppercase" x-text="quickFlash ? '✓ SAVED!' : ('+' + batchSize + ' GOOD')"></h1>
+                            <h1 class="text-3xl sm:text-5xl font-black tracking-tight drop-shadow-md uppercase" x-text="quickFlash ? 'SAVED!' : ('+' + batchSize + ' GOOD')"></h1>
                             <p class="text-xs sm:text-sm font-bold text-emerald-100 mt-1" x-text="'Tap to log ' + batchSize + ' OK piece(s)'"></p>
                         </button>
                     </div>
@@ -790,12 +878,30 @@
                         <p class="text-xs sm:text-sm font-bold text-red-100 mt-2">Log rejects & scrap entries</p>
                     </button>
 
-                    {{-- Card 3: Receive WIP --}}
-                    <button type="button" onclick="document.getElementById('modalInput').showModal()"
-                            class="rounded-3xl p-4 sm:p-6 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 border-4 border-blue-400 text-white shadow-xl transition-all flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 min-h-0">
-                        <h1 class="text-2xl sm:text-4xl font-black tracking-tight uppercase drop-shadow-md">RECEIVE WIP</h1>
-                        <p class="text-xs sm:text-sm font-bold text-blue-100 mt-2">Add incoming WIP to line balance</p>
-                    </button>
+                    {{-- Card 3: Receive Input (WIP / Reworkable) --}}
+                    <div class="rounded-3xl p-4 sm:p-5 bg-blue-600 border-4 border-blue-400 text-white shadow-xl flex flex-col justify-between items-center text-center transition-all relative overflow-hidden min-h-0">
+                        {{-- Top Type Selector Bar --}}
+                        <div class="w-full flex items-center justify-between gap-1.5 bg-blue-700/60 p-1.5 rounded-2xl backdrop-blur-xs flex-shrink-0 z-10" @click.stop>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-blue-200 ml-1">Receive:</span>
+                            <div class="flex items-center gap-1 flex-1 justify-around">
+                                <button type="button" @click="openInputModal('wip')"
+                                        class="px-2.5 py-1 rounded-xl transition text-xs sm:text-sm flex-1 text-center cursor-pointer border border-blue-400/40 bg-white text-blue-900 font-black shadow-md hover:bg-blue-50">
+                                    +WIP
+                                </button>
+                                <button type="button" @click="openInputModal('reworkable')"
+                                        class="px-2.5 py-1 rounded-xl transition text-xs sm:text-sm flex-1 text-center cursor-pointer border border-purple-400/50 bg-purple-700/90 hover:bg-purple-600 text-white font-bold shadow-md">
+                                    +Reworkable
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Main Tap Target --}}
+                        <button type="button" @click="openInputModal('wip')"
+                                class="w-full flex-1 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform py-2">
+                            <h1 class="text-2xl sm:text-4xl font-black tracking-tight uppercase drop-shadow-md">RECEIVE INPUT</h1>
+                            <p class="text-xs sm:text-sm font-bold text-blue-100 mt-1">Add WIP or Reworkable to line balance</p>
+                        </button>
+                    </div>
 
                     {{-- Card 4: Pause / Resume Line --}}
                     <button type="button" @click="togglePause()"
@@ -848,7 +954,7 @@
                     <button type="button" @click="tab = 'defects'" :class="tab === 'defects' ? 'bg-red-600 text-white border-red-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Defects (<span x-text="rejectEntries.length"></span>)</button>
                     <button type="button" @click="tab = 'downtime'" :class="tab === 'downtime' ? 'bg-amber-600 text-white border-amber-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Downtime (<span x-text="downtimeEntries.length"></span>)</button>
                     <button type="button" @click="tab = 'rework'" :class="tab === 'rework' ? 'bg-yellow-600 text-white border-yellow-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Rework (<span x-text="reworkEntries.length"></span>)</button>
-                    <button type="button" @click="tab = 'input'" :class="tab === 'input' ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Input WIP (<span x-text="inputEntries.length"></span>)</button>
+                    <button type="button" @click="tab = 'input'" :class="tab === 'input' ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Input (<span x-text="inputEntries.length"></span>)</button>
                     <button type="button" @click="tab = 'manpower'" :class="tab === 'manpower' ? 'bg-purple-600 text-white border-purple-600 shadow-sm font-black' : 'bg-white text-slate-700 hover:bg-slate-200 border-slate-200'" class="px-3.5 py-2 rounded-xl transition flex-shrink-0 cursor-pointer border">Team (<span x-text="manpowerEntries.length"></span>)</button>
                 </div>
 
@@ -873,7 +979,10 @@
                                         <span x-show="item.defect_type !== undefined || item.streamType === 'reject'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-200">DEFECT</span>
                                         <span x-show="item.duration_minutes !== undefined || item.streamType === 'downtime'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">DOWNTIME</span>
                                         <span x-show="item.recovered_qty !== undefined || item.streamType === 'rework'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-200">REWORK</span>
-                                        <span x-show="item.source !== undefined || item.streamType === 'input'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-100 text-blue-800 border border-blue-200">INPUT</span>
+                                        <span x-show="item.source !== undefined || item.streamType === 'input'"
+                                              :class="item.source === 'reworkable' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-blue-100 text-blue-800 border-blue-200'"
+                                              class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase border"
+                                              x-text="item.source === 'reworkable' ? 'REWORKABLE' : 'INPUT'"></span>
                                         <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-purple-100 text-purple-800 border border-purple-200">TEAM</span>
                                     </td>
                                     <td class="px-4 py-2.5 text-xs font-semibold text-slate-800">
@@ -893,7 +1002,10 @@
                                             </span>
                                         </template>
                                         <template x-if="item.source !== undefined || item.streamType === 'input'">
-                                            <span>WIP Stock Received <span class="text-slate-500 font-normal" x-text="item.source ? '(' + item.source + ')' : ''"></span></span>
+                                            <span>
+                                                <strong :class="item.source === 'reworkable' ? 'text-purple-700' : 'text-blue-700'" x-text="item.source === 'reworkable' ? 'Reworkable Stock Received' : 'WIP Stock Received'"></strong>
+                                                <span class="text-slate-500 font-normal" x-text="item.pallet_number ? ('— Pallet: ' + item.pallet_number) : (item.remarks ? ('— ' + item.remarks) : '')"></span>
+                                            </span>
                                         </template>
                                         <template x-if="item.role !== undefined || item.streamType === 'manpower'">
                                             <span>Team Member Added: <strong class="text-purple-800" x-text="item.operator_name || ('Worker #' + (item.user_id || item.id))"></strong> <span class="text-slate-400 font-normal" x-text="item.role ? '(' + item.role + ')' : ''"></span></span>
@@ -912,12 +1024,14 @@
                                             </div>
                                         </template>
 
-                                        <span x-show="item.source !== undefined || item.streamType === 'input'" class="text-blue-700" x-text="'+' + formatNum(item.quantity || 0) + ' WIP'"></span>
+                                        <span x-show="item.source !== undefined || item.streamType === 'input'"
+                                              :class="item.source === 'reworkable' ? 'text-purple-700' : 'text-blue-700'"
+                                              x-text="'+' + formatNum(item.quantity || 0) + (item.source === 'reworkable' ? ' Rework' : ' WIP')"></span>
                                         <span x-show="item.role !== undefined || item.streamType === 'manpower'" class="text-purple-700" x-text="item.role || 'Team'"></span>
                                     </td>
                                     <td class="px-4 py-2.5 text-center whitespace-nowrap">
                                         @if($session->status === 'running')
-                                            <button type="button" @click="deleteEntry(item)" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-bold text-xs rounded-lg border border-red-200 transition cursor-pointer">
+                                            <button type="button" @click="deleteEntry(item, item.streamType || (tab === 'defects' ? 'reject' : (tab !== 'all' ? tab : null)))" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-bold text-xs rounded-lg border border-red-200 transition cursor-pointer">
                                                 Delete
                                             </button>
                                         @else
@@ -1335,40 +1449,84 @@
         </div>
     </dialog>
 
-    {{-- Modal 5: Log Input WIP --}}
-    <dialog id="modalInput" class="rounded-xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
-        <div class="bg-white rounded-xl overflow-hidden shadow-2xl">
-            <div class="bg-blue-600 px-6 py-4 flex justify-between items-center">
-                <h3 class="text-lg font-black text-white">Receive Input WIP</h3>
-                <button type="button" onclick="document.getElementById('modalInput').close()" class="text-blue-200 hover:text-white text-xl font-bold">&times;</button>
+    {{-- Modal 5: Receive Input Stock (WIP / Reworkable) --}}
+    <dialog id="modalInput" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/50 bg-transparent">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl" x-data="{ qty: 0, source: 'wip' }">
+            <div :class="source === 'reworkable' ? 'bg-purple-700' : 'bg-blue-600'" class="px-6 py-4 flex justify-between items-center text-white transition-colors">
+                <div>
+                    <h3 class="text-lg font-black tracking-tight" x-text="source === 'reworkable' ? 'Receive Reworkable (Repairan)' : 'Receive Input WIP'"></h3>
+                    <p class="text-xs font-medium" :class="source === 'reworkable' ? 'text-purple-200' : 'text-blue-100'" x-text="source === 'reworkable' ? 'Add reworkable stock back into line production flow' : 'Add standard raw/semi-finished WIP to line'"></p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalInput').close()" class="opacity-80 hover:opacity-100 text-2xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <form action="{{ route('app.sp-sessions.add-input', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'input')" x-data="{ qty: 0 }" class="p-6">
+            <form action="{{ route('app.sp-sessions.add-input', $session->id) }}" method="POST" @submit.prevent="submitForm($event, 'input')" class="p-6">
                 @csrf
+                <input type="hidden" name="source" :value="source">
+
+                {{-- Stock Type Toggle --}}
+                <div class="mb-5">
+                    <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Stock Category</label>
+                    <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+                        <button type="button" @click="source = 'wip'"
+                                :class="source === 'wip' ? 'bg-blue-600 text-white shadow-md font-black' : 'text-slate-600 hover:text-slate-900 font-bold'"
+                                class="py-2.5 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5">
+                            <span>Standard WIP</span>
+                        </button>
+                        <button type="button" @click="source = 'reworkable'"
+                                :class="source === 'reworkable' ? 'bg-purple-600 text-white shadow-md font-black' : 'text-slate-600 hover:text-slate-900 font-bold'"
+                                class="py-2.5 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5">
+                            <span>Reworkable</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="space-y-6">
                     <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Quantity (Pcs) *</label>
-                        <div class="flex items-stretch h-20 rounded-2xl border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
-                            <button type="button" @click="qty = Math.max(0, qty - 1)" class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300">
+                        <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Quantity (Pcs) *</label>
+                        <div class="flex items-stretch h-20 rounded-2xl border-2 overflow-hidden bg-white shadow-xs transition"
+                             :class="source === 'reworkable' ? 'border-purple-300 focus-within:border-purple-500' : 'border-blue-300 focus-within:border-blue-500'">
+                            <button type="button" @click="qty = Math.max(0, (parseInt(qty) || 0) - 1)"
+                                    class="w-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition text-gray-600 text-4xl font-black border-r border-gray-300 cursor-pointer select-none">
                                 -
                             </button>
-                            <input type="number" name="quantity" value="0" x-model.number="qty" @focus="$event.target.select()" @blur="if (!qty && qty !== 0) qty = 0" required class="flex-1 text-center text-5xl font-black text-blue-600 border-0 focus:ring-0 w-full bg-transparent p-0">
-                            <button type="button" @click="qty += 1" class="w-24 flex items-center justify-center bg-blue-100 hover:bg-blue-200 active:bg-blue-300 transition text-blue-700 text-4xl font-black border-l border-gray-300">
+                            <input type="number" name="quantity" value="0" x-model.number="qty" @focus="$event.target.select()" @blur="if (!qty && qty !== 0) qty = 0" required
+                                   :class="source === 'reworkable' ? 'text-purple-700' : 'text-blue-600'"
+                                   class="flex-1 text-center text-5xl font-black border-0 focus:ring-0 w-full bg-transparent p-0">
+                            <button type="button" @click="qty = (parseInt(qty) || 0) + 1"
+                                    :class="source === 'reworkable' ? 'bg-purple-100 hover:bg-purple-200 active:bg-purple-300 text-purple-700 border-purple-200' : 'bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-700 border-gray-300'"
+                                    class="w-24 flex items-center justify-center transition text-4xl font-black border-l cursor-pointer select-none">
                                 +
                             </button>
                         </div>
                         <div class="grid grid-cols-4 gap-2 mt-4">
-                            <button type="button" @click="qty += 10" class="py-4 bg-blue-50 active:bg-blue-100 text-blue-700 font-black rounded-xl text-xl shadow-sm border border-blue-200">+10</button>
-                            <button type="button" @click="qty += 50" class="py-4 bg-blue-50 active:bg-blue-100 text-blue-700 font-black rounded-xl text-xl shadow-sm border border-blue-200">+50</button>
-                            <button type="button" @click="qty += 100" class="py-4 bg-blue-50 active:bg-blue-100 text-blue-700 font-black rounded-xl text-xl shadow-sm border border-blue-200">+100</button>
-                            <button type="button" @click="qty += 500" class="py-4 bg-blue-50 active:bg-blue-100 text-blue-700 font-black rounded-xl text-xl shadow-sm border border-blue-200">+500</button>
+                            <button type="button" @click="qty = (parseInt(qty) || 0) + 10"
+                                    :class="source === 'reworkable' ? 'bg-purple-50 active:bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-50 active:bg-blue-100 text-blue-700 border-blue-200'"
+                                    class="py-4 font-black rounded-xl text-xl shadow-xs border transition cursor-pointer">+10</button>
+                            <button type="button" @click="qty = (parseInt(qty) || 0) + 50"
+                                    :class="source === 'reworkable' ? 'bg-purple-50 active:bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-50 active:bg-blue-100 text-blue-700 border-blue-200'"
+                                    class="py-4 font-black rounded-xl text-xl shadow-xs border transition cursor-pointer">+50</button>
+                            <button type="button" @click="qty = (parseInt(qty) || 0) + 100"
+                                    :class="source === 'reworkable' ? 'bg-purple-50 active:bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-50 active:bg-blue-100 text-blue-700 border-blue-200'"
+                                    class="py-4 font-black rounded-xl text-xl shadow-xs border transition cursor-pointer">+100</button>
+                            <button type="button" @click="qty = (parseInt(qty) || 0) + 500"
+                                    :class="source === 'reworkable' ? 'bg-purple-50 active:bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-50 active:bg-blue-100 text-blue-700 border-blue-200'"
+                                    class="py-4 font-black rounded-xl text-xl shadow-xs border transition cursor-pointer">+500</button>
                         </div>
                     </div>
                     <div>
-                        <input type="text" name="pallet_number" placeholder="Pallet / Box No. (Optional)" class="w-full border-gray-300 rounded-lg text-lg p-3 bg-gray-50 focus:bg-white font-mono uppercase">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Pallet / Box / Batch Ref</label>
+                        <input type="text" name="pallet_number" placeholder="e.g. PALLET-01 / REPAIR-BOX-A (Optional)" class="w-full border-gray-300 rounded-xl text-base p-3 bg-gray-50 focus:bg-white font-mono uppercase">
                     </div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-gray-100">
-                    <button type="submit" class="w-full bg-blue-600 active:bg-blue-700 text-white py-4 rounded-xl text-xl font-black shadow-lg">SAVE INPUT</button>
+                    <button type="submit"
+                            :disabled="qty <= 0"
+                            :class="[
+                                qty <= 0 ? 'opacity-50 cursor-not-allowed bg-slate-400' : (source === 'reworkable' ? 'bg-purple-600 hover:bg-purple-500 active:bg-purple-700' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'),
+                                'w-full text-white py-4 rounded-xl text-xl font-black shadow-lg transition flex items-center justify-center gap-2 cursor-pointer'
+                            ]">
+                        <span x-text="source === 'reworkable' ? 'SAVE REWORKABLE INPUT' : 'SAVE WIP INPUT'"></span>
+                    </button>
                 </div>
             </form>
         </div>
