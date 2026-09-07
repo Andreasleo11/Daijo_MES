@@ -257,8 +257,107 @@
                             </div>
                         </div>
 
-                        <div class="relative h-72 w-full">
-                            <canvas id="fifoThroughputChart"></canvas>
+                        <div class="relative h-72 w-full"
+                             x-data="{
+                                 chart: null,
+                                 initChart() {
+                                     if (typeof Chart === 'undefined') {
+                                         setTimeout(() => this.initChart(), 100);
+                                         return;
+                                     }
+                                     const canvas = this.$refs.chartCanvas;
+                                     if (!canvas) return;
+                                     if (this.chart) {
+                                         this.chart.destroy();
+                                         this.chart = null;
+                                     }
+                                     const rawData = {{ \Illuminate\Support\Js::from($throughputTrend) }};
+                                     const ctx = canvas.getContext('2d');
+                                     this.chart = new Chart(ctx, {
+                                         type: 'bar',
+                                         data: {
+                                             labels: rawData.labels || [],
+                                             datasets: [
+                                                 {
+                                                     label: 'Incoming (KG)',
+                                                     data: rawData.incoming || [],
+                                                     backgroundColor: 'rgba(34, 211, 238, 0.75)',
+                                                     borderColor: 'rgba(34, 211, 238, 1)',
+                                                     borderWidth: 1,
+                                                     borderRadius: 6,
+                                                     barPercentage: 0.6,
+                                                 },
+                                                 {
+                                                     label: 'Outgoing (KG)',
+                                                     data: rawData.outgoing || [],
+                                                     backgroundColor: 'rgba(99, 102, 241, 0.75)',
+                                                     borderColor: 'rgba(99, 102, 241, 1)',
+                                                     borderWidth: 1,
+                                                     borderRadius: 6,
+                                                     barPercentage: 0.6,
+                                                 }
+                                             ]
+                                         },
+                                         options: {
+                                             responsive: true,
+                                             maintainAspectRatio: false,
+                                             interaction: {
+                                                 mode: 'index',
+                                                 intersect: false,
+                                             },
+                                             plugins: {
+                                                 legend: {
+                                                     display: false
+                                                 },
+                                                 tooltip: {
+                                                     backgroundColor: '#0f172a',
+                                                     titleColor: '#ffffff',
+                                                     bodyColor: '#cbd5e1',
+                                                     borderColor: '#334155',
+                                                     borderWidth: 1,
+                                                     padding: 10,
+                                                     boxPadding: 4,
+                                                     usePointStyle: true,
+                                                 }
+                                             },
+                                             scales: {
+                                                 x: {
+                                                     grid: {
+                                                         color: 'rgba(51, 65, 85, 0.3)',
+                                                         drawBorder: false,
+                                                     },
+                                                     ticks: {
+                                                         color: '#94a3b8',
+                                                         font: {
+                                                             size: 10,
+                                                             weight: 'bold'
+                                                         }
+                                                     }
+                                                 },
+                                                 y: {
+                                                     grid: {
+                                                         color: 'rgba(51, 65, 85, 0.3)',
+                                                         drawBorder: false,
+                                                     },
+                                                     ticks: {
+                                                         color: '#94a3b8',
+                                                         font: {
+                                                             size: 10,
+                                                             weight: 'bold'
+                                                         },
+                                                         callback: function(value) {
+                                                             return value >= 1000 ? (value / 1000) + 'k' : value;
+                                                         }
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                     });
+                                 }
+                             }"
+                             x-init="$nextTick(() => initChart())"
+                        >
+                            <canvas x-ref="chartCanvas" id="fifoThroughputChart"></canvas>
                         </div>
                     </div>
 
@@ -323,34 +422,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Recent FIFO Deviations Alert Box (If any) -->
-                @if(count($deviations) > 0)
-                    <div class="bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 rounded-2xl border border-rose-500/30 p-5 shadow-xl space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <span class="text-xl">⚠️</span>
-                                <div>
-                                    <h4 class="text-sm font-black text-rose-400 uppercase tracking-wider">
-                                        Perhatian Direktur: Terdeteksi {{ count($deviations) }} Transaksi Pengambilan Melewati Urutan FIFO
-                                    </h4>
-                                    <p class="text-xs text-slate-400 mt-0.5">Terdapat material yang diambil dari lot baru padahal masih ada lot lama yang tersimpan di gudang.</p>
-                                </div>
-                            </div>
-                            <button wire:click="setActiveTab('deviations')" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md shadow-rose-600/30">
-                                Buka Detail Audit &rarr;
-                            </button>
-                        </div>
-                    </div>
-                @else
-                    <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-4 flex items-center gap-3">
-                        <span class="text-2xl">🎉</span>
-                        <div>
-                            <h4 class="text-sm font-extrabold text-emerald-400">100% Kepatuhan FIFO Sempurna!</h4>
-                            <p class="text-xs text-slate-400">Seluruh pengambilan material pada periode ini selalu memprioritaskan lot terlama yang tersedia.</p>
-                        </div>
-                    </div>
-                @endif
 
             </div>
         @endif
@@ -609,106 +680,6 @@
 
     </main>
 
-    <!-- Chart.js CDN & Render Script -->
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('livewire:navigated', () => initFifoChart());
-        document.addEventListener('DOMContentLoaded', () => initFifoChart());
-
-        let throughputChartInstance = null;
-
-        function initFifoChart() {
-            const canvas = document.getElementById('fifoThroughputChart');
-            if (!canvas) return;
-
-            if (throughputChartInstance) {
-                throughputChartInstance.destroy();
-                throughputChartInstance = null;
-            }
-
-            const rawData = @json($throughputTrend);
-            const ctx = canvas.getContext('2d');
-
-            throughputChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: rawData.labels || [],
-                    datasets: [
-                        {
-                            label: 'Incoming (KG)',
-                            data: rawData.incoming || [],
-                            backgroundColor: 'rgba(34, 211, 238, 0.75)', // cyan-400
-                            borderColor: 'rgba(34, 211, 238, 1)',
-                            borderWidth: 1,
-                            borderRadius: 6,
-                            barPercentage: 0.6,
-                        },
-                        {
-                            label: 'Outgoing (KG)',
-                            data: rawData.outgoing || [],
-                            backgroundColor: 'rgba(99, 102, 241, 0.75)', // indigo-500
-                            borderColor: 'rgba(99, 102, 241, 1)',
-                            borderWidth: 1,
-                            borderRadius: 6,
-                            barPercentage: 0.6,
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: '#0f172a',
-                            titleColor: '#ffffff',
-                            bodyColor: '#cbd5e1',
-                            borderColor: '#334155',
-                            borderWidth: 1,
-                            padding: 10,
-                            boxPadding: 4,
-                            usePointStyle: true,
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(51, 65, 85, 0.3)',
-                                drawBorder: false,
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                font: {
-                                    size: 10,
-                                    weight: 'bold'
-                                }
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: 'rgba(51, 65, 85, 0.3)',
-                                drawBorder: false,
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                font: {
-                                    size: 10,
-                                    weight: 'bold'
-                                },
-                                callback: function(value) {
-                                    return value >= 1000 ? (value / 1000) + 'k' : value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
 </div>
