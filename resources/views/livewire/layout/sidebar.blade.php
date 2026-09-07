@@ -152,6 +152,7 @@ new class extends Component {
                         ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
                         ['name' => 'mwh.outgoing.history', 'label' => 'Riwayat Outgoing Material'],
                         ['name' => 'mwh.stock-card.index', 'label' => 'Kartu Stok Material (Stock Card)'],
+                        ['name' => 'mwh.fifo-dashboard', 'label' => 'Director FIFO Dashboard (Live)'],
                         ['name' => 'mwh.pallets.index', 'label' => 'Stock & Pallet Material'],
                         ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],
                     ]" />
@@ -355,6 +356,7 @@ new class extends Component {
                         ['name' => 'mwh.outgoing.create', 'label' => 'Pengambilan Material (Outgoing)'],
                         ['name' => 'mwh.outgoing.history', 'label' => 'Riwayat Outgoing Material'],
                         ['name' => 'mwh.stock-card.index', 'label' => 'Kartu Stok Material (Stock Card)'],
+                        ['name' => 'mwh.fifo-dashboard', 'label' => 'Director FIFO Dashboard (Live)'],
                         ['name' => 'mwh.pallets.index', 'label' => 'Stock & Pallet Material'],
                         ['name' => 'mwh.qr-lookup', 'label' => 'Scan QR Material'],
                     ]" />

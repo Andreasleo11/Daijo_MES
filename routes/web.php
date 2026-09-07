@@ -372,6 +372,15 @@ Route::get('/public/material-warehouse/mapping', \App\Livewire\MaterialWarehouse
     ->name('mwh.public-mapping')
     ->middleware('throttle:60,1');
 
+// Director FIFO Dashboard (Public Access - No Login Required)
+Route::get('/material-warehouse/fifo-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.fifo-dashboard');
+Route::get('/material-warehouse/director-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.director-dashboard.public');
+Route::get('/public/material-warehouse/fifo-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.fifo-dashboard.public');
+
+
 Route::middleware('auth')->group(function (){
 
     // Machine Daily Production Report

@@ -14,8 +14,17 @@
                 <p class="text-xs text-slate-500 font-medium">Tracking pergerakan masuk (Incoming) & keluar (Outgoing) per jenis material secara terpusat.</p>
             </div>
             
-            <div class="flex items-center space-x-3 w-full md:w-auto">
-                <button onclick="window.print()" class="no-print px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center">
+            <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                <a href="{{ route('mwh.fifo-dashboard.public') }}" target="_blank" class="no-print px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 hover:from-emerald-500 hover:to-cyan-600 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2 group">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
+                    </span>
+                    <svg class="w-4 h-4 text-emerald-100 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <span>DIRECTOR FIFO DASHBOARD</span>
+                    <span class="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider">NO LOGIN</span>
+                </a>
+                <button onclick="window.print()" class="no-print px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     CETAK KARTU STOK
                 </button>
