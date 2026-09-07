@@ -6,6 +6,7 @@ use App\Models\WmsPalletForm;
 use App\Services\WmsService;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\DB;
 
 class PalletFormIndex extends Component
 {
@@ -45,8 +46,9 @@ class PalletFormIndex extends Component
         $this->showAssignModal  = true;
     }
 
-    public function saveAssignSlot(WmsService $wmsService)
+    public function saveAssignSlot(?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         $this->validate([
             'assignPositionId' => 'nullable|exists:wms_positions,id',
         ]);
@@ -79,7 +81,7 @@ class PalletFormIndex extends Component
             // Log Store transaction
             $action = $newPositionId ? 'ASSIGN_SLOT' : 'UNASSIGN_SLOT';
             $notes  = $newPositionId ? "Assigned by Store to slot" : "Set to TEMPORARY (Belum ada tempat) by Store";
-            $wmsService->logTransaction($pallet->pallet_id, $action, $newPositionId, auth()->id(), $notes);
+            $wmsService->logTransaction($pallet->pallet_id, $action, $newPositionId, $notes);
 
             if ($newPositionId) {
                 $newPos = \App\Models\WmsPosition::find($newPositionId);
@@ -94,22 +96,34 @@ class PalletFormIndex extends Component
         }
     }
 
-    public function deletePallet($palletId, WmsService $wmsService)
+    public function deletePallet($palletId, ?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         try {
-            $pallet = WmsPalletForm::findOrFail($palletId);
+            DB::beginTransaction();
+
+            $pallet = WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
             $positionId = $pallet->position_id;
 
-            // Delete the pallet
+            // Delete all details
+            $pallet->details()->delete();
+
+            // Delete the pallet header
             $pallet->delete();
+
+            // Log transaction
+            $wmsService->logTransaction($palletId, 'DELETE_PALLET', $positionId, "Deleted from Pallet Form Index");
 
             // Update rack status if it was in a rack
             if ($positionId) {
                 $wmsService->updatePositionStatus($positionId);
             }
 
+            DB::commit();
+
             session()->flash('success', "Pallet $palletId berhasil dihapus.");
         } catch (\Exception $e) {
+            DB::rollBack();
             session()->flash('error', "Gagal menghapus pallet: " . $e->getMessage());
         }
     }
@@ -142,7 +156,7 @@ class PalletFormIndex extends Component
 
         if ($stalePallets->isNotEmpty()) {
             $affectedPosIds = $stalePallets->pluck('position_id')->filter()->unique();
-            WmsPalletForm::whereIn('id', $stalePallets->pluck('id'))
+            WmsPalletForm::whereIn('pallet_id', $stalePallets->pluck('pallet_id'))
                 ->update(['position_id' => null, 'assigned_at' => null]);
 
             foreach ($affectedPosIds as $posId) {

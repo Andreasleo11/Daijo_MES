@@ -202,7 +202,7 @@
                         <!-- Production Date -->
                         <div>
                             <label for="prod_date" class="block text-sm font-semibold text-slate-700 mb-2">Production Date</label>
-                            <input type="date" id="prod_date" name="prod_date" value="{{ today()->toDateString() }}" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="date" id="prod_date" name="prod_date" value="" class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
 
                         <!-- Operator Name -->

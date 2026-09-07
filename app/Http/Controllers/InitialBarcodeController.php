@@ -160,7 +160,7 @@ class InitialBarcodeController extends Controller
         $startLabel = (int) $request->input('start_label');
         $endLabel = (int) $request->input('end_label');
         $shift = $request->input('shift');
-        $prodDate = $request->input('prod_date') ?: today()->toDateString();
+        $prodDate = $request->input('prod_date') ?: null;
         $operator = $request->input('operator') ?: '-';
         $customer = $request->input('customer') ?: '-';
         $barcodeType = $request->input('barcode_type', 'default');
@@ -192,11 +192,19 @@ class InitialBarcodeController extends Controller
         $itspCode = ($h1 !== '' || $h2 !== '') ? "{$h1}{$h2}" : $itemCode;
 
         // Year and month codes for SHARP format
-        $year = date('Y', strtotime($prodDate));
-        $month = date('n', strtotime($prodDate));
-        $yearCode = $this->getSharpYearCode($year);
-        $monthName = $this->getIndonesianMonthName($month);
-        $prodDateFormatted = "{$monthName} {$year}";
+        if ($prodDate) {
+            $year = date('Y', strtotime($prodDate));
+            $month = date('n', strtotime($prodDate));
+            $yearCode = $this->getSharpYearCode($year);
+            $monthName = $this->getIndonesianMonthName($month);
+            $prodDateFormatted = "{$monthName} {$year}";
+        } else {
+            $year = '';
+            $month = '';
+            $yearCode = '';
+            $monthName = '';
+            $prodDateFormatted = '';
+        }
 
         // Log the print action
         CustomBarcodeLog::create([

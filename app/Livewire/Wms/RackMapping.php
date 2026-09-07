@@ -34,8 +34,9 @@ class RackMapping extends Component
         }
     }
 
-    public function saveSettings(WmsService $wmsService)
+    public function saveSettings(?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         $pos = WmsPosition::find($this->selectedPositionId);
         if ($pos) {
             $pos->update([
@@ -51,17 +52,115 @@ class RackMapping extends Component
         }
     }
 
-    public function resetSlot(WmsService $wmsService)
+    public function resetSlot(?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         $pos = WmsPosition::find($this->selectedPositionId);
         if ($pos) {
-            $pos->update([
-                'status' => 'EMPTY',
-                'last_item_code' => null
+            try {
+                DB::beginTransaction();
+
+                // Detach/unassign any pallet forms currently in this slot
+                $pallets = \App\Models\WmsPalletForm::where('position_id', $pos->id)->get();
+                foreach ($pallets as $pallet) {
+                    $pallet->update([
+                        'position_id' => null,
+                        'assigned_at' => null,
+                    ]);
+                    $wmsService->logTransaction($pallet->pallet_id, 'UNASSIGN_SLOT', null, "Unassigned by Store via Slot Reset ({$pos->position_code})");
+                }
+
+                $pos->update([
+                    'status' => 'EMPTY',
+                    'last_item_code' => null,
+                ]);
+
+                $wmsService->updatePositionStatus($pos->id);
+
+                DB::commit();
+
+                $this->showDetail = false;
+                session()->flash('success', 'Status slot ' . $pos->position_code . ' telah di-reset menjadi EMPTY dan semua pallet telah dilepas.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                session()->flash('error', 'Gagal me-reset slot: ' . $e->getMessage());
+            }
+        }
+    }
+
+    public function deletePallet($palletId, ?WmsService $wmsService = null)
+    {
+        $wmsService = $wmsService ?? app(WmsService::class);
+        try {
+            DB::beginTransaction();
+
+            $pallet = \App\Models\WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
+            $positionId = $pallet->position_id;
+
+            // Delete all details
+            $pallet->details()->delete();
+
+            // Delete pallet header
+            $pallet->delete();
+
+            // Log transaction
+            $wmsService->logTransaction($palletId, 'DELETE_PALLET', $positionId, "Pallet deleted from Rack Mapping by Store");
+
+            // Recalculate position status if it was assigned to a slot
+            if ($positionId) {
+                $wmsService->updatePositionStatus($positionId);
+            }
+
+            DB::commit();
+
+            session()->flash('success', "Pallet {$palletId} berhasil dihapus.");
+
+            // Refresh selected position if slot detail is open
+            if ($this->selectedPositionId) {
+                $this->selectPosition($this->selectedPositionId);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menghapus pallet: " . $e->getMessage());
+        }
+    }
+
+    public function deletePalletFromSlot($palletId, ?WmsService $wmsService = null)
+    {
+        $this->deletePallet($palletId, $wmsService);
+    }
+
+    public function unassignPalletFromSlot($palletId, ?WmsService $wmsService = null)
+    {
+        $wmsService = $wmsService ?? app(WmsService::class);
+        try {
+            DB::beginTransaction();
+
+            $pallet = \App\Models\WmsPalletForm::where('pallet_id', $palletId)->firstOrFail();
+            $oldPosId = $pallet->position_id;
+
+            $pallet->update([
+                'position_id' => null,
+                'assigned_at' => null,
             ]);
-            
-            $this->showDetail = false;
-            session()->flash('success', 'Status slot ' . $pos->position_code . ' telah di-reset menjadi EMPTY.');
+
+            if ($oldPosId) {
+                $wmsService->updatePositionStatus($oldPosId);
+            }
+
+            $wmsService->logTransaction($pallet->pallet_id, 'UNASSIGN_SLOT', null, "Unassigned from Rack Mapping by Store");
+
+            DB::commit();
+
+            session()->flash('success', "Pallet {$pallet->pallet_id} berhasil dilepas dari slot.");
+
+            // Refresh selected position if slot detail is open
+            if ($this->selectedPositionId) {
+                $this->selectPosition($this->selectedPositionId);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal melepas pallet: " . $e->getMessage());
         }
     }
 
@@ -72,8 +171,9 @@ class RackMapping extends Component
     public $newMaxCapacity = 1;
     public $showAddRackModal = false;
 
-    public function createNewRack(WmsService $wmsService)
+    public function createNewRack(?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         $this->validate([
             'newRackCode' => ['required', Rule::unique('wms_racks', 'rack_code')->whereNull('deleted_at')],
             'newLevels' => 'required|integer|min:1',
@@ -282,8 +382,9 @@ class RackMapping extends Component
         $this->searchItem = $itemCode;
     }
 
-    public function assignPalletToSelectedSlot($palletId, WmsService $wmsService)
+    public function assignPalletToSelectedSlot($palletId, ?WmsService $wmsService = null)
     {
+        $wmsService = $wmsService ?? app(WmsService::class);
         if (! $this->selectedPositionId) {
             session()->flash('error', 'Pilih slot rak terlebih dahulu.');
             return;
@@ -309,7 +410,7 @@ class RackMapping extends Component
             }
             $wmsService->updatePositionStatus($pos->id);
 
-            $wmsService->logTransaction($pallet->pallet_id, 'ASSIGN_SLOT', $pos->id, auth()->id(), "Assigned by Store from Rack Mapping");
+            $wmsService->logTransaction($pallet->pallet_id, 'ASSIGN_SLOT', $pos->id, "Assigned by Store from Rack Mapping");
 
             session()->flash('success', "Pallet {$pallet->pallet_id} berhasil di-assign ke slot rak {$pos->position_code}.");
         } catch (\Exception $e) {

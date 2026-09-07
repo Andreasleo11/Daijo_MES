@@ -18,8 +18,8 @@ class WmsPalletForm extends Model
     protected $fillable = [
         'pallet_id', 'position_id', 'assigned_at', 'part_no', 'model_name', 
         'prod_date', 'lot_no', 'delivery_name', 'delivery_shift', 
-        'box_qty', 'total_pallet_qty', 'remarks',
-        'sap_sync_status', 'sap_error_msg', 'sap_sync_at'
+        'box_qty', 'total_pallet_qty', 'status', 'remarks',
+        'sap_sync_status', 'sap_error_msg', 'sap_sync_at', 'sap_sync_duration'
     ];
 
     protected $casts = [
