@@ -103,10 +103,12 @@ class MaterialFifoDirectorDashboard extends Component
     {
         $selectedWhseId = ($this->whse_id && $this->whse_id !== 'ALL') ? (int) $this->whse_id : null;
 
-        $kpis = $fifoService->getFifoKpis($selectedWhseId, $this->fromDate, $this->toDate);
         $deviations = $fifoService->detectFifoDeviations($selectedWhseId, $this->fromDate, $this->toDate, 50);
+        $kpis = $fifoService->getFifoKpis($selectedWhseId, $this->fromDate, $this->toDate, $deviations);
         $agingSummary = $fifoService->getInventoryAgingSummary($selectedWhseId);
-        $priorityQueue = $fifoService->getFifoPriorityQueue($selectedWhseId, $this->search, 25);
+        $priorityQueue = ($this->activeTab === 'queue')
+            ? $fifoService->getFifoPriorityQueue($selectedWhseId, $this->search, 25)
+            : [];
         $throughputTrend = $fifoService->getThroughputTrend($selectedWhseId, $this->fromDate, $this->toDate);
 
         // Get warehouse label for header display

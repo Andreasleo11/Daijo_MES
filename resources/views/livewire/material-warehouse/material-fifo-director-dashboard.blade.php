@@ -258,11 +258,33 @@
                         </div>
 
                         <div class="relative h-72 w-full"
+                             wire:ignore
                              x-data="{
                                  chart: null,
-                                 initChart() {
+                                 init() {
+                                     this.renderChart({{ \Illuminate\Support\Js::from($throughputTrend) }});
+                                     this.$wire.watch('throughputTrend', (newData) => {
+                                         this.updateOrRender(newData);
+                                     });
+                                 },
+                                 updateOrRender(newData) {
+                                     const data = newData || {};
+                                     if (this.chart) {
+                                         this.chart.data.labels = data.labels || [];
+                                         if (this.chart.data.datasets && this.chart.data.datasets[0]) {
+                                             this.chart.data.datasets[0].data = data.incoming || [];
+                                         }
+                                         if (this.chart.data.datasets && this.chart.data.datasets[1]) {
+                                             this.chart.data.datasets[1].data = data.outgoing || [];
+                                         }
+                                         this.chart.update();
+                                     } else {
+                                         this.renderChart(data);
+                                     }
+                                 },
+                                 renderChart(rawData) {
                                      if (typeof Chart === 'undefined') {
-                                         setTimeout(() => this.initChart(), 100);
+                                         setTimeout(() => this.renderChart(rawData), 100);
                                          return;
                                      }
                                      const canvas = this.$refs.chartCanvas;
@@ -271,16 +293,16 @@
                                          this.chart.destroy();
                                          this.chart = null;
                                      }
-                                     const rawData = {{ \Illuminate\Support\Js::from($throughputTrend) }};
+                                     const data = rawData || {};
                                      const ctx = canvas.getContext('2d');
                                      this.chart = new Chart(ctx, {
                                          type: 'bar',
                                          data: {
-                                             labels: rawData.labels || [],
+                                             labels: data.labels || [],
                                              datasets: [
                                                  {
                                                      label: 'Incoming (KG)',
-                                                     data: rawData.incoming || [],
+                                                     data: data.incoming || [],
                                                      backgroundColor: 'rgba(34, 211, 238, 0.75)',
                                                      borderColor: 'rgba(34, 211, 238, 1)',
                                                      borderWidth: 1,
@@ -289,7 +311,7 @@
                                                  },
                                                  {
                                                      label: 'Outgoing (KG)',
-                                                     data: rawData.outgoing || [],
+                                                     data: data.outgoing || [],
                                                      backgroundColor: 'rgba(99, 102, 241, 0.75)',
                                                      borderColor: 'rgba(99, 102, 241, 1)',
                                                      borderWidth: 1,
@@ -307,7 +329,7 @@
                                              },
                                              plugins: {
                                                  legend: {
-                                                     display: false
+                                                    display: false
                                                  },
                                                  tooltip: {
                                                      backgroundColor: '#0f172a',
@@ -355,7 +377,6 @@
                                      });
                                  }
                              }"
-                             x-init="$nextTick(() => initChart())"
                         >
                             <canvas x-ref="chartCanvas" id="fifoThroughputChart"></canvas>
                         </div>

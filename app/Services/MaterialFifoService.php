@@ -16,7 +16,7 @@ class MaterialFifoService
     /**
      * Get High-Level Executive FIFO KPIs
      */
-    public function getFifoKpis($whseId = null, ?string $fromDate = null, ?string $toDate = null): array
+    public function getFifoKpis($whseId = null, ?string $fromDate = null, ?string $toDate = null, ?array $preloadedDeviations = null): array
     {
         $whseId = ($whseId && is_numeric($whseId)) ? (int) $whseId : null;
 
@@ -35,8 +35,10 @@ class MaterialFifoService
         $totalOutgoingsCount = (int) $outgoingQuery->count();
         $totalOutgoingQty    = (float) $outgoingQuery->sum('qty_taken');
 
-        // 2. Detect FIFO deviations for this period
-        $deviations = $this->detectFifoDeviations($whseId, $fromDate, $toDate, 1000);
+        // 2. FIFO Deviations
+        $deviations = $preloadedDeviations !== null 
+            ? $preloadedDeviations 
+            : $this->detectFifoDeviations($whseId, $fromDate, $toDate, 1000);
         $deviationCount = count($deviations);
 
         $compliantCount = max(0, $totalOutgoingsCount - $deviationCount);
@@ -64,39 +66,39 @@ class MaterialFifoService
         $qcHoldPalletsCount = (int) $qcHoldQuery->count();
         $qcHoldQtyKg        = (float) $qcHoldQuery->sum('current_qty');
 
-        // 5. Overaged active inventory (>60 days)
+        // 5. Overaged active inventory (>60 days) - Database-agnostic fast SQL
         $sixtyDaysAgo = now()->subDays(60)->format('Y-m-d');
-        $overagedPalletQuery = MwhPallet::with('incomingHeader')
-            ->where('current_qty', '>', 0)
-            ->whereIn('status', ['STORED', 'PARTIAL']);
-        if ($whseId) {
-            $overagedPalletQuery->where('whse_id', $whseId);
-        }
-        $overagedPallets = $overagedPalletQuery->get()->filter(function ($p) use ($sixtyDaysAgo) {
-            $refDate = $p->incomingHeader?->arrival_date 
-                ? Carbon::parse($p->incomingHeader->arrival_date)->format('Y-m-d')
-                : $p->created_at->format('Y-m-d');
-            return $refDate <= $sixtyDaysAgo;
-        });
-        $overagedStockKg = (float) $overagedPallets->sum('current_qty');
-        $overagedPalletsCount = $overagedPallets->count();
+        $overagedQuery = MwhPallet::query()
+            ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
+            ->where('mwh_pallets.current_qty', '>', 0)
+            ->whereIn('mwh_pallets.status', ['STORED', 'PARTIAL'])
+            ->where(function ($q) use ($sixtyDaysAgo) {
+                $q->where('mwh_incoming_headers.arrival_date', '<=', $sixtyDaysAgo)
+                  ->orWhere(function ($sub) use ($sixtyDaysAgo) {
+                      $sub->whereNull('mwh_incoming_headers.arrival_date')
+                          ->whereDate('mwh_pallets.created_at', '<=', $sixtyDaysAgo);
+                  });
+            });
 
-        // 6. Average Days to Consume (Turnaround Lead Time) for period
-        $outgoingsWithPallet = (clone $outgoingQuery)->with(['pallet.incomingHeader'])->get();
-        $totalLeadDays = 0;
-        $countedLeadRows = 0;
-        foreach ($outgoingsWithPallet as $out) {
-            if ($out->pallet) {
-                $arrivalDateStr = $out->pallet->incomingHeader?->arrival_date 
-                    ? Carbon::parse($out->pallet->incomingHeader->arrival_date)->format('Y-m-d')
-                    : $out->pallet->created_at->format('Y-m-d');
-                $outDateStr = Carbon::parse($out->outgoing_date)->format('Y-m-d');
-                $diff = Carbon::parse($arrivalDateStr)->diffInDays(Carbon::parse($outDateStr));
-                $totalLeadDays += $diff;
-                $countedLeadRows++;
-            }
+        if ($whseId) {
+            $overagedQuery->where('mwh_pallets.whse_id', $whseId);
         }
-        $avgLeadDays = $countedLeadRows > 0 ? round($totalLeadDays / $countedLeadRows, 1) : 0;
+        $overagedStockKg = (float) ($overagedQuery->sum('mwh_pallets.current_qty') ?? 0);
+        $overagedPalletsCount = (int) ($overagedQuery->count() ?? 0);
+
+        // 6. Average Days to Consume (Turnaround Lead Time) - Fast single query
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $diffSql = $isSqlite
+            ? 'AVG(julianday(mwh_outgoings.outgoing_date) - julianday(COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)))) as avg_lead'
+            : 'AVG(DATEDIFF(mwh_outgoings.outgoing_date, COALESCE(mwh_incoming_headers.arrival_date, DATE(mwh_pallets.created_at)))) as avg_lead';
+
+        $rawAvgLead = (clone $outgoingQuery)
+            ->join('mwh_pallets', 'mwh_outgoings.pallet_id', '=', 'mwh_pallets.pallet_id')
+            ->leftJoin('mwh_incoming_headers', 'mwh_pallets.incoming_header_id', '=', 'mwh_incoming_headers.id')
+            ->selectRaw($diffSql)
+            ->value('avg_lead');
+
+        $avgLeadDays = $rawAvgLead !== null ? max(0, round((float) $rawAvgLead, 1)) : 0.0;
 
         // Grade status
         $grade = 'EXCELLENT';
@@ -154,6 +156,19 @@ class MaterialFifoService
         }
 
         $outgoings = $outgoingsQuery->get();
+        if ($outgoings->isEmpty()) {
+            return [];
+        }
+
+        // Bulk-load all candidate pallets in ONE single query (no N+1 loop queries)
+        $itemCodes = $outgoings->pluck('item_code')->unique()->values();
+        $candidatePalletsGrouped = MwhPallet::with(['incomingHeader', 'position.rack'])
+            ->whereIn('item_code', $itemCodes)
+            ->where('is_qc_hold', false)
+            ->when($whseId, fn($q) => $q->where('whse_id', $whseId))
+            ->get()
+            ->groupBy('item_code');
+
         $deviations = [];
 
         foreach ($outgoings as $out) {
@@ -171,19 +186,11 @@ class MaterialFifoService
                 $outgoingTimestamp->setTimeFrom($out->created_at);
             }
 
-            // Check if there was an older pallet of the same item code in the same warehouse
-            $olderPalletQuery = MwhPallet::with(['incomingHeader', 'position.rack'])
-                ->where('item_code', $out->item_code)
-                ->where('pallet_id', '!=', $pickedPallet->pallet_id)
-                ->where('is_qc_hold', false); // QC Hold items are excused from FIFO skips
+            // Retrieve preloaded potential older pallets for this item code from memory
+            $potentialOlderPallets = $candidatePalletsGrouped->get($out->item_code, collect())
+                ->where('pallet_id', '!=', $pickedPallet->pallet_id);
 
-            if ($out->whse_id) {
-                $olderPalletQuery->where('whse_id', $out->whse_id);
-            }
-
-            $potentialOlderPallets = $olderPalletQuery->get();
-
-            $skippedOlderPallets = $potentialOlderPallets->filter(function ($older) use ($pickedArrivalDate, $outgoingTimestamp, $out) {
+            $skippedOlderPallets = $potentialOlderPallets->filter(function ($older) use ($pickedArrivalDate, $outgoingTimestamp) {
                 $olderArrival = $older->incomingHeader?->arrival_date
                     ? Carbon::parse($older->incomingHeader->arrival_date)->format('Y-m-d')
                     : $older->created_at->format('Y-m-d');
@@ -194,7 +201,6 @@ class MaterialFifoService
                 }
 
                 // Check if older lot was in stock at the time of outgoing:
-                // Either it still has current_qty > 0 right now, OR it was created before this outgoing and deleted/consumed after this outgoing
                 if ($older->current_qty > 0) {
                     return true;
                 }
