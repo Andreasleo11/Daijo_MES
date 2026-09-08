@@ -104,6 +104,7 @@ use App\Livewire\ManualSync;
     Route::get('/barcode/custom-generate', [InitialBarcodeController::class, 'customGenerateForm'])->name('barcode.custom.form');
     Route::get('/barcode/custom-generate/logs', [InitialBarcodeController::class, 'customGenerateLogs'])->name('barcode.custom.logs');
     Route::post('/barcode/custom-generate/print', [InitialBarcodeController::class, 'customGeneratePrint'])->name('barcode.custom.print');
+    Route::get('/barcode/custom-generate/reprint/{id}', [InitialBarcodeController::class, 'customGenerateReprint'])->name('barcode.custom.reprint');
     Route::get('/api/get-spks-by-item', [InitialBarcodeController::class, 'getSpksByItem'])->name('api.get-spks-by-item');
     //barcode untuk generate label produksi terbaru 
 

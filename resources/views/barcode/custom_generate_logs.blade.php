@@ -87,6 +87,7 @@
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Shift / WH / Prod Date</th>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Type</th>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Remark / Catatan</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-600 uppercase text-xs">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 bg-white">
@@ -106,7 +107,7 @@
                                         <div class="text-xs text-slate-500">{{ $log->item_name }}</div>
                                         <div class="text-xs text-slate-600 font-medium mt-0.5">SPK: <span class="font-mono">{{ $log->spk_number }}</span></div>
                                         @if($log->customer && $log->customer !== '-')
-                                            <div class="text-xs text-slate-400">Cust: {{ $log->customer }}</div>
+                                             <div class="text-xs text-slate-400">Cust: {{ $log->customer }}</div>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5 whitespace-nowrap text-slate-700">
@@ -164,10 +165,15 @@
                                             <span class="text-slate-400 italic">-</span>
                                         @endif
                                     </td>
+                                    <td class="px-4 py-3.5 whitespace-nowrap text-center text-xs">
+                                        <a href="{{ route('barcode.custom.reprint', $log->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-transparent rounded-lg text-xs font-bold transition duration-150 shadow-sm">
+                                            <span>🖨️</span> Print Ulang
+                                        </a>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-12 text-center text-slate-400">
+                                    <td colspan="9" class="px-4 py-12 text-center text-slate-400">
                                         Tidak ada data riwayat cetak barcode yang sesuai dengan filter.
                                     </td>
                                 </tr>
