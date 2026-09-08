@@ -104,6 +104,7 @@ use App\Livewire\ManualSync;
     Route::get('/barcode/custom-generate', [InitialBarcodeController::class, 'customGenerateForm'])->name('barcode.custom.form');
     Route::get('/barcode/custom-generate/logs', [InitialBarcodeController::class, 'customGenerateLogs'])->name('barcode.custom.logs');
     Route::post('/barcode/custom-generate/print', [InitialBarcodeController::class, 'customGeneratePrint'])->name('barcode.custom.print');
+    Route::get('/barcode/custom-generate/reprint/{id}', [InitialBarcodeController::class, 'customGenerateReprint'])->name('barcode.custom.reprint');
     Route::get('/api/get-spks-by-item', [InitialBarcodeController::class, 'getSpksByItem'])->name('api.get-spks-by-item');
     //barcode untuk generate label produksi terbaru 
 
@@ -360,6 +361,7 @@ Route::get('/public/material-pallet/{palletId}', function (\Illuminate\Http\Requ
     $pallet = \App\Models\MwhPallet::with([
         'warehouse',
         'position.rack.warehouse',
+        'initialPosition.rack.warehouse',
         'material',
         'incomingHeader',
         'outgoings.position.rack'
@@ -371,6 +373,15 @@ Route::get('/public/material-pallet/{palletId}', function (\Illuminate\Http\Requ
 Route::get('/public/material-warehouse/mapping', \App\Livewire\MaterialWarehouse\PublicRackMapping::class)
     ->name('mwh.public-mapping')
     ->middleware('throttle:60,1');
+
+// Director FIFO Dashboard (Public Access - No Login Required)
+Route::get('/material-warehouse/fifo-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.fifo-dashboard');
+Route::get('/material-warehouse/director-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.director-dashboard.public');
+Route::get('/public/material-warehouse/fifo-dashboard', \App\Livewire\MaterialWarehouse\MaterialFifoDirectorDashboard::class)
+    ->name('mwh.fifo-dashboard.public');
+
 
 Route::middleware('auth')->group(function (){
 
@@ -428,7 +439,14 @@ Route::middleware('auth')->group(function (){
         Route::get('/stock-card', \App\Livewire\MaterialWarehouse\MaterialStockCard::class)->name('stock-card.index');
         Route::get('/qr-lookup', \App\Livewire\MaterialWarehouse\MaterialQrLookup::class)->name('qr-lookup');
         Route::get('/pallet/print/{palletId}', function ($palletId) {
-            $pallet = \App\Models\MwhPallet::with(['incomingHeader', 'position.rack.warehouse', 'material', 'warehouse'])->where('pallet_id', $palletId)->firstOrFail();
+            $pallet = \App\Models\MwhPallet::with([
+                'incomingHeader', 
+                'position.rack.warehouse', 
+                'initialPosition.rack.warehouse',
+                'material', 
+                'warehouse',
+                'outgoings.position.rack'
+            ])->where('pallet_id', $palletId)->firstOrFail();
             return view('material-warehouse.material_pallet_print', compact('pallet'));
         })->name('pallet.print');
     });

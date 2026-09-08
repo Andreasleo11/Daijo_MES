@@ -155,12 +155,12 @@ class InitialBarcodeController extends Controller
 
         $itemCode = $request->input('item_code');
         $spkNumber = $request->input('spk_number');
-        $quantity = $request->input('quantity');
+        $quantity = (int) $request->input('quantity');
         $warehouse = $request->input('warehouse');
         $startLabel = (int) $request->input('start_label');
         $endLabel = (int) $request->input('end_label');
         $shift = $request->input('shift');
-        $prodDate = $request->input('prod_date') ?: today()->toDateString();
+        $prodDate = $request->input('prod_date') ?: null;
         $operator = $request->input('operator') ?: '-';
         $customer = $request->input('customer') ?: '-';
         $barcodeType = $request->input('barcode_type', 'default');
@@ -169,34 +169,8 @@ class InitialBarcodeController extends Controller
         $remark = $request->input('remark');
         $totalLabels = ($endLabel - $startLabel) + 1;
 
-        $item = MasterListItem::where('item_code', $itemCode)->firstOrFail();
-        $itemName = $item->item_name;
-        $qad = $request->input('qad') ?: (($item->description_in_foreign_lang && $item->description_in_foreign_lang !== '0') ? $item->description_in_foreign_lang : '');
-        $model = $request->input('model') ?: (($item->family && $item->family !== '0') ? $item->family : '');
-        $color = $request->input('color') ?: (($item->color && $item->color !== '0') ? $item->color : '');
-        
-        // Position format: 'right' -> 'RH', 'left' -> 'LH'
-        $positionInput = $request->input('position') ?: (($item->position && $item->position !== '0') ? $item->position : '');
-        $posRaw = strtolower(trim((string) $positionInput));
-        if ($posRaw === 'right' || $posRaw === 'rh') {
-            $position = 'RH';
-        } elseif ($posRaw === 'left' || $posRaw === 'lh') {
-            $position = 'LH';
-        } else {
-            $position = strtoupper($positionInput ?: '-');
-        }
-
-        // Half codes for ITSP (both uppercase, half_code_1 will be displayed with smaller font size in view)
-        $h1 = strtoupper(trim((string) ($item->half_code_1 && $item->half_code_1 !== '0' ? $item->half_code_1 : '')));
-        $h2 = strtoupper(trim((string) ($item->half_code_2 && $item->half_code_2 !== '0' ? $item->half_code_2 : '')));
-        $itspCode = ($h1 !== '' || $h2 !== '') ? "{$h1}{$h2}" : $itemCode;
-
-        // Year and month codes for SHARP format
-        $year = date('Y', strtotime($prodDate));
-        $month = date('n', strtotime($prodDate));
-        $yearCode = $this->getSharpYearCode($year);
-        $monthName = $this->getIndonesianMonthName($month);
-        $prodDateFormatted = "{$monthName} {$year}";
+        $item = MasterListItem::where('item_code', $itemCode)->first();
+        $itemName = $item?->item_name ?? $itemCode;
 
         // Log the print action
         CustomBarcodeLog::create([
@@ -218,6 +192,126 @@ class InitialBarcodeController extends Controller
             'is_trial' => $isTrial,
             'remark' => $remark,
         ]);
+
+        $labels = $this->buildLabelsData(
+            $itemCode,
+            $spkNumber,
+            $quantity,
+            $warehouse,
+            $startLabel,
+            $endLabel,
+            $shift,
+            $prodDate,
+            $operator,
+            $customer,
+            $barcodeType,
+            $isTrial,
+            $isSp,
+            $request->input('qad'),
+            $request->input('model'),
+            $request->input('color'),
+            $request->input('position')
+        );
+
+        $logoBase64 = $this->getLogoBase64();
+
+        return view('barcode.custom_generate_print', compact('labels', 'barcodeType', 'logoBase64'));
+    }
+
+    public function customGenerateReprint($id)
+    {
+        $log = CustomBarcodeLog::findOrFail($id);
+
+        $itemCode = $log->item_code;
+        $spkNumber = $log->spk_number;
+        $quantity = (int) $log->quantity;
+        $warehouse = $log->warehouse;
+        $startLabel = (int) $log->start_label;
+        $endLabel = (int) $log->end_label;
+        $shift = $log->shift;
+        $prodDate = $log->prod_date ?: null;
+        $operator = $log->operator ?: '-';
+        $customer = $log->customer ?: '-';
+        $barcodeType = $log->barcode_type ?: 'default';
+        $isTrial = (bool) $log->is_trial;
+        $isSp = false;
+
+        $labels = $this->buildLabelsData(
+            $itemCode,
+            $spkNumber,
+            $quantity,
+            $warehouse,
+            $startLabel,
+            $endLabel,
+            $shift,
+            $prodDate,
+            $operator,
+            $customer,
+            $barcodeType,
+            $isTrial,
+            $isSp
+        );
+
+        $logoBase64 = $this->getLogoBase64();
+
+        return view('barcode.custom_generate_print', compact('labels', 'barcodeType', 'logoBase64'));
+    }
+
+    protected function buildLabelsData(
+        string $itemCode,
+        string $spkNumber,
+        int $quantity,
+        string $warehouse,
+        int $startLabel,
+        int $endLabel,
+        string $shift,
+        ?string $prodDate,
+        string $operator,
+        string $customer,
+        string $barcodeType,
+        bool $isTrial,
+        bool $isSp = false,
+        ?string $customQad = null,
+        ?string $customModel = null,
+        ?string $customColor = null,
+        ?string $customPosition = null
+    ): array {
+        $item = MasterListItem::where('item_code', $itemCode)->first();
+        $itemName = $item?->item_name ?? $itemCode;
+        $qad = $customQad ?: (($item?->description_in_foreign_lang && $item->description_in_foreign_lang !== '0') ? $item->description_in_foreign_lang : '');
+        $model = $customModel ?: (($item?->family && $item->family !== '0') ? $item->family : '');
+        $color = $customColor ?: (($item?->color && $item->color !== '0') ? $item->color : '');
+        
+        // Position format: 'right' -> 'RH', 'left' -> 'LH'
+        $positionInput = $customPosition ?: (($item?->position && $item->position !== '0') ? $item->position : '');
+        $posRaw = strtolower(trim((string) $positionInput));
+        if ($posRaw === 'right' || $posRaw === 'rh') {
+            $position = 'RH';
+        } elseif ($posRaw === 'left' || $posRaw === 'lh') {
+            $position = 'LH';
+        } else {
+            $position = strtoupper($positionInput ?: '-');
+        }
+
+        // Half codes for ITSP
+        $h1 = strtoupper(trim((string) ($item?->half_code_1 && $item->half_code_1 !== '0' ? $item->half_code_1 : '')));
+        $h2 = strtoupper(trim((string) ($item?->half_code_2 && $item->half_code_2 !== '0' ? $item->half_code_2 : '')));
+        $itspCode = ($h1 !== '' || $h2 !== '') ? "{$h1}{$h2}" : $itemCode;
+
+        // Year and month codes for SHARP format
+        if ($prodDate) {
+            $year = date('Y', strtotime($prodDate));
+            $month = date('n', strtotime($prodDate));
+            $yearCode = $this->getSharpYearCode($year);
+            $monthName = $this->getIndonesianMonthName($month);
+            $prodDateFormatted = "{$monthName} {$year}";
+        } else {
+            $year = '';
+            $month = '';
+            $yearCode = '';
+            $monthName = '';
+            $prodDateFormatted = '';
+        }
 
         $labels = [];
         $writer = new PngWriter();
@@ -267,14 +361,16 @@ class InitialBarcodeController extends Controller
             ];
         }
 
-        // Load Daijo logo as base64 for fast and reliable print rendering
+        return $labels;
+    }
+
+    protected function getLogoBase64(): ?string
+    {
         $logoPath = public_path('picture/logo-dj.png');
         if (!file_exists($logoPath)) {
             $logoPath = storage_path('app/public/picture/logo-dj.png');
         }
-        $logoBase64 = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
-
-        return view('barcode.custom_generate_print', compact('labels', 'barcodeType', 'logoBase64'));
+        return file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
     }
 
     /**

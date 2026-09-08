@@ -22,6 +22,7 @@ class MwhPallet extends Model
         'current_qty',
         'uom',
         'position_id',
+        'initial_position_id',
         'status',
         'is_qc_hold',
         'qc_hold_reason',
@@ -51,7 +52,12 @@ class MwhPallet extends Model
 
     public function position()
     {
-        return $this->belongsTo(MwhPosition::class, 'position_id');
+        return $this->belongsTo(MwhPosition::class, 'position_id')->withTrashed();
+    }
+
+    public function initialPosition()
+    {
+        return $this->belongsTo(MwhPosition::class, 'initial_position_id')->withTrashed();
     }
 
     public function outgoings()

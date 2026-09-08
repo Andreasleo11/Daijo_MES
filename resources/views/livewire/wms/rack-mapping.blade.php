@@ -256,9 +256,23 @@
                                                         </div>
                                                         <div class="text-right shrink-0">
                                                             <span class="text-xs font-black text-blue-600 block">{{ number_format($pf->total_pallet_qty, 0) }} Pcs</span>
-                                                            <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="inline-block p-1 text-gray-400 hover:text-blue-600 transition" title="Print Barcode">
-                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                            </a>
+                                                            <div class="flex items-center justify-end gap-1 mt-1">
+                                                                <a href="{{ route('wms.pallet-form.print', ['id' => $pf->pallet_id]) }}" target="_blank" class="p-1 text-gray-400 hover:text-blue-600 transition" title="Print Barcode">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                                </a>
+                                                                <button wire:click="unassignPalletFromSlot('{{ $pf->pallet_id }}')" 
+                                                                        wire:confirm="Lepas Pallet {{ $pf->pallet_id }} dari slot ini ke status Temporary (Belum ada tempat)?"
+                                                                        class="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition" 
+                                                                        title="Lepas dari Slot (Unassign)">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                                                </button>
+                                                                <button wire:click="deletePallet('{{ $pf->pallet_id }}')" 
+                                                                        wire:confirm="Apakah Anda yakin ingin menghapus Pallet {{ $pf->pallet_id }} beserta seluruh rincian itemnya? Tindakan ini tidak bisa dibatalkan."
+                                                                        class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition" 
+                                                                        title="Hapus Pallet">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -330,7 +344,10 @@
                                     <button wire:click="saveSettings" class="flex-grow py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95">
                                         Update Detail
                                     </button>
-                                    <button wire:click="resetSlot" onclick="return confirm('Reset slot ini menjadi kosong?')" class="p-3 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-100 rounded-xl transition-all">
+                                    <button wire:click="resetSlot" 
+                                            wire:confirm="Reset slot ini menjadi kosong dan lepas seluruh pallet di dalamnya?" 
+                                            title="Reset Slot & Lepas Pallet" 
+                                            class="p-3 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-100 rounded-xl transition-all">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
@@ -352,9 +369,17 @@
                                                     <div class="font-mono font-black text-gray-900">{{ $un->pallet_id }}</div>
                                                     <div class="text-[10px] text-gray-500 font-semibold">{{ $un->part_no }} &bull; {{ number_format($un->total_pallet_qty, 0) }} pcs</div>
                                                 </div>
-                                                <button wire:click="assignPalletToSelectedSlot('{{ $un->pallet_id }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold shadow-xs transition">
-                                                    Assign ke Slot Ini
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button wire:click="assignPalletToSelectedSlot('{{ $un->pallet_id }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold shadow-xs transition">
+                                                        Assign ke Slot Ini
+                                                    </button>
+                                                    <button wire:click="deletePallet('{{ $un->pallet_id }}')" 
+                                                            wire:confirm="Apakah Anda yakin ingin menghapus Pallet {{ $un->pallet_id }}?"
+                                                            class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" 
+                                                            title="Hapus Pallet">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                         @endforeach
                                     </div>

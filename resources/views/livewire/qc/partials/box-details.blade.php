@@ -2,7 +2,7 @@
     {{-- Header & Submit All Button --}}
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
         <div class="font-extrabold text-xs sm:text-sm text-[#92400E]">
-            📦 Rincian Box SPK {{ $item->spk_code }} (Gudang: {{ $item->warehouse }})
+            📦 Rincian Box SPK {{ $item->spk_code }} (Gudang: {{ $item->warehouse }}) • Tgl Prod: {{ $item->created_date ? \Carbon\Carbon::parse($item->created_date)->format('d/m/Y') : '-' }}
         </div>
         @if($qcStatus != 1)
             <button wire:loading.attr="disabled" onclick="if(confirm('Kirim inspeksi untuk SEMUA box yang diisi pada summary ini? Log hasil inspeksi akan FINAL dan tidak dapat diubah.')) { @this.submitWholeSummary({{ $item->id }}) }"
@@ -50,7 +50,7 @@
                                     {{ $log['ng_qty'] }} PCS
                                 </span>
                             @else
-                                <input type="number" min="0" max="{{ $boxQty }}" wire:model.live="ngInputs.{{ $boxId }}"
+                                <input type="number" min="0" max="{{ $boxQty }}" wire:model.live.debounce.400ms="ngInputs.{{ $boxId }}"
                                        x-data="{ boxId: '{{ $boxId }}' }"
                                        x-init="
                                            let saved = localStorage.getItem('qc_draft_ng_' + boxId);
@@ -184,7 +184,7 @@
                                 {{ $log['ng_qty'] }} PCS
                             </span>
                         @else
-                            <input type="number" min="0" max="{{ $boxQty }}" wire:model.live="ngInputs.{{ $boxId }}"
+                            <input type="number" min="0" max="{{ $boxQty }}" wire:model.live.debounce.400ms="ngInputs.{{ $boxId }}"
                                    x-data="{ boxId: '{{ $boxId }}' }"
                                    x-init="
                                        let saved = localStorage.getItem('qc_draft_ng_' + boxId);

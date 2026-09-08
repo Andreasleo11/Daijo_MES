@@ -6,6 +6,7 @@ use App\Livewire\MaterialWarehouse\MaterialIncomingCreator;
 use App\Livewire\MaterialWarehouse\MaterialOutgoingCreator;
 use App\Livewire\MaterialWarehouse\MaterialPalletIndex;
 use App\Livewire\MaterialWarehouse\MaterialQrLookup;
+use App\Livewire\MaterialWarehouse\MaterialStockCard;
 use App\Models\MasterListMaterial;
 use App\Models\MwhPallet;
 use App\Models\MwhPosition;
@@ -117,6 +118,7 @@ class MaterialWarehouseTransactionTest extends TestCase
                 $table->decimal('current_qty', 12, 2)->default(0);
                 $table->string('uom', 20)->default('KG');
                 $table->foreignId('position_id')->nullable();
+                $table->foreignId('initial_position_id')->nullable();
                 $table->enum('status', ['STORED', 'PARTIAL', 'EMPTY'])->default('STORED');
                 $table->boolean('is_qc_hold')->default(false);
                 $table->text('qc_hold_reason')->nullable();
@@ -574,4 +576,99 @@ class MaterialWarehouseTransactionTest extends TestCase
             ->assertSee('RAK-KBN-01')
             ->assertDontSee('RAK-KRW-01');
     }
+
+    public function test_direct_input_and_consumed_pallets_maintain_slot_visibility_in_stock_card()
+    {
+        $mwhService = app(MaterialWarehouseService::class);
+
+        $wh = MwhWarehouse::firstOrCreate(['whse_code' => 'MTR-01'], ['whse_name' => 'Gudang Material']);
+        $rack = MwhRack::firstOrCreate(['whse_id' => $wh->id, 'rack_code' => 'RAK-DIR']);
+        $pos = MwhPosition::firstOrCreate([
+            'rack_id'       => $rack->id,
+            'level_no'      => 1,
+            'slot_no'       => 1,
+            'position_code' => 'RAK-DIR-L01-S01',
+        ], ['max_capacity' => 1000]);
+
+        MasterListMaterial::firstOrCreate([
+            'item_code' => '400-TBP7JA127BLU',
+        ], [
+            'item_description' => 'ABS CLEAR BLUE 244 TBP7JA127',
+            'purchasing_uom'   => 'KG',
+        ]);
+
+        $role = \App\Models\Role::firstOrCreate(['name' => 'ADMIN']);
+        $user = User::create([
+            'name'     => 'Store User',
+            'email'    => 'store_' . uniqid() . '@example.com',
+            'role_id'  => $role->id,
+            'password' => bcrypt('password'),
+        ]);
+
+        $this->actingAs($user);
+
+        // 1. Direct input via Rack Mapping into slot RAK-DIR-L01-S01
+        Livewire::test(\App\Livewire\MaterialWarehouse\RackMapping::class)
+            ->call('selectPosition', $pos->id)
+            ->set('new_item_code', '400-TBP7JA127BLU')
+            ->set('new_qty', '1000')
+            ->set('new_lot_no', 'LOT-TOYOINK-01')
+            ->set('new_supplier_name', 'PT. TOYOINK')
+            ->set('new_created_at', '2026-08-19')
+            ->call('storeMaterialToSlot')
+            ->assertHasNoErrors();
+
+        $pallet = MwhPallet::where('item_code', '400-TBP7JA127BLU')->first();
+        $this->assertNotNull($pallet);
+        $this->assertEquals($pos->id, $pallet->position_id);
+        $this->assertEquals($pos->id, $pallet->initial_position_id);
+
+        // 2. Perform Outgoing picking taking ALL 1000 KG (Pallet becomes EMPTY)
+        $mwhService->processOutgoingPicking($pallet->pallet_id, 1000.00, '2026-08-19', 'Produksi Line 1', 'Direct usage');
+
+        $pallet->refresh();
+        $this->assertEquals(0, $pallet->current_qty);
+        $this->assertNull($pallet->position_id); // position_id is null to free physical slot
+        $this->assertEquals($pos->id, $pallet->initial_position_id); // initial_position_id remains intact!
+
+        // 3. Test Material Stock Card shows RAK-DIR-L01-S01 for both INCOMING and OUTGOING without showing UNASSIGNED
+        Livewire::test(MaterialStockCard::class)
+            ->set('selectedItemCode', '400-TBP7JA127BLU')
+            ->set('fromDate', '2026-08-01')
+            ->set('toDate', '2026-08-31')
+            ->assertSee('RAK-DIR-L01-S01')
+            ->assertDontSee('UNASSIGNED');
+
+        // 4. Test legacy pallet without initial_position_id fallback to outgoings history
+        $legacyPallet = MwhPallet::create([
+            'whse_id'             => $wh->id,
+            'pallet_id'           => 'MPLT-LEGACY-001',
+            'item_code'           => '400-TBP7JA127BLU',
+            'initial_qty'         => 500,
+            'current_qty'         => 0,
+            'position_id'         => null,
+            'initial_position_id' => null,
+            'status'              => 'EMPTY',
+            'created_at'          => '2026-08-20 08:00:00',
+        ]);
+
+        \App\Models\MwhOutgoing::create([
+            'whse_id'       => $wh->id,
+            'outgoing_code' => 'OUT-LEGACY-001',
+            'pallet_id'     => 'MPLT-LEGACY-001',
+            'position_id'   => $pos->id,
+            'item_code'     => '400-TBP7JA127BLU',
+            'qty_taken'     => 500,
+            'outgoing_date' => '2026-08-20',
+        ]);
+
+        Livewire::test(MaterialStockCard::class)
+            ->set('selectedItemCode', '400-TBP7JA127BLU')
+            ->set('fromDate', '2026-08-01')
+            ->set('toDate', '2026-08-31')
+            ->assertSee('MPLT-LEGACY-001')
+            ->assertSee('RAK-DIR-L01-S01')
+            ->assertDontSee('UNASSIGNED');
+    }
 }
+

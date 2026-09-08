@@ -159,6 +159,20 @@
                                                 <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded border border-emerald-300">FULL SLOT</span>
                                             @endif
                                         </div>
+                                    @elseif ($p->initialPosition)
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="inline-block px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-mono font-bold">
+                                                {{ $p->initialPosition->position_code }}
+                                            </span>
+                                            <span class="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded">SLOT AWAL</span>
+                                        </div>
+                                    @elseif ($p->outgoings->isNotEmpty() && $p->outgoings->first()->position)
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="inline-block px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-mono font-bold">
+                                                {{ $p->outgoings->first()->position->position_code }}
+                                            </span>
+                                            <span class="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded">SLOT AWAL</span>
+                                        </div>
                                     @else
                                         <span class="text-gray-400 italic">Unassigned</span>
                                     @endif

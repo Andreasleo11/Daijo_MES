@@ -226,12 +226,17 @@ class ProductionDashboardOptimizationTest extends TestCase
             ->assertSet('summary.total_ng', 25)
             ->assertSet('summary.total_actual', 190);
 
-        // Test filtering by Machine K0650A (which had no direct adjust log)
-        // Adjuster Budi should still be identified as the on-duty adjuster for that shift
+        // Test filtering by Machine 1 (K0450A) which had the adjust log
+        $machine1Data = $service->getAllDashboardData($start, $end, null, (string)$machine1->id, 'karawang');
+        $this->assertEquals(10, $machine1Data['summary']['total_ng']);
+        $this->assertEquals(100, $machine1Data['summary']['total_actual']);
+        $this->assertContains('Budi (Adjuster)', $machine1Data['shift_personnel_analysis']['shifts'][1]['adjusters']);
+
+        // Test filtering by Machine 2 (K0650A) which had no direct adjust log
         $machine2Data = $service->getAllDashboardData($start, $end, null, (string)$machine2->id, 'karawang');
         $this->assertEquals(15, $machine2Data['summary']['total_ng']);
         $this->assertEquals(90, $machine2Data['summary']['total_actual']);
-        $this->assertContains('Budi (Adjuster)', $machine2Data['shift_personnel_analysis']['shifts'][1]['adjusters']);
+        $this->assertEmpty($machine2Data['shift_personnel_analysis']['shifts'][1]['adjusters']);
     }
 
     public function test_production_dashboard_daily_view()
@@ -263,5 +268,105 @@ class ProductionDashboardOptimizationTest extends TestCase
         $this->assertCount(24, $dailyData['chart_data']);
         $this->assertEquals(100, $dailyData['summary']['total_target']);
         $this->assertEquals(95, $dailyData['summary']['total_actual']);
+    }
+
+    public function test_adjuster_and_mould_change_utc_to_wib_shift_assignment()
+    {
+        $machine = User::create(['name' => 'K0450A', 'email' => 'k0450a@example.com', 'password' => 'secret']);
+        $otherMachine = User::create(['name' => 'K0650A', 'email' => 'k0650a@example.com', 'password' => 'secret']);
+
+        MasterListItem::create([
+            'item_code'         => 'K-847F1-I6RA0',
+            'cycle_time'        => 30.0,
+            'setup_time_minute' => 20.0,
+        ]);
+
+        // Adjust log 1: Rudi Siswanto at 10:32 WIB (03:32 UTC) -> Shift 1 (07:30 - 15:30)
+        $adj1 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'K-847F1-I6RA0',
+            'pic'       => 'Rudi Siswanto',
+            'end_time'  => '2026-09-03 03:42:00',
+        ]);
+        $adj1->created_at = '2026-09-03 03:32:00';
+        $adj1->save();
+
+        // Adjust log 2: Haerul Anwar at 19:03 WIB (12:03 UTC) -> Shift 2 (15:30 - 23:30)
+        $adj2 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'K-84715-I7AA0NNB',
+            'pic'       => 'Haerul Anwar',
+            'end_time'  => '2026-09-03 12:10:00',
+        ]);
+        $adj2->created_at = '2026-09-03 12:03:00';
+        $adj2->save();
+
+        // Adjust log 3: Rodi Khayrudin at 23:40 WIB (16:40 UTC) -> Shift 3 (23:30 - 07:30)
+        $adj3 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'K-84780-I7000NNB-PE',
+            'pic'       => 'Rodi Khayrudin',
+            'end_time'  => '2026-09-03 16:52:00',
+        ]);
+        $adj3->created_at = '2026-09-03 16:40:00';
+        $adj3->save();
+
+        // Mould change log 1: Wahyu Eko Prawito at 16:35 WIB (09:35 UTC) -> Shift 2
+        $mould1 = MouldChangeLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'K-847F1-I6RA0',
+            'pic'       => 'Wahyu Eko Prawito',
+            'end_time'  => '2026-09-03 09:50:00',
+        ]);
+        $mould1->created_at = '2026-09-03 09:35:00';
+        $mould1->save();
+
+        // Mould change log 2: Wahyu Eko Prawito at 23:15 WIB (16:15 UTC) -> Shift 2
+        $mould2 = MouldChangeLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'K-84715-I7AA0NNB',
+            'pic'       => 'Wahyu Eko Prawito',
+            'end_time'  => '2026-09-03 16:30:00',
+        ]);
+        $mould2->created_at = '2026-09-03 16:15:00';
+        $mould2->save();
+
+        // An adjust log on ANOTHER machine: Other Person at 10:00 WIB (03:00 UTC) on K0650A
+        $adjOther = AdjustMachineLog::create([
+            'user_id'   => $otherMachine->id,
+            'item_code' => 'OTHER-ITEM',
+            'pic'       => 'Other Person',
+            'end_time'  => '2026-09-03 03:30:00',
+        ]);
+        $adjOther->created_at = '2026-09-03 03:00:00';
+        $adjOther->save();
+
+        $service = app(ProductionDashboardService::class);
+        $selectedDate = Carbon::parse('2026-09-03');
+
+        // Query filtered strictly to Machine K0450A
+        $data = $service->getAllDashboardData($selectedDate, $selectedDate, null, (string)$machine->id, 'karawang');
+        $shifts = $data['shift_personnel_analysis']['shifts'];
+
+        // Shift 1: Only Rudi Siswanto (10:32 WIB)
+        $this->assertEquals(['Rudi Siswanto'], $shifts[1]['adjusters']);
+        $this->assertEmpty($shifts[1]['mould_changers']);
+        $this->assertEquals(1, $shifts[1]['adjust_count']);
+        $this->assertEquals(0, $shifts[1]['mould_change_count']);
+
+        // Shift 2: Haerul Anwar (19:03 WIB) and Wahyu Eko Prawito (16:35 & 23:15 WIB)
+        $this->assertEquals(['Haerul Anwar'], $shifts[2]['adjusters']);
+        $this->assertEquals(['Wahyu Eko Prawito'], $shifts[2]['mould_changers']);
+        $this->assertEquals(1, $shifts[2]['adjust_count']);
+        $this->assertEquals(2, $shifts[2]['mould_change_count']);
+
+        // Shift 3: Rodi Khayrudin (23:40 WIB)
+        $this->assertEquals(['Rodi Khayrudin'], $shifts[3]['adjusters']);
+        $this->assertEmpty($shifts[3]['mould_changers']);
+        $this->assertEquals(1, $shifts[3]['adjust_count']);
+        $this->assertEquals(0, $shifts[3]['mould_change_count']);
+
+        // Assert 'Other Person' from K0650A is NOT present when filtered to K0450A
+        $this->assertNotContains('Other Person', $shifts[1]['adjusters']);
     }
 }

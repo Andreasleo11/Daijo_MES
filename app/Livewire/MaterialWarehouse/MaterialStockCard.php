@@ -155,10 +155,14 @@ class MaterialStockCard extends Component
         if ($this->whse_id && $this->whse_id !== 'ALL') {
             $whseId = (int)$this->whse_id;
             $palletQuery->where(function($q) use ($whseId) {
-                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+                $q->where('whse_id', $whseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId))
+                  ->orWhereHas('initialPosition.rack', fn($rq) => $rq->where('whse_id', $whseId));
             });
             $outgoingQuery->where(function($q) use ($whseId) {
-                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+                $q->where('whse_id', $whseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId))
+                  ->orWhereHas('pallet.initialPosition.rack', fn($rq) => $rq->where('whse_id', $whseId));
             });
         }
 
@@ -173,11 +177,13 @@ class MaterialStockCard extends Component
         $summary['total_outgoing'] = (float) (clone $outgoingQuery)->sum('qty_taken');
 
         // 2. Fetch Incoming movements (MwhPallet records)
-        $incomingsQuery = MwhPallet::with(['incomingHeader', 'position.rack']);
+        $incomingsQuery = MwhPallet::with(['incomingHeader', 'position.rack', 'initialPosition.rack', 'outgoings.position.rack']);
         if ($this->whse_id && $this->whse_id !== 'ALL') {
             $whseId = (int)$this->whse_id;
             $incomingsQuery->where(function($q) use ($whseId) {
-                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+                $q->where('whse_id', $whseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId))
+                  ->orWhereHas('initialPosition.rack', fn($rq) => $rq->where('whse_id', $whseId));
             });
         }
         if (!empty($this->selectedItemCode)) {
@@ -201,6 +207,10 @@ class MaterialStockCard extends Component
                 ? ('Retur Sisa Produksi (' . number_format($pallet->current_qty, 2) . ' KG sisa)')
                 : ('Penerimaan Supplier (' . number_format($pallet->current_qty, 2) . ' KG sisa)');
 
+            $slotCode = $pallet->position?->position_code 
+                ?: ($pallet->initialPosition?->position_code 
+                ?: ($pallet->outgoings->first()?->position?->position_code ?: 'UNASSIGNED'));
+
             return [
                 'id'                 => 'IN-' . $pallet->id,
                 'timestamp'          => $dt,
@@ -211,7 +221,7 @@ class MaterialStockCard extends Component
                 'ref_code'           => $pallet->pallet_id,
                 'sub_ref'            => $subRef,
                 'source_destination' => $sourceDest,
-                'slot_code'          => $pallet->position?->position_code ?: 'UNASSIGNED',
+                'slot_code'          => $slotCode,
                 'qty_in'             => (float) $pallet->initial_qty,
                 'qty_out'            => 0.0,
                 'pallet_qty'         => (float) $pallet->current_qty,
@@ -221,11 +231,13 @@ class MaterialStockCard extends Component
         });
 
         // 3. Fetch Outgoing movements (MwhOutgoing records)
-        $outgoingsQuery = MwhOutgoing::with(['pallet.position.rack', 'position.rack']);
+        $outgoingsQuery = MwhOutgoing::with(['pallet.position.rack', 'pallet.initialPosition.rack', 'position.rack']);
         if ($this->whse_id && $this->whse_id !== 'ALL') {
             $whseId = (int)$this->whse_id;
             $outgoingsQuery->where(function($q) use ($whseId) {
-                $q->where('whse_id', $whseId)->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId));
+                $q->where('whse_id', $whseId)
+                  ->orWhereHas('position.rack', fn($rq) => $rq->where('whse_id', $whseId))
+                  ->orWhereHas('pallet.initialPosition.rack', fn($rq) => $rq->where('whse_id', $whseId));
             });
         }
         if (!empty($this->selectedItemCode)) {
@@ -235,6 +247,11 @@ class MaterialStockCard extends Component
         $outgoings = $outgoingsQuery->get()->map(function ($out) use ($masterMaterials) {
             $dt = $out->created_at ?: ($out->outgoing_date ? Carbon::parse($out->outgoing_date) : null);
             $master = $masterMaterials->get($out->item_code);
+
+            $slotCode = $out->position?->position_code 
+                ?: ($out->pallet?->position?->position_code 
+                ?: ($out->pallet?->initialPosition?->position_code ?: '-'));
+
             return [
                 'id'                 => 'OUT-' . $out->id,
                 'timestamp'          => $dt,
@@ -245,7 +262,7 @@ class MaterialStockCard extends Component
                 'ref_code'           => $out->outgoing_code,
                 'sub_ref'            => 'Pallet: ' . $out->pallet_id,
                 'source_destination' => 'Tujuan: ' . ($out->issued_to ?: 'Produksi'),
-                'slot_code'          => $out->position?->position_code ?: ($out->pallet?->position?->position_code ?: '-'),
+                'slot_code'          => $slotCode,
                 'qty_in'             => 0.0,
                 'qty_out'            => (float) $out->qty_taken,
                 'pallet_qty'         => (float) ($out->pallet?->current_qty ?? 0.0),

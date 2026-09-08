@@ -185,17 +185,18 @@ class RackMapping extends Component
 
                     try {
                         MwhPallet::create([
-                            'whse_id'            => $targetWhseId,
-                            'pallet_id'          => $palletId,
-                            'incoming_header_id' => $header->id,
-                            'item_code'          => strtoupper(trim($this->new_item_code)),
-                            'lot_no'             => trim($this->new_lot_no) ?: null,
-                            'initial_qty'        => $palletQty,
-                            'current_qty'        => $palletQty,
-                            'uom'                => 'KG',
-                            'position_id'        => $pos->id,
-                            'status'             => 'STORED',
-                            'created_at'         => $createdAtTimestamp,
+                            'whse_id'             => $targetWhseId,
+                            'pallet_id'           => $palletId,
+                            'incoming_header_id'  => $header->id,
+                            'item_code'           => strtoupper(trim($this->new_item_code)),
+                            'lot_no'              => trim($this->new_lot_no) ?: null,
+                            'initial_qty'         => $palletQty,
+                            'current_qty'         => $palletQty,
+                            'uom'                 => 'KG',
+                            'position_id'         => $pos->id,
+                            'initial_position_id' => $pos->id,
+                            'status'              => 'STORED',
+                            'created_at'          => $createdAtTimestamp,
                         ]);
                         $inserted = true;
                     } catch (\Illuminate\Database\QueryException $qe) {

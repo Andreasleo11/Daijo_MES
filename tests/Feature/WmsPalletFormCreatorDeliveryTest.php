@@ -150,9 +150,9 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         });
 
         Schema::create('wms_pallet_forms', function (Blueprint $table) {
-            $table->id();
-            $table->string('pallet_id')->unique();
+            $table->string('pallet_id')->primary();
             $table->foreignId('position_id')->nullable();
+            $table->dateTime('assigned_at')->nullable();
             $table->string('part_no')->nullable();
             $table->string('model_name')->nullable();
             $table->date('prod_date');
@@ -161,6 +161,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             $table->string('delivery_shift')->nullable();
             $table->integer('box_qty')->default(0);
             $table->double('total_pallet_qty', 15, 2)->default(0.00);
+            $table->string('status')->default('STORED');
             $table->text('remarks')->nullable();
             $table->integer('sap_sync_status')->default(0);
             $table->text('sap_error_msg')->nullable();
@@ -564,6 +565,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             'delivery_shift'   => '1',
             'box_qty'          => 2,
             'total_pallet_qty' => 200,
+            'status'           => 'STORED',
         ]);
 
         $this->actingAs($this->adminUser);

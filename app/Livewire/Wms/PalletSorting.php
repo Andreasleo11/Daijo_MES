@@ -8,6 +8,7 @@ use App\Models\WmsPosition;
 use App\Services\WmsService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PalletSorting extends Component
 {

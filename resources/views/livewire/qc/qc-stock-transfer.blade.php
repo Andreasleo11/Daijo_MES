@@ -88,8 +88,8 @@
             <input type="date" wire:model.live="filterDate" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-            <label class="text-[10px] font-bold text-[#78716C] uppercase">No SPK</label>
-            <input type="text" wire:model.live.debounce.300ms="filterSpk" placeholder="Cari SPK..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
+            <label class="text-[10px] font-bold text-[#78716C] uppercase">No SPK / Label Box</label>
+            <input type="text" wire:model.live.debounce.300ms="filterSpk" placeholder="Cari SPK atau Label Box..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
             <label class="text-[10px] font-bold text-[#78716C] uppercase">Item Code</label>
@@ -122,6 +122,7 @@
                         <th class="p-3 w-10 text-center"></th>
                         <th class="p-3">SPK Code</th>
                         <th class="p-3">Item Code</th>
+                        <th class="p-3 text-center">Label Box</th>
                         <th class="p-3 text-right">Total Qty</th>
                         <th class="p-3 text-center">Gudang Asal</th>
                         <th class="p-3 text-center">Progres QC</th>
@@ -137,19 +138,29 @@
                         @endphp
                         <tr class="hover:bg-amber-50/40 transition {{ $isExpanded ? 'bg-[#FEFCE8]' : 'bg-white' }}">
                             <td class="p-3 text-center">
-                                <button wire:click="toggleDetail({{ $item->id }})" class="bg-none border-none cursor-pointer text-sm font-bold text-[#78716C]">
+                                <button wire:click="toggleDetail({{ $item->id }})" wire:loading.attr="disabled" class="bg-none border-none cursor-pointer text-sm font-bold text-[#78716C]">
                                     {{ $isExpanded ? '▼' : '►' }}
                                 </button>
                             </td>
-                            <td class="p-3 font-extrabold text-[#1A1816]">{{ $item->spk_code }}</td>
+                            <td class="p-3 whitespace-nowrap">
+                                <div class="font-extrabold text-[#1A1816]">{{ $item->spk_code }}</div>
+                                <div class="text-[11px] text-[#78716C] font-semibold mt-0.5 flex items-center gap-1">
+                                    <span>📅</span> {{ $item->created_date ? \Carbon\Carbon::parse($item->created_date)->format('d/m/Y') : '-' }}
+                                </div>
+                            </td>
                             <td class="p-3 font-bold text-[#292524]">{{ $item->item_code }}</td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-xs" title="{{ !empty($item->box_labels_all) ? 'Box: ' . implode(', ', $item->box_labels_all) : '' }}">
+                                    <span>📦</span> {{ $item->box_labels_summary }}
+                                </span>
+                            </td>
                             <td class="p-3 text-right font-extrabold text-[#2563EB]">{{ number_format($item->total_quantity) }}</td>
                             <td class="p-3 text-center">
                                 <span class="px-2 py-0.5 rounded text-[11px] font-extrabold bg-[#E2E8F0] text-[#1E293B]">
                                     {{ $item->warehouse }}
                                 </span>
                             </td>
-                            <td class="p-3 text-center">
+                            <td class="p-3 text-center whitespace-nowrap">
                                 <span class="font-bold text-xs">
                                     {{ $item->inspected_boxes }} / {{ $item->total_boxes }} Box
                                 </span>
@@ -163,9 +174,14 @@
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#FFEDD5] text-[#C2410C]">BELUM QC</span>
                                 @endif
                             </td>
-                            <td class="p-3 text-right">
-                                <button wire:click="toggleDetail({{ $item->id }})" class="bg-[#1E293B] text-white border-none px-3 py-1.5 rounded text-xs font-bold cursor-pointer">
-                                    {{ $isExpanded ? 'Tutup Box' : 'Inspeksi Box' }}
+                            <td class="p-3 text-right whitespace-nowrap">
+                                <button wire:click="toggleDetail({{ $item->id }})" wire:loading.attr="disabled" class="bg-[#1E293B] hover:bg-slate-700 active:scale-95 transition text-white border-none px-3 py-1.5 rounded text-xs font-bold cursor-pointer">
+                                    <span wire:loading.remove wire:target="toggleDetail({{ $item->id }})">
+                                        {{ $isExpanded ? 'Tutup Box' : 'Inspeksi Box' }}
+                                    </span>
+                                    <span wire:loading wire:target="toggleDetail({{ $item->id }})">
+                                        ⏳ Buka...
+                                    </span>
                                 </button>
                             </td>
                         </tr>
@@ -173,14 +189,14 @@
                         {{-- Desktop Expanded Box Details View --}}
                         @if($isExpanded)
                             <tr>
-                                <td colspan="8" class="p-4 bg-[#FFFDF5] border-b-2 border-[#FDE68A]">
+                                <td colspan="9" class="p-4 bg-[#FFFDF5] border-b-2 border-[#FDE68A]">
                                     @include('livewire.qc.partials.box-details', ['item' => $item, 'qcStatus' => $qcStatus, 'isMobile' => false])
                                 </td>
                             </tr>
                         @endif
                     @empty
                         <tr>
-                            <td colspan="8" class="p-8 text-center text-[#78716C] font-semibold">
+                            <td colspan="9" class="p-8 text-center text-[#78716C] font-semibold">
                                 Tidak ada data production summary yang memenuhi kriteria filter.
                             </td>
                         </tr>
@@ -201,6 +217,14 @@
                         <div>
                             <div class="text-xs font-extrabold text-[#1A1816]">{{ $item->spk_code }}</div>
                             <div class="text-xs font-bold text-[#292524]">{{ $item->item_code }}</div>
+                            <div class="text-[11px] text-[#78716C] font-semibold mt-0.5 flex items-center gap-1">
+                                <span>📅</span> {{ $item->created_date ? \Carbon\Carbon::parse($item->created_date)->format('d/m/Y') : '-' }}
+                            </div>
+                            <div class="mt-1">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                    <span>📦</span> {{ $item->box_labels_summary }}
+                                </span>
+                            </div>
                         </div>
                         <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#E2E8F0] text-[#1E293B]">
                             {{ $item->warehouse }}
@@ -228,8 +252,13 @@
                         </div>
                     </div>
 
-                    <button wire:click="toggleDetail({{ $item->id }})" class="w-full bg-[#1E293B] text-white border-none py-2 rounded text-xs font-bold cursor-pointer active:scale-98 transition">
-                        {{ $isExpanded ? '▲ Tutup Rincian Box' : '▼ Inspeksi Box (' . $item->total_boxes . ' Box)' }}
+                    <button wire:click="toggleDetail({{ $item->id }})" wire:loading.attr="disabled" class="w-full bg-[#1E293B] hover:bg-slate-700 text-white border-none py-2 rounded text-xs font-bold cursor-pointer active:scale-98 transition">
+                        <span wire:loading.remove wire:target="toggleDetail({{ $item->id }})">
+                            {{ $isExpanded ? '▲ Tutup Rincian Box' : '▼ Inspeksi Box (' . $item->box_labels_summary . ')' }}
+                        </span>
+                        <span wire:loading wire:target="toggleDetail({{ $item->id }})">
+                            ⏳ Memuat Rincian Box...
+                        </span>
                     </button>
 
                     {{-- Mobile Expanded Box Details View --}}
