@@ -107,7 +107,7 @@ class SpProductionApprovalController extends Controller
     /**
      * Display the specified session for review with full close-out and operational data integration.
      */
-    public function show(SpProductionSession $session)
+    public function show(SpProductionSession $session, SecondProcessReportSyncBridge $bridge)
     {
         // Abort if not completed and not approved
         if ($session->status !== 'completed' && is_null($session->approved_at)) {
@@ -148,7 +148,7 @@ class SpProductionApprovalController extends Controller
             }
         }
 
-        // Pareto Defect Breakdown
+        // Defect Pareto / Breakdown summary
         $defectSummary = $session->rejectEntries
             ->groupBy('defect_type')
             ->map(function ($entries, $type) use ($finalScrap) {
@@ -165,41 +165,8 @@ class SpProductionApprovalController extends Controller
             ->sortByDesc('quantity')
             ->values();
 
-        // Hourly Production Curve (H1 - H8) matching SecondProcessReportSyncBridge
-        $hourlyData = [];
-        $startTime = $session->started_at ?: now();
-        foreach ($session->productionEntries as $entry) {
-            $entryTime = $entry->recorded_at ?: $entry->created_at;
-            $diffMinutes = max(0, $startTime->diffInMinutes($entryTime));
-            $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
-            if (!isset($hourlyData[$hourNum])) {
-                $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
-            }
-            $hourlyData[$hourNum]['ok'] += $entry->good_qty;
-        }
-        foreach ($session->rejectEntries as $reject) {
-            $rejectTime = $reject->created_at ?: now();
-            $diffMinutes = max(0, $startTime->diffInMinutes($rejectTime));
-            $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
-            if (!isset($hourlyData[$hourNum])) {
-                $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
-            }
-            $hourlyData[$hourNum]['ng'] += $reject->quantity;
-        }
-
-        $hourlyTable = [];
-        $runningAccumulation = 0;
-        for ($h = 1; $h <= 8; $h++) {
-            $ok = $hourlyData[$h]['ok'] ?? 0;
-            $ng = $hourlyData[$h]['ng'] ?? 0;
-            $runningAccumulation += $ok;
-            $hourlyTable[] = [
-                'hour' => $h,
-                'ok' => $ok,
-                'ng' => $ng,
-                'accumulation' => $runningAccumulation,
-            ];
-        }
+        // 8-Hour Production Progression anchored to shift schedule in config/mes.php
+        $hourlyTable = $bridge->calculateHourlyProgression($session);
 
         // Rework performance summary
         $reworkStats = [

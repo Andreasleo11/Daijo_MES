@@ -109,22 +109,7 @@
             function productionSession() {
                 return {
                     tab: 'all',
-                    totals: {
-                        input: {{ $session->total_input ?? 0 }},
-                        input_wip: {{ $session->inputEntries->where('source', '!=', 'reworkable')->sum('quantity') ?? 0 }},
-                        input_reworkable: {{ $session->inputEntries->where('source', 'reworkable')->sum('quantity') ?? 0 }},
-                        good: {{ $session->total_good ?? 0 }},
-                        direct_good: {{ $session->productionEntries->sum('good_qty') ?? 0 }},
-                        reject: {{ $session->total_reject ?? 0 }},
-                        yield: {{ $session->yield ?? 0 }},
-                        downtime_minutes: {{ $session->downtimeEntries->sum('duration_minutes') ?? 0 }},
-                        downtime_count: {{ $session->downtimeEntries->count() ?? 0 }},
-                        raw_reject: {{ $session->rejectEntries->sum('quantity') ?? 0 }},
-                        rework_in: {{ $session->total_rework_in ?? 0 }},
-                        internal_rework_in: {{ $session->reworkEntries->where('remarks', 'not like', 'From Reworkable Input%')->sum('input_qty') ?? 0 }},
-                        rework_recovered: {{ $session->total_rework_recovered ?? 0 }},
-                        rework_scrapped: {{ $session->total_scrap ?? 0 }}
-                    },
+                    totals: @json($sessionTotals ?? []),
                     get reworkPending() {
                         const inQty = parseInt(this.totals.rework_in) || 0;
                         const recQty = parseInt(this.totals.rework_recovered) || 0;
@@ -553,6 +538,7 @@
                                         if ('reject_qty' in alpineData) alpineData.reject_qty = 0;
                                         if ('quantity' in alpineData) alpineData.quantity = 1;
                                         if ('input_qty' in alpineData) alpineData.input_qty = 0;
+                                        if ('issue_qty' in alpineData) alpineData.issue_qty = 0;
                                         if ('recovered_qty' in alpineData) alpineData.recovered_qty = 0;
                                         if ('scrapped_qty' in alpineData) alpineData.scrapped_qty = 0;
                                         if ('qty' in alpineData) alpineData.qty = 0;
@@ -1313,7 +1299,10 @@
     </dialog>
 
     {{-- Modal 4A: Cycle 1 — Issue Defects to Rework Bench --}}
-    <dialog id="modalIssueRework" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-md backdrop:bg-gray-900/60 bg-transparent">
+    <dialog id="modalIssueRework"
+            x-data="{ issue_qty: 0 }"
+            @close="issue_qty = 0"
+            class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-md backdrop:bg-gray-900/60 bg-transparent">
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div class="bg-yellow-500 px-6 py-4 flex justify-between items-center text-white">
                 <h3 class="text-xl font-black">Issue to Rework Bench</h3>
@@ -1322,7 +1311,6 @@
 
             <form action="{{ route('app.sp-sessions.add-rework', $session->id) }}" method="POST"
                   @submit.prevent="submitForm($event, 'rework')"
-                  x-data="{ issue_qty: 0 }"
                   class="p-6">
                 @csrf
 
@@ -1367,7 +1355,21 @@
     </dialog>
 
     {{-- Modal 4B: Cycle 2 — Complete Rework Outcome --}}
-    <dialog id="modalCompleteRework" class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/60 bg-transparent">
+    <dialog id="modalCompleteRework"
+            x-data="{
+                recovered_qty: 0,
+                scrapped_qty: 0,
+                set100Recovered() {
+                    this.recovered_qty = this.reworkPending;
+                    this.scrapped_qty = 0;
+                },
+                set100Scrapped() {
+                    this.scrapped_qty = this.reworkPending;
+                    this.recovered_qty = 0;
+                }
+            }"
+            @close="recovered_qty = 0; scrapped_qty = 0"
+            class="rounded-2xl p-0 shadow-2xl border-0 w-full max-w-lg backdrop:bg-gray-900/60 bg-transparent">
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center text-white">
                 <h3 class="text-xl font-black">Complete Rework Outcome</h3>
@@ -1376,18 +1378,6 @@
 
             <form action="{{ route('app.sp-sessions.add-rework', $session->id) }}" method="POST"
                   @submit.prevent="submitForm($event, 'rework')"
-                  x-data="{
-                      recovered_qty: 0,
-                      scrapped_qty: 0,
-                      set100Recovered() {
-                          this.recovered_qty = this.reworkPending;
-                          this.scrapped_qty = 0;
-                      },
-                      set100Scrapped() {
-                          this.scrapped_qty = this.reworkPending;
-                          this.recovered_qty = 0;
-                      }
-                  }"
                   class="p-6">
                 @csrf
 

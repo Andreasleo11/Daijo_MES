@@ -185,6 +185,8 @@ class SpProductionApprovalTest extends TestCase
         $response->assertSee('APPROVE & SYNC REPORT', false);
         $response->assertSee('Return for Correction');
         $response->assertSee('Shift Audit Trail (WIB / UTC+7)');
+        $response->assertSee('8-Hour Production Progression');
+        $response->assertSee('07:30 - 08:30');
     }
 
     public function test_supervisor_can_approve_session_and_sync_to_legacy_report(): void

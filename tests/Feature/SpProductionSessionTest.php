@@ -310,6 +310,7 @@ class SpProductionSessionTest extends TestCase
 
         $closeoutResponse = $this->actingAs($this->user)
             ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
                 'remarks' => 'Session finished'
             ]);
 
@@ -427,5 +428,311 @@ class SpProductionSessionTest extends TestCase
         $response->assertSee('"item_name":"WIP 2","lot_number":"PALLET-WIP-02","qty":300', false);
         $response->assertSee('"item_name":"Repairan 1","lot_number":"BOX-REP-01","qty":80', false);
     }
+
+    public function test_can_issue_logged_defects_to_rework_bench()
+    {
+        // Add 10 rejects
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-reject', $this->session->id), [
+                'defect_type' => 'Flash',
+                'quantity' => 10,
+            ])->assertOk();
+
+        // Issue 6 defects to rework bench
+        $response = $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 6,
+            ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'entry' => [
+                'input_qty' => 6,
+                'recovered_qty' => 0,
+                'scrapped_qty' => 0,
+                'remarks' => 'Issued to Rework Bench',
+            ],
+            'totals' => [
+                'raw_reject' => 10,
+                'internal_rework_in' => 6,
+                'rework_in' => 6,
+            ]
+        ]);
+
+        $this->assertDatabaseHas('sp_rework_entries', [
+            'session_id' => $this->session->id,
+            'input_qty' => 6,
+            'recovered_qty' => 0,
+            'scrapped_qty' => 0,
+            'remarks' => 'Issued to Rework Bench',
+        ]);
+    }
+
+    public function test_cannot_issue_more_defects_than_available_defect_stock()
+    {
+        // Add 10 rejects
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-reject', $this->session->id), [
+                'defect_type' => 'Scratch',
+                'quantity' => 10,
+            ])->assertOk();
+
+        // Attempt to issue 15 defects (only 10 available)
+        $failResponse = $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 15,
+            ]);
+
+        $failResponse->assertStatus(422);
+        $failResponse->assertJsonFragment([
+            'error' => 'Cannot issue more than available defect stock (10 Pcs available out of 10 Pcs total logged defects).'
+        ]);
+
+        // Issue all 10 defects
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 10,
+            ])->assertOk();
+
+        // Attempt to issue 1 more defect (0 available)
+        $failResponse2 = $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 1,
+            ]);
+
+        $failResponse2->assertStatus(422);
+        $failResponse2->assertJsonFragment([
+            'error' => 'Cannot issue more than available defect stock (0 Pcs available out of 10 Pcs total logged defects).'
+        ]);
+    }
+
+    public function test_cannot_delete_issued_rework_entry_if_already_processed()
+    {
+        // Log 10 defects
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-reject', $this->session->id), [
+                'defect_type' => 'Sink Mark',
+                'quantity' => 10,
+            ])->assertOk();
+
+        // Issue 10 to rework
+        $issueResponse = $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 10,
+            ]);
+        $issueResponse->assertOk();
+        $issueId = $issueResponse->json('entry.id');
+
+        // Complete rework outcome: 5 recovered, 2 scrapped (7 processed out of 10)
+        $outcomeResponse = $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'recovered_qty' => 5,
+                'scrapped_qty' => 2,
+            ]);
+        $outcomeResponse->assertOk();
+        $outcomeId = $outcomeResponse->json('entry.id');
+
+        // Attempt to delete the 10-piece issuance entry
+        // Remaining rework in would be 0 < 7 processed
+        $delIssueResponse = $this->actingAs($this->user)
+            ->deleteJson("/app/sp-sessions/{$this->session->id}/rework/{$issueId}");
+
+        $delIssueResponse->assertStatus(422);
+        $delIssueResponse->assertJsonFragment([
+            'error' => 'Cannot delete rework entry: parts have already been processed or recovered on the rework bench.'
+        ]);
+
+        // Delete outcome entry first
+        $delOutcomeResponse = $this->actingAs($this->user)
+            ->deleteJson("/app/sp-sessions/{$this->session->id}/rework/{$outcomeId}");
+        $delOutcomeResponse->assertOk();
+
+        // Now deleting the issuance entry succeeds (0 processed <= 0 remaining)
+        $delIssueResponse2 = $this->actingAs($this->user)
+            ->deleteJson("/app/sp-sessions/{$this->session->id}/rework/{$issueId}");
+        $delIssueResponse2->assertOk();
+
+        $this->assertDatabaseMissing('sp_rework_entries', ['id' => $issueId]);
+    }
+
+    public function test_session_show_passes_session_totals_matching_calculation()
+    {
+        // Log 10 defects
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-reject', $this->session->id), [
+                'defect_type' => 'Burn Mark',
+                'quantity' => 10,
+            ])->assertOk();
+
+        // Issue 4 to rework
+        $this->actingAs($this->user)
+            ->postJson(route('app.sp-sessions.add-rework', $this->session->id), [
+                'issue_qty' => 4,
+            ])->assertOk();
+
+        $response = $this->actingAs($this->user)
+            ->get(route('app.sp-sessions.show', $this->session->id));
+
+        $response->assertOk();
+        $response->assertViewHas('sessionTotals');
+        $sessionTotals = $response->viewData('sessionTotals');
+
+        $this->assertEquals(10, $sessionTotals['raw_reject']);
+        $this->assertEquals(4, $sessionTotals['internal_rework_in']);
+        $this->assertEquals(4, $sessionTotals['rework_in']);
+        $this->assertEquals(0, $sessionTotals['rework_recovered']);
+        $this->assertEquals(0, $sessionTotals['rework_scrapped']);
+    }
+
+    public function test_closeout_stores_null_when_next_production_schedule_is_empty_or_all_blank()
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
+                'next_production_schedule' => ['', '  ', null, ''],
+            ]);
+
+        $response->assertRedirect();
+        $this->session->refresh();
+
+        $this->assertNull($this->session->next_production_schedule);
+    }
+
+    public function test_closeout_stores_trimmed_array_when_valid_schedule_items_provided()
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'buffing',
+                'next_production_schedule' => ['Part A Shift 1', '', '  Part B Shift 2  ', ''],
+            ]);
+
+        $response->assertRedirect();
+        $this->session->refresh();
+
+        $this->assertIsArray($this->session->next_production_schedule);
+        $this->assertEquals(['Part A Shift 1', 'Part B Shift 2'], $this->session->next_production_schedule);
+    }
+
+    public function test_closeout_does_not_save_untouched_material_presets()
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
+                'materials' => [
+                    ['type' => 'paint', 'item_name' => 'Paint Primer', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+                    ['type' => 'paint', 'item_name' => 'Hardener', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+                    ['type' => 'part', 'item_name' => 'WIP 1', 'lot_number' => '', 'qty' => '', 'uom' => 'Pcs'],
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $this->session->refresh();
+
+        $this->assertCount(0, $this->session->materials);
+    }
+
+    public function test_closeout_persists_materials_with_actual_data()
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
+                'materials' => [
+                    ['type' => 'paint', 'item_name' => 'Paint Basecoat', 'lot_number' => 'LOT-PAINT-01', 'visco' => '14s', 'mixing_ratio' => '1:1', 'qty' => 5.5, 'uom' => 'Kg'],
+                    ['type' => 'part', 'item_name' => 'WIP 1', 'lot_number' => 'PALLET-99', 'qty' => 100, 'uom' => 'Pcs'],
+                    // Untouched row that should be discarded
+                    ['type' => 'paint', 'item_name' => 'Hardener', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $this->session->refresh();
+
+        $this->assertCount(2, $this->session->materials);
+        $this->assertDatabaseHas('sp_session_materials', [
+            'session_id' => $this->session->id,
+            'item_name' => 'Paint Basecoat',
+            'lot_number' => 'LOT-PAINT-01',
+        ]);
+        $this->assertDatabaseHas('sp_session_materials', [
+            'session_id' => $this->session->id,
+            'item_name' => 'WIP 1',
+            'lot_number' => 'PALLET-99',
+            'qty' => 100,
+        ]);
+    }
+
+    public function test_closeout_validates_required_output_destination()
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => '',
+            ]);
+
+        $response->assertSessionHasErrors('output_destination');
+    }
+
+    public function test_closeout_validates_required_downtime_category_when_downtime_logged()
+    {
+        $downtime = \App\Models\SpDowntimeEntry::create([
+            'session_id' => $this->session->id,
+            'reason' => 'Mesin Macet',
+            'duration_minutes' => 15,
+            'start_time' => now()->subMinutes(20),
+            'resume_time' => now()->subMinutes(5),
+        ]);
+
+        // Submitting without category fails validation
+        $failResponse = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
+                'troubles' => [
+                    [
+                        'downtime_id' => $downtime->id,
+                        'category' => '',
+                        'countermeasure' => 'Perbaikan nozzle',
+                    ],
+                ],
+            ]);
+
+        $failResponse->assertSessionHasErrors('troubles.0.category');
+
+        // Submitting with valid category succeeds and enriches downtime
+        $successResponse = $this->actingAs($this->user)
+            ->post(route('app.sp-sessions.submit-closeout', $this->session->id), [
+                'output_destination' => 'fg',
+                'troubles' => [
+                    [
+                        'downtime_id' => $downtime->id,
+                        'category' => 'Mesin',
+                        'countermeasure' => 'Perbaikan nozzle',
+                    ],
+                ],
+            ]);
+
+        $successResponse->assertRedirect();
+        $downtime->refresh();
+        $this->assertEquals('Mesin', $downtime->category);
+        $this->assertEquals('Perbaikan nozzle', $downtime->countermeasure);
+    }
+
+    public function test_sync_bridge_stores_null_for_empty_schedule()
+    {
+        $this->session->update([
+            'status' => 'completed',
+            'finished_at' => now(),
+            'output_destination' => 'fg',
+            'next_production_schedule' => null,
+            'approved_at' => now(),
+            'approved_by' => $this->user->id,
+        ]);
+
+        $bridge = app(\App\Services\SecondProcessReportSyncBridge::class);
+        $report = $bridge->syncSessionToLegacyReport($this->session);
+
+        $this->assertNotNull($report);
+        $this->assertNull($report->next_production_schedule);
+    }
 }
+
 

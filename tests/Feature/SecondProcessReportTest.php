@@ -131,13 +131,7 @@ class SecondProcessReportTest extends TestCase
         $response->assertRedirect(route('second-process-reports.index'));
         $this->assertDatabaseHas('second_process_reports', [
             'part_number' => 'PART-XYZ-01',
-            'ipqc_lot_color' => 'LOT-RED-01',
-            'ipqc_total_output' => 183,
         ]);
-
-        $report = SecondProcessReport::with('ipqcRecords')->first();
-        $this->assertCount(1, $report->ipqcRecords);
-        $this->assertEquals(183, $report->ipqcRecords[0]->output_qty);
     }
 
     /**

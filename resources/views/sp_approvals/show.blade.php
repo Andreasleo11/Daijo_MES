@@ -475,6 +475,7 @@
                                                 <tr class="hover:bg-slate-50/50">
                                                     <td class="px-3 py-2 font-bold text-slate-800">
                                                         Hour {{ $row['hour'] }}
+                                                        <span class="text-[11px] font-normal text-slate-400 ml-1">({{ $row['time_range'] }})</span>
                                                     </td>
                                                     <td class="px-3 py-2 text-right font-bold text-emerald-600 font-mono">
                                                         {{ number_format($row['ok']) }} Pcs
@@ -521,45 +522,58 @@
                             {{-- Output Destination --}}
                             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
                                 <div>
-                                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Output Destination / Staging Area</span>
-                                    <div class="font-bold text-slate-900 mt-0.5">{{ $session->output_destination ?: 'Standard Finished Goods Staging Area' }}</div>
+                                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Output Destination</span>
+                                    <div class="font-bold text-slate-900 mt-0.5">{{ $session->output_destination ?: '-' }}</div>
                                 </div>
-                                <span class="px-2.5 py-1 bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px]">Staging</span>
                             </div>
 
                             {{-- Next Production Schedule --}}
                             <div class="pt-3 border-t border-slate-100">
                                 <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Next Production Schedule (Target)</h4>
-                                <div class="overflow-x-auto rounded-xl border border-slate-200">
-                                    <table class="w-full text-left text-xs">
-                                        <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                                            <tr>
-                                                <th class="px-3 py-2">Part Number</th>
-                                                <th class="px-3 py-2">Line</th>
-                                                <th class="px-3 py-2">Shift</th>
-                                                <th class="px-3 py-2 text-right">Target Plan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100 bg-white">
-                                            @forelse($session->next_production_schedule ?? [] as $sched)
-                                                @if(!empty($sched['part_number']) || !empty($sched['target_qty']))
+                                @php
+                                    $schedList = is_array($session->next_production_schedule)
+                                        ? array_values(array_filter($session->next_production_schedule, fn($i) => !empty($i)))
+                                        : [];
+                                @endphp
+                                @if(!empty($schedList))
+                                    @if(is_array($schedList[0]))
+                                        <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                            <table class="w-full text-left text-xs">
+                                                <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                                                     <tr>
-                                                        <td class="px-3 py-2 font-mono font-bold text-slate-900">{{ $sched['part_number'] ?? '-' }}</td>
-                                                        <td class="px-3 py-2 text-slate-700">{{ $sched['unit_line'] ?? '-' }}</td>
-                                                        <td class="px-3 py-2 text-slate-700">{{ $sched['shift'] ?? '-' }}</td>
-                                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">{{ number_format($sched['target_qty'] ?? 0) }} Pcs</td>
+                                                        <th class="px-3 py-2">Part Number</th>
+                                                        <th class="px-3 py-2">Line</th>
+                                                        <th class="px-3 py-2">Shift</th>
+                                                        <th class="px-3 py-2 text-right">Target Plan</th>
                                                     </tr>
-                                                @endif
-                                            @empty
-                                                <tr>
-                                                    <td colspan="4" class="px-4 py-3 text-center text-slate-400">
-                                                        No next production schedule configured.
-                                                    </td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100 bg-white">
+                                                    @foreach($schedList as $sched)
+                                                        <tr>
+                                                            <td class="px-3 py-2 font-mono font-bold text-slate-900">{{ $sched['part_number'] ?? '-' }}</td>
+                                                            <td class="px-3 py-2 text-slate-700">{{ $sched['unit_line'] ?? '-' }}</td>
+                                                            <td class="px-3 py-2 text-slate-700">{{ $sched['shift'] ?? '-' }}</td>
+                                                            <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">{{ number_format($sched['target_qty'] ?? 0) }} Pcs</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-100 text-xs">
+                                            @foreach($schedList as $sIdx => $schedItem)
+                                                <div class="py-1.5 flex items-center gap-2">
+                                                    <span class="w-5 text-slate-400 font-bold text-right">{{ $sIdx + 1 }}.</span>
+                                                    <span class="font-medium text-slate-800">{{ $schedItem }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                @else
+                                    <div class="px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+                                        No next production schedule configured.
+                                    </div>
+                                @endif
                             </div>
 
                             {{-- Line Team Roster --}}

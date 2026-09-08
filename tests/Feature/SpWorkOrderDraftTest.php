@@ -182,6 +182,7 @@ class SpWorkOrderDraftTest extends TestCase
 
         $wo = SpWorkOrder::create([
             'wo_number' => 'WO-TARGET-TEST',
+            'customer' => 'Customer A',
             'planned_date' => now()->toDateString(),
             'unit_line' => 'Line A',
             'process_prod' => 'Assembly',
@@ -201,8 +202,10 @@ class SpWorkOrderDraftTest extends TestCase
             'total_good' => 30,
         ]);
 
-        // Finish session when target (100) is NOT met (30)
-        $response = $this->post(route('sp-sessions.finish', $session->id));
+        // Submit closeout when target (100) is NOT met (30)
+        $response = $this->post(route('app.sp-sessions.submit-closeout', $session->id), [
+            'output_destination' => 'fg',
+        ]);
         $response->assertRedirect();
 
         $wo->refresh();
@@ -219,8 +222,10 @@ class SpWorkOrderDraftTest extends TestCase
             'total_good' => 70,
         ]);
 
-        // Finish 2nd session when cumulative target (30 + 70 = 100) is met
-        $response2 = $this->post(route('sp-sessions.finish', $session2->id));
+        // Submit closeout when cumulative target (30 + 70 = 100) is met
+        $response2 = $this->post(route('app.sp-sessions.submit-closeout', $session2->id), [
+            'output_destination' => 'fg',
+        ]);
         $response2->assertRedirect();
 
         $wo->refresh();

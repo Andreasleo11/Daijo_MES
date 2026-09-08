@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SecondProcessReport;
 use App\Models\SecondProcessNgRecord;
+use App\Models\SecondProcessNgHourlyDetail;
 use App\Models\SecondProcessTrouble;
 use App\Models\SecondProcessHourlyProduction;
 use App\Models\SecondProcessManpower;
@@ -75,7 +76,9 @@ class SecondProcessReportSyncBridge
                 'production_notes' => $session->production_notes ?? $session->remarks,
                 'ng_remarks' => $session->ng_remarks,
                 'absent_employees' => $session->absent_employees,
-                'next_production_schedule' => $session->next_production_schedule,
+                'next_production_schedule' => (!empty($session->next_production_schedule) && is_array($session->next_production_schedule))
+                    ? (array_values(array_filter(array_map('trim', $session->next_production_schedule), fn($v) => !empty($v))) ?: null)
+                    : null,
                 'output_destination' => $session->output_destination,
                 'acknowledged_by_name' => $session->approvedBy->name ?? null,
                 'acknowledged_signed_at' => $session->approved_at,
@@ -95,20 +98,43 @@ class SecondProcessReportSyncBridge
                 $session->update(['second_process_report_id' => $report->id]);
             }
 
-            // Sync NG Defect Records
+            // Sync NG Defect Records & Hourly Details
             $report->ngRecords()->delete();
+            $shiftStart = $this->getShiftStart($session);
+            $tz = config('mes.timezone', 'Asia/Jakarta');
+            $sessionStartedLocal = ($session->started_at ?: $session->created_at ?: Carbon::now($tz))->copy()->setTimezone($tz);
+
             $groupedRejects = $session->rejectEntries->groupBy('defect_type');
             foreach ($groupedRejects as $defectType => $entries) {
                 $totalQty = $entries->sum('quantity');
                 $causes = $entries->pluck('cause')->filter()->implode(', ');
 
-                SecondProcessNgRecord::create([
+                $ngRecord = SecondProcessNgRecord::create([
                     'report_id' => $report->id,
                     'ng_category' => 'Defect',
                     'ng_name' => $defectType,
                     'total_ng' => $totalQty,
                     'remark' => $causes,
                 ]);
+
+                // Map defect occurrences to shift hours (1..8)
+                $defectHourly = array_fill(1, 8, 0);
+                foreach ($entries as $entry) {
+                    $entryTime = ($entry->created_at ?: $sessionStartedLocal)->copy()->setTimezone($tz);
+                    $diffMinutes = $shiftStart->diffInMinutes($entryTime, false);
+                    $hNum = min(8, max(1, (int) floor($diffMinutes / 60) + 1));
+                    $defectHourly[$hNum] += (int) $entry->quantity;
+                }
+
+                foreach ($defectHourly as $h => $qty) {
+                    if ($qty > 0) {
+                        SecondProcessNgHourlyDetail::create([
+                            'ng_record_id' => $ngRecord->id,
+                            'hour_ke' => $h,
+                            'qty' => $qty,
+                        ]);
+                    }
+                }
             }
 
             // Sync Downtime Troubles
@@ -134,63 +160,32 @@ class SecondProcessReportSyncBridge
             // Sync Materials
             $report->materials()->delete();
             foreach ($session->materials as $mat) {
-                SecondProcessMaterial::create([
-                    'report_id' => $report->id,
-                    'type' => $mat->type,
-                    'item_name' => $mat->item_name,
-                    'lot_number' => $mat->lot_number,
-                    'visco' => $mat->visco,
-                    'mixing_ratio' => $mat->mixing_ratio,
-                    'qty' => $mat->qty,
-                    'uom' => $mat->uom,
-                ]);
-            }
-
-            // Sync Hourly Production Breakdown
-            $report->hourlyProductions()->delete();
-            $productionEntries = $session->productionEntries->sortBy(function($e) {
-                return $e->recorded_at ?: $e->created_at;
-            });
-            $hourlyData = [];
-            $startTime = $session->started_at ?: now();
-
-            foreach ($productionEntries as $entry) {
-                $entryTime = $entry->recorded_at ?: $entry->created_at;
-                $diffMinutes = max(0, $startTime->diffInMinutes($entryTime));
-                $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
-
-                if (!isset($hourlyData[$hourNum])) {
-                    $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
-                }
-                $hourlyData[$hourNum]['ok'] += $entry->good_qty;
-            }
-
-            foreach ($session->rejectEntries as $reject) {
-                $rejectTime = $reject->created_at ?: now();
-                $diffMinutes = max(0, $startTime->diffInMinutes($rejectTime));
-                $hourNum = min(8, max(1, (int) ceil(($diffMinutes + 1) / 60)));
-
-                if (!isset($hourlyData[$hourNum])) {
-                    $hourlyData[$hourNum] = ['ok' => 0, 'ng' => 0];
-                }
-                $hourlyData[$hourNum]['ng'] += $reject->quantity;
-            }
-
-            $runningAccumulation = 0;
-            for ($h = 1; $h <= 8; $h++) {
-                $ok = $hourlyData[$h]['ok'] ?? 0;
-                $ng = $hourlyData[$h]['ng'] ?? 0;
-
-                if ($ok > 0 || $ng > 0 || $h === 1) {
-                    $runningAccumulation += $ok;
-                    SecondProcessHourlyProduction::create([
+                if (!empty($mat->item_name) && (!empty($mat->lot_number) || !empty($mat->qty) || !empty($mat->visco) || !empty($mat->mixing_ratio))) {
+                    SecondProcessMaterial::create([
                         'report_id' => $report->id,
-                        'hour_ke' => (string) $h,
-                        'ok_qty' => $ok,
-                        'ng_qty' => $ng,
-                        'acumulasi_qty' => $runningAccumulation,
+                        'type' => $mat->type,
+                        'item_name' => $mat->item_name,
+                        'lot_number' => $mat->lot_number,
+                        'visco' => $mat->visco,
+                        'mixing_ratio' => $mat->mixing_ratio,
+                        'qty' => $mat->qty,
+                        'uom' => $mat->uom,
                     ]);
                 }
+            }
+
+            // Sync Hourly Production Breakdown (8-Hour Shift Schedule)
+            $report->hourlyProductions()->delete();
+            $hourlyProgression = $this->calculateHourlyProgression($session);
+
+            foreach ($hourlyProgression as $row) {
+                SecondProcessHourlyProduction::create([
+                    'report_id' => $report->id,
+                    'hour_ke' => (string) $row['hour'],
+                    'ok_qty' => $row['ok'],
+                    'ng_qty' => $row['ng'],
+                    'acumulasi_qty' => $row['accumulation'],
+                ]);
             }
 
             // Sync Manpower Breakdown
@@ -206,6 +201,83 @@ class SecondProcessReportSyncBridge
 
             return $report;
         });
+    }
+
+    /**
+     * Handle reversion when a supervisor sends a report back for correction.
+     */
+    /**
+     * Get the scheduled start datetime for a session's shift based on config/mes.php.
+     */
+    public function getShiftStart(SpProductionSession $session): Carbon
+    {
+        $tz = config('mes.timezone', 'Asia/Jakarta');
+        $shifts = config('mes.sp_shifts', config('mes.shifts', []));
+        $shiftId = intval(preg_replace('/[^0-9]/', '', (string) $session->shift)) ?: 1;
+        $shiftConfig = $shifts[$shiftId] ?? ($shifts[1] ?? ['start' => '07:30', 'end' => '15:30']);
+
+        $shiftStartStr = $shiftConfig['start'] ?? '07:30';
+        $shiftEndStr = $shiftConfig['end'] ?? '15:30';
+
+        $sessionStartedLocal = ($session->started_at ?: $session->created_at ?: Carbon::now($tz))->copy()->setTimezone($tz);
+        $shiftDate = $sessionStartedLocal->toDateString();
+
+        // If overnight shift (e.g. 23:30 to 07:30) and session started after midnight before shift end
+        if ($shiftStartStr > $shiftEndStr && $sessionStartedLocal->format('H:i') < $shiftEndStr) {
+            $shiftDate = $sessionStartedLocal->copy()->subDay()->toDateString();
+        }
+
+        return Carbon::createFromFormat('Y-m-d H:i', $shiftDate . ' ' . $shiftStartStr, $tz);
+    }
+
+    /**
+     * Calculate 8-hour production progression anchored to the actual shift schedule in config/mes.php.
+     *
+     * @return array<int, array{hour: int, time_range: string, ok: int, ng: int, accumulation: int}>
+     */
+    public function calculateHourlyProgression(SpProductionSession $session): array
+    {
+        $session->loadMissing(['productionEntries', 'rejectEntries']);
+
+        $tz = config('mes.timezone', 'Asia/Jakarta');
+        $shiftStart = $this->getShiftStart($session);
+        $sessionStartedLocal = ($session->started_at ?: $session->created_at ?: Carbon::now($tz))->copy()->setTimezone($tz);
+
+        // Initialize 8 shift hours with scheduled time ranges
+        $hourlyData = [];
+        for ($h = 1; $h <= 8; $h++) {
+            $slotStart = $shiftStart->copy()->addHours($h - 1);
+            $slotEnd = $shiftStart->copy()->addHours($h);
+            $hourlyData[$h] = [
+                'hour' => $h,
+                'time_range' => $slotStart->format('H:i') . ' - ' . $slotEnd->format('H:i'),
+                'ok' => 0,
+                'ng' => 0,
+                'accumulation' => 0,
+            ];
+        }
+
+        foreach ($session->productionEntries as $entry) {
+            $entryTime = ($entry->recorded_at ?: $entry->created_at ?: $sessionStartedLocal)->copy()->setTimezone($tz);
+            $diffMinutes = $shiftStart->diffInMinutes($entryTime, false);
+            $hourNum = min(8, max(1, (int) floor($diffMinutes / 60) + 1));
+            $hourlyData[$hourNum]['ok'] += (int) $entry->good_qty;
+        }
+
+        foreach ($session->rejectEntries as $reject) {
+            $rejectTime = ($reject->created_at ?: $sessionStartedLocal)->copy()->setTimezone($tz);
+            $diffMinutes = $shiftStart->diffInMinutes($rejectTime, false);
+            $hourNum = min(8, max(1, (int) floor($diffMinutes / 60) + 1));
+            $hourlyData[$hourNum]['ng'] += (int) $reject->quantity;
+        }
+
+        $runningAccumulation = 0;
+        for ($h = 1; $h <= 8; $h++) {
+            $runningAccumulation += $hourlyData[$h]['ok'];
+            $hourlyData[$h]['accumulation'] = $runningAccumulation;
+        }
+
+        return array_values($hourlyData);
     }
 
     /**

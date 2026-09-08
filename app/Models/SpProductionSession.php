@@ -141,7 +141,10 @@ class SpProductionSession extends Model
         $reworkScrapped = (int) $this->reworkEntries()->sum('scrapped_qty');
 
         $internalRecovered = (int) $this->reworkEntries()
-            ->where('remarks', 'not like', 'From Reworkable Input%')
+            ->where(function ($q) {
+                $q->where('remarks', 'not like', 'From Reworkable Input%')
+                    ->orWhereNull('remarks');
+            })
             ->sum('recovered_qty');
         $externalScrapped = (int) $this->reworkEntries()
             ->where('remarks', 'like', 'From Reworkable Input%')

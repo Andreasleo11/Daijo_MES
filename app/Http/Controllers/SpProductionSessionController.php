@@ -123,7 +123,9 @@ class SpProductionSessionController extends Controller
             'Maintenance',
         ];
 
-        return view('sp_production.record', compact('session', 'defectTypes', 'downtimeReasons'));
+        $sessionTotals = $this->getSessionTotalsArray($session);
+
+        return view('sp_production.record', compact('session', 'defectTypes', 'downtimeReasons', 'sessionTotals'));
     }
 
     public function addProduction(Request $request, $id)
@@ -277,7 +279,10 @@ class SpProductionSessionController extends Controller
             $qty = (int) ($validated['issue_qty'] ?? $validated['input_qty']);
             $rawReject = (int) $session->rejectEntries()->sum('quantity');
             $internalReworkIn = (int) $session->reworkEntries()
-                ->where('remarks', 'not like', 'From Reworkable Input%')
+                ->where(function ($q) {
+                    $q->where('remarks', 'not like', 'From Reworkable Input%')
+                        ->orWhereNull('remarks');
+                })
                 ->sum('input_qty');
             $availableDefectStock = max(0, $rawReject - $internalReworkIn);
 
@@ -547,39 +552,99 @@ class SpProductionSessionController extends Controller
 
     public function submitCloseout(Request $request, $id)
     {
-        $session = SpProductionSession::with('workOrder')->findOrFail($id);
+        $session = SpProductionSession::with(['workOrder', 'downtimeEntries'])->findOrFail($id);
 
-        $validated = $request->validate([
-            'production_notes' => 'nullable|string',
-            'ng_remarks' => 'nullable|string',
-            'absent_employees' => 'nullable|string',
+        // Pre-sanitize next_production_schedule: discard null, empty string, or whitespace-only items
+        $rawSchedule = $request->input('next_production_schedule');
+        $cleanedSchedule = null;
+        if (is_array($rawSchedule)) {
+            $filtered = array_values(array_filter(
+                array_map(fn($item) => is_string($item) ? trim($item) : $item, $rawSchedule),
+                fn($item) => !empty($item)
+            ));
+            $cleanedSchedule = !empty($filtered) ? $filtered : null;
+        }
+
+        // Pre-filter materials: discard untouched preset rows where lot_number, qty, visco, and mixing_ratio are all empty/null
+        $rawMaterials = $request->input('materials');
+        $filteredMaterials = [];
+        if (is_array($rawMaterials)) {
+            foreach ($rawMaterials as $mat) {
+                if (!is_array($mat)) {
+                    continue;
+                }
+                $hasLot = !empty(trim((string) ($mat['lot_number'] ?? '')));
+                $hasQty = isset($mat['qty']) && $mat['qty'] !== '' && (float) $mat['qty'] > 0;
+                $hasVisco = !empty(trim((string) ($mat['visco'] ?? '')));
+                $hasRatio = !empty(trim((string) ($mat['mixing_ratio'] ?? '')));
+
+                // Keep row if any operational consumption data is provided
+                if ($hasLot || $hasQty || $hasVisco || $hasRatio) {
+                    $filteredMaterials[] = $mat;
+                }
+            }
+        }
+
+        $request->merge([
+            'next_production_schedule' => $cleanedSchedule,
+            'materials' => !empty($filteredMaterials) ? $filteredMaterials : null,
+        ]);
+
+        $troubleCategories = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
+        $hasDowntime = $session->downtimeEntries->isNotEmpty();
+
+        $rules = [
+            'production_notes' => 'nullable|string|max:2000',
+            'ng_remarks' => 'nullable|string|max:2000',
+            'absent_employees' => 'nullable|string|max:500',
             'next_production_schedule' => 'nullable|array',
-            'output_destination' => 'nullable|string',
-            'remarks' => 'nullable|string',
+            'next_production_schedule.*' => 'required|string|max:255',
+            'output_destination' => 'required|string|in:fg,buffing,next_process',
+            'remarks' => 'nullable|string|max:2000',
             // Materials
             'materials' => 'nullable|array',
             'materials.*.type' => 'required|string|in:paint,part',
-            'materials.*.item_name' => 'required|string',
-            'materials.*.lot_number' => 'nullable|string',
-            'materials.*.visco' => 'nullable|string',
-            'materials.*.mixing_ratio' => 'nullable|string',
-            'materials.*.qty' => 'nullable|numeric',
-            'materials.*.uom' => 'nullable|string',
+            'materials.*.item_name' => 'required|string|max:255',
+            'materials.*.lot_number' => 'nullable|string|max:100',
+            'materials.*.visco' => 'nullable|string|max:100',
+            'materials.*.mixing_ratio' => 'nullable|string|max:100',
+            'materials.*.qty' => 'nullable|numeric|min:0',
+            'materials.*.uom' => 'nullable|string|max:50',
             // Downtime enrichment
-            'troubles' => 'nullable|array',
-            'troubles.*.downtime_id' => 'nullable|integer',
-            'troubles.*.category' => 'nullable|string',
-            'troubles.*.countermeasure' => 'nullable|string',
-        ]);
+            'troubles' => $hasDowntime ? 'required|array' : 'nullable|array',
+        ];
 
-        DB::transaction(function () use ($session, $validated) {
+        if ($hasDowntime) {
+            $rules['troubles.*.downtime_id'] = 'required|integer|exists:sp_downtime_entries,id';
+            $rules['troubles.*.category'] = 'required|string|in:' . implode(',', $troubleCategories);
+            $rules['troubles.*.countermeasure'] = 'nullable|string|max:1000';
+        } else {
+            $rules['troubles.*.downtime_id'] = 'nullable|integer';
+            $rules['troubles.*.category'] = 'nullable|string';
+            $rules['troubles.*.countermeasure'] = 'nullable|string|max:1000';
+        }
+
+        $messages = [
+            'output_destination.required' => 'Please select an Output Destination (FG, Buffing, or Next Process Area).',
+            'output_destination.in' => 'The selected Output Destination is invalid.',
+            'troubles.required' => 'Please categorize all downtime events logged during this session.',
+            'troubles.*.category.required' => 'Downtime category is required for all logged downtime events.',
+            'troubles.*.category.in' => 'Selected downtime category is invalid.',
+            'materials.*.item_name.required' => 'Item name is required for all recorded materials.',
+            'materials.*.qty.numeric' => 'Material quantity must be a valid number.',
+            'materials.*.qty.min' => 'Material quantity cannot be negative.',
+        ];
+
+        $validated = $request->validate($rules, $messages);
+
+        DB::transaction(function () use ($session, $validated, $cleanedSchedule) {
             $session->update([
                 'status' => 'completed',
                 'finished_at' => $session->finished_at ?? now(),
                 'production_notes' => $validated['production_notes'] ?? null,
                 'ng_remarks' => $validated['ng_remarks'] ?? null,
                 'absent_employees' => $validated['absent_employees'] ?? null,
-                'next_production_schedule' => $validated['next_production_schedule'] ?? null,
+                'next_production_schedule' => $cleanedSchedule,
                 'output_destination' => $validated['output_destination'] ?? null,
                 'remarks' => $validated['remarks'] ?? $session->remarks,
             ]);
@@ -842,20 +907,22 @@ class SpProductionSessionController extends Controller
 
         $entry = $session->reworkEntries()->findOrFail($entryId);
 
+        if ($entry->input_qty > 0) {
+            $processedRework = $session->total_rework_recovered + (int) $session->total_scrap;
+            $remainingReworkIn = $session->total_rework_in - $entry->input_qty;
+            if ($processedRework > $remainingReworkIn) {
+                return response()->json([
+                    'error' => 'Cannot delete rework entry: parts have already been processed or recovered on the rework bench.'
+                ], 422);
+            }
+        }
+
         $deletedInputEntryId = null;
         if (preg_match('/^From Reworkable Input #(\d+)/', $entry->remarks ?? '', $matches)) {
             $inputId = (int) $matches[1];
             $linkedInput = $session->inputEntries()->find($inputId);
             if ($linkedInput) {
                 $session->refresh();
-                $processedRework = $session->total_rework_recovered + (int) $session->total_scrap;
-                $remainingReworkIn = $session->total_rework_in - $entry->input_qty;
-                if ($processedRework > $remainingReworkIn) {
-                    return response()->json([
-                        'error' => 'Cannot delete rework entry: parts have already been processed or recovered on the rework bench.'
-                    ], 422);
-                }
-
                 $totalOutput = $session->total_good + $session->total_reject;
                 $remainingInput = $session->total_input - $linkedInput->quantity;
                 if ($totalOutput > $remainingInput) {
@@ -943,7 +1010,10 @@ class SpProductionSessionController extends Controller
         $inputReworkable = (int) $session->inputEntries()->where('source', 'reworkable')->sum('quantity');
 
         $internalReworkIn = (int) $session->reworkEntries()
-            ->where('remarks', 'not like', 'From Reworkable Input%')
+            ->where(function ($q) {
+                $q->where('remarks', 'not like', 'From Reworkable Input%')
+                    ->orWhereNull('remarks');
+            })
             ->sum('input_qty');
 
         return [
@@ -956,6 +1026,7 @@ class SpProductionSessionController extends Controller
             'input_reworkable' => $inputReworkable,
             'yield' => $session->yield,
             'downtime_minutes' => (int) ($session->downtimeEntries()->sum('duration_minutes') ?? 0),
+            'downtime_count' => (int) ($session->downtimeEntries()->count() ?? 0),
             'rework_in' => $reworkIn,
             'internal_rework_in' => $internalReworkIn,
             'rework_recovered' => $reworkRecovered,

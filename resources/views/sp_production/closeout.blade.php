@@ -98,6 +98,21 @@
         <form action="{{ route('app.sp-sessions.submit-closeout', $session->id) }}" method="POST" class="space-y-6">
             @csrf
 
+            {{-- Validation Error Alert Banner --}}
+            @if ($errors->any())
+                <div class="p-5 bg-red-50 border-2 border-red-200 rounded-3xl text-red-950 text-xs shadow-md space-y-2.5">
+                    <div class="flex items-center gap-2.5 font-black text-red-900 uppercase tracking-wider text-sm">
+                        <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+                        <span>Please correct the following before completing close-out:</span>
+                    </div>
+                    <ul class="list-disc pl-5 space-y-1 text-red-800 font-semibold">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- SECTION 1: Session Performance Summary (Readonly Scorecard) --}}
             <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
                 <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
@@ -317,15 +332,18 @@
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                         <div>
                                             <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Category *</label>
-                                            <select name="troubles[{{ $idx }}][category]" class="w-full rounded-xl border-slate-300 text-xs font-bold text-slate-800 py-1.5 focus:ring-2 focus:ring-blue-500 bg-white">
+                                            <select name="troubles[{{ $idx }}][category]" class="w-full rounded-xl border-slate-300 text-xs font-bold text-slate-800 py-1.5 focus:ring-2 focus:ring-blue-500 bg-white @error("troubles.{$idx}.category") border-red-500 ring-1 ring-red-500 bg-red-50/20 @enderror">
                                                 <option value="">-- Select Category --</option>
                                                 @foreach($troubleCategories as $cat)
                                                     <option value="{{ $cat }}" {{ (old("troubles.{$idx}.category", $dt->category) == $cat) ? 'selected' : '' }}>{{ $cat }}</option>
                                                 @endforeach
                                             </select>
+                                            @error("troubles.{$idx}.category")
+                                                <p class="text-[10px] text-red-600 font-bold mt-1">{{ $message }}</p>
+                                            @enderror
                                         </div>
 
                                         <div class="md:col-span-2">
@@ -364,13 +382,16 @@
 
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1">Output Destination</label>
-                            <select name="output_destination" class="w-full rounded-2xl border-slate-300 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 bg-slate-50/40 focus:bg-white py-2">
+                            <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1">Output Destination *</label>
+                            <select name="output_destination" required class="w-full rounded-2xl border-slate-300 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 bg-slate-50/40 focus:bg-white py-2 @error('output_destination') border-red-500 ring-1 ring-red-500 bg-red-50/20 @enderror">
                                 <option value="">-- Select Destination --</option>
                                 <option value="fg" {{ old('output_destination', $session->output_destination) == 'fg' ? 'selected' : '' }}>Finished Goods (FG)</option>
                                 <option value="buffing" {{ old('output_destination', $session->output_destination) == 'buffing' ? 'selected' : '' }}>Buffing</option>
                                 <option value="next_process" {{ old('output_destination', $session->output_destination) == 'next_process' ? 'selected' : '' }}>Next Process Area</option>
                             </select>
+                            @error('output_destination')
+                                <p class="text-[10px] text-red-600 font-bold mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
