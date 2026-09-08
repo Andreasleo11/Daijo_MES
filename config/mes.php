@@ -69,14 +69,26 @@ return [
     |
     */
     'sp_lines' => [
-        'line-a'   => 'Line A',
-        'line-b'   => 'Line B',
-        'line-c'   => 'Line C',
-        'line-d'   => 'Line D',
-        'buffing'  => 'Area Buffing',
-        'amplas'   => 'Area Amplas/Treatment',
-        'packing'  => 'Area Packing',
-        'assy'     => 'Area Assy',
+        'line-a'    => 'Line A',
+        'line-b'    => 'Line B',
+        'line-c'    => 'Line C',
+        'line-d'    => 'Line D',
+        'buffing-1' => 'Buffing 1',
+        'buffing-2' => 'Buffing 2',
+        'buffing-3' => 'Buffing 3',
+        'buffing-4' => 'Buffing 4',
+        'buffing-5' => 'Buffing 5',
+        'buffing-6' => 'Buffing 6',
+        'buffing-7' => 'Buffing 7',
+        'buffing-8' => 'Buffing 8',
+        'buffing-9' => 'Buffing 9',
+        'buffing-10' => 'Buffing 10',
+        'buffing-11' => 'Buffing 11',
+        'amplas'    => 'Area Amplas/Treatment',
+        'packing-1' => 'Packing 1',
+        'packing-2' => 'Packing 2',
+        'packing-3' => 'Packing 3',
+        'assy'      => 'Area Assy',
     ],
 
     /*
@@ -113,5 +125,105 @@ return [
         'packing'  => 'Packing',
         'operator' => 'Operator',
         'leader'   => 'Leader',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Production Processes
+    |--------------------------------------------------------------------------
+    |
+    | Standard production processes for Second Process operations.
+    |
+    */
+    'sp_processes' => [
+        'Painting',
+        'Buffing',
+        'Amplas',
+        'Treatment',
+        'Packing',
+        'Rework',
+        'Repair',
+        'Assy',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Output Destinations
+    |--------------------------------------------------------------------------
+    |
+    | Destination step after current Second Process completes.
+    |
+    */
+    'sp_output_destinations' => [
+        'fg'           => 'Finished Goods (FG)',
+        'buffing'      => 'Buffing',
+        'next_process' => 'Next Process Area',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Default Paint Materials
+    |--------------------------------------------------------------------------
+    |
+    | Initial default paint preparation items for new reports / closeout.
+    |
+    */
+    'sp_default_paint_materials' => [
+        'Paint Primer',
+        'Hardener',
+        'Paint Basecoat',
+        'Hardener',
+        'Paint Topcoat',
+        'Hardener',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Default Part / WIP Materials
+    |--------------------------------------------------------------------------
+    |
+    | Initial fallback WIP/repairan lot items for new reports / closeout.
+    |
+    */
+    'sp_default_part_materials' => [
+        'WIP 1',
+        'WIP 2',
+        'WIP 3',
+        'Repairan 1',
+        'Repairan 2',
+        'Repairan 3',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Default NG (Defect) Types
+    |--------------------------------------------------------------------------
+    |
+    | Default defect column headers for Second Process hourly quality tracking.
+    |
+    */
+    'sp_default_ng_types' => [
+        'SCRATCH',
+        'DIRTY',
+        'HAIR MARK',
+        'DENTED',
+        'OVER CUT',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Trouble / Downtime Categories
+    |--------------------------------------------------------------------------
+    |
+    | Standard categories for incident-based downtime and problem tracking.
+    |
+    */
+    'sp_trouble_categories' => [
+        'Man'        => 'Man',
+        'Mesin'      => 'Mesin',
+        'Part'       => 'Part',
+        'PPS'        => 'PPS',
+        'Lingkungan' => 'Lingkungan',
+        'Other'      => 'Other',
     ],
 ];

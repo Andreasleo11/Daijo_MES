@@ -45,7 +45,7 @@
             }
 
             if (empty($defaultPartMaterials)) {
-                $defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
+                $defaultParts = config('mes.sp_default_part_materials', ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3']);
                 foreach ($defaultParts as $name) {
                     $defaultPartMaterials[] = [
                         'item_name' => $name,
@@ -55,6 +55,15 @@
                     ];
                 }
             }
+
+            $defaultPaintMaterials = config('mes.sp_default_paint_materials', [
+                'Paint Primer',
+                'Hardener',
+                'Paint Basecoat',
+                'Hardener',
+                'Paint Topcoat',
+                'Hardener',
+            ]);
         @endphp
 
         {{-- Flash Success Banner --}}
@@ -454,11 +463,7 @@
                         });
                     } else {
                         // Default Paint presets
-                        const defaultPaints = [
-                            'Paint Primer', 'Hardener',
-                            'Paint Basecoat', 'Hardener',
-                            'Paint Topcoat', 'Hardener'
-                        ];
+                        const defaultPaints = @json($defaultPaintMaterials);
                         defaultPaints.forEach(name => {
                             this.paintMaterials.push({
                                 globalIndex: this.nextGlobalIndex++,

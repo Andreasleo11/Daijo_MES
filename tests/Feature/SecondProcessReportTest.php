@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\FirstPieceInspection;
 use App\Models\Role;
 use App\Models\SecondProcessReport;
+use App\Models\SecondProcessTrouble;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -452,6 +453,203 @@ class SecondProcessReportTest extends TestCase
         $response->assertOk();
         $response->assertSee('No paint materials recorded');
         $response->assertSee('No item parts recorded');
+    }
+
+    public function test_store_legacy_report_omits_empty_trouble_records()
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        FirstPieceInspection::create([
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-TROUBLE-NONE',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'overall_judgement' => 'OK',
+            'checked_by' => 'QC Tester',
+            'checked_at' => now(),
+        ]);
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-TROUBLE-NONE',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'target_qty' => 100,
+            'output_destination' => 'fg',
+            'troubles' => [
+                ['penyebab' => 'Man', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'Mesin', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'Part', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'PPS', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'Lingkungan', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-TROUBLE-NONE')->first();
+        $this->assertNotNull($report);
+        $this->assertEquals(0, SecondProcessTrouble::where('report_id', $report->id)->count());
+    }
+
+    public function test_store_legacy_report_persists_populated_troubles_with_auto_generated_loss_time()
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        FirstPieceInspection::create([
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-TROUBLE-POP',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'overall_judgement' => 'OK',
+            'checked_by' => 'QC Tester',
+            'checked_at' => now(),
+        ]);
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-TROUBLE-POP',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'target_qty' => 100,
+            'output_destination' => 'fg',
+            'troubles' => [
+                ['penyebab' => 'Man', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'Mesin', 'masalah' => 'Nozzle clogged', 'penanganan' => 'Cleaned nozzle', 'loss_time_minutes' => '30'],
+                ['penyebab' => 'Part', 'masalah' => 'Waiting raw materials', 'penanganan' => 'Contacted warehouse', 'loss_time_minutes' => '15'],
+                ['penyebab' => 'PPS', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+                ['penyebab' => 'Lingkungan', 'masalah' => '', 'penanganan' => '', 'loss_time_minutes' => ''],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-TROUBLE-POP')->first();
+        $this->assertNotNull($report);
+        
+        $troubles = SecondProcessTrouble::where('report_id', $report->id)->get();
+        $this->assertCount(2, $troubles);
+
+        $mesinTrouble = $troubles->where('penyebab', 'Mesin')->first();
+        $this->assertNotNull($mesinTrouble);
+        $this->assertEquals('Nozzle clogged', $mesinTrouble->masalah);
+        $this->assertEquals('Cleaned nozzle', $mesinTrouble->penanganan);
+        $this->assertEquals(30, $mesinTrouble->loss_time_minutes);
+        $this->assertEquals('30 mins', $mesinTrouble->loss_time);
+
+        $partTrouble = $troubles->where('penyebab', 'Part')->first();
+        $this->assertNotNull($partTrouble);
+        $this->assertEquals('Waiting raw materials', $partTrouble->masalah);
+        $this->assertEquals('Contacted warehouse', $partTrouble->penanganan);
+        $this->assertEquals(15, $partTrouble->loss_time_minutes);
+        $this->assertEquals('15 mins', $partTrouble->loss_time);
+
+        // Show page check
+        $showResponse = $this->get(route('second-process-reports.show', $report->id));
+        $showResponse->assertOk();
+        $showResponse->assertSee('Nozzle clogged');
+        $showResponse->assertSee('Waiting raw materials');
+        $showResponse->assertSee('Total Loss Time:');
+        $showResponse->assertSee('45 mins');
+    }
+
+    public function test_store_legacy_report_with_problem_approach_repeater()
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        FirstPieceInspection::create([
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-PROB-APP',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'overall_judgement' => 'OK',
+            'checked_by' => 'QC Tester',
+            'checked_at' => now(),
+        ]);
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-PROB-APP',
+            'part_name' => 'Test Part',
+            'model' => 'Model X',
+            'target_qty' => 100,
+            'output_destination' => 'fg',
+            'troubles' => [
+                [
+                    'masalah' => 'Problem A: Operator misplacement',
+                    'penyebab' => 'Man',
+                    'penanganan' => 'Retrained operator on jigs',
+                    'loss_time_minutes' => '10',
+                ],
+                [
+                    'masalah' => 'Problem B: Heater thermocouple failure',
+                    'penyebab' => 'Mesin',
+                    'penanganan' => 'Replaced sensor probe',
+                    'loss_time_minutes' => '25',
+                ],
+                [
+                    'masalah' => 'Problem C: Viscosity parameter off-spec',
+                    'penyebab' => 'PPS',
+                    'penanganan' => 'Adjusted thinner ratio',
+                    'loss_time_minutes' => '15',
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-PROB-APP')->first();
+        $this->assertNotNull($report);
+
+        $troubles = SecondProcessTrouble::where('report_id', $report->id)->orderBy('id')->get();
+        $this->assertCount(3, $troubles);
+
+        $this->assertEquals('Problem A: Operator misplacement', $troubles[0]->masalah);
+        $this->assertEquals('Man', $troubles[0]->penyebab);
+        $this->assertEquals(10, $troubles[0]->loss_time_minutes);
+        $this->assertEquals('10 mins', $troubles[0]->loss_time);
+
+        $this->assertEquals('Problem B: Heater thermocouple failure', $troubles[1]->masalah);
+        $this->assertEquals('Mesin', $troubles[1]->penyebab);
+        $this->assertEquals(25, $troubles[1]->loss_time_minutes);
+        $this->assertEquals('25 mins', $troubles[1]->loss_time);
+
+        $this->assertEquals('Problem C: Viscosity parameter off-spec', $troubles[2]->masalah);
+        $this->assertEquals('PPS', $troubles[2]->penyebab);
+        $this->assertEquals(15, $troubles[2]->loss_time_minutes);
+        $this->assertEquals('15 mins', $troubles[2]->loss_time);
+
+        // Show page verification
+        $showResponse = $this->get(route('second-process-reports.show', $report->id));
+        $showResponse->assertOk();
+        $showResponse->assertSee('Problem A: Operator misplacement');
+        $showResponse->assertSee('Problem B: Heater thermocouple failure');
+        $showResponse->assertSee('Problem C: Viscosity parameter off-spec');
+        $showResponse->assertSee('50 mins');
     }
 }
 

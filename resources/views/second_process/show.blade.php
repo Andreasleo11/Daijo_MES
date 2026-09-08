@@ -479,44 +479,50 @@
             <!-- Troubles section -->
             <div>
                 <h3 class="text-sm font-bold border-b border-black pb-1 mb-2">Trouble Report</h3>
-                <table class="w-full border-collapse border border-black text-[11px]">
-                    <thead class="bg-gray-100 font-bold">
-                        <tr>
-                            <th class="border border-black p-1 w-1/5">Category</th>
-                            <th class="border border-black p-1 w-1/3">Masalah (Problem)</th>
-                            <th class="border border-black p-1">Penanganan (Countermeasure)</th>
-                            <th class="border border-black p-1 w-1/6">Loss Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $defaultTroubles = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
-                        @endphp
-                        @foreach ($defaultTroubles as $causes)
-                            @php
-                                $trouble = $report->troubles->where('penyebab', $causes)->first();
-                            @endphp
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[500px] md:min-w-0 border-collapse border border-black text-[11px]">
+                        <thead class="bg-gray-100 font-bold">
                             <tr>
-                                <td class="border border-black p-2 font-bold">{{ $causes }}</td>
-                                <td class="border border-black p-2">
-                                    {{ $trouble && $trouble->masalah ? $trouble->masalah : '-' }}</td>
-                                <td class="border border-black p-2">
-                                    {{ $trouble && $trouble->penanganan ? $trouble->penanganan : '-' }}</td>
-                                <td class="border border-black p-2 text-center">
-                                    @if ($trouble)
+                                <th class="border border-black p-1 w-10 text-center">#</th>
+                                <th class="border border-black p-1 w-2/5">Masalah (Problem)</th>
+                                <th class="border border-black p-1 w-1/5">Category</th>
+                                <th class="border border-black p-1 w-2/5">Penanganan (Countermeasure)</th>
+                                <th class="border border-black p-1 w-24 text-center">Loss Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($report->troubles as $idx => $trouble)
+                                <tr>
+                                    <td class="border border-black p-2 text-center font-bold">{{ $idx + 1 }}</td>
+                                    <td class="border border-black p-2">{{ $trouble->masalah ?: '-' }}</td>
+                                    <td class="border border-black p-2 font-bold">{{ $trouble->penyebab ?: ($trouble->category ?: '-') }}</td>
+                                    <td class="border border-black p-2">{{ $trouble->penanganan ?: '-' }}</td>
+                                    <td class="border border-black p-2 text-center">
                                         @if ($trouble->loss_time_minutes)
                                             {{ $trouble->loss_time_minutes }} mins
                                         @else
                                             {{ $trouble->loss_time ?: '-' }}
                                         @endif
-                                    @else
-                                        -
-                                    @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="border border-black p-3 text-center text-gray-500 italic">
+                                        No trouble / downtime reported for this shift.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot class="bg-gray-100 font-bold">
+                            <tr>
+                                <td colspan="4" class="border border-black p-1.5 text-right uppercase tracking-wider">Total Loss Time:</td>
+                                <td class="border border-black p-1.5 text-center font-bold">
+                                    {{ $report->troubles->sum('loss_time_minutes') }} mins
                                 </td>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
 
             <!-- Notes & Footer signature -->

@@ -218,12 +218,12 @@ class SecondProcessReportController extends Controller
 
             // Troubles
             'troubles' => 'nullable|array',
-            'troubles.*.penyebab' => 'required|string',
+            'troubles.*.penyebab' => 'nullable|string',
             'troubles.*.penanganan' => 'nullable|string',
             'troubles.*.loss_time' => 'nullable|string',
             'troubles.*.category' => 'nullable|string',
             'troubles.*.masalah' => 'nullable|string',
-            'troubles.*.loss_time_minutes' => 'nullable|integer',
+            'troubles.*.loss_time_minutes' => 'nullable|integer|min:0|max:1440',
         ]);
 
         // Sanitize next_production_schedule: discard empty strings, nulls, and whitespace
@@ -377,15 +377,26 @@ class SecondProcessReportController extends Controller
             // Create Troubles
             if (isset($validated['troubles'])) {
                 foreach ($validated['troubles'] as $trouble) {
-                    if (! empty($trouble['penyebab']) || ! empty($trouble['penanganan']) || ! empty($trouble['masalah'])) {
-                        if (empty($trouble['category']) && ! empty($trouble['penyebab'])) {
-                            $trouble['category'] = $trouble['penyebab'];
-                        }
+                    $hasProblem = ! empty(trim($trouble['masalah'] ?? ''));
+                    $hasCountermeasure = ! empty(trim($trouble['penanganan'] ?? ''));
+                    $hasLossTime = ! empty($trouble['loss_time_minutes']) && (int) $trouble['loss_time_minutes'] > 0;
+
+                    if ($hasProblem || $hasCountermeasure || $hasLossTime) {
+                        $category = ! empty($trouble['penyebab'])
+                            ? $trouble['penyebab']
+                            : (! empty($trouble['category']) ? $trouble['category'] : 'Other');
+                        $trouble['penyebab'] = $category;
+                        $trouble['category'] = $category;
+
                         if (empty($trouble['loss_time_minutes']) && ! empty($trouble['loss_time'])) {
                             preg_match('/\d+/', $trouble['loss_time'], $matches);
                             $trouble['loss_time_minutes'] = isset($matches[0]) ? (int) $matches[0] : 0;
                         }
-                        $trouble['loss_time_minutes'] = (int) ($trouble['loss_time_minutes'] ?? 0);
+                        $mins = (int) ($trouble['loss_time_minutes'] ?? 0);
+                        $trouble['loss_time_minutes'] = $mins;
+                        if (empty($trouble['loss_time']) && $mins > 0) {
+                            $trouble['loss_time'] = "{$mins} mins";
+                        }
                         $report->troubles()->create($trouble);
                     }
                 }

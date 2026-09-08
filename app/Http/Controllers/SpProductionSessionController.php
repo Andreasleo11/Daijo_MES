@@ -699,13 +699,27 @@ class SpProductionSessionController extends Controller
     {
         // Resolve slug -> display name from config
         $spLines = config('mes.sp_lines', []);
+
+        $legacyAliases = [
+            'buffing' => 'buffing-1',
+            'packing' => 'packing-1',
+            'area-buffing' => 'buffing-1',
+            'area-packing' => 'packing-1',
+            'Area Buffing' => 'buffing-1',
+            'Area Packing' => 'packing-1',
+        ];
+
+        if (isset($legacyAliases[$lineSlug])) {
+            return redirect()->route('sp-sessions.line-gateway', array_merge($request->query(), ['lineSlug' => $legacyAliases[$lineSlug]]));
+        }
+
         $line = $spLines[$lineSlug] ?? null;
 
         if (!$line) {
             // Fallback check if user passed exact line name (e.g. Line A)
             $foundSlug = array_search($lineSlug, $spLines);
             if ($foundSlug !== false) {
-                return redirect()->route('sp-sessions.line-gateway', ['lineSlug' => $foundSlug]);
+                return redirect()->route('sp-sessions.line-gateway', array_merge($request->query(), ['lineSlug' => $foundSlug]));
             }
             abort(404, "Unknown line: {$lineSlug}");
         }

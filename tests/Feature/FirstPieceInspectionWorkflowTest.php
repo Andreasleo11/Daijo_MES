@@ -17,8 +17,21 @@ class FirstPieceInspectionWorkflowTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
+        $workOrder = SpWorkOrder::create([
+            'wo_number' => 'WO-TEST-99',
+            'planned_date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line A',
+            'process_prod' => 'Assembly',
+            'part_number' => 'PN-WO-123',
+            'part_name' => 'Widget Cover',
+            'customer' => 'Toyota',
+            'target_qty' => 500,
+            'status' => 'planned',
+            'created_by' => $user->id,
+        ]);
+
         $response = $this->get(route('first-piece-inspections.create', [
-            'work_order_id' => 99,
+            'work_order_id' => $workOrder->id,
             'part_number' => 'PN-WO-123',
             'part_name' => 'Widget Cover',
             'model' => 'Model-Alpha',

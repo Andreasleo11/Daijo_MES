@@ -166,8 +166,8 @@ class SecondProcessReportAnalyticsController extends Controller
             ->get();
 
         // Dropdown selection lists
-        $lines = ['Line A', 'Line B', 'Line C', 'Line D', 'Area Buffing', 'Area Amplas/Treatment', 'Area Packing', 'Area Assy'];
-        $processes = ['Painting', 'Buffing', 'Amplas', 'Treatment', 'Packing', 'Rework', 'Repair'];
+        $lines = array_values(config('mes.sp_lines', []));
+        $processes = config('mes.sp_processes', ['Painting', 'Buffing', 'Amplas', 'Treatment', 'Packing', 'Rework', 'Repair', 'Assy']);
 
         return view('second_process.report_analytics', compact(
             'summary',

@@ -99,25 +99,7 @@
                             required>
                             <option value="">-- Select Unit / Line --</option>
                             @php
-                                $unitLineOptions = [
-                                    'Line A',
-                                    'Line B',
-                                    'Line C',
-                                    'Line D',
-                                    'Buffing 1',
-                                    'Buffing 2',
-                                    'Buffing 3',
-                                    'Buffing 4',
-                                    'Buffing 5',
-                                    'Buffing 6',
-                                    'Buffing 7',
-                                    'Buffing 8',
-                                    'Area Amplas/Treatment',
-                                    'Packing 1',
-                                    'Packing 2',
-                                    'Packing 3',
-                                    'Area Assy',
-                                ];
+                                $unitLineOptions = array_values(config('mes.sp_lines'));
                                 $currentUnitLine = old('unit_line', $report->unit_line);
                             @endphp
                             @foreach ($unitLineOptions as $opt)
@@ -148,30 +130,17 @@
                         <select name="process_prod"
                             class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required>
-                            <option value="Painting"
-                                {{ old('process_prod', $report->process_prod ?? 'Painting') == 'Painting' ? 'selected' : '' }}>
-                                Painting</option>
-                            <option value="Buffing"
-                                {{ old('process_prod', $report->process_prod) == 'Buffing' ? 'selected' : '' }}>
-                                Buffing</option>
-                            <option value="Amplas"
-                                {{ old('process_prod', $report->process_prod) == 'Amplas' ? 'selected' : '' }}>
-                                Amplas</option>
-                            <option value="Treatment"
-                                {{ old('process_prod', $report->process_prod) == 'Treatment' ? 'selected' : '' }}>
-                                Treatment</option>
-                            <option value="Packing"
-                                {{ old('process_prod', $report->process_prod) == 'Packing' ? 'selected' : '' }}>
-                                Packing</option>
-                            <option value="Rework"
-                                {{ old('process_prod', $report->process_prod) == 'Rework' ? 'selected' : '' }}>
-                                Rework</option>
-                            <option value="Repair"
-                                {{ old('process_prod', $report->process_prod) == 'Repair' ? 'selected' : '' }}>
-                                Repair</option>
-                            <option value="Assy"
-                                {{ old('process_prod', $report->process_prod) == 'Assy' ? 'selected' : '' }}>
-                                Assy</option>
+                            @php
+                                $spProcesses = config('mes.sp_processes');
+                                $currentProcess = old('process_prod', $report->process_prod ?? 'Painting');
+                            @endphp
+                            @foreach ($spProcesses as $proc)
+                                <option value="{{ $proc }}" {{ $currentProcess == $proc ? 'selected' : '' }}>
+                                    {{ $proc }}</option>
+                            @endforeach
+                            @if ($currentProcess && !in_array($currentProcess, $spProcesses))
+                                <option value="{{ $currentProcess }}" selected>{{ $currentProcess }}</option>
+                            @endif
                         </select>
                     </div>
                     <input type="hidden" name="status" id="status-field"
@@ -184,15 +153,15 @@
                             <option value=""
                                 {{ empty(old('output_destination', $report->output_destination)) ? 'selected' : '' }}>
                                 -- Select Next Step --</option>
-                            <option value="fg"
-                                {{ old('output_destination', $report->output_destination) == 'fg' ? 'selected' : '' }}>
-                                Finished Goods (FG)</option>
-                            <option value="buffing"
-                                {{ old('output_destination', $report->output_destination) == 'buffing' ? 'selected' : '' }}>
-                                Buffing</option>
-                            <option value="next_process"
-                                {{ old('output_destination', $report->output_destination) == 'next_process' ? 'selected' : '' }}>
-                                Next Process Area</option>
+                            @php
+                                $spDestinations = config('mes.sp_output_destinations');
+                                $currentDest = old('output_destination', $report->output_destination);
+                            @endphp
+                            @foreach ($spDestinations as $destKey => $destLabel)
+                                <option value="{{ $destKey }}" {{ $currentDest == $destKey ? 'selected' : '' }}>
+                                    {{ $destLabel }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
@@ -277,15 +246,7 @@
                                             <input type="hidden" name="manpower[{{ $index }}][no]"
                                                 class="mp-no-input" value="{{ $loop->iteration }}">
                                             @php
-                                                $spRoles = config('mes.sp_manpower_roles', [
-                                                    'loading'  => 'Loading / Input',
-                                                    'sprayer'  => 'Sprayer',
-                                                    'checker'  => 'Checker',
-                                                    'qc'       => 'QC',
-                                                    'packing'  => 'Packing',
-                                                    'operator' => 'Operator',
-                                                    'leader'   => 'Leader',
-                                                ]);
+                                                $spRoles = config('mes.sp_manpower_roles');
                                                 $isCustom = !array_key_exists($mp->role, $spRoles);
                                             @endphp
                                             <select
@@ -329,15 +290,7 @@
                                             <select
                                                 class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select"
                                                 onchange="toggleCustomRole(this, 0)">
-                                                @foreach(config('mes.sp_manpower_roles', [
-                                                    'loading'  => 'Loading / Input',
-                                                    'sprayer'  => 'Sprayer',
-                                                    'checker'  => 'Checker',
-                                                    'qc'       => 'QC',
-                                                    'packing'  => 'Packing',
-                                                    'operator' => 'Operator',
-                                                    'leader'   => 'Leader',
-                                                ]) as $roleKey => $roleLabel)
+                                                @foreach(config('mes.sp_manpower_roles') as $roleKey => $roleLabel)
                                                     <option value="{{ $roleKey }}">{{ $roleLabel }}</option>
                                                 @endforeach
                                                 <option value="__custom__">Other (custom)...</option>
@@ -387,14 +340,7 @@
                     $materialGlobalIndex = 0;
                     $paintMaterials = $report->materials ? $report->materials->where('type', 'paint')->values() : collect();
                     if ($paintMaterials->isEmpty() && !$report->exists) {
-                        $defaultPaints = [
-                            'Paint Primer',
-                            'Hardener',
-                            'Paint Basecoat',
-                            'Hardener',
-                            'Paint Topcoat',
-                            'Hardener',
-                        ];
+                        $defaultPaints = config('mes.sp_default_paint_materials');
                         foreach ($defaultPaints as $pName) {
                             $paintMaterials->push((object)[
                                 'item_name' => $pName,
@@ -488,7 +434,7 @@
                 @php
                     $partMaterials = $report->materials ? $report->materials->where('type', 'part')->values() : collect();
                     if ($partMaterials->isEmpty() && !$report->exists) {
-                        $defaultParts = ['WIP 1', 'WIP 2', 'WIP 3', 'Repairan 1', 'Repairan 2', 'Repairan 3'];
+                        $defaultParts = config('mes.sp_default_part_materials');
                         foreach ($defaultParts as $pName) {
                             $partMaterials->push((object)[
                                 'item_name' => $pName,
@@ -711,7 +657,7 @@
                 $currentHoursCount = max(1, $report->hourlyProductions->count());
                 $defaultNgs = $report->ngRecords->isNotEmpty()
                     ? $report->ngRecords->pluck('ng_name')->unique()->toArray()
-                    : ['SCRATCH', 'DIRTY', 'HAIR MARK', 'DENTED', 'OVER CUT'];
+                    : config('mes.sp_default_ng_types');
             @endphp
             <!-- Unified Production & NG Log Grid -->
             <div class="space-y-6">
@@ -940,60 +886,137 @@
 
             <!-- Troubles Section -->
             <div class="space-y-4">
-                <h3 class="text-lg font-bold text-gray-800 border-b pb-2 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                    Trouble / Downtime Report
-                </h3>
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50 font-bold text-gray-600">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-2">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800">Trouble / Downtime Report</h3>
+                    </div>
+                    <div class="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-gray-500 uppercase">Total Downtime:</span>
+                            <span id="total-downtime-badge" class="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                <span id="total-downtime-minutes">0</span> Mins (<span id="total-downtime-hours">0.0</span> hrs)
+                            </span>
+                        </div>
+                        <button type="button" onclick="addTroubleRow()"
+                            class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition cursor-pointer">
+                            + Tambah Masalah
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 md:bg-white rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
+                    <table class="w-full block md:table text-sm">
+                        <thead class="hidden md:table-header-group bg-gray-50 font-bold text-gray-600 border-b border-gray-200">
                             <tr>
-                                <th class="px-4 py-2 text-left w-1/5">Penyebab (Category)</th>
-                                <th class="px-4 py-2 text-left w-1/3">Masalah (Problem)</th>
-                                <th class="px-4 py-2 text-left">Penanganan (Countermeasure)</th>
-                                <th class="px-4 py-2 text-left w-1/4">Loss Time</th>
+                                <th class="px-3 py-2.5 text-center w-12">#</th>
+                                <th class="px-3 py-2.5 text-left w-3/12 min-w-[180px]">Masalah</th>
+                                <th class="px-3 py-2.5 text-left w-2/12 min-w-[160px]">Kategori</th>
+                                <th class="px-3 py-2.5 text-left w-4/12 min-w-[180px]">Penanganan</th>
+                                <th class="px-3 py-2.5 text-right w-1/12 min-w-[140px]">Loss Time</th>
+                                <th class="px-2 py-2.5 text-center w-12"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody id="troubles-tbody" class="block md:table-row-group p-3 md:p-0 space-y-3 md:space-y-0 md:divide-y md:divide-gray-200">
                             @php
-                                $defaultTroubles = ['Man', 'Mesin', 'Part', 'PPS', 'Lingkungan'];
+                                $categoriesList = config('mes.sp_trouble_categories);
                             @endphp
-                            @foreach ($defaultTroubles as $index => $trouble)
+
+                            {{-- Empty State Row --}}
+                            <tr id="troubles-empty-row" class="block md:table-row" @if ($report->troubles->count() > 0) style="display: none;" @endif>
+                                <td colspan="6" class="block md:table-cell px-4 py-4 text-center text-xs text-gray-400 italic">
+                                    Tidak ada kendala / trouble yang dicatat.
+                                </td>
+                            </tr>
+
+                            {{-- Render existing troubles --}}
+                            @foreach ($report->troubles as $index => $trouble)
                                 @php
-                                    $match = $report->troubles->where('penyebab', $trouble)->first();
+                                    $currentCat = $trouble->penyebab ?: ($trouble->category ?: 'Mesin');
                                 @endphp
-                                <tr>
-                                    <td class="px-4 py-2 font-semibold text-gray-700">
-                                        {{ $trouble }}
-                                        <input type="hidden" name="troubles[{{ $index }}][penyebab]"
-                                            value="{{ $trouble }}">
+                                <tr class="trouble-row block md:table-row bg-white rounded-xl md:rounded-none border border-gray-200 md:border-0 p-4 md:p-0 shadow-xs md:shadow-none hover:bg-slate-50/70 transition">
+                                    <td class="block md:table-cell p-0 pb-2.5 md:px-3 md:py-3 align-top text-xs font-bold text-gray-500 border-b md:border-b-0 border-gray-100 mb-3 md:mb-0">
+                                        <div class="flex items-center justify-between md:justify-center">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs md:bg-transparent md:border-0 md:p-0 md:text-gray-500">
+                                                <span class="md:hidden">Masalah #</span><span class="trouble-row-num">{{ $loop->iteration }}</span>
+                                            </span>
+                                            <button type="button" onclick="removeTroubleRow(this)"
+                                                class="md:hidden text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 transition cursor-pointer">
+                                                Hapus
+                                            </button>
+                                        </div>
                                     </td>
-                                    <td class="px-4 py-2">
-                                        <textarea name="troubles[{{ $index }}][masalah]" rows="1"
-                                            class="w-full rounded border-gray-300 text-xs py-1" placeholder="Problem description...">{{ $match ? $match->masalah : '' }}</textarea>
+                                    <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                                        <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                                            Masalah <span class="text-red-500">*</span>
+                                        </label>
+                                        <textarea name="troubles[{{ $index }}][masalah]" rows="2"
+                                            class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
+                                            placeholder="Jelaskan kendala / masalah yang terjadi...">{{ $trouble->masalah }}</textarea>
                                     </td>
-                                    <td class="px-4 py-2">
-                                        <textarea name="troubles[{{ $index }}][penanganan]" rows="1"
-                                            class="w-full rounded border-gray-300 text-xs py-1" placeholder="Describe actions...">{{ $match ? $match->penanganan : '' }}</textarea>
+                                    <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                                        <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                                            Kategori <span class="text-red-500">*</span>
+                                        </label>
+                                        <select name="troubles[{{ $index }}][penyebab]"
+                                            class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 font-medium focus:border-blue-500 focus:ring-blue-500 transition shadow-xs">
+                                            @foreach ($categoriesList as $catKey => $catLabel)
+                                                <option value="{{ $catKey }}" {{ strcasecmp($currentCat, $catKey) === 0 ? 'selected' : '' }}>
+                                                    {{ $catLabel }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </td>
-                                    <td class="px-4 py-2 flex space-x-1 items-center">
-                                        <input type="number"
-                                            name="troubles[{{ $index }}][loss_time_minutes]"
-                                            value="{{ $match ? $match->loss_time_minutes : '' }}" placeholder="Mins"
-                                            class="w-1/2 text-xs rounded border-gray-300 py-1">
-                                        <input type="text" name="troubles[{{ $index }}][loss_time]"
-                                            value="{{ $match ? $match->loss_time : '' }}" placeholder="e.g. 15 mins"
-                                            class="w-1/2 text-xs rounded border-gray-300 py-1">
+                                    <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                                        <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                                            Penanganan
+                                        </label>
+                                        <textarea name="troubles[{{ $index }}][penanganan]" rows="2"
+                                            class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
+                                            placeholder="Tindakan penanganan / perbaikan...">{{ $trouble->penanganan }}</textarea>
+                                    </td>
+                                    <td class="block md:table-cell p-0 md:px-3 md:py-3 align-top">
+                                        <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                                            Loss Time (Menit)
+                                        </label>
+                                        <div class="relative rounded-lg shadow-xs">
+                                            <input type="number"
+                                                name="troubles[{{ $index }}][loss_time_minutes]"
+                                                value="{{ $trouble->loss_time_minutes ?: '' }}"
+                                                min="0"
+                                                max="1440"
+                                                placeholder="0"
+                                                class="trouble-loss-minutes w-full text-xs md:text-sm rounded-lg border-gray-300 py-1.5 md:py-2 pr-12 text-right font-mono font-bold focus:border-blue-500 focus:ring-blue-500">
+                                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                                <span class="text-xs font-bold text-gray-400 uppercase">min</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="hidden md:table-cell px-2 py-3 align-top text-center">
+                                        <button type="button" onclick="removeTroubleRow(this)"
+                                            class="text-red-500 hover:text-red-700 font-bold p-1 rounded-lg hover:bg-red-50 transition cursor-pointer text-base leading-none"
+                                            title="Hapus masalah ini">&times;</button>
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
+                        <tfoot class="block md:table-footer-group bg-gray-50 border-t border-gray-200">
+                            <tr class="flex justify-between items-center md:table-row p-3 md:p-0">
+                                <td colspan="4" class="inline-block md:table-cell text-xs font-bold text-gray-600 uppercase tracking-wider md:px-4 md:py-2.5 md:text-right">
+                                    Total Loss Time:
+                                </td>
+                                <td class="inline-block md:table-cell font-mono font-black text-xs text-amber-900 md:px-4 md:py-2.5 md:text-right">
+                                    <span id="footer-total-downtime-minutes">0</span> mins
+                                </td>
+                                <td class="hidden md:table-cell"></td>
+                            </tr>
+                        </tfoot>
                     </table>
+                    <div class="p-3 bg-gray-50/70 border-t border-gray-200 flex justify-between items-center">
+                        <button type="button" onclick="addTroubleRow()"
+                            class="w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs transition cursor-pointer">
+                            + Tambah Masalah
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1923,15 +1946,7 @@
             <td class="px-4 py-2">
                 <input type="hidden" name="manpower[${manpowerIndex}][no]" class="mp-no-input" value="${nextNo}">
                 <select class="w-full text-xs rounded border-gray-300 py-1 mb-1 role-select" onchange="toggleCustomRole(this, ${manpowerIndex})">
-                    @foreach(config('mes.sp_manpower_roles', [
-                        'loading'  => 'Loading / Input',
-                        'sprayer'  => 'Sprayer',
-                        'checker'  => 'Checker',
-                        'qc'       => 'QC',
-                        'packing'  => 'Packing',
-                        'operator' => 'Operator',
-                        'leader'   => 'Leader',
-                    ]) as $roleKey => $roleLabel)
+                    @foreach(config('mes.sp_manpower_roles') as $roleKey => $roleLabel)
                         <option value="{{ $roleKey }}">{{ $roleLabel }}</option>
                     @endforeach
                     <option value="__custom__">Other (custom)...</option>
@@ -2128,4 +2143,171 @@
             tr.remove();
         }
     };
+
+    // Helper to safely escape HTML
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    window.escapeHtml = escapeHtml;
+
+    // Trouble / Downtime Problem-Approach Repeater
+    let troubleRowIndex = Math.max(document.querySelectorAll('#troubles-tbody tr.trouble-row').length, {{ $report->troubles->count() }});
+
+    window.addTroubleRow = function(masalah = '', category = 'Mesin', penanganan = '', lossTimeMinutes = '') {
+        // Defensive check against event objects passed by inline event handlers
+        if (typeof masalah !== 'string') masalah = '';
+        if (typeof category !== 'string') category = 'Mesin';
+        if (typeof penanganan !== 'string') penanganan = '';
+        if (typeof lossTimeMinutes !== 'string' && typeof lossTimeMinutes !== 'number') lossTimeMinutes = '';
+
+        const tbody = document.getElementById('troubles-tbody');
+        if (!tbody) {
+            console.error('troubles-tbody not found');
+            return;
+        }
+
+        const emptyRow = document.getElementById('troubles-empty-row');
+        if (emptyRow) {
+            emptyRow.style.display = 'none';
+            emptyRow.classList.add('hidden');
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'trouble-row block md:table-row bg-white rounded-xl md:rounded-none border border-gray-200 md:border-0 p-4 md:p-0 shadow-xs md:shadow-none hover:bg-slate-50/70 transition';
+        tr.innerHTML = `
+            <td class="block md:table-cell p-0 pb-2.5 md:px-3 md:py-3 align-top text-xs font-bold text-gray-500 border-b md:border-b-0 border-gray-100 mb-3 md:mb-0">
+                <div class="flex items-center justify-between md:justify-center">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs md:bg-transparent md:border-0 md:p-0 md:text-gray-500">
+                        <span class="md:hidden">Masalah #</span><span class="trouble-row-num"></span>
+                    </span>
+                    <button type="button" onclick="removeTroubleRow(this)"
+                        class="md:hidden text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 transition cursor-pointer">
+                        Hapus
+                    </button>
+                </div>
+            </td>
+            <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                    Masalah <span class="text-red-500">*</span>
+                </label>
+                <textarea name="troubles[${troubleRowIndex}][masalah]" rows="2"
+                    class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
+                    placeholder="Jelaskan kendala / masalah yang terjadi...">${escapeHtml(masalah)}</textarea>
+            </td>
+            <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                    Kategori <span class="text-red-500">*</span>
+                </label>
+                <select name="troubles[${troubleRowIndex}][penyebab]"
+                    class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 font-medium focus:border-blue-500 focus:ring-blue-500 transition shadow-xs">
+                    @foreach (config('mes.sp_trouble_categories') as $catKey => $catLabel)
+                        <option value="{{ $catKey }}" ${category === '{{ $catKey }}' ? 'selected' : ''}>{{ $catLabel }}</option>
+                    @endforeach
+                </select>
+            </td>
+            <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
+                <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                    Penanganan
+                </label>
+                <textarea name="troubles[${troubleRowIndex}][penanganan]" rows="2"
+                    class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
+                    placeholder="Tindakan penanganan / perbaikan...">${escapeHtml(penanganan)}</textarea>
+            </td>
+            <td class="block md:table-cell p-0 md:px-3 md:py-3 align-top">
+                <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
+                    Loss Time (Menit)
+                </label>
+                <div class="relative rounded-lg shadow-xs">
+                    <input type="number"
+                        name="troubles[${troubleRowIndex}][loss_time_minutes]"
+                        value="${lossTimeMinutes}"
+                        min="0"
+                        max="1440"
+                        placeholder="0"
+                        class="trouble-loss-minutes w-full text-xs md:text-sm rounded-lg border-gray-300 py-1.5 md:py-2 pr-12 text-right font-mono font-bold focus:border-blue-500 focus:ring-blue-500">
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                        <span class="text-xs font-bold text-gray-400 uppercase">min</span>
+                    </div>
+                </div>
+            </td>
+            <td class="hidden md:table-cell px-2 py-3 align-top text-center">
+                <button type="button" onclick="removeTroubleRow(this)"
+                    class="text-red-500 hover:text-red-700 font-bold p-1 rounded-lg hover:bg-red-50 transition cursor-pointer text-base leading-none"
+                    title="Hapus masalah ini">&times;</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        troubleRowIndex++;
+
+        const input = tr.querySelector('.trouble-loss-minutes');
+        if (input) {
+            input.addEventListener('input', updateTotalDowntime);
+            input.addEventListener('change', updateTotalDowntime);
+        }
+
+        reindexTroubleRows();
+        updateTotalDowntime();
+    };
+
+    window.removeTroubleRow = function(btn) {
+        const tr = btn.closest('tr');
+        if (tr) {
+            tr.remove();
+            reindexTroubleRows();
+            updateTotalDowntime();
+        }
+    };
+
+    function reindexTroubleRows() {
+        const rows = document.querySelectorAll('#troubles-tbody tr.trouble-row');
+        const emptyRow = document.getElementById('troubles-empty-row');
+        if (emptyRow) {
+            if (rows.length === 0) {
+                emptyRow.style.display = '';
+                emptyRow.classList.remove('hidden');
+            } else {
+                emptyRow.style.display = 'none';
+                emptyRow.classList.add('hidden');
+            }
+        }
+        rows.forEach(function(row, i) {
+            const numCols = row.querySelectorAll('.trouble-row-num');
+            numCols.forEach(function(numCol) {
+                numCol.textContent = i + 1;
+            });
+        });
+    }
+
+    // Trouble / Downtime Real-Time Recalculation
+    function updateTotalDowntime() {
+        let totalMins = 0;
+        document.querySelectorAll('.trouble-loss-minutes').forEach(function(input) {
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val > 0) {
+                totalMins += val;
+            }
+        });
+        const totalHours = (totalMins / 60).toFixed(1);
+
+        const badgeMin = document.getElementById('total-downtime-minutes');
+        const badgeHr = document.getElementById('total-downtime-hours');
+        const footerMin = document.getElementById('footer-total-downtime-minutes');
+
+        if (badgeMin) badgeMin.textContent = totalMins;
+        if (badgeHr) badgeHr.textContent = totalHours;
+        if (footerMin) footerMin.textContent = totalMins;
+    }
+
+    document.querySelectorAll('.trouble-loss-minutes').forEach(function(input) {
+        input.addEventListener('input', updateTotalDowntime);
+        input.addEventListener('change', updateTotalDowntime);
+    });
+    reindexTroubleRows();
+    updateTotalDowntime();
 </script>
