@@ -505,11 +505,11 @@
                                 <div class="p-2.5 bg-white rounded-xl border border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
                                     <div>
                                         <span class="text-slate-400 font-bold block uppercase">Scan Delivery:</span>
-                                        <span class="font-bold text-slate-800">{{ $p->created_at ? $p->created_at->format('d/m/Y H:i') : '-' }}</span>
+                                        <span class="font-bold text-slate-800">{{ $p->created_at ? $p->created_at->timezone('Asia/Jakarta')->format('d/m/Y H:i') : '-' }}</span>
                                     </div>
                                     <div>
                                         <span class="text-slate-400 font-bold block uppercase">Masuk Rak:</span>
-                                        <span class="font-bold text-slate-800">{{ $p->assigned_at ? $p->assigned_at->format('d/m/Y H:i') : 'Pending' }}</span>
+                                        <span class="font-bold text-slate-800">{{ $p->assigned_at ? $p->assigned_at->timezone('Asia/Jakarta')->format('d/m/Y H:i') : 'Pending' }}</span>
                                     </div>
                                     <div>
                                         <span class="text-slate-400 font-bold block uppercase">Putaway Lead Time:</span>

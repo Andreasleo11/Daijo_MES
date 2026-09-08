@@ -121,11 +121,11 @@
                                 <div class="grid grid-cols-2 gap-2 text-xs">
                                     <div>
                                         <span class="text-[10px] text-gray-400 font-bold block uppercase">Scan Delivery:</span>
-                                        <span class="font-bold text-gray-800">{{ $palletForm->created_at ? $palletForm->created_at->format('d M Y H:i') : '-' }}</span>
+                                        <span class="font-bold text-gray-800">{{ $palletForm->created_at ? $palletForm->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-' }}</span>
                                     </div>
                                     <div>
                                         <span class="text-[10px] text-gray-400 font-bold block uppercase">Masuk Rak:</span>
-                                        <span class="font-bold text-gray-800">{{ $palletForm->assigned_at ? $palletForm->assigned_at->format('d M Y H:i') : 'Belum Assign' }}</span>
+                                        <span class="font-bold text-gray-800">{{ $palletForm->assigned_at ? $palletForm->assigned_at->timezone('Asia/Jakarta')->format('d M Y H:i') : 'Belum Assign' }}</span>
                                     </div>
                                 </div>
                                 <div class="pt-2 border-t border-indigo-200/60 flex justify-between items-center text-xs font-bold">
@@ -222,10 +222,10 @@
                                                 @if($isOut && $outDate)
                                                     <div class="flex flex-col">
                                                         <span class="text-xs font-bold text-red-600">
-                                                            {{ \Carbon\Carbon::parse($outDate)->format('d M Y') }}
+                                                            {{ \Carbon\Carbon::parse($outDate)->timezone('Asia/Jakarta')->format('d M Y') }}
                                                         </span>
                                                         <span class="text-[10px] font-medium text-red-400">
-                                                            {{ \Carbon\Carbon::parse($outDate)->format('H:i:s') }}
+                                                            {{ \Carbon\Carbon::parse($outDate)->timezone('Asia/Jakarta')->format('H:i:s') }} WIB
                                                         </span>
                                                     </div>
                                                 @else
@@ -276,7 +276,7 @@
                                     @if($isOut && $outDate)
                                         <div class="mt-2 pt-2 border-t border-red-100 flex justify-between items-center text-xs">
                                             <span class="text-[9px] font-bold text-red-500 uppercase">Tgl Keluar:</span>
-                                            <span class="font-bold text-red-600">{{ \Carbon\Carbon::parse($outDate)->format('d M Y H:i:s') }}</span>
+                                            <span class="font-bold text-red-600">{{ \Carbon\Carbon::parse($outDate)->timezone('Asia/Jakarta')->format('d M Y H:i:s') }} WIB</span>
                                         </div>
                                     @endif
                                 </div>

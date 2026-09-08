@@ -255,8 +255,11 @@ class SOController extends Controller
                     ]);
                     $newScans[] = $newScan;
 
-                    // Deduct from WMS Pallet if the box label exists in a pallet
-                    $wmsDetail = \App\Models\WmsPalletFormDetail::where('label', $label)->first();
+                    // Deduct from WMS Pallet if the box label exists in a pallet for this part and SPK
+                    $wmsDetail = \App\Models\WmsPalletFormDetail::where('part_no', $item_code)
+                        ->where('label', $label)
+                        ->when(!empty($spk_code), fn($q) => $q->where('spk_no', $spk_code))
+                        ->first();
                     if ($wmsDetail) {
                         $pallet = \App\Models\WmsPalletForm::lockForUpdate()->find($wmsDetail->pallet_form_id);
                         if ($pallet) {
