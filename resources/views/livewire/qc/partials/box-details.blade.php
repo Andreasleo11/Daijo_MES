@@ -50,7 +50,7 @@
                                     {{ $log['ng_qty'] }} PCS
                                 </span>
                             @else
-                                <input type="number" min="0" max="{{ $boxQty }}" wire:model.live="ngInputs.{{ $boxId }}"
+                                <input type="number" min="0" max="{{ $boxQty }}" wire:model.live.debounce.400ms="ngInputs.{{ $boxId }}"
                                        x-data="{ boxId: '{{ $boxId }}' }"
                                        x-init="
                                            let saved = localStorage.getItem('qc_draft_ng_' + boxId);
@@ -184,7 +184,7 @@
                                 {{ $log['ng_qty'] }} PCS
                             </span>
                         @else
-                            <input type="number" min="0" max="{{ $boxQty }}" wire:model.live="ngInputs.{{ $boxId }}"
+                            <input type="number" min="0" max="{{ $boxQty }}" wire:model.live.debounce.400ms="ngInputs.{{ $boxId }}"
                                    x-data="{ boxId: '{{ $boxId }}' }"
                                    x-init="
                                        let saved = localStorage.getItem('qc_draft_ng_' + boxId);

@@ -49,14 +49,24 @@ class QcStockTransfer extends Component
             ->where('sap_sent', 1) // Must be receipted to SAP first
             ->where('warehouse', $targetWarehouse)
             ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate))
-            ->when($this->filterSpk, fn($q) => $q->where('spk_code', 'like', "%{$this->filterSpk}%"))
+            ->when($this->filterSpk, function($q) {
+                $q->where(function($sub) {
+                    $sub->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
+                        ->orWhereExists(function($sub2) {
+                            $sub2->select(DB::raw(1))
+                                ->from('production_scanned_data')
+                                ->whereColumn('production_scanned_data.summary_id', 'production_summary.id')
+                                ->where('production_scanned_data.label', 'like', "%{$this->filterSpk}%");
+                        });
+                });
+            })
             ->when($this->filterQcStatus === 'pending', fn($q) => $q->whereIn(DB::raw('COALESCE(qc_status, 0)'), [0, 2]))
             ->when($this->filterQcStatus === 'completed', fn($q) => $q->where('qc_status', 1))
             ->when($this->filterItemCode, function($q) {
                 $q->whereExists(function($sub) {
                     $sub->select(DB::raw(1))
                         ->from('production_scanned_data')
-                        ->whereColumn('production_scanned_data.spk_code', 'production_summary.spk_code')
+                        ->whereColumn('production_scanned_data.summary_id', 'production_summary.id')
                         ->where('production_scanned_data.item_code', 'like', "%{$this->filterItemCode}%");
                 });
             });
@@ -81,72 +91,125 @@ class QcStockTransfer extends Component
             ->orderBy('production_summary.id', 'desc')
             ->paginate($this->perPage);
 
-        // Map item_code and box counts
         $summaryIds = $paginated->pluck('id')->toArray();
-        $spkCodes   = $paginated->pluck('spk_code')->unique()->toArray();
 
-        $itemCodesMap = [];
-        if (!empty($spkCodes)) {
-            $itemCodesMap = DB::table('production_scanned_data')
-                ->whereIn('spk_code', $spkCodes)
-                ->groupBy('spk_code')
-                ->select('spk_code', DB::raw('MIN(item_code) as item_code'))
-                ->pluck('item_code', 'spk_code')
-                ->toArray();
+        if (empty($summaryIds)) {
+            return $paginated;
         }
 
-        $boxCountsMap = [];
-        $inspectedCountsMap = [];
-        if (!empty($summaryIds)) {
-            $boxCountsMap = DB::table('production_scanned_data')
-                ->whereIn('summary_id', $summaryIds)
-                ->groupBy('summary_id')
-                ->select('summary_id', DB::raw('COUNT(*) as total_boxes'))
-                ->pluck('total_boxes', 'summary_id')
-                ->toArray();
+        // Fetch scanned boxes (item_code, total_boxes, labels) in one single indexed query
+        $scannedBoxes = DB::table('production_scanned_data')
+            ->whereIn('summary_id', $summaryIds)
+            ->select('id', 'summary_id', 'item_code', 'label', 'quantity')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->groupBy('summary_id');
 
-            $inspectedCountsMap = QcTransferLog::whereIn('production_summary_id', $summaryIds)
-                ->groupBy('production_summary_id')
-                ->select('production_summary_id', DB::raw('COUNT(*) as inspected_boxes'))
-                ->pluck('inspected_boxes', 'production_summary_id')
-                ->toArray();
-        }
+        $inspectedCountsMap = QcTransferLog::whereIn('production_summary_id', $summaryIds)
+            ->groupBy('production_summary_id')
+            ->select('production_summary_id', DB::raw('COUNT(*) as inspected_boxes'))
+            ->pluck('inspected_boxes', 'production_summary_id')
+            ->toArray();
 
         foreach ($paginated->items() as $item) {
-            $item->item_code       = $itemCodesMap[$item->spk_code] ?? '—';
-            $item->total_boxes     = $boxCountsMap[$item->id] ?? 0;
+            $boxes = $scannedBoxes->get($item->id, collect());
+            $item->item_code = $boxes->first()?->item_code ?? '—';
+            $item->total_boxes = $boxes->count();
             $item->inspected_boxes = $inspectedCountsMap[$item->id] ?? 0;
+            
+            $labelsList = $boxes->pluck('label')->filter(fn($l) => $l !== null && $l !== '')->values()->toArray();
+            $item->box_labels_all = $labelsList;
+            $item->box_labels_summary = $this->formatBoxLabelsSummary($labelsList);
         }
 
         return $paginated;
     }
 
+    protected function formatBoxLabelsSummary(array $labels): string
+    {
+        if (empty($labels)) {
+            return '—';
+        }
+
+        $cleanLabels = array_values(array_unique(array_filter($labels, fn($l) => $l !== null && $l !== '')));
+        if (empty($cleanLabels)) {
+            return '—';
+        }
+
+        $allNumeric = true;
+        $nums = [];
+        foreach ($cleanLabels as $lbl) {
+            if (is_numeric($lbl)) {
+                $nums[] = (int) $lbl;
+            } else {
+                $allNumeric = false;
+                break;
+            }
+        }
+
+        if ($allNumeric) {
+            sort($nums);
+            $count = count($nums);
+            if ($count === 1) {
+                return "Box #{$nums[0]}";
+            }
+            $min = $nums[0];
+            $max = $nums[$count - 1];
+            // Consecutive sequence
+            if (($max - $min + 1) === $count) {
+                return "Box #{$min} - #{$max}";
+            }
+            if ($count <= 3) {
+                return 'Box #' . implode(', #', $nums);
+            }
+            return "Box #{$min}..#{$max} ({$count} Box)";
+        }
+
+        if (count($cleanLabels) === 1) {
+            return "Box {$cleanLabels[0]}";
+        }
+        if (count($cleanLabels) <= 3) {
+            return 'Box: ' . implode(', ', $cleanLabels);
+        }
+
+        return 'Box: ' . implode(', ', array_slice($cleanLabels, 0, 2)) . '... (+' . (count($cleanLabels) - 2) . ')';
+    }
+
     public function getStatsProperty()
     {
         $targetWarehouse = ($this->plant === 'kbn') ? 'FFI' : 'KRFFI';
+        $cacheKey = "qc_stats_{$this->plant}_{$this->filterDate}";
 
-        $base = DB::table('production_summary')
-            ->where('sap_sent', 1)
-            ->where('warehouse', $targetWarehouse)
-            ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate));
+        return cache()->remember($cacheKey, now()->addSeconds(30), function() use ($targetWarehouse) {
+            $base = DB::table('production_summary')
+                ->where('sap_sent', 1)
+                ->where('warehouse', $targetWarehouse)
+                ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate));
 
-        $res = (clone $base)
-            ->selectRaw('
-                COUNT(*) as total,
-                SUM(CASE WHEN COALESCE(qc_status,0) = 0 THEN 1 ELSE 0 END) as uninspected,
-                SUM(CASE WHEN qc_status = 2 THEN 1 ELSE 0 END) as partial,
-                SUM(CASE WHEN qc_status = 1 THEN 1 ELSE 0 END) as completed,
-                SUM(total_quantity) as total_qty
-            ')
-            ->first();
+            $res = (clone $base)
+                ->selectRaw('
+                    COUNT(*) as total,
+                    SUM(CASE WHEN COALESCE(qc_status,0) = 0 THEN 1 ELSE 0 END) as uninspected,
+                    SUM(CASE WHEN qc_status = 2 THEN 1 ELSE 0 END) as partial,
+                    SUM(CASE WHEN qc_status = 1 THEN 1 ELSE 0 END) as completed,
+                    SUM(total_quantity) as total_qty
+                ')
+                ->first();
 
-        return [
-            'total'       => $res->total ?? 0,
-            'uninspected' => $res->uninspected ?? 0,
-            'partial'     => $res->partial ?? 0,
-            'completed'   => $res->completed ?? 0,
-            'total_qty'   => $res->total_qty ?? 0,
-        ];
+            return [
+                'total'       => $res->total ?? 0,
+                'uninspected' => $res->uninspected ?? 0,
+                'partial'     => $res->partial ?? 0,
+                'completed'   => $res->completed ?? 0,
+                'total_qty'   => $res->total_qty ?? 0,
+            ];
+        });
+    }
+
+    public function clearStatsCache(): void
+    {
+        cache()->forget("qc_stats_{$this->plant}_{$this->filterDate}");
+        cache()->forget("qc_stats_{$this->plant}_");
     }
 
     public function toggleDetail(int $summaryId): void
@@ -222,6 +285,7 @@ class QcStockTransfer extends Component
             $res = $service->processSingleBoxInspection($scannedDataId, $ngQty, $userId, $remarks, $isKbn);
 
             if ($res['success']) {
+                $this->clearStatsCache();
                 $this->dispatch('push-notification', [
                     'status' => 'success',
                     'message' => $res['message']
@@ -274,6 +338,8 @@ class QcStockTransfer extends Component
             $isKbn = ($this->plant === 'kbn');
             $res = $service->processSummaryInspection($summaryId, $boxNgMap, $userId, null, $isKbn);
 
+            $this->clearStatsCache();
+
             if ($res['success']) {
                 $this->dispatch('push-notification', [
                     'status' => 'success',
@@ -307,6 +373,8 @@ class QcStockTransfer extends Component
             }
 
             $res = $service->executeSapTransfers($log);
+
+            $this->clearStatsCache();
 
             if ($res['ok_success'] && $res['ng_success']) {
                 $this->dispatch('push-notification', ['status' => 'success', 'message' => "Retry transfer log #{$logId} berhasil."]);
