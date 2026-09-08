@@ -141,7 +141,12 @@
                                     {{ $isExpanded ? '▼' : '►' }}
                                 </button>
                             </td>
-                            <td class="p-3 font-extrabold text-[#1A1816]">{{ $item->spk_code }}</td>
+                            <td class="p-3">
+                                <div class="font-extrabold text-[#1A1816]">{{ $item->spk_code }}</div>
+                                <div class="text-[11px] text-[#78716C] font-semibold mt-0.5 flex items-center gap-1">
+                                    <span>📅</span> {{ $item->created_date ? \Carbon\Carbon::parse($item->created_date)->format('d/m/Y') : '-' }}
+                                </div>
+                            </td>
                             <td class="p-3 font-bold text-[#292524]">{{ $item->item_code }}</td>
                             <td class="p-3 text-right font-extrabold text-[#2563EB]">{{ number_format($item->total_quantity) }}</td>
                             <td class="p-3 text-center">
@@ -201,6 +206,9 @@
                         <div>
                             <div class="text-xs font-extrabold text-[#1A1816]">{{ $item->spk_code }}</div>
                             <div class="text-xs font-bold text-[#292524]">{{ $item->item_code }}</div>
+                            <div class="text-[11px] text-[#78716C] font-semibold mt-0.5 flex items-center gap-1">
+                                <span>📅</span> {{ $item->created_date ? \Carbon\Carbon::parse($item->created_date)->format('d/m/Y') : '-' }}
+                            </div>
                         </div>
                         <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#E2E8F0] text-[#1E293B]">
                             {{ $item->warehouse }}
