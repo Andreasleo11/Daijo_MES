@@ -918,7 +918,7 @@
                         </thead>
                         <tbody id="troubles-tbody" class="block md:table-row-group p-3 md:p-0 space-y-3 md:space-y-0 md:divide-y md:divide-gray-200">
                             @php
-                                $categoriesList = config('mes.sp_trouble_categories);
+                                $categoriesList = config('mes.sp_trouble_categories');
                             @endphp
 
                             {{-- Empty State Row --}}
