@@ -46,15 +46,19 @@ class FixMismatchedPalletDetails extends Command
         DB::beginTransaction();
         try {
             foreach ($trashedDetails as $detail) {
-                // Check if there is an actual matching scanned_data record for this specific part & label (and SPK if set)
+                // Check if there is an actual matching scanned_data record for this specific part, SPK & label, created after the pallet detail was created
                 $hasScannedData = ScannedData::where('item_code', $detail->part_no)
                     ->where('label', $detail->label)
-                    ->when($detail->spk_no, function ($q) use ($detail) {
-                        $q->where(function ($sub) use ($detail) {
-                            $sub->where('spk_code', $detail->spk_no)
-                                ->orWhereNull('spk_code')
-                                ->orWhere('spk_code', '');
+                    ->when(!empty($detail->spk_no), function ($q) use ($detail) {
+                        $q->where('spk_code', $detail->spk_no);
+                    }, function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereNull('spk_code')->orWhere('spk_code', '');
                         });
+                    })
+                    ->when($detail->created_at, function ($q) use ($detail) {
+                        // Scan must have occurred on or after the box/pallet creation
+                        $q->where('created_at', '>=', $detail->created_at->copy()->subDays(1));
                     })
                     ->exists();
 

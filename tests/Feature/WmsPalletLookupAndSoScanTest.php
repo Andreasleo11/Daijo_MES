@@ -129,12 +129,34 @@ class WmsPalletLookupAndSoScanTest extends TestCase
         // Manually soft delete it (simulating the previous bug)
         $detail->delete();
 
+        // Create an old historical scan from April 2026 with null spk_code (simulating legacy data)
+        ScannedData::create([
+            'doc_num' => '26006837',
+            'item_code' => '275PVM650A',
+            'spk_code' => null,
+            'quantity' => 12,
+            'warehouse' => 'FG',
+            'label' => '301',
+            'created_at' => '2026-04-16 02:30:22',
+        ]);
+
+        // Create another old scan for different SPK from May 2026
+        ScannedData::create([
+            'doc_num' => '26008154',
+            'item_code' => '275PVM650A',
+            'spk_code' => '26014376',
+            'quantity' => 12,
+            'warehouse' => 'FG',
+            'label' => '301',
+            'created_at' => '2026-05-05 03:58:21',
+        ]);
+
         $this->assertNotNull($detail->fresh()->deleted_at);
 
         // Run the repair artisan command
         Artisan::call('wms:fix-pallet-details');
 
-        // It should be restored because no scanned_data exists for '275PVM650A' label '301'
+        // It MUST be restored because no scanned_data exists for current SPK '26023496' after detail creation
         $this->assertNull($detail->fresh()->deleted_at);
         $this->assertEquals(1, $pallet->fresh()->box_qty);
         $this->assertEquals(12, $pallet->fresh()->total_pallet_qty);
