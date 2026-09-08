@@ -311,7 +311,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($report->materials->where('type', 'paint') as $material)
+                            @forelse ($report->materials->where('type', 'paint') as $material)
                                 <tr>
                                     <td class="border border-black p-1 font-semibold">{{ $material->item_name }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->lot_number }}</td>
@@ -321,7 +321,13 @@
                                     <td class="border border-black p-1 text-center">{{ $material->qty }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->uom ?: '-' }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="border border-black p-2 text-center text-gray-400 italic">
+                                        No paint materials recorded
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
 
@@ -335,14 +341,20 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($report->materials->where('type', 'part') as $material)
+                            @forelse ($report->materials->where('type', 'part') as $material)
                                 <tr>
                                     <td class="border border-black p-1 font-semibold">{{ $material->item_name }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->lot_number }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->qty }}</td>
                                     <td class="border border-black p-1 text-center">{{ $material->uom ?: '-' }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="border border-black p-2 text-center text-gray-400 italic">
+                                        No item parts recorded
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>

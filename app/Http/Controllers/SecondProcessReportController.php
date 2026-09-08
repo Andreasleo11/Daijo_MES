@@ -155,7 +155,7 @@ class SecondProcessReportController extends Controller
             'shift' => 'required|string',
             'process_prod' => 'required|string',
             'status' => 'nullable|string',
-            'output_destination' => 'nullable|string',
+            'output_destination' => 'nullable|string|in:fg,buffing,next_process',
             'model' => 'nullable|string',
             'part_number' => 'required|string',
             'part_name' => 'nullable|string',
@@ -226,6 +226,14 @@ class SecondProcessReportController extends Controller
             'troubles.*.loss_time_minutes' => 'nullable|integer',
         ]);
 
+        // Sanitize next_production_schedule: discard empty strings, nulls, and whitespace
+        $cleanSchedule = is_array($validated['next_production_schedule'] ?? null)
+            ? array_values(array_filter(
+                array_map(fn($item) => is_string($item) ? trim($item) : $item, $validated['next_production_schedule']),
+                fn($item) => !empty($item)
+            ))
+            : null;
+        $validated['next_production_schedule'] = !empty($cleanSchedule) ? $cleanSchedule : null;
 
         // Default integer fields
         $validated['target_per_hour'] = $validated['target_per_hour'] ?? 0;
@@ -315,7 +323,12 @@ class SecondProcessReportController extends Controller
             // Create Materials
             if (isset($validated['materials'])) {
                 foreach ($validated['materials'] as $material) {
-                    if (! empty($material['item_name']) || ! empty($material['lot_number'])) {
+                    $hasData = !empty(trim((string) ($material['lot_number'] ?? '')))
+                        || (isset($material['qty']) && $material['qty'] !== '' && (float) $material['qty'] > 0)
+                        || !empty(trim((string) ($material['visco'] ?? '')))
+                        || !empty(trim((string) ($material['mixing_ratio'] ?? '')));
+
+                    if (!empty(trim((string) ($material['item_name'] ?? ''))) && $hasData) {
                         $report->materials()->create($material);
                     }
                 }

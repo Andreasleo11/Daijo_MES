@@ -335,5 +335,124 @@ class SecondProcessReportTest extends TestCase
             'qty' => 50,
         ]);
     }
+
+    public function test_store_legacy_report_stores_null_when_schedule_is_empty_or_all_blank()
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-SCHED-01',
+            'next_production_schedule' => ['', '   ', null, ''],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-SCHED-01')->first();
+        $this->assertNotNull($report);
+        $this->assertNull($report->next_production_schedule);
+    }
+
+    public function test_store_legacy_report_stores_trimmed_array_when_valid_schedule_items_provided()
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-SCHED-02',
+            'next_production_schedule' => ['Part X Shift 1', '', '  Part Y Shift 2  ', ''],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-SCHED-02')->first();
+        $this->assertNotNull($report);
+        $this->assertIsArray($report->next_production_schedule);
+        $this->assertEquals(['Part X Shift 1', 'Part Y Shift 2'], $report->next_production_schedule);
+    }
+
+    public function test_store_legacy_report_does_not_save_untouched_material_presets()
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-MAT-PRESET',
+            'materials' => [
+                ['type' => 'paint', 'item_name' => 'Paint Primer', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+                ['type' => 'paint', 'item_name' => 'Hardener', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+                ['type' => 'paint', 'item_name' => 'Paint Basecoat', 'lot_number' => '', 'visco' => '', 'mixing_ratio' => '', 'qty' => '', 'uom' => ''],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-MAT-PRESET')->first();
+        $this->assertNotNull($report);
+        $this->assertCount(0, $report->materials);
+    }
+
+    public function test_store_legacy_report_validates_output_destination_in_list()
+    {
+        $user = User::factory()->create();
+
+        // Invalid output destination fails
+        $failResponse = $this->actingAs($user)->post(route('second-process-reports.store'), [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-DEST-01',
+            'output_destination' => 'warehouse_unknown',
+        ]);
+        $failResponse->assertSessionHasErrors('output_destination');
+
+        // Valid output destination succeeds
+        $successResponse = $this->actingAs($user)->post(route('second-process-reports.store'), [
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-DEST-02',
+            'output_destination' => 'next_process',
+        ]);
+        $successResponse->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-DEST-02')->first();
+        $this->assertNotNull($report);
+        $this->assertEquals('next_process', $report->output_destination);
+    }
+
+    public function test_show_legacy_report_renders_material_empty_states_when_no_materials_recorded()
+    {
+        $user = User::factory()->create();
+
+        $report = SecondProcessReport::create([
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-EMPTY-MAT',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('second-process-reports.show', $report->id));
+
+        $response->assertOk();
+        $response->assertSee('No paint materials recorded');
+        $response->assertSee('No item parts recorded');
+    }
 }
+
 

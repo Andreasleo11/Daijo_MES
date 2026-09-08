@@ -190,6 +190,9 @@
                             <option value="buffing"
                                 {{ old('output_destination', $report->output_destination) == 'buffing' ? 'selected' : '' }}>
                                 Buffing</option>
+                            <option value="next_process"
+                                {{ old('output_destination', $report->output_destination) == 'next_process' ? 'selected' : '' }}>
+                                Next Process Area</option>
                         </select>
                     </div>
                     <div>
