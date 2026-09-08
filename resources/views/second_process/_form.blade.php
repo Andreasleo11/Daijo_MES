@@ -127,7 +127,7 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Proses
                             Prod</label>
-                        <select name="process_prod"
+                        <select name="process_prod" id="process_prod"
                             class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required>
                             @php
@@ -353,12 +353,25 @@
                     }
                 @endphp
 
+                @php
+                    $isPaintingProcess = (old('process_prod', $report->process_prod ?? 'Painting') === 'Painting');
+                @endphp
+
                 <!-- Item Paint Table -->
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between">
+                <div id="paint-materials-card" class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between transition-all duration-200 {{ !$isPaintingProcess ? 'opacity-60 bg-gray-50' : '' }}">
                     <div>
                         <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-                            <h4 class="text-sm font-bold text-gray-700">Item Paint (Viscosity & Mixing Ratio)</h4>
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-sm font-bold text-gray-700">Item Paint (Viscosity & Mixing Ratio)</h4>
+                                <span id="paint-process-badge" class="{{ $isPaintingProcess ? 'hidden' : '' }} text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                    Hanya untuk Proses Painting
+                                </span>
+                            </div>
                             <span class="text-[10px] text-gray-500">Filled during prep stage</span>
+                        </div>
+                        <div id="paint-disabled-notice" class="{{ $isPaintingProcess ? 'hidden' : '' }} p-2.5 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between">
+                            <span>Item Paint dinonaktifkan karena Proses Prod bukan <strong>Painting</strong>.</span>
+                            <button type="button" onclick="switchTab('setup')" class="text-blue-700 underline font-bold ml-2">Ubah di Tab 1 &rarr;</button>
                         </div>
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
                             <thead class="bg-gray-50">
@@ -377,46 +390,52 @@
                                     @php $currIdx = $materialGlobalIndex++; @endphp
                                     <tr>
                                         <td class="px-3 py-2">
-                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="paint">
+                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="paint" {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                             <input type="text" name="materials[{{ $currIdx }}][item_name]"
                                                 value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
                                                 placeholder="Paint Item Name"
-                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][lot_number]"
                                                 value="{{ old('materials.' . $currIdx . '.lot_number', $mat->lot_number ?? '') }}"
                                                 placeholder="Lot"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][visco]"
                                                 value="{{ old('materials.' . $currIdx . '.visco', $mat->visco ?? '') }}"
                                                 placeholder="Visco"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][mixing_ratio]"
                                                 value="{{ old('materials.' . $currIdx . '.mixing_ratio', $mat->mixing_ratio ?? '') }}"
                                                 placeholder="Ratio (e.g. 1:1.5)"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][uom]"
                                                 value="{{ old('materials.' . $currIdx . '.uom', $mat->uom ?? '') }}"
                                                 placeholder="UOM"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-1 py-2 text-center">
                                             <button type="button" onclick="removeMaterialRow(this)"
-                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition"
-                                                title="Remove Row">&times;</button>
+                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition {{ !$isPaintingProcess ? 'cursor-not-allowed opacity-50' : '' }}"
+                                                title="Remove Row" {{ !$isPaintingProcess ? 'disabled' : '' }}>&times;</button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -424,8 +443,9 @@
                         </table>
                     </div>
                     <div class="p-3 bg-gray-50 border-t border-gray-200">
-                        <button type="button" onclick="addPaintMaterialRow()"
-                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition">
+                        <button type="button" id="add-paint-item-btn" onclick="addPaintMaterialRow()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition {{ !$isPaintingProcess ? 'cursor-not-allowed opacity-50' : '' }}"
+                            {{ !$isPaintingProcess ? 'disabled' : '' }}>
                             + Add Paint Item
                         </button>
                     </div>
@@ -502,6 +522,17 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Live Breakdown Summary Bar -->
+                    <div class="px-4 py-2.5 bg-slate-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div class="text-gray-500 font-medium">
+                            Breakdown Summary:
+                        </div>
+                        <div class="flex items-center gap-4 font-mono font-bold">
+                            <span class="text-blue-700">WIP: <span id="summary-wip-qty">0</span> Pcs</span>
+                            <span class="text-amber-700">Repairan: <span id="summary-repairan-qty">0</span> Pcs</span>
+                            <span class="text-slate-800 border-l border-gray-300 pl-4">Total: <span id="summary-total-input-qty">0</span> Pcs</span>
+                        </div>
+                    </div>
                     <div class="p-3 bg-gray-50 border-t border-gray-200">
                         <button type="button" onclick="addPartMaterialRow()"
                             class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition">
@@ -552,20 +583,24 @@
                         </div>
                         <div
                             class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Jml
-                                Input WIP</label>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Jml Input WIP</label>
+                                <button type="button" onclick="switchTab('materials')" class="text-[10px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline" title="Buka Tab 2 untuk melihat atau mengubah breakdown WIP">Tab 2 &rarr;</button>
+                            </div>
                             <input type="number" name="jml_input_wip" id="jml_input_wip"
                                 value="{{ $report->jml_input_wip }}"
-                                class="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold transition-all"
-                                placeholder="0">
+                                class="w-full rounded-md border-gray-200 bg-gray-50 text-sm font-bold text-gray-800 font-mono transition-all cursor-not-allowed"
+                                placeholder="0" readonly title="Dihitung otomatis dari breakdown Item Parts / WIP Lots di Tab 2">
                         </div>
                         <div
                             class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <label
-                                class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Repairan</label>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Repairan</label>
+                                <button type="button" onclick="switchTab('materials')" class="text-[10px] text-orange-600 hover:text-orange-800 font-semibold cursor-pointer underline" title="Buka Tab 2 untuk melihat atau mengubah breakdown Repairan">Tab 2 &rarr;</button>
+                            </div>
                             <input type="number" name="repairan" id="repairan" value="{{ $report->repairan }}"
-                                class="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold transition-all"
-                                placeholder="0">
+                                class="w-full rounded-md border-gray-200 bg-gray-50 text-sm font-bold text-gray-800 font-mono transition-all cursor-not-allowed"
+                                placeholder="0" readonly title="Dihitung otomatis dari breakdown Item Parts / WIP Lots di Tab 2">
                         </div>
                         <div
                             class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
@@ -2080,6 +2115,10 @@
     let materialRowIndex = {{ $materialGlobalIndex ?? 100 }};
 
     window.addPaintMaterialRow = function() {
+        const processSelect = document.getElementById('process_prod');
+        if (processSelect && processSelect.value !== 'Painting') {
+            return;
+        }
         const tbody = document.getElementById('paint-materials-tbody');
         if (!tbody) return;
         const tr = document.createElement('tr');
@@ -2111,6 +2150,50 @@
         materialRowIndex++;
     };
 
+    function togglePaintMaterialsByProcess() {
+        const processSelect = document.getElementById('process_prod');
+        const isPainting = processSelect ? (processSelect.value === 'Painting') : true;
+
+        const paintCard = document.getElementById('paint-materials-card');
+        const paintBadge = document.getElementById('paint-process-badge');
+        const paintNotice = document.getElementById('paint-disabled-notice');
+        const addPaintBtn = document.getElementById('add-paint-item-btn');
+        const paintTbody = document.getElementById('paint-materials-tbody');
+
+        if (!paintCard) return;
+
+        if (isPainting) {
+            paintCard.classList.remove('opacity-60', 'bg-gray-50');
+            if (paintBadge) paintBadge.classList.add('hidden');
+            if (paintNotice) paintNotice.classList.add('hidden');
+            if (addPaintBtn) {
+                addPaintBtn.disabled = false;
+                addPaintBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+            }
+            if (paintTbody) {
+                paintTbody.querySelectorAll('input, button').forEach(function(el) {
+                    el.disabled = false;
+                    el.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                });
+            }
+        } else {
+            paintCard.classList.add('opacity-60', 'bg-gray-50');
+            if (paintBadge) paintBadge.classList.remove('hidden');
+            if (paintNotice) paintNotice.classList.remove('hidden');
+            if (addPaintBtn) {
+                addPaintBtn.disabled = true;
+                addPaintBtn.classList.add('cursor-not-allowed', 'opacity-50');
+            }
+            if (paintTbody) {
+                paintTbody.querySelectorAll('input, button').forEach(function(el) {
+                    el.disabled = true;
+                    el.classList.add('bg-gray-100', 'cursor-not-allowed');
+                });
+            }
+        }
+    }
+    window.togglePaintMaterialsByProcess = togglePaintMaterialsByProcess;
+
     window.addPartMaterialRow = function() {
         const tbody = document.getElementById('part-materials-tbody');
         if (!tbody) return;
@@ -2135,14 +2218,53 @@
         `;
         tbody.appendChild(tr);
         materialRowIndex++;
+        updatePartMaterialsBreakdown();
     };
 
     window.removeMaterialRow = function(btn) {
         const tr = btn.closest('tr');
         if (tr) {
             tr.remove();
+            updatePartMaterialsBreakdown();
         }
     };
+
+    function updatePartMaterialsBreakdown() {
+        let totalWip = 0;
+        let totalRepairan = 0;
+
+        const tbody = document.getElementById('part-materials-tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr').forEach(function(row) {
+                const nameInput = row.querySelector('input[name*="[item_name]"]');
+                const qtyInput = row.querySelector('input[name*="[qty]"]');
+
+                const name = (nameInput ? nameInput.value : '').trim().toLowerCase();
+                const qty = parseFloat(qtyInput ? qtyInput.value : 0);
+
+                if (!isNaN(qty) && qty > 0) {
+                    if (name.includes('repair')) {
+                        totalRepairan += qty;
+                    } else {
+                        totalWip += qty;
+                    }
+                }
+            });
+        }
+
+        const wipField = document.getElementById('jml_input_wip');
+        const repField = document.getElementById('repairan');
+        const sumWipBadge = document.getElementById('summary-wip-qty');
+        const sumRepBadge = document.getElementById('summary-repairan-qty');
+        const sumTotalBadge = document.getElementById('summary-total-input-qty');
+
+        if (wipField) wipField.value = totalWip;
+        if (repField) repField.value = totalRepairan;
+        if (sumWipBadge) sumWipBadge.textContent = totalWip.toLocaleString();
+        if (sumRepBadge) sumRepBadge.textContent = totalRepairan.toLocaleString();
+        if (sumTotalBadge) sumTotalBadge.textContent = (totalWip + totalRepairan).toLocaleString();
+    }
+    window.updatePartMaterialsBreakdown = updatePartMaterialsBreakdown;
 
     // Helper to safely escape HTML
     function escapeHtml(str) {
@@ -2310,4 +2432,27 @@
     });
     reindexTroubleRows();
     updateTotalDowntime();
+
+    // Part Materials (WIP & Repairan) Real-Time Breakdown Recalculation
+    const partMaterialsTbody = document.getElementById('part-materials-tbody');
+    if (partMaterialsTbody) {
+        partMaterialsTbody.addEventListener('input', function(e) {
+            if (e.target && e.target.matches('input[name*="[qty]"], input[name*="[item_name]"]')) {
+                updatePartMaterialsBreakdown();
+            }
+        });
+        partMaterialsTbody.addEventListener('change', function(e) {
+            if (e.target && e.target.matches('input[name*="[qty]"], input[name*="[item_name]"]')) {
+                updatePartMaterialsBreakdown();
+            }
+        });
+    }
+    updatePartMaterialsBreakdown();
+
+    // Item Paint Conditional Toggling based on Proses Prod
+    const processProdEl = document.getElementById('process_prod');
+    if (processProdEl) {
+        processProdEl.addEventListener('change', togglePaintMaterialsByProcess);
+    }
+    togglePaintMaterialsByProcess();
 </script>

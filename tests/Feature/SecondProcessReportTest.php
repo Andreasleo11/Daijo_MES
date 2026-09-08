@@ -651,6 +651,116 @@ class SecondProcessReportTest extends TestCase
         $showResponse->assertSee('Problem C: Viscosity parameter off-spec');
         $showResponse->assertSee('50 mins');
     }
+
+    public function test_part_materials_breakdown_automatically_calculates_jml_input_wip_and_repairan()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line A',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'draft',
+            'part_number' => 'PART-BREAKDOWN-01',
+            'part_name' => 'Door Panel',
+            'target_per_hour' => 100,
+
+            // Part materials breakdown
+            'materials' => [
+                [
+                    'type' => 'part',
+                    'item_name' => 'WIP 1',
+                    'lot_number' => 'LOT-WIP-A',
+                    'qty' => 450,
+                    'uom' => 'Pcs',
+                ],
+                [
+                    'type' => 'part',
+                    'item_name' => 'WIP 2',
+                    'lot_number' => 'LOT-WIP-B',
+                    'qty' => 350,
+                    'uom' => 'Pcs',
+                ],
+                [
+                    'type' => 'part',
+                    'item_name' => 'Repairan 1',
+                    'lot_number' => 'LOT-REP-01',
+                    'qty' => 80,
+                    'uom' => 'Pcs',
+                ],
+                [
+                    'type' => 'paint',
+                    'item_name' => 'Paint Primer',
+                    'lot_number' => 'LOT-P-01',
+                    'qty' => 5,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-BREAKDOWN-01')->first();
+        $this->assertNotNull($report);
+
+        // Assert that jml_input_wip was automatically calculated from WIP 1 (450) + WIP 2 (350) = 800
+        $this->assertEquals(800, $report->jml_input_wip);
+
+        // Assert that repairan was automatically calculated from Repairan 1 = 80
+        $this->assertEquals(80, $report->repairan);
+
+        // Verify part materials are properly stored
+        $this->assertCount(3, $report->materials->where('type', 'part'));
+        $this->assertCount(1, $report->materials->where('type', 'paint'));
+    }
+
+    public function test_item_paint_materials_ignored_when_process_prod_is_not_painting()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Area Buffing',
+            'shift' => '1',
+            'process_prod' => 'Buffing',
+            'status' => 'draft',
+            'part_number' => 'PART-BUFFING-01',
+            'part_name' => 'Side Mirror',
+            'target_per_hour' => 100,
+
+            // Mixed materials (both paint and part)
+            'materials' => [
+                [
+                    'type' => 'part',
+                    'item_name' => 'WIP 1',
+                    'lot_number' => 'LOT-WIP-BUF',
+                    'qty' => 300,
+                    'uom' => 'Pcs',
+                ],
+                [
+                    'type' => 'paint',
+                    'item_name' => 'Paint Primer',
+                    'lot_number' => 'LOT-P-ERR',
+                    'visco' => '14s',
+                    'mixing_ratio' => '1:1',
+                    'qty' => 10,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-BUFFING-01')->first();
+        $this->assertNotNull($report);
+
+        // Verify part materials are stored, but paint materials are ignored because process_prod is Buffing
+        $this->assertCount(1, $report->materials->where('type', 'part'));
+        $this->assertCount(0, $report->materials->where('type', 'paint'));
+    }
 }
 
 

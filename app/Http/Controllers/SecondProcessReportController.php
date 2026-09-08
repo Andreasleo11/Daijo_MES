@@ -237,9 +237,35 @@ class SecondProcessReportController extends Controller
 
         // Default integer fields
         $validated['target_per_hour'] = $validated['target_per_hour'] ?? 0;
-        $validated['jml_input_wip'] = $validated['jml_input_wip'] ?? 0;
-        $validated['repairan'] = $validated['repairan'] ?? 0;
         $validated['jml_ng_lebur'] = $validated['jml_ng_lebur'] ?? 0;
+
+        // Auto-calculate WIP and Repairan from part materials breakdown if provided
+        $partMaterials = collect($validated['materials'] ?? [])->where('type', 'part');
+        $breakdownWip = 0;
+        $breakdownRepairan = 0;
+        $hasPartBreakdown = false;
+
+        foreach ($partMaterials as $mat) {
+            $qty = (int) ($mat['qty'] ?? 0);
+            $hasLot = !empty(trim((string) ($mat['lot_number'] ?? '')));
+            if ($qty > 0 || $hasLot) {
+                $hasPartBreakdown = true;
+            }
+            $itemName = strtolower((string) ($mat['item_name'] ?? ''));
+            if (str_contains($itemName, 'repair')) {
+                $breakdownRepairan += $qty;
+            } else {
+                $breakdownWip += $qty;
+            }
+        }
+
+        if ($hasPartBreakdown) {
+            $validated['jml_input_wip'] = $breakdownWip;
+            $validated['repairan'] = $breakdownRepairan;
+        } else {
+            $validated['jml_input_wip'] = (int) ($validated['jml_input_wip'] ?? 0);
+            $validated['repairan'] = (int) ($validated['repairan'] ?? 0);
+        }
 
         // Server-side calculation of production totals
         $jumlah_ok = 0;
@@ -323,6 +349,11 @@ class SecondProcessReportController extends Controller
             // Create Materials
             if (isset($validated['materials'])) {
                 foreach ($validated['materials'] as $material) {
+                    // Item Paint is only recorded if process_prod is Painting
+                    if (($material['type'] ?? '') === 'paint' && ($validated['process_prod'] ?? '') !== 'Painting') {
+                        continue;
+                    }
+
                     $hasData = !empty(trim((string) ($material['lot_number'] ?? '')))
                         || (isset($material['qty']) && $material['qty'] !== '' && (float) $material['qty'] > 0)
                         || !empty(trim((string) ($material['visco'] ?? '')))
