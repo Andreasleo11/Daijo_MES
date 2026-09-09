@@ -384,4 +384,182 @@ class SecondProcessReportAnalyticsTest extends TestCase
         $this->assertStringContainsString('Export Part', $content);
         $this->assertStringContainsString('Customer CSV', $content);
     }
+
+    public function test_analytics_can_export_materials_csv_all(): void
+    {
+        $today = now()->format('Y-m-d');
+
+        $report = SecondProcessReport::create([
+            'date' => $today,
+            'unit_line' => 'Line 1',
+            'shift' => 1,
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'MAT-EXPORT-001',
+            'part_name' => 'Painted Cover',
+            'customer' => 'Customer Mat',
+            'jml_input_wip' => 500,
+            'repairan' => 0,
+            'jumlah_output' => 500,
+            'jumlah_ok' => 480,
+            'jumlah_ng' => 20,
+            'jml_ng_lebur' => 0,
+        ]);
+
+        $report->materials()->create([
+            'type' => 'paint',
+            'item_name' => 'Paint Primer Grey',
+            'lot_number' => 'LOT-P-01',
+            'visco' => '14s',
+            'mixing_ratio' => '1:1',
+            'qty' => 6.0,
+            'uom' => 'Ltr',
+        ]);
+
+        $report->materials()->create([
+            'type' => 'part',
+            'item_name' => 'Cover Raw WIP',
+            'lot_number' => 'LOT-WIP-01',
+            'qty' => 500,
+            'uom' => 'Pcs',
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+            'export' => 'materials',
+        ]));
+
+        $response->assertOk();
+        $this->assertTrue(str_contains($response->headers->get('content-type'), 'text/csv'));
+        $this->assertTrue(str_contains($response->headers->get('content-disposition'), 'second-process-materials-all-'));
+
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('Material Type', $content);
+        $this->assertStringContainsString('Material Item Name', $content);
+        $this->assertStringContainsString('Consumption per 1000 Pcs', $content);
+        $this->assertStringContainsString('Part Yield Rate (%)', $content);
+        $this->assertStringContainsString('Paint Primer Grey', $content);
+        $this->assertStringContainsString('Cover Raw WIP', $content);
+        $this->assertStringContainsString('MAT-EXPORT-001', $content);
+        // Paint calculation: (6.0 * 1000) / 480 = 12.5
+        $this->assertStringContainsString('12.5', $content);
+        // Part yield: (480 / 500) * 100 = 96%
+        $this->assertStringContainsString('96%', $content);
+    }
+
+    public function test_analytics_can_export_materials_csv_filtered_by_type(): void
+    {
+        $today = now()->format('Y-m-d');
+
+        $report = SecondProcessReport::create([
+            'date' => $today,
+            'unit_line' => 'Line 1',
+            'shift' => 1,
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'MAT-FILTER-001',
+            'part_name' => 'Filter Cover',
+            'customer' => 'Customer Filter',
+            'jml_input_wip' => 200,
+            'repairan' => 0,
+            'jumlah_output' => 200,
+            'jumlah_ok' => 190,
+            'jumlah_ng' => 10,
+        ]);
+
+        $report->materials()->create([
+            'type' => 'paint',
+            'item_name' => 'Basecoat Metallic',
+            'lot_number' => 'LOT-P-MET',
+            'qty' => 3.5,
+            'uom' => 'Ltr',
+        ]);
+
+        $report->materials()->create([
+            'type' => 'part',
+            'item_name' => 'Plastic Shell WIP',
+            'lot_number' => 'LOT-SHELL',
+            'qty' => 200,
+            'uom' => 'Pcs',
+        ]);
+
+        // 1. Filter by paint
+        $paintResponse = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+            'export' => 'materials',
+            'material_type' => 'paint',
+        ]));
+        $paintContent = $paintResponse->streamedContent();
+        $this->assertStringContainsString('Basecoat Metallic', $paintContent);
+        $this->assertStringNotContainsString('Plastic Shell WIP', $paintContent);
+
+        // 2. Filter by part
+        $partResponse = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+            'export' => 'materials',
+            'material_type' => 'part',
+        ]));
+        $partContent = $partResponse->streamedContent();
+        $this->assertStringContainsString('Plastic Shell WIP', $partContent);
+        $this->assertStringNotContainsString('Basecoat Metallic', $partContent);
+    }
+
+    public function test_analytics_dashboard_renders_materials_kpis(): void
+    {
+        $today = now()->format('Y-m-d');
+
+        $report = SecondProcessReport::create([
+            'date' => $today,
+            'unit_line' => 'Line 1',
+            'shift' => 1,
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'MAT-DASH-001',
+            'part_name' => 'Dashboard Part',
+            'customer' => 'Customer Dash',
+            'jml_input_wip' => 300,
+            'repairan' => 0,
+            'jumlah_output' => 300,
+            'jumlah_ok' => 290,
+            'jumlah_ng' => 10,
+        ]);
+
+        $report->materials()->create([
+            'type' => 'paint',
+            'item_name' => 'Clear Coat Glossy',
+            'lot_number' => 'LOT-CC-01',
+            'qty' => 2.9,
+            'uom' => 'Ltr',
+        ]);
+
+        $report->materials()->create([
+            'type' => 'part',
+            'item_name' => 'Sub Assy Frame',
+            'lot_number' => 'LOT-FR-01',
+            'qty' => 300,
+            'uom' => 'Pcs',
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+        ]));
+
+        $response->assertOk();
+        $this->assertNotNull($response->viewData('topPaints'));
+        $this->assertNotNull($response->viewData('topParts'));
+        $this->assertEquals(2.9, $response->viewData('totalPaintQty'));
+        $this->assertEquals(10.0, $response->viewData('paintIndexPer1000')); // (2.9 * 1000) / 290 = 10.0
+        $this->assertEquals(300, $response->viewData('totalPartQty'));
+
+        // HTML assertion
+        $response->assertSee('Materials Consumption & Efficiency Analytics');
+        $response->assertSee('Clear Coat Glossy');
+        $response->assertSee('Sub Assy Frame');
+        $response->assertSee('Export Paint CSV');
+        $response->assertSee('Export Parts CSV');
+    }
 }

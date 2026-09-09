@@ -70,10 +70,52 @@
                         <a href="{{ route('second-process.report-analytics') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded-lg text-xs border border-gray-300 transition">
                             Reset
                         </a>
-                        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow transition">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            Export CSV
-                        </a>
+                        {{-- Multi-Option CSV Export Dropdown --}}
+                        <div class="relative" x-data="{ openExport: false }">
+                            <button type="button" @click="openExport = !openExport" @click.away="openExport = false"
+                                class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow transition cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span>Export CSV</span>
+                                <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div x-show="openExport" x-cloak
+                                class="absolute right-0 mt-1.5 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 text-xs text-gray-700">
+                                <div class="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                                    Report Summary
+                                </div>
+                                <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'material_type' => null]) }}"
+                                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-gray-800 transition">
+                                    <div>
+                                        <div class="font-bold">Reports Summary CSV</div>
+                                        <div class="text-[10px] text-gray-500">Output, OK, NG, Target, Yield</div>
+                                    </div>
+                                </a>
+                                <div class="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-t border-b border-gray-100 mt-1">
+                                    Materials Breakdown
+                                </div>
+                                <a href="{{ request()->fullUrlWithQuery(['export' => 'materials', 'material_type' => null]) }}"
+                                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-gray-800 transition">
+                                    <div>
+                                        <div class="font-bold">All Materials CSV</div>
+                                        <div class="text-[10px] text-gray-500">Parts & Paints itemized rows</div>
+                                    </div>
+                                </a>
+                                <a href="{{ request()->fullUrlWithQuery(['export' => 'materials', 'material_type' => 'paint']) }}"
+                                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-gray-800 transition">
+                                    <div>
+                                        <div class="font-bold">Paint & Chemicals Only</div>
+                                        <div class="text-[10px] text-gray-500">Viscosity, ratio, usage per 1k pcs</div>
+                                    </div>
+                                </a>
+                                <a href="{{ request()->fullUrlWithQuery(['export' => 'materials', 'material_type' => 'part']) }}"
+                                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-gray-800 transition">
+                                    <div>
+                                        <div class="font-bold">Part / WIP Only</div>
+                                        <div class="text-[10px] text-gray-500">Input WIP, part yield, line variance</div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -570,6 +612,157 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+            </div>
+            
+            {{-- Section 6: Materials Consumption & Efficiency Analytics --}}
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden break-inside-avoid">
+                <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                            <span>Materials Consumption &amp; Efficiency Analytics</span>
+                            <span class="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200">Chemicals &amp; WIP</span>
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Summary of paint/chemical consumables and component part utilization across filtered reports</p>
+                    </div>
+                    <div class="flex items-center gap-2 no-print">
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'materials', 'material_type' => 'paint']) }}"
+                            class="text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 font-bold py-1 px-2.5 rounded-lg transition inline-flex items-center gap-1.5 shadow-xs">
+                            <svg class="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>Export Paint CSV</span>
+                        </a>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'materials', 'material_type' => 'part']) }}"
+                            class="text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 font-bold py-1 px-2.5 rounded-lg transition inline-flex items-center gap-1.5 shadow-xs">
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>Export Parts CSV</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-gray-50/40">
+                    {{-- Left Card: Paint & Chemical Consumables --}}
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                                <h4 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>
+                                    <span>Paint & Chemicals Usage</span>
+                                </h4>
+                                <span class="text-[11px] font-semibold text-gray-500">
+                                    Process: Painting ({{ number_format($totalOkInPainting) }} Pcs OK)
+                                </span>
+                            </div>
+
+                            {{-- Paint Stat KPIs --}}
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div class="bg-purple-50/60 border border-purple-100 rounded-lg p-3">
+                                    <div class="text-[11px] font-semibold text-purple-700">Total Paint Consumed</div>
+                                    <div class="text-xl font-extrabold text-purple-900 mt-1">
+                                        {{ number_format($totalPaintQty, 2) }} <span class="text-xs font-normal text-purple-600">Qty</span>
+                                    </div>
+                                </div>
+                                <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-3">
+                                    <div class="text-[11px] font-semibold text-indigo-700">Specific Usage Index</div>
+                                    <div class="text-xl font-extrabold text-indigo-900 mt-1">
+                                        {{ $paintIndexPer1000 > 0 ? number_format($paintIndexPer1000, 2) : '-' }}
+                                        <span class="text-xs font-normal text-indigo-600">Qty / 1k OK</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Top Paint Items Table --}}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-bold text-gray-500 uppercase">Item Paint</th>
+                                            <th class="px-2 py-2 text-center font-bold text-gray-500 uppercase">UOM</th>
+                                            <th class="px-2 py-2 text-center font-bold text-gray-500 uppercase">Batches</th>
+                                            <th class="px-3 py-2 text-right font-bold text-gray-500 uppercase">Total Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @forelse($topPaints as $paint)
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-3 py-2 font-semibold text-gray-800">{{ $paint->item_name }}</td>
+                                                <td class="px-2 py-2 text-center text-gray-500 font-mono">{{ $paint->uom ?: '-' }}</td>
+                                                <td class="px-2 py-2 text-center text-gray-600 font-mono">{{ $paint->reports_count }}</td>
+                                                <td class="px-3 py-2 text-right font-black text-purple-900 font-mono">{{ number_format($paint->total_qty, 2) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="px-3 py-6 text-center text-gray-400">
+                                                    No paint materials recorded in this period.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Right Card: Component Parts & WIP Reconciliation --}}
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                                <h4 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                                    <span>Component Parts & WIP Breakdown</span>
+                                </h4>
+                                <span class="text-[11px] font-semibold text-gray-500">
+                                    Total Input: {{ number_format($totalInput) }} Pcs
+                                </span>
+                            </div>
+
+                            {{-- Part Stat KPIs --}}
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div class="bg-blue-50/60 border border-blue-100 rounded-lg p-3">
+                                    <div class="text-[11px] font-semibold text-blue-700">Part Yield Rate</div>
+                                    <div class="text-xl font-extrabold text-blue-900 mt-1">
+                                        {{ $yieldRate }}%
+                                    </div>
+                                </div>
+                                <div class="bg-amber-50/60 border border-amber-100 rounded-lg p-3">
+                                    <div class="text-[11px] font-semibold text-amber-700">WIP Line Variance</div>
+                                    <div class="text-xl font-extrabold {{ $wipVariance == 0 ? 'text-green-700' : 'text-amber-900' }} mt-1">
+                                        {{ $wipVariance > 0 ? '+' . number_format($wipVariance) : number_format($wipVariance) }}
+                                        <span class="text-xs font-normal text-gray-500">Pcs</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Top Part Items Table --}}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-bold text-gray-500 uppercase">Part / WIP Item</th>
+                                            <th class="px-2 py-2 text-center font-bold text-gray-500 uppercase">UOM</th>
+                                            <th class="px-2 py-2 text-center font-bold text-gray-500 uppercase">Reports</th>
+                                            <th class="px-3 py-2 text-right font-bold text-gray-500 uppercase">Total Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @forelse($topParts as $part)
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-3 py-2 font-semibold text-gray-800">{{ $part->item_name }}</td>
+                                                <td class="px-2 py-2 text-center text-gray-500 font-mono">{{ $part->uom ?: 'Pcs' }}</td>
+                                                <td class="px-2 py-2 text-center text-gray-600 font-mono">{{ $part->reports_count }}</td>
+                                                <td class="px-3 py-2 text-right font-black text-blue-900 font-mono">{{ number_format($part->total_qty) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="px-3 py-6 text-center text-gray-400">
+                                                    No part materials recorded in this period.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

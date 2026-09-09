@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SecondProcessReport;
+use App\Models\SecondProcessMaterial;
 use App\Models\SecondProcessNgRecord;
 use App\Models\SecondProcessTrouble;
 use Carbon\Carbon;
@@ -40,6 +41,10 @@ class SecondProcessReportAnalyticsController extends Controller
         // CSV Export if requested
         if ($request->input('export') === 'csv') {
             return $this->exportCsv($baseQuery, $dateFrom, $dateTo);
+        }
+
+        if ($request->input('export') === 'materials') {
+            return $this->exportMaterialsCsv($baseQuery, $dateFrom, $dateTo, $request->input('material_type'));
         }
 
         // 1. Summary KPIs
@@ -218,6 +223,55 @@ class SecondProcessReportAnalyticsController extends Controller
             ->limit(8)
             ->get();
 
+        // 9. Materials Consumption Analytics (Paint & Part)
+        $materialsBaseQuery = SecondProcessMaterial::query()
+            ->join('second_process_reports', 'second_process_materials.report_id', '=', 'second_process_reports.id')
+            ->whereIn('second_process_reports.id', (clone $baseQuery)->select('second_process_reports.id'));
+
+        // A. Paint summary & top consumed paint items
+        $topPaints = (clone $materialsBaseQuery)
+            ->where('second_process_materials.type', 'paint')
+            ->selectRaw('
+                second_process_materials.item_name,
+                second_process_materials.uom,
+                SUM(second_process_materials.qty) as total_qty,
+                COUNT(DISTINCT second_process_materials.report_id) as reports_count
+            ')
+            ->groupBy('second_process_materials.item_name', 'second_process_materials.uom')
+            ->orderByDesc('total_qty')
+            ->limit(5)
+            ->get();
+
+        $totalPaintQty = (float) (clone $materialsBaseQuery)
+            ->where('second_process_materials.type', 'paint')
+            ->sum('second_process_materials.qty');
+
+        // Specific Paint Index: Paint Qty per 1,000 OK pieces across painting reports
+        $totalOkInPainting = (int) (clone $baseQuery)
+            ->where('process_prod', 'Painting')
+            ->sum('jumlah_ok');
+        $paintIndexPer1000 = ($totalOkInPainting > 0 && $totalPaintQty > 0)
+            ? round(($totalPaintQty * 1000) / $totalOkInPainting, 2)
+            : 0;
+
+        // B. Part / WIP materials summary
+        $topParts = (clone $materialsBaseQuery)
+            ->where('second_process_materials.type', 'part')
+            ->selectRaw('
+                second_process_materials.item_name,
+                second_process_materials.uom,
+                SUM(second_process_materials.qty) as total_qty,
+                COUNT(DISTINCT second_process_materials.report_id) as reports_count
+            ')
+            ->groupBy('second_process_materials.item_name', 'second_process_materials.uom')
+            ->orderByDesc('total_qty')
+            ->limit(5)
+            ->get();
+
+        $totalPartQty = (float) (clone $materialsBaseQuery)
+            ->where('second_process_materials.type', 'part')
+            ->sum('second_process_materials.qty');
+
         // Target NG Rate from configuration
         $targetNgRate = (float) config('mes.sp_target_ng_rate', 2.0);
 
@@ -244,6 +298,12 @@ class SecondProcessReportAnalyticsController extends Controller
             'topProductsRaw',
             'topDefectProductsRaw',
             'topTroubles',
+            'topPaints',
+            'totalPaintQty',
+            'paintIndexPer1000',
+            'totalOkInPainting',
+            'topParts',
+            'totalPartQty',
             'dateFrom',
             'dateTo',
             'lines',
@@ -326,6 +386,127 @@ class SecondProcessReportAnalyticsController extends Controller
                         ]);
                     }
                 });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Stream filtered Second Process materials data to CSV (part & paint types).
+     */
+    protected function exportMaterialsCsv($query, string $dateFrom, string $dateTo, ?string $materialType = null)
+    {
+        $typeLabel = $materialType ? strtolower($materialType) : 'all';
+        $filename = 'second-process-materials-' . $typeLabel . '-' . $dateFrom . '-to-' . $dateTo . '.csv';
+
+        return response()->streamDownload(function () use ($query, $materialType) {
+            $handle = fopen('php://output', 'w');
+
+            // UTF-8 BOM for Microsoft Excel compatibility
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV Column Headers
+            fputcsv($handle, [
+                'Report ID',
+                'Date',
+                'Unit / Line',
+                'Shift',
+                'Process',
+                'Part Number',
+                'Part Name',
+                'Customer',
+                'Report Output Qty',
+                'Report OK Qty',
+                'Report NG Qty',
+                'Report Scrap Qty',
+                'Material Type',
+                'Material Item Name',
+                'Lot Number',
+                'Viscosity (s)',
+                'Mixing Ratio',
+                'Material Qty',
+                'UOM',
+                'Usage per OK Pc',
+                'Consumption per 1000 Pcs',
+                'Part Yield Rate (%)',
+                'WIP Line Variance',
+            ]);
+
+            $materialsQuery = SecondProcessMaterial::query()
+                ->join('second_process_reports', 'second_process_materials.report_id', '=', 'second_process_reports.id')
+                ->whereIn('second_process_reports.id', (clone $query)->select('second_process_reports.id'))
+                ->select([
+                    'second_process_materials.*',
+                    'second_process_reports.date as report_date',
+                    'second_process_reports.unit_line as report_unit_line',
+                    'second_process_reports.shift as report_shift',
+                    'second_process_reports.process_prod as report_process_prod',
+                    'second_process_reports.part_number as report_part_number',
+                    'second_process_reports.part_name as report_part_name',
+                    'second_process_reports.customer as report_customer',
+                    'second_process_reports.jumlah_ok as report_jumlah_ok',
+                    'second_process_reports.jumlah_output as report_jumlah_output',
+                    'second_process_reports.jumlah_ng as report_jumlah_ng',
+                    'second_process_reports.jml_input_wip as report_jml_input_wip',
+                    'second_process_reports.repairan as report_repairan',
+                    'second_process_reports.jml_ng_lebur as report_jml_ng_lebur',
+                ])
+                ->orderBy('second_process_reports.date', 'desc')
+                ->orderBy('second_process_reports.id', 'desc');
+
+            if (!empty($materialType) && in_array(strtolower($materialType), ['part', 'paint'])) {
+                $materialsQuery->where('second_process_materials.type', strtolower($materialType));
+            }
+
+            $materialsQuery->chunk(300, function ($rows) use ($handle) {
+                foreach ($rows as $r) {
+                    $matType = strtolower($r->type ?? '');
+                    $okQty = (int) ($r->report_jumlah_ok ?? 0);
+                    $matQty = (float) ($r->qty ?? 0);
+                    $totIn = (int) (($r->report_jml_input_wip ?? 0) + ($r->report_repairan ?? 0));
+                    $totOut = (int) ($r->report_jumlah_output ?? 0);
+                    $totScrap = (int) ($r->report_jml_ng_lebur ?? 0);
+                    $wipVariance = $totIn - ($totOut + $totScrap);
+
+                    // Calculated Metrics
+                    $usagePerOk = ($okQty > 0 && $matQty > 0) ? round($matQty / $okQty, 4) : '-';
+                    $usagePer1000 = ($matType === 'paint' && $okQty > 0 && $matQty > 0)
+                        ? round(($matQty * 1000) / $okQty, 2)
+                        : '-';
+                    $partYield = ($matType === 'part' && $matQty > 0 && $okQty > 0)
+                        ? round(($okQty / $matQty) * 100, 2) . '%'
+                        : '-';
+
+                    fputcsv($handle, [
+                        $r->report_id,
+                        $r->report_date,
+                        $this->sanitizeCsvCell($r->report_unit_line),
+                        $r->report_shift,
+                        $this->sanitizeCsvCell($r->report_process_prod),
+                        $this->sanitizeCsvCell($r->report_part_number),
+                        $this->sanitizeCsvCell($r->report_part_name),
+                        $this->sanitizeCsvCell($r->report_customer),
+                        $r->report_jumlah_output,
+                        $r->report_jumlah_ok,
+                        $r->report_jumlah_ng,
+                        $r->report_jml_ng_lebur,
+                        $this->sanitizeCsvCell($r->type),
+                        $this->sanitizeCsvCell($r->item_name),
+                        $this->sanitizeCsvCell($r->lot_number),
+                        $this->sanitizeCsvCell($r->visco),
+                        $this->sanitizeCsvCell($r->mixing_ratio),
+                        $r->qty,
+                        $this->sanitizeCsvCell($r->uom),
+                        $usagePerOk,
+                        $usagePer1000,
+                        $partYield,
+                        $matType === 'part' ? $wipVariance : '-',
+                    ]);
+                }
+            });
 
             fclose($handle);
         }, $filename, [
