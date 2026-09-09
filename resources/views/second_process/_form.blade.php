@@ -22,51 +22,186 @@
         </div>
     </div>
 
+@php
+    $tabErrorKeys = [
+        'setup' => ['date', 'unit_line', 'shift', 'process_prod', 'status', 'output_destination', 'part_number', 'part_name', 'model', 'customer', 'manpower'],
+        'materials' => ['materials'],
+        'production' => ['target_per_hour', 'jml_input_wip', 'repairan', 'hourly', 'ngs', 'ng_remarks'],
+        'handover' => ['next_production_schedule', 'absent_employees', 'production_notes', 'troubles', 'created_by_name', 'pqc_name', 'leader_name', 'acknowledged_by_name'],
+    ];
+
+    $tabErrorCounts = [
+        'setup' => 0,
+        'materials' => 0,
+        'production' => 0,
+        'handover' => 0,
+    ];
+
+    $errorsByTab = [
+        'setup' => [],
+        'materials' => [],
+        'production' => [],
+        'handover' => [],
+    ];
+
+    if ($errors->any()) {
+        foreach ($errors->messages() as $field => $messages) {
+            $assignedTab = 'setup';
+            foreach ($tabErrorKeys as $tab => $keys) {
+                foreach ($keys as $key) {
+                    if ($field === $key || \Illuminate\Support\Str::startsWith($field, $key . '.') || \Illuminate\Support\Str::startsWith($field, $key . '[')) {
+                        $assignedTab = $tab;
+                        break 2;
+                    }
+                }
+            }
+            $tabErrorCounts[$assignedTab] += count($messages);
+            foreach ($messages as $msg) {
+                $errorsByTab[$assignedTab][] = [
+                    'field' => $field,
+                    'message' => $msg,
+                ];
+            }
+        }
+    }
+
+    $firstErrorTab = null;
+    if ($errors->any()) {
+        foreach (['setup', 'materials', 'production', 'handover'] as $tName) {
+            if ($tabErrorCounts[$tName] > 0) {
+                $firstErrorTab = $tName;
+                break;
+            }
+        }
+    }
+@endphp
+
     <!-- Option 2: Sticky Tabbed Navigation -->
     <div class="border-b border-gray-200 bg-gray-50 px-6 py-3">
         <nav class="-mb-px flex flex-wrap justify-between sm:justify-start gap-2 md:gap-6" aria-label="Tabs"
             id="form-tabs-navigation">
             <button type="button" data-tab="setup"
-                class="tab-btn active border-blue-600 text-blue-600 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all">
+                class="tab-btn active border-blue-600 text-blue-600 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all {{ $tabErrorCounts['setup'] > 0 ? 'text-red-600 !border-red-500' : '' }}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                     </path>
                 </svg>
                 1. Setup & Manpower
+                @if ($tabErrorCounts['setup'] > 0)
+                    <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-extrabold rounded-full bg-red-600 text-white shadow-sm animate-pulse" title="{{ $tabErrorCounts['setup'] }} error(s)">
+                        {{ $tabErrorCounts['setup'] }}
+                    </span>
+                @endif
             </button>
             <button type="button" data-tab="materials"
-                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all">
+                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all {{ $tabErrorCounts['materials'] > 0 ? 'text-red-600 !border-red-500' : '' }}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
                     </path>
                 </svg>
                 2. Materials
+                @if ($tabErrorCounts['materials'] > 0)
+                    <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-extrabold rounded-full bg-red-600 text-white shadow-sm animate-pulse" title="{{ $tabErrorCounts['materials'] }} error(s)">
+                        {{ $tabErrorCounts['materials'] }}
+                    </span>
+                @endif
             </button>
             <button type="button" data-tab="production"
-                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all">
+                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all {{ $tabErrorCounts['production'] > 0 ? 'text-red-600 !border-red-500' : '' }}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                     </path>
                 </svg>
                 3. Production Logs & NG
+                @if ($tabErrorCounts['production'] > 0)
+                    <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-extrabold rounded-full bg-red-600 text-white shadow-sm animate-pulse" title="{{ $tabErrorCounts['production'] }} error(s)">
+                        {{ $tabErrorCounts['production'] }}
+                    </span>
+                @endif
             </button>
             <button type="button" data-tab="handover"
-                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all">
+                class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-3 border-b-2 font-bold text-sm flex items-center transition-all {{ $tabErrorCounts['handover'] > 0 ? 'text-red-600 !border-red-500' : '' }}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                     </path>
                 </svg>
                 4. Handover & Signs
+                @if ($tabErrorCounts['handover'] > 0)
+                    <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-extrabold rounded-full bg-red-600 text-white shadow-sm animate-pulse" title="{{ $tabErrorCounts['handover'] }} error(s)">
+                        {{ $tabErrorCounts['handover'] }}
+                    </span>
+                @endif
             </button>
         </nav>
     </div>
 
     <!-- Form Content Body -->
     <div class="p-6">
+
+        <!-- Top Error Summary Banner -->
+        @if ($errors->any())
+            <div id="form-error-summary" class="mb-6 bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg shadow-sm">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 pt-0.5">
+                        <svg class="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-red-900">
+                                Terdapat {{ $errors->count() }} kesalahan input yang perlu diperbaiki:
+                            </h3>
+                            <span class="text-[11px] text-red-700 font-semibold bg-red-100 px-2 py-0.5 rounded">
+                                Klik tautan di bawah untuk langsung menuju kolom
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-3 text-xs">
+                            @php
+                                $tabLabels = [
+                                    'setup' => 'Tab 1: Setup & Manpower',
+                                    'materials' => 'Tab 2: Materials',
+                                    'production' => 'Tab 3: Production Logs & NG',
+                                    'handover' => 'Tab 4: Handover & Signs',
+                                ];
+                            @endphp
+                            @foreach ($errorsByTab as $tabKey => $tabErrs)
+                                @if (count($tabErrs) > 0)
+                                    <div class="bg-white/90 rounded border border-red-200 p-2.5 shadow-xs">
+                                        <div class="flex items-center justify-between font-bold text-red-900 border-b border-red-100 pb-1.5 mb-1.5">
+                                            <span class="flex items-center gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                                                {{ $tabLabels[$tabKey] }} ({{ count($tabErrs) }} error)
+                                            </span>
+                                            <button type="button" onclick="switchTabAndFocus('{{ $tabKey }}')"
+                                                class="text-[11px] bg-red-100 hover:bg-red-200 text-red-800 font-bold px-2 py-0.5 rounded transition inline-flex items-center gap-1">
+                                                Buka Tab &rarr;
+                                            </button>
+                                        </div>
+                                        <ul class="space-y-1 pl-1">
+                                            @foreach ($tabErrs as $errItem)
+                                                <li class="flex items-start gap-1.5 text-red-800">
+                                                    <span class="text-red-500 font-bold">&bull;</span>
+                                                    <button type="button" onclick="switchTabAndFocus('{{ $tabKey }}', '{{ $errItem['field'] }}')"
+                                                        class="text-left underline hover:text-red-950 font-medium cursor-pointer focus:outline-none">
+                                                        {{ $errItem['message'] }}
+                                                    </button>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <!-- Validation Warnings Banner (Chronological Validation) -->
         <div id="totals-validation-message" class="mb-6"></div>
@@ -88,14 +223,17 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tanggal</label>
                         <input type="date" name="date" value="{{ old('date', $report->date ?? date('Y-m-d')) }}"
-                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('date') border-red-500 ring-1 ring-red-500 @enderror"
                             required>
+                        @error('date')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Unit /
                             Line</label>
                         <select name="unit_line"
-                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('unit_line') border-red-500 ring-1 ring-red-500 @enderror"
                             required>
                             <option value="">-- Select Unit / Line --</option>
                             @php
@@ -110,11 +248,14 @@
                                 <option value="{{ $currentUnitLine }}" selected>{{ $currentUnitLine }}</option>
                             @endif
                         </select>
+                        @error('unit_line')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Shift</label>
                         <select name="shift"
-                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('shift') border-red-500 ring-1 ring-red-500 @enderror"
                             required>
                             <option value="1" {{ old('shift', $report->shift) == '1' ? 'selected' : '' }}>Shift 1
                             </option>
@@ -123,12 +264,15 @@
                             <option value="3" {{ old('shift', $report->shift) == '3' ? 'selected' : '' }}>Shift 3
                             </option>
                         </select>
+                        @error('shift')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Proses
                             Prod</label>
                         <select name="process_prod" id="process_prod"
-                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('process_prod') border-red-500 ring-1 ring-red-500 @enderror"
                             required>
                             @php
                                 $spProcesses = config('mes.sp_processes');
@@ -142,6 +286,9 @@
                                 <option value="{{ $currentProcess }}" selected>{{ $currentProcess }}</option>
                             @endif
                         </select>
+                        @error('process_prod')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <input type="hidden" name="status" id="status-field"
                         value="{{ old('status', $report->status) }}">
@@ -149,7 +296,7 @@
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tujuan
                             Output</label>
                         <select name="output_destination"
-                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm">
+                            class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('output_destination') border-red-500 ring-1 ring-red-500 @enderror">
                             <option value=""
                                 {{ empty(old('output_destination', $report->output_destination)) ? 'selected' : '' }}>
                                 -- Select Next Step --</option>
@@ -163,6 +310,9 @@
                                 </option>
                             @endforeach
                         </select>
+                        @error('output_destination')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part
@@ -171,12 +321,15 @@
                             <input type="text" name="part_number" id="part_number"
                                 value="{{ old('part_number', $report->part_number) }}"
                                 placeholder="Search Part Number..."
-                                class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('part_number') border-red-500 ring-1 ring-red-500 @enderror"
                                 required autocomplete="off">
                             <div id="part-number-dropdown"
                                 class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50 hidden">
                             </div>
                         </div>
+                        @error('part_number')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Part
@@ -394,8 +547,11 @@
                                             <input type="text" name="materials[{{ $currIdx }}][item_name]"
                                                 value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
                                                 placeholder="Paint Item Name"
-                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ $errors->has('materials.' . $currIdx . '.item_name') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                                 {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                            @if ($errors->has('materials.' . $currIdx . '.item_name'))
+                                                <p class="text-[10px] text-red-600 font-bold mt-0.5">{{ $errors->first('materials.' . $currIdx . '.item_name') }}</p>
+                                            @endif
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][lot_number]"
@@ -422,7 +578,7 @@
                                             <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ $errors->has('materials.' . $currIdx . '.qty') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                                 {{ !$isPaintingProcess ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
@@ -492,7 +648,10 @@
                                             <input type="text" name="materials[{{ $currIdx }}][item_name]"
                                                 value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
                                                 placeholder="Part / WIP Item Name"
-                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold">
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ $errors->has('materials.' . $currIdx . '.item_name') ? 'border-red-500 ring-1 ring-red-500' : '' }}">
+                                            @if ($errors->has('materials.' . $currIdx . '.item_name'))
+                                                <p class="text-[10px] text-red-600 font-bold mt-0.5">{{ $errors->first('materials.' . $currIdx . '.item_name') }}</p>
+                                            @endif
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][lot_number]"
@@ -504,7 +663,7 @@
                                             <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
-                                                class="w-full text-xs rounded border-gray-300 py-1">
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ $errors->has('materials.' . $currIdx . '.qty') ? 'border-red-500 ring-1 ring-red-500' : '' }}">
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][uom]"
@@ -985,8 +1144,11 @@
                                             Masalah <span class="text-red-500">*</span>
                                         </label>
                                         <textarea name="troubles[{{ $index }}][masalah]" rows="2"
-                                            class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
-                                            placeholder="Jelaskan kendala / masalah yang terjadi...">{{ $trouble->masalah }}</textarea>
+                                            class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs {{ $errors->has('troubles.' . $index . '.masalah') ? 'border-red-500 ring-1 ring-red-500' : '' }}"
+                                            placeholder="Jelaskan kendala / masalah yang terjadi...">{{ old('troubles.' . $index . '.masalah', $trouble->masalah) }}</textarea>
+                                        @if ($errors->has('troubles.' . $index . '.masalah'))
+                                            <p class="text-[10px] text-red-600 font-bold mt-0.5">{{ $errors->first('troubles.' . $index . '.masalah') }}</p>
+                                        @endif
                                     </td>
                                     <td class="block md:table-cell p-0 mb-3 md:mb-0 md:px-3 md:py-3 align-top">
                                         <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
@@ -1007,7 +1169,7 @@
                                         </label>
                                         <textarea name="troubles[{{ $index }}][penanganan]" rows="2"
                                             class="w-full rounded-lg border-gray-300 text-xs md:text-sm py-1.5 md:py-2 focus:border-blue-500 focus:ring-blue-500 transition shadow-xs"
-                                            placeholder="Tindakan penanganan / perbaikan...">{{ $trouble->penanganan }}</textarea>
+                                            placeholder="Tindakan penanganan / perbaikan...">{{ old('troubles.' . $index . '.penanganan', $trouble->penanganan) }}</textarea>
                                     </td>
                                     <td class="block md:table-cell p-0 md:px-3 md:py-3 align-top">
                                         <label class="block md:hidden text-[11px] font-bold text-gray-600 uppercase mb-1">
@@ -1016,15 +1178,18 @@
                                         <div class="relative rounded-lg shadow-xs">
                                             <input type="number"
                                                 name="troubles[{{ $index }}][loss_time_minutes]"
-                                                value="{{ $trouble->loss_time_minutes ?: '' }}"
+                                                value="{{ old('troubles.' . $index . '.loss_time_minutes', $trouble->loss_time_minutes ?: '') }}"
                                                 min="0"
                                                 max="1440"
                                                 placeholder="0"
-                                                class="trouble-loss-minutes w-full text-xs md:text-sm rounded-lg border-gray-300 py-1.5 md:py-2 pr-12 text-right font-mono font-bold focus:border-blue-500 focus:ring-blue-500">
+                                                class="trouble-loss-minutes w-full text-xs md:text-sm rounded-lg border-gray-300 py-1.5 md:py-2 pr-12 text-right font-mono font-bold focus:border-blue-500 focus:ring-blue-500 {{ $errors->has('troubles.' . $index . '.loss_time_minutes') ? 'border-red-500 ring-1 ring-red-500' : '' }}">
                                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                                                 <span class="text-xs font-bold text-gray-400 uppercase">min</span>
                                             </div>
                                         </div>
+                                        @if ($errors->has('troubles.' . $index . '.loss_time_minutes'))
+                                            <p class="text-[10px] text-red-600 font-bold mt-0.5">{{ $errors->first('troubles.' . $index . '.loss_time_minutes') }}</p>
+                                        @endif
                                     </td>
                                     <td class="hidden md:table-cell px-2 py-3 align-top text-center">
                                         <button type="button" onclick="removeTroubleRow(this)"
@@ -1195,6 +1360,14 @@
     </svg> Saving...`;
         });
 
+        // Tab Names Map for User Feedback
+        const tabNamesMap = {
+            'setup': '1. Setup & Manpower',
+            'materials': '2. Materials',
+            'production': '3. Production Logs & NG',
+            'handover': '4. Handover & Signs'
+        };
+
         // Tab Navigation Logic
         window.switchTab = function(tabId) {
             // Hide all tab panes
@@ -1202,7 +1375,10 @@
                 el.classList.add('hidden');
             });
             // Show requested tab pane
-            document.getElementById('tab-content-' + tabId).classList.remove('hidden');
+            const targetPane = document.getElementById('tab-content-' + tabId);
+            if (targetPane) {
+                targetPane.classList.remove('hidden');
+            }
 
             // Update tab buttons style
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1217,14 +1393,55 @@
             });
 
             // Highlight active warnings on tab shift
-            validateTotals();
+            if (typeof validateTotals === 'function') {
+                validateTotals();
+            }
 
             // Scroll tabs into view smoothly
-            document.getElementById('form-tabs-navigation').scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest'
-            });
+            const tabNav = document.getElementById('form-tabs-navigation');
+            if (tabNav) {
+                tabNav.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest'
+                });
+            }
         };
+
+        // Switch to Tab and focus invalid field
+        window.switchTabAndFocus = function(tabId, fieldName) {
+            window.switchTab(tabId);
+            if (fieldName) {
+                setTimeout(() => {
+                    let el = document.querySelector(`[name="${fieldName}"]`);
+                    if (!el) {
+                        // Support Laravel dot notation to bracket notation: materials.0.item_name -> materials[0][item_name]
+                        const bracketName = fieldName.replace(/\.([^\.]+)/g, '[$1]');
+                        el = document.querySelector(`[name="${bracketName}"]`);
+                    }
+                    if (!el) {
+                        el = document.getElementById(fieldName);
+                    }
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        try { el.focus(); } catch (e) {}
+                        el.classList.add('ring-2', 'ring-red-500');
+                    }
+                }, 100);
+            }
+        };
+
+        // Auto-switch to first error tab on redirect
+        @if ($errors->any() && !empty($firstErrorTab))
+            document.addEventListener('DOMContentLoaded', function() {
+                window.switchTab('{{ $firstErrorTab }}');
+                const errBanner = document.getElementById('form-error-summary');
+                if (errBanner) {
+                    setTimeout(() => {
+                        errBanner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 150);
+                }
+            });
+        @endif
 
         // Direct tab button event listeners
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1243,19 +1460,24 @@
             // Highlight checking of required inputs
             const formInputs = form.querySelectorAll('input[required], select[required]');
             let valid = true;
+            let firstInvalid = null;
 
             formInputs.forEach(input => {
                 if (!input.value) {
                     valid = false;
                     input.classList.add('border-red-500');
+                    if (!firstInvalid) firstInvalid = input;
                 } else {
                     input.classList.remove('border-red-500');
                 }
             });
 
-            if (!valid) {
-                switchTab('setup');
-                alert('Please fill out all required shift details on Setup tab to save a draft.');
+            if (!valid && firstInvalid) {
+                const pane = firstInvalid.closest('.tab-pane');
+                const tabId = pane ? pane.id.replace('tab-content-', '') : 'setup';
+                switchTab(tabId);
+                firstInvalid.focus();
+                alert(`Harap lengkapi kolom yang wajib diisi pada ${tabNamesMap[tabId] || tabId} untuk menyimpan draft.`);
                 return;
             }
 
@@ -1272,19 +1494,24 @@
             // Highlight checking of inputs before submit
             const formInputs = form.querySelectorAll('input[required], select[required]');
             let valid = true;
+            let firstInvalid = null;
 
             formInputs.forEach(input => {
                 if (!input.value) {
                     valid = false;
                     input.classList.add('border-red-500');
+                    if (!firstInvalid) firstInvalid = input;
                 } else {
                     input.classList.remove('border-red-500');
                 }
             });
 
-            if (!valid) {
-                switchTab('setup');
-                alert('Please fill out all required details on the Setup tab to submit the report.');
+            if (!valid && firstInvalid) {
+                const pane = firstInvalid.closest('.tab-pane');
+                const tabId = pane ? pane.id.replace('tab-content-', '') : 'setup';
+                switchTab(tabId);
+                firstInvalid.focus();
+                alert(`Harap lengkapi kolom yang wajib diisi pada ${tabNamesMap[tabId] || tabId} untuk mengirim laporan.`);
                 return;
             }
 

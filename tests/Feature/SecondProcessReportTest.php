@@ -761,6 +761,127 @@ class SecondProcessReportTest extends TestCase
         $this->assertCount(1, $report->materials->where('type', 'part'));
         $this->assertCount(0, $report->materials->where('type', 'paint'));
     }
+
+    public function test_store_cleans_empty_material_rows_and_does_not_fail_validation()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-EMPTY-MAT-ROW',
+            'materials' => [
+                // Valid material row
+                [
+                    'type' => 'paint',
+                    'item_name' => 'Paint Primer',
+                    'lot_number' => 'LOT-01',
+                    'qty' => 5,
+                ],
+                // Blank dynamic row (e.g. operator added row then left empty)
+                [
+                    'type' => 'paint',
+                    'item_name' => '',
+                    'lot_number' => '',
+                    'visco' => '',
+                    'mixing_ratio' => '',
+                    'qty' => '',
+                    'uom' => '',
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-EMPTY-MAT-ROW')->first();
+        $this->assertNotNull($report);
+        $this->assertCount(1, $report->materials);
+    }
+
+    public function test_store_cleans_empty_trouble_rows_and_does_not_fail_validation()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-EMPTY-TR-ROW',
+            'troubles' => [
+                // Blank trouble row
+                [
+                    'masalah' => '',
+                    'penanganan' => '',
+                    'loss_time_minutes' => '',
+                    'loss_time' => '',
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-EMPTY-TR-ROW')->first();
+        $this->assertNotNull($report);
+        $this->assertCount(0, $report->troubles);
+    }
+
+    public function test_store_validates_materials_with_missing_name_when_other_fields_are_filled()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-INVALID-MAT',
+            'materials' => [
+                // Qty entered but item_name is missing
+                [
+                    'type' => 'paint',
+                    'item_name' => '',
+                    'lot_number' => 'LOT-ERR',
+                    'qty' => 10,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['materials.0.item_name']);
+    }
+
+    public function test_create_form_view_renders_error_banner_and_tab_badges_when_validation_fails()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        // Attempting store with missing part_number
+        $response = $this->post(route('second-process-reports.store'), [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            // part_number is omitted
+        ]);
+
+        $response->assertSessionHasErrors(['part_number']);
+
+        // Now follow redirect to create page with session errors
+        $viewResponse = $this->get(route('second-process-reports.create'));
+        $viewResponse->assertOk();
+        $viewResponse->assertSee('form-error-summary');
+        $viewResponse->assertSee('Part Number wajib diisi.');
+    }
 }
 
 

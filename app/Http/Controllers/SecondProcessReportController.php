@@ -148,6 +148,73 @@ class SecondProcessReportController extends Controller
 
     private function saveReport(Request $request, SecondProcessReport $report)
     {
+        // Pre-sanitize materials: discard completely empty dynamic rows
+        if ($request->has('materials') && is_array($request->materials)) {
+            $cleanedMaterials = array_values(array_filter($request->materials, function ($mat) {
+                if (!is_array($mat)) {
+                    return false;
+                }
+                $hasName = !empty(trim((string) ($mat['item_name'] ?? '')));
+                $hasLot = !empty(trim((string) ($mat['lot_number'] ?? '')));
+                $hasVisco = !empty(trim((string) ($mat['visco'] ?? '')));
+                $hasRatio = !empty(trim((string) ($mat['mixing_ratio'] ?? '')));
+                $hasQty = isset($mat['qty']) && $mat['qty'] !== '' && (float) $mat['qty'] > 0;
+                $hasUom = !empty(trim((string) ($mat['uom'] ?? '')));
+                $hasSubType = !empty(trim((string) ($mat['sub_type'] ?? '')));
+
+                return $hasName || $hasLot || $hasVisco || $hasRatio || $hasQty || $hasUom || $hasSubType;
+            }));
+            $request->merge(['materials' => $cleanedMaterials]);
+        }
+
+        // Pre-sanitize troubles: discard completely empty dynamic rows
+        if ($request->has('troubles') && is_array($request->troubles)) {
+            $cleanedTroubles = array_values(array_filter($request->troubles, function ($tr) {
+                if (!is_array($tr)) {
+                    return false;
+                }
+                $hasMasalah = !empty(trim((string) ($tr['masalah'] ?? '')));
+                $hasPenanganan = !empty(trim((string) ($tr['penanganan'] ?? '')));
+                $hasLossTime = (!empty($tr['loss_time_minutes']) && (int) $tr['loss_time_minutes'] > 0)
+                    || !empty(trim((string) ($tr['loss_time'] ?? '')));
+                $hasCategory = !empty(trim((string) ($tr['category'] ?? ''))) || !empty(trim((string) ($tr['penyebab'] ?? '')));
+
+                return $hasMasalah || $hasPenanganan || $hasLossTime || $hasCategory;
+            }));
+            $request->merge(['troubles' => $cleanedTroubles]);
+        }
+
+        $customAttributes = [
+            'date' => 'Tanggal (Date)',
+            'unit_line' => 'Unit / Line',
+            'shift' => 'Shift',
+            'process_prod' => 'Proses Produksi (Process Prod)',
+            'part_number' => 'Part Number',
+            'part_name' => 'Part Name',
+            'model' => 'Model',
+            'customer' => 'Customer',
+            'output_destination' => 'Tujuan Output',
+            'materials.*.item_name' => 'Nama Item Material',
+            'materials.*.qty' => 'Quantity Material',
+            'materials.*.lot_number' => 'Lot Number Material',
+            'materials.*.visco' => 'Viscosity Material',
+            'materials.*.mixing_ratio' => 'Mixing Ratio Material',
+            'troubles.*.loss_time_minutes' => 'Loss Time (menit)',
+            'troubles.*.penanganan' => 'Penanganan Trouble',
+            'troubles.*.masalah' => 'Deskripsi Masalah Trouble',
+            'hourly.*.ok_qty' => 'Qty OK',
+            'hourly.*.ng_qty' => 'Qty NG',
+        ];
+
+        $customMessages = [
+            'materials.*.item_name.required' => 'Nama item material harus diisi jika baris material digunakan.',
+            'part_number.required' => 'Part Number wajib diisi.',
+            'unit_line.required' => 'Unit / Line wajib dipilih.',
+            'process_prod.required' => 'Proses Produksi wajib dipilih.',
+            'shift.required' => 'Shift wajib dipilih.',
+            'date.required' => 'Tanggal wajib diisi.',
+        ];
+
         $validated = $request->validate([
             // Header
             'date' => 'required|date',
@@ -224,7 +291,7 @@ class SecondProcessReportController extends Controller
             'troubles.*.category' => 'nullable|string',
             'troubles.*.masalah' => 'nullable|string',
             'troubles.*.loss_time_minutes' => 'nullable|integer|min:0|max:1440',
-        ]);
+        ], $customMessages, $customAttributes);
 
         // Sanitize next_production_schedule: discard empty strings, nulls, and whitespace
         $cleanSchedule = is_array($validated['next_production_schedule'] ?? null)
