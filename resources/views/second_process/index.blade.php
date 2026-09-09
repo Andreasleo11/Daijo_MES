@@ -5,6 +5,10 @@
             <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-bold">Second Process Daily Production Reports</h2>
                 <div class="flex items-center space-x-2">
+                    <a href="{{ route('second-process.report-analytics') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition text-sm flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Analytics Dashboard
+                    </a>
                     <a href="{{ route('second-process-reports.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition text-sm">
                         + New Report
                     </a>

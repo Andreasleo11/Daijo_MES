@@ -226,4 +226,14 @@ return [
         'Lingkungan' => 'Lingkungan',
         'Other'      => 'Other',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Second Process Default Target NG Rate (%)
+    |--------------------------------------------------------------------------
+    |
+    | Baseline NG percentage threshold line for analytics charts and KPI alerts.
+    |
+    */
+    'sp_target_ng_rate' => 2.0,
 ];
