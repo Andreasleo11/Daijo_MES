@@ -7,14 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Delivery\sapInventoryFg;
 use App\Models\Delivery\DelschedFinal;
+use App\Traits\BelongsToBranch;
 
 class DailyItemCode extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use BelongsToBranch;
 
     protected $fillable = [
         'user_id',
+        'branch_id',
         'item_code',
         'quantity',
         'final_quantity',

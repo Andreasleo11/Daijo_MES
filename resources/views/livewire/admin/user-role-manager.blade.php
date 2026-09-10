@@ -61,6 +61,8 @@
                         <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-100">
                             <th class="px-6 py-4">User Profile</th>
                             <th class="px-6 py-4">Role</th>
+                            <th class="px-6 py-4">Branch / Plant</th>
+                            <th class="px-6 py-4">Department</th>
                             <th class="px-6 py-4 text-center">Status</th>
                             <th class="px-6 py-4 text-right">Actions</th>
                         </tr>
@@ -110,6 +112,34 @@
                                             </select>
                                         </div>
                                     @endif
+                                </td>
+                                <td class="px-6 py-4 align-middle">
+                                    <div class="relative inline-block w-full max-w-[140px]">
+                                        <select wire:change="changeBranch({{ $user->id }}, $event.target.value)"
+                                            class="w-full text-xs bg-white border border-slate-200 rounded-md pl-3 pr-8 py-1.5 appearance-none focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 shadow-sm cursor-pointer transition">
+                                            <option value="">-- No Branch --</option>
+                                            @foreach ($branches as $branch)
+                                                <option value="{{ $branch->id }}"
+                                                    {{ $user->branch_id === $branch->id ? 'selected' : '' }}>
+                                                    {{ $branch->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 align-middle">
+                                    <div class="relative inline-block w-full max-w-[140px]">
+                                        <select wire:change="changeDepartment({{ $user->id }}, $event.target.value)"
+                                            class="w-full text-xs bg-white border border-slate-200 rounded-md pl-3 pr-8 py-1.5 appearance-none focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 shadow-sm cursor-pointer transition">
+                                            <option value="">-- No Dept --</option>
+                                            @foreach ($departments as $dept)
+                                                <option value="{{ $dept->id }}"
+                                                    {{ $user->department_id === $dept->id ? 'selected' : '' }}>
+                                                    {{ $dept->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 text-center align-middle">
                                     @if ($user->id === auth()->id())
@@ -165,7 +195,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-6 py-12 text-center">
+                                <td colspan="6" class="px-6 py-12 text-center">
                                     <div class="flex flex-col items-center justify-center text-slate-400">
                                         <svg class="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -186,7 +216,7 @@
         </div>
 
     <!-- Create User Modal -->
-    <x-modal name="create-user-modal" :show="$errors->hasAny(['username', 'name', 'email', 'password', 'role_id', 'zone_id'])" focusable>
+    <x-modal name="create-user-modal" :show="$errors->hasAny(['username', 'name', 'email', 'password', 'role_id', 'branch_id', 'department_id', 'zone_id'])" focusable>
         <div class="p-6">
             <div class="flex justify-between items-center mb-6">
                 <div>
@@ -257,6 +287,50 @@
                     @error('role_id')
                         <span class="text-xs text-rose-600 mt-1.5 block font-medium">{{ $message }}</span>
                     @enderror
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Branch / Plant <span class="text-slate-400 font-normal text-xs">(Optional)</span></label>
+                        <div class="relative">
+                            <select wire:model="branch_id"
+                                class="w-full border border-slate-200 rounded-lg pl-3.5 pr-10 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition shadow-sm cursor-pointer">
+                                <option value="">Select Branch</option>
+                                @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                        @error('branch_id')
+                            <span class="text-xs text-rose-600 mt-1.5 block font-medium">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Department <span class="text-slate-400 font-normal text-xs">(Optional)</span></label>
+                        <div class="relative">
+                            <select wire:model="department_id"
+                                class="w-full border border-slate-200 rounded-lg pl-3.5 pr-10 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition shadow-sm cursor-pointer">
+                                <option value="">Select Department</option>
+                                @foreach ($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                        @error('department_id')
+                            <span class="text-xs text-rose-600 mt-1.5 block font-medium">{{ $message }}</span>
+                        @enderror
+                    </div>
                 </div>
 
                 <div>

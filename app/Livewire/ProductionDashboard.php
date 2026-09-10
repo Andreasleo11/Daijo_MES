@@ -50,6 +50,12 @@ class ProductionDashboard extends Component
 
     public function mount()
     {
+        $plantService = app(\App\Services\PlantContextService::class);
+        $effectiveBranch = $plantService->getEffectiveBranch();
+        if ($effectiveBranch) {
+            $this->plant = strtolower($effectiveBranch->code) === 'krw' ? 'karawang' : 'kbn';
+        }
+
         $this->year = now()->year;
         $this->month = now()->month;
         $this->selectedDate = now()->format('Y-m-d');
@@ -92,10 +98,10 @@ class ProductionDashboard extends Component
             ->orWhere('name', 'LIKE', '7%')
             ->orWhere('name', 'LIKE', '8%')
             ->orWhere('name', 'LIKE', '9%');
-        })->get(['id', 'name']);
+        })->with('branch')->get(['id', 'name', 'branch_id']);
         
         $this->allMachines = $machineUsers->map(function($user) {
-            $isKarawang = str_starts_with(strtoupper($user->name), 'K');
+            $isKarawang = ($user->branch && $user->branch->code === 'KRW') || str_starts_with(strtoupper($user->name), 'K');
             return [
                 'id' => $user->id,
                 'name' => $user->name,

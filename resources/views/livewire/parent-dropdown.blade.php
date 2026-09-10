@@ -53,8 +53,8 @@ new class extends Component {
     <div x-show="dropdownOpen" x-transition class="mt-2 space-y-2">
         @foreach ($childRoutes as $childRoute)
             <livewire:sidebar-link
-                href="{{ route($childRoute['name'], $childRoute['params'] ?? []) }}"
-                label="{{ $childRoute['label'] }}"
+                :href="route($childRoute['name'], $childRoute['params'] ?? [])"
+                :label="$childRoute['label']"
                 :active="request()->routeIs($childRoute['name'])"
                 wire:navigate
                 class="ml-6"

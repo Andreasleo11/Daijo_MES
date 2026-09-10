@@ -24,6 +24,8 @@ class User extends Authenticatable
         'email',
         'password',
         'zone_id',
+        'branch_id',
+        'department_id',
         'api_token',
         'role_id',
         'is_active',
@@ -52,6 +54,16 @@ class User extends Authenticatable
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function dailyItemCode()

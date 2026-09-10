@@ -5,14 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\BelongsToBranch;
 
 class MwhWarehouse extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BelongsToBranch;
 
     protected $table = 'mwh_warehouses';
 
-    protected $fillable = ['whse_code', 'whse_name'];
+    protected $fillable = ['branch_id', 'whse_code', 'whse_name'];
 
     public function racks()
     {

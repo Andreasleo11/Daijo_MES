@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Branch;
+use App\Models\Department;
 use App\Models\MasterZone;
 use App\Models\Role;
 use App\Models\User;
@@ -29,6 +31,10 @@ class UserRoleManager extends Component
 
     public $role_id = '';
 
+    public $branch_id = null;
+
+    public $department_id = null;
+
     public $zone_id = null;
 
     public $selectedUserId = null;
@@ -50,6 +56,8 @@ class UserRoleManager extends Component
         'email' => 'required|email|max:255|unique:users,email',
         'password' => 'required|string|min:6',
         'role_id' => 'required|exists:roles,id',
+        'branch_id' => 'nullable|exists:branches,id',
+        'department_id' => 'nullable|exists:departments,id',
         'zone_id' => 'nullable|exists:master_zones,id',
     ];
 
@@ -80,12 +88,14 @@ class UserRoleManager extends Component
             'email' => trim($this->email),
             'password' => Hash::make($this->password),
             'role_id' => $this->role_id,
+            'branch_id' => $this->branch_id ?: null,
+            'department_id' => $this->department_id ?: null,
             'zone_id' => $this->zone_id ?: null,
             'is_active' => true,
         ]);
 
         session()->flash('message', 'User created successfully.');
-        $this->reset(['username', 'name', 'email', 'password', 'role_id', 'zone_id']);
+        $this->reset(['username', 'name', 'email', 'password', 'role_id', 'branch_id', 'department_id', 'zone_id']);
     }
 
     public function toggleActivation($userId)
@@ -120,6 +130,24 @@ class UserRoleManager extends Component
         $user->save();
 
         session()->flash('message', 'User role updated successfully.');
+    }
+
+    public function changeBranch($userId, $branchId)
+    {
+        $user = User::withTrashed()->findOrFail($userId);
+        $user->branch_id = !empty($branchId) ? $branchId : null;
+        $user->save();
+
+        session()->flash('message', 'User branch updated successfully.');
+    }
+
+    public function changeDepartment($userId, $departmentId)
+    {
+        $user = User::withTrashed()->findOrFail($userId);
+        $user->department_id = !empty($departmentId) ? $departmentId : null;
+        $user->save();
+
+        session()->flash('message', 'User department updated successfully.');
     }
 
     public function deprecateUser($userId)
@@ -180,9 +208,14 @@ class UserRoleManager extends Component
 
     public function render()
     {
-        $query = User::with(['role', 'zone' => function ($q) {
-            $q->select('*', 'zone_name as name');
-        }]);
+        $query = User::with([
+            'role',
+            'branch',
+            'department',
+            'zone' => function ($q) {
+                $q->select('*', 'zone_name as name');
+            },
+        ]);
 
         if ($this->showDeprecated) {
             $query->onlyTrashed();
@@ -200,9 +233,11 @@ class UserRoleManager extends Component
 
         $users = $query->paginate(10);
         $roles = Role::orderBy('name')->get();
+        $branches = Branch::active()->orderBy('name')->get();
+        $departments = Department::active()->orderBy('name')->get();
 
         $zones = MasterZone::select('*', 'zone_name as name')->orderBy('zone_name')->get();
 
-        return view('livewire.admin.user-role-manager', compact('users', 'roles', 'zones'));
+        return view('livewire.admin.user-role-manager', compact('users', 'roles', 'zones', 'branches', 'departments'));
     }
 }

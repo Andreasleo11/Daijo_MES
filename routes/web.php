@@ -398,12 +398,19 @@ Route::middleware('auth')->group(function (){
         return view('admin.user_role_manager.index', compact('currentTab'));
     })->name('admin.user-role-manager');
 
-    Route::get('/admin/roles', function () {
-        if (\Illuminate\Support\Facades\Gate::denies('manage-users-roles')) {
+    Route::get('/admin/branches-departments', function () {
+        if (\Illuminate\Support\Facades\Gate::denies('manage-branches-departments')) {
             abort(403);
         }
-        return view('admin.user_role_manager.index', ['currentTab' => 'roles']);
-    })->name('admin.roles');
+        return view('admin.branches_departments.index');
+    })->name('admin.branches-departments');
+
+    Route::get('/admin/plant-departments', function () {
+        if (\Illuminate\Support\Facades\Gate::denies('manage-branches-departments')) {
+            abort(403);
+        }
+        return view('admin.branches_departments.index', ['initialTab' => 'plant-departments']);
+    })->name('admin.plant-departments');
 
     // untuk update spk secara manual 
     Route::get('/manual-sync', ManualSync::class)->name('manual-sync');
@@ -818,60 +825,63 @@ Route::middleware('auth')->group(function (){
     Route::get('/mould-index', MaintenanceMouldIndex::class)
         ->name('maintenance.mould.index');
 
-    // Second Process Reports & Work Orders
-    Route::post('/sp-work-orders/{id}/release', [\App\Http\Controllers\SpWorkOrderController::class, 'release'])->name('sp-work-orders.release');
-    Route::post('/sp-work-orders/{id}/revert-to-draft', [\App\Http\Controllers\SpWorkOrderController::class, 'revertToDraft'])->name('sp-work-orders.revert-to-draft');
-    Route::resource('sp-work-orders', \App\Http\Controllers\SpWorkOrderController::class);
+    // Second Process Routes Group (Plant-Aware & Permission Gated)
+    Route::middleware('sp.plant-access')->group(function () {
+        // Second Process Reports & Work Orders
+        Route::post('/sp-work-orders/{id}/release', [\App\Http\Controllers\SpWorkOrderController::class, 'release'])->name('sp-work-orders.release');
+        Route::post('/sp-work-orders/{id}/revert-to-draft', [\App\Http\Controllers\SpWorkOrderController::class, 'revertToDraft'])->name('sp-work-orders.revert-to-draft');
+        Route::resource('sp-work-orders', \App\Http\Controllers\SpWorkOrderController::class);
 
-    // Second Process Approvals
-    Route::prefix('sp-approvals')->name('sp-approvals.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\SpProductionApprovalController::class, 'index'])->name('index');
-        Route::get('/{session}', [\App\Http\Controllers\SpProductionApprovalController::class, 'show'])->name('show');
-        Route::post('/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('approve');
-        Route::post('/{session}/reject', [\App\Http\Controllers\SpProductionApprovalController::class, 'reject'])->name('reject');
+        // Second Process Approvals
+        Route::prefix('sp-approvals')->name('sp-approvals.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\SpProductionApprovalController::class, 'index'])->name('index');
+            Route::get('/{session}', [\App\Http\Controllers\SpProductionApprovalController::class, 'show'])->name('show');
+            Route::post('/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('approve');
+            Route::post('/{session}/reject', [\App\Http\Controllers\SpProductionApprovalController::class, 'reject'])->name('reject');
+        });
+
+        Route::post('sp-sessions/{workOrder}/start', [\App\Http\Controllers\SpProductionSessionController::class, 'start'])->name('sp-sessions.start');
+        Route::get('sp-session/line/{lineSlug}', [\App\Http\Controllers\SpProductionSessionController::class, 'lineGateway'])->name('sp-sessions.line-gateway');
+        Route::prefix('app')->name('app.')->group(function () {
+            Route::get('sp-sessions/{session}', [\App\Http\Controllers\SpProductionSessionController::class, 'show'])->name('sp-sessions.show');
+            Route::post('sp-sessions/{session}/finish', [\App\Http\Controllers\SpProductionSessionController::class, 'finish'])->name('sp-sessions.finish');
+            Route::get('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'closeout'])->name('sp-sessions.closeout');
+            Route::post('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'submitCloseout'])->name('sp-sessions.submit-closeout');
+            Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('sp-sessions.approve');
+            Route::post('sp-sessions/{session}/production', [\App\Http\Controllers\SpProductionSessionController::class, 'addProduction'])->name('sp-sessions.add-production');
+            Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');
+            Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
+            Route::post('sp-sessions/{session}/downtime', [\App\Http\Controllers\SpProductionSessionController::class, 'addDowntime'])->name('sp-sessions.add-downtime');
+            Route::post('sp-sessions/{session}/pause', [\App\Http\Controllers\SpProductionSessionController::class, 'pause'])->name('sp-sessions.pause');
+            Route::post('sp-sessions/{session}/resume', [\App\Http\Controllers\SpProductionSessionController::class, 'resume'])->name('sp-sessions.resume');
+            Route::post('sp-sessions/{session}/input', [\App\Http\Controllers\SpProductionSessionController::class, 'addInput'])->name('sp-sessions.add-input');
+            Route::post('sp-sessions/{session}/manpower', [\App\Http\Controllers\SpProductionSessionController::class, 'addManpower'])->name('sp-sessions.add-manpower');
+            Route::delete('sp-sessions/{session}/manpower/{manpower}', [\App\Http\Controllers\SpProductionSessionController::class, 'removeManpower'])->name('sp-sessions.remove-manpower');
+            Route::delete('sp-sessions/{session}/production/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteProductionEntry'])->name('sp-sessions.delete-production');
+            Route::delete('sp-sessions/{session}/reject/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteRejectEntry'])->name('sp-sessions.delete-reject');
+            Route::delete('sp-sessions/{session}/downtime/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteDowntimeEntry'])->name('sp-sessions.delete-downtime');
+            Route::delete('sp-sessions/{session}/rework/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteReworkEntry'])->name('sp-sessions.delete-rework');
+            Route::delete('sp-sessions/{session}/input/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteInputEntry'])->name('sp-sessions.delete-input');
+        });
+
+        Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
+        Route::get('sp-line-dashboard/{line}', [SecondProcessDashboardController::class, 'lineDashboard'])->name('second-process.line-dashboard');
+        Route::get('second-process-report-analytics', [\App\Http\Controllers\SecondProcessReportAnalyticsController::class, 'index'])->name('second-process.report-analytics');
+        Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
+        Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
+        Route::post('second-process-reports/{id}/sign/{role}', [SecondProcessReportController::class, 'sign'])->name('second-process-reports.sign');
+        Route::post('second-process-reports/{id}/reject', [SecondProcessReportController::class, 'reject'])->name('second-process-reports.reject');
+        Route::resource('second-process-reports', SecondProcessReportController::class);
+
+        // IPQC Inspections (standalone)
+        Route::get('ipqc-inspections/search-items', [\App\Http\Controllers\IpqcInspectionController::class, 'searchItems'])->name('ipqc-inspections.search-items');
+        Route::resource('ipqc-inspections', \App\Http\Controllers\IpqcInspectionController::class);
+
+        // First Piece Inspection routes
+        Route::get('first-piece-inspections/check-approval', [FirstPieceInspectionController::class, 'checkApproval'])->name('first-piece-inspections.check-approval');
+        Route::post('first-piece-inspections/{id}/sign/{role}', [FirstPieceInspectionController::class, 'sign'])->name('first-piece-inspections.sign');
+        Route::resource('first-piece-inspections', FirstPieceInspectionController::class);
     });
-
-    Route::post('sp-sessions/{workOrder}/start', [\App\Http\Controllers\SpProductionSessionController::class, 'start'])->name('sp-sessions.start');
-    Route::get('sp-session/line/{lineSlug}', [\App\Http\Controllers\SpProductionSessionController::class, 'lineGateway'])->name('sp-sessions.line-gateway');
-    Route::prefix('app')->name('app.')->group(function () {
-        Route::get('sp-sessions/{session}', [\App\Http\Controllers\SpProductionSessionController::class, 'show'])->name('sp-sessions.show');
-        Route::post('sp-sessions/{session}/finish', [\App\Http\Controllers\SpProductionSessionController::class, 'finish'])->name('sp-sessions.finish');
-        Route::get('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'closeout'])->name('sp-sessions.closeout');
-        Route::post('sp-sessions/{session}/closeout', [\App\Http\Controllers\SpProductionSessionController::class, 'submitCloseout'])->name('sp-sessions.submit-closeout');
-        Route::post('sp-sessions/{session}/approve', [\App\Http\Controllers\SpProductionApprovalController::class, 'approve'])->name('sp-sessions.approve');
-        Route::post('sp-sessions/{session}/production', [\App\Http\Controllers\SpProductionSessionController::class, 'addProduction'])->name('sp-sessions.add-production');
-        Route::post('sp-sessions/{session}/reject', [\App\Http\Controllers\SpProductionSessionController::class, 'addReject'])->name('sp-sessions.add-reject');
-        Route::post('sp-sessions/{session}/rework', [\App\Http\Controllers\SpProductionSessionController::class, 'addRework'])->name('sp-sessions.add-rework');
-        Route::post('sp-sessions/{session}/downtime', [\App\Http\Controllers\SpProductionSessionController::class, 'addDowntime'])->name('sp-sessions.add-downtime');
-        Route::post('sp-sessions/{session}/pause', [\App\Http\Controllers\SpProductionSessionController::class, 'pause'])->name('sp-sessions.pause');
-        Route::post('sp-sessions/{session}/resume', [\App\Http\Controllers\SpProductionSessionController::class, 'resume'])->name('sp-sessions.resume');
-        Route::post('sp-sessions/{session}/input', [\App\Http\Controllers\SpProductionSessionController::class, 'addInput'])->name('sp-sessions.add-input');
-        Route::post('sp-sessions/{session}/manpower', [\App\Http\Controllers\SpProductionSessionController::class, 'addManpower'])->name('sp-sessions.add-manpower');
-        Route::delete('sp-sessions/{session}/manpower/{manpower}', [\App\Http\Controllers\SpProductionSessionController::class, 'removeManpower'])->name('sp-sessions.remove-manpower');
-        Route::delete('sp-sessions/{session}/production/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteProductionEntry'])->name('sp-sessions.delete-production');
-        Route::delete('sp-sessions/{session}/reject/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteRejectEntry'])->name('sp-sessions.delete-reject');
-        Route::delete('sp-sessions/{session}/downtime/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteDowntimeEntry'])->name('sp-sessions.delete-downtime');
-        Route::delete('sp-sessions/{session}/rework/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteReworkEntry'])->name('sp-sessions.delete-rework');
-        Route::delete('sp-sessions/{session}/input/{entry}', [\App\Http\Controllers\SpProductionSessionController::class, 'deleteInputEntry'])->name('sp-sessions.delete-input');
-    });
-
-    Route::get('second-process-dashboard', [SecondProcessDashboardController::class, 'index'])->name('second-process.dashboard');
-    Route::get('sp-line-dashboard/{line}', [SecondProcessDashboardController::class, 'lineDashboard'])->name('second-process.line-dashboard');
-    Route::get('second-process-report-analytics', [\App\Http\Controllers\SecondProcessReportAnalyticsController::class, 'index'])->name('second-process.report-analytics');
-    Route::get('second-process-reports/search-items', [SecondProcessReportController::class, 'searchItems'])->name('second-process-reports.search-items');
-    Route::get('second-process-reports/search-customers', [SecondProcessReportController::class, 'searchCustomers'])->name('second-process-reports.search-customers');
-    Route::post('second-process-reports/{id}/sign/{role}', [SecondProcessReportController::class, 'sign'])->name('second-process-reports.sign');
-    Route::post('second-process-reports/{id}/reject', [SecondProcessReportController::class, 'reject'])->name('second-process-reports.reject');
-    Route::resource('second-process-reports', SecondProcessReportController::class);
-
-    // IPQC Inspections (standalone)
-    Route::get('ipqc-inspections/search-items', [\App\Http\Controllers\IpqcInspectionController::class, 'searchItems'])->name('ipqc-inspections.search-items');
-    Route::resource('ipqc-inspections', \App\Http\Controllers\IpqcInspectionController::class);
-
-    // First Piece Inspection routes
-    Route::get('first-piece-inspections/check-approval', [FirstPieceInspectionController::class, 'checkApproval'])->name('first-piece-inspections.check-approval');
-    Route::post('first-piece-inspections/{id}/sign/{role}', [FirstPieceInspectionController::class, 'sign'])->name('first-piece-inspections.sign');
-    Route::resource('first-piece-inspections', FirstPieceInspectionController::class);
     
     Route::get('/master-list-manager', [MasterListItemController::class, 'manage'])->name('admin.master-list-manager');
     Route::get('/master-list-logs', [MasterListItemController::class, 'logs'])->name('admin.master-list-logs');

@@ -4,14 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToBranch;
 
 class MachineJob extends Model
 {
     use HasFactory;
+    use BelongsToBranch;
 
     public $timestamps = false;
 
     protected $fillable = [
+        'branch_id',
         'item_code',
         'shift',
         'employee_name',

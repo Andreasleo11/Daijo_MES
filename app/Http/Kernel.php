@@ -69,5 +69,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'ip.and.apikey' => \App\Http\Middleware\IpAndApiKeyWhitelist::class,
         'store.access' => \App\Http\Middleware\EnsureStoreAccess::class,
+        'sp.plant-access' => \App\Http\Middleware\EnsureSecondProcessPlantAccess::class,
     ];
 }

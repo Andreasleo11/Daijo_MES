@@ -49,6 +49,14 @@ new class extends Component {
             </button>
         </div>
 
+        {{-- Plant Context / Switcher --}}
+        <div class="mt-3 pt-3 pb-1 border-t border-gray-100">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 px-0.5">
+                Plant / Branch
+            </div>
+            <livewire:common.plant-switcher />
+        </div>
+
         <!-- Navigation Links -->
         <div class="space-y-2 mt-4">
             @if (auth()->user()?->can('view-admin-links'))
@@ -58,7 +66,14 @@ new class extends Component {
 
                 @if (auth()->user()?->can('manage-users-roles'))
                     <livewire:sidebar-link href="{{ route('admin.user-role-manager') }}" label="User & Role Management"
-                        :active="request()->routeIs('admin.user-role-manager') || request()->routeIs('admin.roles')" wire:navigate />
+                        :active="request()->routeIs('admin.user-role-manager')" wire:navigate />
+                @endif
+
+                @if (auth()->user()?->can('manage-branches-departments'))
+                    <livewire:sidebar-link href="{{ route('admin.branches-departments') }}" label="Branches & Departments"
+                        :active="request()->routeIs('admin.branches-departments') && !request()->routeIs('admin.plant-departments')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('admin.plant-departments') }}" label="Plant Departments"
+                        :active="request()->routeIs('admin.plant-departments')" wire:navigate />
                 @endif
 
                 <!-- 1. Dropdown: Dashboard All -->
@@ -73,7 +88,6 @@ new class extends Component {
                 <!-- 2. Dropdown: Master Data & Setting -->
                 <livewire:parent-dropdown label="Master Data & Setting" :initiallyOpen="false" :childRoutes="[
                     ['name' => 'setting.holiday-schedule.index', 'label' => 'Holiday Schedule'],
-                    ['name' => 'admin.roles', 'label' => 'Roles Management'],
                     ['name' => 'admin.master-list-manager', 'label' => 'Master List Manager'],
                     ['name' => 'admin.customer-delivery-manager', 'label' => 'Master Customer Delivery'],
                     ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
@@ -111,24 +125,30 @@ new class extends Component {
                     ['name' => 'mould.dashboard', 'label' => 'Dashboard Mould'],
                 ]" />
 
-                <!-- Dropdown: Second Process -->
-                <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
-                    ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
-                    ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
-                ]" />
+                @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess())
+                    @if (auth()->user()?->can('view-second-process-ops'))
+                        <!-- Dropdown: Second Process -->
+                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                            ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                            ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
+                        ]" />
 
-                <!-- Dropdown 2: Second Process — Shop Floor Ops -->
-                <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
-                    ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
-                ]" />
+                        <!-- Dropdown 2: Second Process — Shop Floor Ops -->
+                        <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
+                            ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
+                        ]" />
+                    @endif
 
-                <!-- Dropdown 3: Second Process — Reports & Analytics -->
-                <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
-                    ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
-                    ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
-                ]" />
+                    @if (auth()->user()?->can('view-second-process-reports'))
+                        <!-- Dropdown 3: Second Process — Reports & Analytics -->
+                        <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                            ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                        ]" />
+                    @endif
+                @endif
 
                 @if (in_array(strtoupper(auth()->user()?->role?->name ?? ''), ['ADMIN', 'SUPER-ADMIN', 'STORE', 'WAREHOUSE']))
                     <!-- 4. Dropdown: WMS & Warehouse -->
@@ -284,14 +304,13 @@ new class extends Component {
                     <livewire:sidebar-link href="{{ route('receipt-production-logs') }}" label="Cek Data SPK ke SAP"
                         :active="request()->routeIs('receipt-production-logs')" wire:navigate />
 
-                    <!-- sub Second Process -->
-                    <livewire:parent-dropdown label="Second Process" :childRoutes="[
-                        ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
-                        ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
-                        ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
-                        ['name' => 'second-process-reports.index', 'label' => 'Daily Production Report'],
-                        ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
-                    ]" />
+                    @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess() && auth()->user()?->can('view-second-process-reports'))
+                        <!-- Second Process — Reports & Analytics for PPIC -->
+                        <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                            ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                        ]" />
+                    @endif
                 @endif
 
                 <!-- Store Links -->
@@ -381,17 +400,30 @@ new class extends Component {
                         :active="request()->routeIs('maintenance.index')" wire:navigate />
                 @endif
 
-                <!-- Second Process Links -->
-                @if (auth()->user()?->can('view-second-process-links') && !auth()->user()?->can('view-quality-links'))
-                    <livewire:sidebar-link href="{{ route('second-process-reports.index') }}"
-                        label="Daily Production Report" :active="request()->routeIs('second-process-reports.*')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('sp-approvals.index') }}"
-                        label="Production Approvals" :active="request()->routeIs('sp-approvals.*')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('second-process.report-analytics') }}"
-                        label="Daily Report Analytics" :active="request()->routeIs('second-process.report-analytics.*')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('sp-work-orders.index') }}"
-                        label="Work Orders" :active="request()->routeIs('sp-work-orders.index')" wire:navigate />
-                    
+                <!-- Second Process Links (Departmental) -->
+                @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess() && !auth()->user()?->can('view-quality-links'))
+                    @if (auth()->user()?->can('view-second-process-ops'))
+                        <!-- Dropdown 1: Second Process -->
+                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
+                            ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
+                            ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
+                        ]" />
+
+                        <!-- Dropdown 2: Second Process — Shop Floor Ops -->
+                        <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
+                            ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
+                        ]" />
+                    @endif
+
+                    @if (auth()->user()?->can('view-second-process-reports'))
+                        <!-- Dropdown 3: Second Process — Reports & Analytics -->
+                        <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
+                            ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
+                            ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
+                        ]" />
+                    @endif
                 @endif
 
                 @if (auth()->user()?->can('view-quality-links'))
@@ -399,8 +431,10 @@ new class extends Component {
                         :active="request()->routeIs('qc-stock-transfer')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('qc-stock-transfer-kbn') }}" label="QC Transfer (KBN)"
                         :active="request()->routeIs('qc-stock-transfer-kbn')" wire:navigate />
-                    <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
-                        :active="request()->routeIs('ipqc-inspections.*')" wire:navigate />
+                    @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess())
+                        <livewire:sidebar-link href="{{ route('ipqc-inspections.index') }}" label="IPQC Inspections"
+                            :active="request()->routeIs('ipqc-inspections.*')" wire:navigate />
+                    @endif
                 @endif
             @endif
         </div>

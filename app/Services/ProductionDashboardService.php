@@ -171,11 +171,15 @@ class ProductionDashboardService
             $adjustQuery->where('user_id', $machineUserId);
             $mouldQuery->where('user_id', $machineUserId);
         } elseif ($effectivePlant === 'karawang') {
-            $krwMachineIds = ($plant === 'karawang' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'LIKE', 'K%')->pluck('id')->toArray();
+            $krwMachineIds = ($plant === 'karawang' && $plantMachineIds !== null) ? $plantMachineIds : User::where(function ($q) {
+                $q->where('name', 'LIKE', 'K%')->orWhereHas('branch', fn($b) => $b->where('code', 'KRW'));
+            })->pluck('id')->toArray();
             $adjustQuery->whereIn('user_id', $krwMachineIds);
             $mouldQuery->whereIn('user_id', $krwMachineIds);
         } elseif ($effectivePlant === 'kbn') {
-            $kbnMachineIds = ($plant === 'kbn' && $plantMachineIds !== null) ? $plantMachineIds : User::where('name', 'NOT LIKE', 'K%')->pluck('id')->toArray();
+            $kbnMachineIds = ($plant === 'kbn' && $plantMachineIds !== null) ? $plantMachineIds : User::where(function ($q) {
+                $q->where('name', 'NOT LIKE', 'K%')->whereDoesntHave('branch', fn($b) => $b->where('code', 'KRW'));
+            })->pluck('id')->toArray();
             $adjustQuery->whereIn('user_id', $kbnMachineIds);
             $mouldQuery->whereIn('user_id', $kbnMachineIds);
         }

@@ -30,7 +30,11 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('manage-users-roles', function ($user) {
-            return $user->hasRoleAccess('SUPER-ADMIN') || $user->hasRoleAccess('ADMIN');
+            return $user->hasRoleAccess('SUPER-ADMIN');
+        });
+
+        Gate::define('manage-branches-departments', function ($user) {
+            return $user->hasRoleAccess('SUPER-ADMIN');
         });
 
         Gate::define('view-admin-links', function ($user) {
@@ -66,7 +70,26 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('view-second-process-links', function($user){
-            return $user->hasRoleAccess('SECONDPROCESS') || $user->hasRoleAccess('QUALITY');
+            return $user->department?->code === 'SP'
+                || $user->hasRoleAccess('SECONDPROCESS')
+                || $user->hasRoleAccess('QUALITY')
+                || $user->hasRoleAccess('ADMIN');
+        });
+
+        Gate::define('view-second-process-ops', function ($user) {
+            return $user->department?->code === 'SP'
+                || $user->hasRoleAccess('SECONDPROCESS')
+                || $user->hasRoleAccess('ADMIN')
+                || ($user->department_id === null && $user->hasRoleAccess('PE'));
+        });
+
+        Gate::define('view-second-process-reports', function ($user) {
+            return $user->department?->code === 'SP'
+                || $user->department_id === null
+                || $user->hasRoleAccess('SECONDPROCESS')
+                || $user->hasRoleAccess('PPIC')
+                || $user->hasRoleAccess('PE')
+                || $user->hasRoleAccess('ADMIN');
         });
 
         Gate::define('view-assembly-process-links', function($user){
