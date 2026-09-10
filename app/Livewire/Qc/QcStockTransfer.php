@@ -46,28 +46,35 @@ class QcStockTransfer extends Component
         $targetWarehouse = ($this->plant === 'kbn') ? 'FFI' : 'KRFFI';
 
         return DB::table('production_summary')
-            ->where('sap_sent', 1) // Must be receipted to SAP first
-            ->where('warehouse', $targetWarehouse)
-            ->when($this->filterDate, fn($q) => $q->where('created_date', $this->filterDate))
+            ->where('production_summary.sap_sent', 1) // Must be receipted to SAP first
+            ->where('production_summary.warehouse', $targetWarehouse)
+            ->when($this->filterDate, fn($q) => $q->where('production_summary.created_date', $this->filterDate))
             ->when($this->filterSpk, function($q) {
-                $q->where(function($sub) {
-                    $sub->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
-                        ->orWhereExists(function($sub2) {
+                $term = trim($this->filterSpk);
+                $q->where(function($sub) use ($term) {
+                    $sub->where('production_summary.spk_code', 'like', "%{$term}%")
+                        ->orWhereExists(function($sub2) use ($term) {
                             $sub2->select(DB::raw(1))
                                 ->from('production_scanned_data')
                                 ->whereColumn('production_scanned_data.summary_id', 'production_summary.id')
-                                ->where('production_scanned_data.label', 'like', "%{$this->filterSpk}%");
+                                ->where('production_scanned_data.label', 'like', "%{$term}%");
                         });
                 });
             })
-            ->when($this->filterQcStatus === 'pending', fn($q) => $q->whereIn(DB::raw('COALESCE(qc_status, 0)'), [0, 2]))
-            ->when($this->filterQcStatus === 'completed', fn($q) => $q->where('qc_status', 1))
+            ->when($this->filterQcStatus === 'pending', function($q) {
+                $q->where(function($sub) {
+                    $sub->whereNull('production_summary.qc_status')
+                        ->orWhereIn('production_summary.qc_status', [0, 2]);
+                });
+            })
+            ->when($this->filterQcStatus === 'completed', fn($q) => $q->where('production_summary.qc_status', 1))
             ->when($this->filterItemCode, function($q) {
-                $q->whereExists(function($sub) {
+                $term = trim($this->filterItemCode);
+                $q->whereExists(function($sub) use ($term) {
                     $sub->select(DB::raw(1))
                         ->from('production_scanned_data')
                         ->whereColumn('production_scanned_data.summary_id', 'production_summary.id')
-                        ->where('production_scanned_data.item_code', 'like', "%{$this->filterItemCode}%");
+                        ->where('production_scanned_data.item_code', 'like', "%{$term}%");
                 });
             });
     }
@@ -180,7 +187,7 @@ class QcStockTransfer extends Component
         $targetWarehouse = ($this->plant === 'kbn') ? 'FFI' : 'KRFFI';
         $cacheKey = "qc_stats_{$this->plant}_{$this->filterDate}";
 
-        return cache()->remember($cacheKey, now()->addSeconds(30), function() use ($targetWarehouse) {
+        return cache()->remember($cacheKey, now()->addSeconds(60), function() use ($targetWarehouse) {
             $base = DB::table('production_summary')
                 ->where('sap_sent', 1)
                 ->where('warehouse', $targetWarehouse)
@@ -189,7 +196,7 @@ class QcStockTransfer extends Component
             $res = (clone $base)
                 ->selectRaw('
                     COUNT(*) as total,
-                    SUM(CASE WHEN COALESCE(qc_status,0) = 0 THEN 1 ELSE 0 END) as uninspected,
+                    SUM(CASE WHEN qc_status IS NULL OR qc_status = 0 THEN 1 ELSE 0 END) as uninspected,
                     SUM(CASE WHEN qc_status = 2 THEN 1 ELSE 0 END) as partial,
                     SUM(CASE WHEN qc_status = 1 THEN 1 ELSE 0 END) as completed,
                     SUM(total_quantity) as total_qty
@@ -197,11 +204,11 @@ class QcStockTransfer extends Component
                 ->first();
 
             return [
-                'total'       => $res->total ?? 0,
-                'uninspected' => $res->uninspected ?? 0,
-                'partial'     => $res->partial ?? 0,
-                'completed'   => $res->completed ?? 0,
-                'total_qty'   => $res->total_qty ?? 0,
+                'total'       => (int)($res->total ?? 0),
+                'uninspected' => (int)($res->uninspected ?? 0),
+                'partial'     => (int)($res->partial ?? 0),
+                'completed'   => (int)($res->completed ?? 0),
+                'total_qty'   => (int)($res->total_qty ?? 0),
             ];
         });
     }
@@ -232,7 +239,8 @@ class QcStockTransfer extends Component
             ->orderBy('id', 'asc')
             ->get();
 
-        $logs = QcTransferLog::where('production_summary_id', $summaryId)
+        $logs = QcTransferLog::with('inspector:id,name')
+            ->where('production_summary_id', $summaryId)
             ->get()
             ->keyBy('scanned_data_id');
 
@@ -246,7 +254,7 @@ class QcStockTransfer extends Component
                 'quantity'     => (int)$box->quantity,
                 'label'        => $box->label,
                 'user'         => $box->user,
-                'created_at'   => Carbon::parse($box->created_at)->timezone('Asia/Jakarta')->format('H:i:s'),
+                'created_at'   => Carbon::parse($box->created_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s'),
                 'is_inspected' => $log !== null,
                 'log'          => $log ? [
                     'id'              => $log->id,
@@ -259,6 +267,8 @@ class QcStockTransfer extends Component
                     'ng_sap_status'   => $log->ng_sap_status,
                     'ng_sap_error'    => $log->ng_sap_error,
                     'remarks'         => $log->remarks,
+                    'inspected_at'    => $log->created_at ? Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i:s') : '-',
+                    'inspector_name'  => $log->inspector?->name,
                 ] : null,
             ];
 
@@ -271,14 +281,15 @@ class QcStockTransfer extends Component
         $this->rowDetails[$summaryId] = $details;
     }
 
-    public function submitSingleBox(int $scannedDataId, int $summaryId, QcTransferService $service): void
+    public function submitSingleBox(int $scannedDataId, int $summaryId, ?int $directNgQty = null, ?string $directRemarks = null, ?QcTransferService $service = null): void
     {
+        $service = $service ?? app(QcTransferService::class);
         $key = 'box_' . $scannedDataId;
         $this->processingRows[$key] = true;
 
         try {
-            $ngQty = (int)($this->ngInputs[$scannedDataId] ?? 0);
-            $remarks = $this->remarksInputs[$scannedDataId] ?? null;
+            $ngQty = $directNgQty !== null ? max(0, $directNgQty) : (int)($this->ngInputs[$scannedDataId] ?? 0);
+            $remarks = $directRemarks !== null ? $directRemarks : ($this->remarksInputs[$scannedDataId] ?? null);
             $userId = Auth::id();
             $isKbn = ($this->plant === 'kbn');
 
@@ -307,8 +318,9 @@ class QcStockTransfer extends Component
         }
     }
 
-    public function submitWholeSummary(int $summaryId, QcTransferService $service): void
+    public function submitWholeSummary(int $summaryId, array $directBoxNgMap = [], ?QcTransferService $service = null): void
     {
+        $service = $service ?? app(QcTransferService::class);
         $key = 'summary_' . $summaryId;
         $this->processingRows[$key] = true;
 
@@ -318,11 +330,17 @@ class QcStockTransfer extends Component
             }
 
             $boxNgMap = [];
-            $remarksMap = [];
-            foreach ($this->rowDetails[$summaryId] as $box) {
-                if (!$box['is_inspected']) {
-                    $boxId = $box['id'];
-                    $boxNgMap[$boxId] = (int)($this->ngInputs[$boxId] ?? 0);
+            if (!empty($directBoxNgMap)) {
+                // Sanitize map from client: [ scannedDataId => ngQty ]
+                foreach ($directBoxNgMap as $bId => $ng) {
+                    $boxNgMap[(int)$bId] = max(0, (int)$ng);
+                }
+            } else {
+                foreach ($this->rowDetails[$summaryId] as $box) {
+                    if (!$box['is_inspected']) {
+                        $boxId = $box['id'];
+                        $boxNgMap[$boxId] = (int)($this->ngInputs[$boxId] ?? 0);
+                    }
                 }
             }
 

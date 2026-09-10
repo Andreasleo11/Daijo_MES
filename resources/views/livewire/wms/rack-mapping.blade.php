@@ -4,8 +4,13 @@
         <!-- Header & Legenda -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Warehouse Mapping</h1>
-                <p class="text-gray-500 text-sm">Monitoring Hunian Rak Gudang J06 (Highly Marelli)</p>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Warehouse Mapping</h1>
+                    <button wire:click="openEditWarehouseModal" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Informasi Gudang">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </button>
+                </div>
+                <p class="text-gray-500 text-sm font-medium">{{ $warehouse->whse_name ?? 'Monitoring Hunian Rak Gudang J06 (Highly Marelli)' }}</p>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
                 <!-- Item / Pallet / SPK Search Input with Dropdown Suggestions -->
@@ -93,6 +98,12 @@
             </div>
         @endif
 
+        @if (session()->has('error'))
+            <div class="bg-rose-100 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm animate-in fade-in slide-in-from-top duration-300">
+                <p class="text-rose-700 text-sm font-bold uppercase tracking-widest italic">{{ session('error') }}</p>
+            </div>
+        @endif
+
         @if (!empty(trim($searchItem)))
             <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl shadow-sm flex items-center justify-between animate-in fade-in duration-200">
                 <div class="flex items-center gap-3">
@@ -118,9 +129,31 @@
                 @foreach($racks as $rack)
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)]">
                         <div class="flex justify-between items-center border-b border-gray-50 pb-3">
-                            <h3 class="text-lg font-black text-blue-600 italic tracking-tighter uppercase">Rack {{ $rack->rack_code }}</h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-black text-blue-600 italic tracking-tighter uppercase">Rack {{ $rack->rack_code }}</h3>
+                                <button wire:click="openEditRackModal({{ $rack->id }})" class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Dimensi & Nama Rak">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                            </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-full">{{ count($rack->positions) }} Slots</span>
+                                
+                                {{-- Quick Add / Remove Level/Slot Controls --}}
+                                <div class="flex items-center gap-1 bg-gray-50 p-0.5 rounded-lg border border-gray-200">
+                                    <button wire:click="addSlotToRack({{ $rack->id }})" class="px-1.5 py-0.5 bg-white hover:bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-gray-200 shadow-2xs transition" title="Tambah 1 Slot per Level (+Slot)">
+                                        +S
+                                    </button>
+                                    <button wire:click="removeSlotFromRack({{ $rack->id }})" onclick="return confirm('Hapus slot paling ujung (nomor terbesar) dari rak ini?')" class="px-1.5 py-0.5 bg-white hover:bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-gray-200 shadow-2xs transition" title="Kurangi 1 Slot per Level (-Slot)">
+                                        -S
+                                    </button>
+                                    <button wire:click="addLevelToRack({{ $rack->id }})" class="px-1.5 py-0.5 bg-white hover:bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-gray-200 shadow-2xs transition" title="Tambah 1 Level Tingkat (+LVL)">
+                                        +L
+                                    </button>
+                                    <button wire:click="removeLevelFromRack({{ $rack->id }})" onclick="return confirm('Hapus level paling atas dari rak ini?')" class="px-1.5 py-0.5 bg-white hover:bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-gray-200 shadow-2xs transition" title="Kurangi 1 Level Tingkat (-LVL)">
+                                        -L
+                                    </button>
+                                </div>
+
                                 <button wire:click="deleteRack({{ $rack->id }})" onclick="return confirm('Anda yakin ingin menghapus rak ini beserta seluruh isinya? Data yang dihapus tidak dapat dikembalikan.')" class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Hapus Rak">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
@@ -344,11 +377,19 @@
                                     <button wire:click="saveSettings" class="flex-grow py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95">
                                         Update Detail
                                     </button>
+                                    @if(isset($selectedPosData) && $selectedPosData->palletForms_count == 0)
+                                        <button wire:click="deletePositionSlot({{ $selectedPosData->id }})" 
+                                                onclick="return confirm('Anda yakin ingin menghapus slot {{ $selectedPosData->position_code }} ini dari rak?')"
+                                                class="p-3 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-600 border border-gray-100 rounded-xl transition-all"
+                                                title="Hapus Slot Kosong Ini">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    @endif
                                     <button wire:click="resetSlot" 
                                             wire:confirm="Reset slot ini menjadi kosong dan lepas seluruh pallet di dalamnya?" 
                                             title="Reset Slot & Lepas Pallet" 
-                                            class="p-3 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-100 rounded-xl transition-all">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            class="p-3 bg-gray-50 hover:bg-amber-50 text-gray-400 hover:text-amber-500 border border-gray-100 rounded-xl transition-all">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     </button>
                                 </div>
                             </div>
@@ -401,12 +442,115 @@
 
     </div>
 
-    <!-- Add Rack Modal (Simpler Version) -->
+    <!-- Edit Warehouse Modal -->
+    @if($showEditWarehouseModal)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
+                <div class="bg-slate-800 p-6 text-white text-center">
+                    <h3 class="text-lg font-black uppercase tracking-tight">Edit Informasi Gudang</h3>
+                    <p class="text-xs text-slate-300 mt-1">Ubah nama dan kode lokasi gudang mapping</p>
+                </div>
+                
+                <div class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Kode Gudang</label>
+                        <input type="text" wire:model.defer="whseCode" placeholder="Ex: J06" 
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-black text-base uppercase tracking-wider transition-all">
+                        @error('whseCode') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Nama / Deskripsi Gudang</label>
+                        <textarea wire:model.defer="whseName" rows="2" placeholder="Ex: Monitoring Hunian Rak Gudang J06 (Highly Marelli)" 
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-bold text-sm transition-all"></textarea>
+                        @error('whseName') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button wire:click="$set('showEditWarehouseModal', false)" class="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all">Batal</button>
+                        <button wire:click="saveWarehouse" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-md">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Edit Rack & Dimension Modal -->
+    @if($showEditRackModal)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
+                <div class="bg-blue-600 p-6 text-white text-center">
+                    <h3 class="text-xl font-black italic uppercase tracking-tighter">Edit Rak & Atur Dimensi</h3>
+                    <p class="text-xs text-blue-100 mt-1">Ubah nama rak, tambah / kurangi level dan slot per rak</p>
+                </div>
+                
+                <div class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Nama / Kode Rak</label>
+                        <input type="text" wire:model.defer="editRackCode" placeholder="Ex: A1" 
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-black text-xl text-center uppercase tracking-widest transition-all">
+                        @error('editRackCode') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                        <p class="text-[10px] text-gray-400 mt-1 italic">* Mengubah nama rak otomatis memperbarui seluruh kode slot (misal: A1-L01-S01 -> B1-L01-S01).</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50/60 p-4 rounded-2xl border border-blue-100 space-y-2">
+                            <label class="block text-[10px] font-black uppercase text-blue-900 tracking-widest">Jumlah Level (Tingkat)</label>
+                            <div class="flex items-center gap-2">
+                                <button type="button" wire:click="$set('editRackLevels', Math.max(1, {{ $editRackLevels }} - 1))" class="w-8 h-8 rounded-lg bg-white border border-blue-200 font-black text-blue-700 hover:bg-blue-100 transition">-</button>
+                                <input type="number" min="1" max="20" wire:model.defer="editRackLevels" 
+                                    class="w-full py-2 bg-white border border-blue-200 rounded-lg outline-none font-black text-center text-lg text-blue-900">
+                                <button type="button" wire:click="$set('editRackLevels', {{ $editRackLevels }} + 1)" class="w-8 h-8 rounded-lg bg-white border border-blue-200 font-black text-blue-700 hover:bg-blue-100 transition">+</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 space-y-2">
+                            <label class="block text-[10px] font-black uppercase text-indigo-900 tracking-widest">Slot per Level</label>
+                            <div class="flex items-center gap-2">
+                                <button type="button" wire:click="$set('editRackSlotsPerLevel', Math.max(1, {{ $editRackSlotsPerLevel }} - 1))" class="w-8 h-8 rounded-lg bg-white border border-indigo-200 font-black text-indigo-700 hover:bg-indigo-100 transition">-</button>
+                                <input type="number" min="1" max="50" wire:model.defer="editRackSlotsPerLevel" 
+                                    class="w-full py-2 bg-white border border-indigo-200 rounded-lg outline-none font-black text-center text-lg text-indigo-900">
+                                <button type="button" wire:click="$set('editRackSlotsPerLevel', {{ $editRackSlotsPerLevel }} + 1)" class="w-8 h-8 rounded-lg bg-white border border-indigo-200 font-black text-indigo-700 hover:bg-indigo-100 transition">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Customer Default (Slot Baru)</label>
+                            <select wire:model.defer="editRackCustomer" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-bold text-xs uppercase transition-all">
+                                <option value="">-- NONE --</option>
+                                @foreach($customers as $c)
+                                    <option value="{{ $c->customer_code }}">{{ $c->customer_code }} - {{ $c->customer_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Max Kapasitas Slot Baru</label>
+                            <input type="number" min="1" wire:model.defer="editRackMaxCapacity" 
+                                class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none font-bold text-center text-sm">
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+                        Total Slot Baru: <strong>{{ (int)$editRackLevels * (int)$editRackSlotsPerLevel }} Slot</strong> ({{ $editRackLevels }} Level &times; {{ $editRackSlotsPerLevel }} Slot). Slot yang dikurangi hanya dapat dihapus jika statusnya kosong (tidak ada pallet).
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button wire:click="$set('showEditRackModal', false)" class="flex-1 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-500 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all">Batal</button>
+                        <button wire:click="saveRackChanges" class="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-md">Simpan Perubahan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Add Rack Modal -->
     @if($showAddRackModal)
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
                 <div class="bg-blue-600 p-8 text-white text-center">
-                    <h3 class="text-xl font-black italic uppercase tracking-tighter italic">Add New Rack</h3>
+                    <h3 class="text-xl font-black italic uppercase tracking-tighter">Add New Rack</h3>
                     <div class="w-10 h-1 bg-white/20 mx-auto mt-2 rounded"></div>
                 </div>
                 

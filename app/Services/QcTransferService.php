@@ -14,9 +14,15 @@ class QcTransferService extends BaseSapService
      * Process inspection for a single box (production_scanned_data row)
      * and execute SAP inventory transfers atomically.
      */
-    public function processSingleBoxInspection(int $scannedDataId, int $ngQty, ?int $userId = null, ?string $remarks = null, bool $isKbn = false): array
-    {
-        return DB::transaction(function () use ($scannedDataId, $ngQty, $userId, $remarks, $isKbn) {
+    public function processSingleBoxInspection(
+        int $scannedDataId,
+        int $ngQty,
+        ?int $userId = null,
+        ?string $remarks = null,
+        bool $isKbn = false,
+        bool $skipSummaryStatusUpdate = false
+    ): array {
+        return DB::transaction(function () use ($scannedDataId, $ngQty, $userId, $remarks, $isKbn, $skipSummaryStatusUpdate) {
             $scannedData = DB::table('production_scanned_data')->find($scannedDataId);
             if (!$scannedData) {
                 return ['success' => false, 'message' => 'Data box tidak ditemukan.'];
@@ -78,8 +84,10 @@ class QcTransferService extends BaseSapService
             // 2. Push Transfers to SAP
             $transferResult = $this->executeSapTransfers($log);
 
-            // 3. Recalculate summary qc_status
-            $this->updateSummaryQcStatus($summary->id);
+            // 3. Recalculate summary qc_status (skip if batch processing)
+            if (!$skipSummaryStatusUpdate) {
+                $this->updateSummaryQcStatus($summary->id);
+            }
 
             $sapSuccess = ($transferResult['ok_success'] ?? true) && ($transferResult['ng_success'] ?? true);
             $msg = $sapSuccess
@@ -111,7 +119,7 @@ class QcTransferService extends BaseSapService
         $failCount = 0;
 
         foreach ($boxNgMap as $scannedDataId => $ngQty) {
-            $res = $this->processSingleBoxInspection((int)$scannedDataId, (int)$ngQty, $userId, $remarks, $isKbn);
+            $res = $this->processSingleBoxInspection((int)$scannedDataId, (int)$ngQty, $userId, $remarks, $isKbn, true);
             if ($res['success']) {
                 $successCount++;
             } else {
