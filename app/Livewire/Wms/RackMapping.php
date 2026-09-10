@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 
 class RackMapping extends Component
 {
+    // Slot Detail & Edit State
     public $selectedPositionId;
     public $editMaxCapacity;
     public $editCustomerCode;
@@ -22,6 +23,29 @@ class RackMapping extends Component
     
     // UI State
     public $showDetail = false;
+
+    // Add Rack Modal State
+    public $newRackCode;
+    public $newLevels = 2;
+    public $newSlotsPerLevel = 4;
+    public $newRackCustomer;
+    public $newMaxCapacity = 1;
+    public $showAddRackModal = false;
+
+    // Warehouse Edit State
+    public $whseId = 1;
+    public $whseName = '';
+    public $whseCode = '';
+    public $showEditWarehouseModal = false;
+
+    // Edit Rack & Dimension State
+    public $editingRackId = null;
+    public $editRackCode = '';
+    public $editRackLevels = 1;
+    public $editRackSlotsPerLevel = 1;
+    public $editRackCustomer = '';
+    public $editRackMaxCapacity = 1;
+    public $showEditRackModal = false;
 
     public function selectPosition($id)
     {
@@ -164,12 +188,60 @@ class RackMapping extends Component
         }
     }
 
-    public $newRackCode;
-    public $newLevels = 2;
-    public $newSlotsPerLevel = 4;
-    public $newRackCustomer;
-    public $newMaxCapacity = 1;
-    public $showAddRackModal = false;
+    protected function generatePositionCode(WmsRack $rack, int $levelNo, int $slotNo): string
+    {
+        $samplePos = $rack->positions->first();
+        $whseCode = $rack->warehouse?->whse_code ?? $this->whseCode ?? 'J06';
+
+        if ($samplePos && !empty($samplePos->position_code)) {
+            // Pattern: WHSE-CUST-RACK-L1S1
+            if (preg_match('/^[A-Za-z0-9]+-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+S\d+$/i', $samplePos->position_code, $matches)) {
+                $custCode = $matches[1];
+                return "{$whseCode}-{$custCode}-{$rack->rack_code}-L{$levelNo}S{$slotNo}";
+            }
+            // Pattern: WHSE-CUST-RACK-L01-S01
+            if (preg_match('/^[A-Za-z0-9]+-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+-S\d+$/i', $samplePos->position_code, $matches)) {
+                $custCode = $matches[1];
+                $lStr = str_pad($levelNo, 2, '0', STR_PAD_LEFT);
+                $sStr = str_pad($slotNo, 2, '0', STR_PAD_LEFT);
+                return "{$whseCode}-{$custCode}-{$rack->rack_code}-L{$lStr}-S{$sStr}";
+            }
+        }
+
+        $levelStr = str_pad($levelNo, 2, '0', STR_PAD_LEFT);
+        $slotStr = str_pad($slotNo, 2, '0', STR_PAD_LEFT);
+        return strtoupper($rack->rack_code) . "-L{$levelStr}-S{$slotStr}";
+    }
+
+    protected function upsertPosition(WmsRack $rack, int $levelNo, int $slotNo, string $posCode, int $maxCapacity = 1, ?string $customerCode = null): WmsPosition
+    {
+        $existing = WmsPosition::withTrashed()->where('position_code', $posCode)->first();
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+            $existing->update([
+                'rack_id' => $rack->id,
+                'level_no' => $levelNo,
+                'slot_no' => $slotNo,
+                'position_code' => $posCode,
+                'max_capacity' => $maxCapacity,
+                'customer_code' => $customerCode,
+                'status' => $existing->palletForms()->where('total_pallet_qty', '>', 0)->exists() ? $existing->status : 'EMPTY',
+            ]);
+            return $existing;
+        }
+
+        return WmsPosition::create([
+            'rack_id' => $rack->id,
+            'level_no' => $levelNo,
+            'slot_no' => $slotNo,
+            'position_code' => $posCode,
+            'max_capacity' => $maxCapacity,
+            'customer_code' => $customerCode,
+            'status' => 'EMPTY',
+        ]);
+    }
 
     public function createNewRack(?WmsService $wmsService = null)
     {
@@ -186,24 +258,17 @@ class RackMapping extends Component
             DB::beginTransaction();
 
             $rack = WmsRack::create([
-                'whse_id' => 1, // Defaulting to J06
+                'whse_id' => $this->whseId ?: 1,
                 'rack_code' => strtoupper($this->newRackCode),
             ]);
+
+            $cust = !empty($this->newRackCustomer) ? strtoupper($this->newRackCustomer) : null;
 
             // Simple Batch generation
             for ($l = 1; $l <= $this->newLevels; $l++) {
                 for ($s = 1; $s <= $this->newSlotsPerLevel; $s++) {
-                    $levelStr = str_pad($l, 2, '0', STR_PAD_LEFT);
-                    $slotStr = str_pad($s, 2, '0', STR_PAD_LEFT);
-                    
-                    WmsPosition::create([
-                        'rack_id' => $rack->id,
-                        'level_no' => $l,
-                        'slot_no' => $s,
-                        'position_code' => strtoupper($rack->rack_code) . "-L{$levelStr}-S{$slotStr}",
-                        'max_capacity' => $this->newMaxCapacity,
-                        'customer_code' => strtoupper($this->newRackCustomer),
-                    ]);
+                    $posCode = $this->generatePositionCode($rack, $l, $s);
+                    $this->upsertPosition($rack, $l, $s, $posCode, $this->newMaxCapacity, $cust);
                 }
             }
 
@@ -224,7 +289,7 @@ class RackMapping extends Component
 
             $rack = WmsRack::find($rackId);
             if ($rack) {
-                $positionIds = WmsPosition::where('rack_id', $rack->id)->pluck('id');
+                $positionIds = WmsPosition::withTrashed()->where('rack_id', $rack->id)->pluck('id');
 
                 // Detach from Pallet Forms and reset status so they are not lost
                 \App\Models\WmsPalletForm::whereIn('position_id', $positionIds)->update([
@@ -237,8 +302,8 @@ class RackMapping extends Component
                     'position_id' => null
                 ]);
 
-                // Delete all positions under this rack
-                WmsPosition::whereIn('id', $positionIds)->delete();
+                // Force delete all positions under this rack to keep DB clean
+                WmsPosition::withTrashed()->whereIn('id', $positionIds)->forceDelete();
                 
                 $rackCode = $rack->rack_code;
                 $rack->delete();
@@ -256,6 +321,322 @@ class RackMapping extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Gagal menghapus rak: ' . $e->getMessage());
+        }
+    }
+
+    public function mount()
+    {
+        $warehouse = \App\Models\WmsWarehouse::first() ?? \App\Models\WmsWarehouse::create([
+            'whse_code' => 'J06',
+            'whse_name' => 'Monitoring Hunian Rak Gudang J06 (Highly Marelli)',
+        ]);
+        $this->whseId = $warehouse->id;
+        $this->whseName = $warehouse->whse_name;
+        $this->whseCode = $warehouse->whse_code;
+    }
+
+    public function openEditWarehouseModal()
+    {
+        $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
+        if ($warehouse) {
+            $this->whseId = $warehouse->id;
+            $this->whseName = $warehouse->whse_name;
+            $this->whseCode = $warehouse->whse_code;
+        }
+        $this->showEditWarehouseModal = true;
+    }
+
+    public function saveWarehouse()
+    {
+        $this->validate([
+            'whseName' => 'required|string|max:255',
+            'whseCode' => 'required|string|max:50',
+        ]);
+
+        $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
+        if (!$warehouse) {
+            $warehouse = \App\Models\WmsWarehouse::create([
+                'whse_code' => strtoupper($this->whseCode),
+                'whse_name' => $this->whseName,
+            ]);
+        } else {
+            $warehouse->update([
+                'whse_name' => $this->whseName,
+                'whse_code' => strtoupper($this->whseCode),
+            ]);
+        }
+
+        $this->whseId = $warehouse->id;
+        $this->whseName = $warehouse->whse_name;
+        $this->whseCode = $warehouse->whse_code;
+
+        session()->flash('success', 'Informasi Gudang berhasil diperbarui.');
+        $this->showEditWarehouseModal = false;
+    }
+
+    public function openEditRackModal($rackId)
+    {
+        $rack = WmsRack::with('positions')->find($rackId);
+        if (!$rack) {
+            session()->flash('error', 'Rak tidak ditemukan.');
+            return;
+        }
+
+        $this->editingRackId = $rack->id;
+        $this->editRackCode = $rack->rack_code;
+
+        $maxLevel = $rack->positions->max('level_no') ?? 1;
+        $maxSlots = $rack->positions->max('slot_no') ?? 1;
+        $firstPos = $rack->positions->first();
+
+        $this->editRackLevels = max(1, $maxLevel);
+        $this->editRackSlotsPerLevel = max(1, $maxSlots);
+        $this->editRackCustomer = $firstPos?->customer_code ?? '';
+        $this->editRackMaxCapacity = $firstPos?->max_capacity ?? 1;
+
+        $this->showEditRackModal = true;
+    }
+
+    public function saveRackChanges(?WmsService $wmsService = null)
+    {
+        $wmsService = $wmsService ?? app(WmsService::class);
+        $this->validate([
+            'editRackCode' => [
+                'required',
+                'string',
+                Rule::unique('wms_racks', 'rack_code')->ignore($this->editingRackId)->whereNull('deleted_at')
+            ],
+            'editRackLevels' => 'required|integer|min:1|max:20',
+            'editRackSlotsPerLevel' => 'required|integer|min:1|max:50',
+            'editRackCustomer' => 'nullable|string',
+            'editRackMaxCapacity' => 'required|integer|min:1',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $rack = WmsRack::with('positions')->findOrFail($this->editingRackId);
+            $newRackCode = strtoupper(trim($this->editRackCode));
+            $rack->update(['rack_code' => $newRackCode]);
+
+            $existingPositions = WmsPosition::where('rack_id', $rack->id)->get();
+            $existingMap = $existingPositions->keyBy(fn($p) => "{$p->level_no}-{$p->slot_no}");
+
+            // Check if any positions to be deleted contain active pallets
+            $positionsToDelete = [];
+            foreach ($existingPositions as $pos) {
+                if ($pos->level_no > $this->editRackLevels || $pos->slot_no > $this->editRackSlotsPerLevel) {
+                    $hasActivePallet = \App\Models\WmsPalletForm::where('position_id', $pos->id)
+                        ->where('total_pallet_qty', '>', 0)
+                        ->exists();
+
+                    if ($hasActivePallet) {
+                        DB::rollBack();
+                        session()->flash('error', "Gagal memperkecil rak: Slot {$pos->position_code} masih berisi pallet aktif. Pindahkan pallet terlebih dahulu.");
+                        return;
+                    }
+
+                    $positionsToDelete[] = $pos;
+                }
+            }
+
+            // Force delete excess empty positions
+            foreach ($positionsToDelete as $pos) {
+                \App\Models\WmsPalletForm::where('position_id', $pos->id)->update(['position_id' => null]);
+                \App\Models\WmsPalletLog::where('position_id', $pos->id)->update(['position_id' => null]);
+                $pos->forceDelete();
+            }
+
+            $cust = !empty($this->editRackCustomer) ? strtoupper($this->editRackCustomer) : null;
+
+            // Create new positions or update existing ones
+            for ($l = 1; $l <= $this->editRackLevels; $l++) {
+                for ($s = 1; $s <= $this->editRackSlotsPerLevel; $s++) {
+                    $posCode = $this->generatePositionCode($rack, $l, $s);
+
+                    $key = "{$l}-{$s}";
+                    if ($existingMap->has($key)) {
+                        $pos = $existingMap->get($key);
+                        $pos->update([
+                            'position_code' => $posCode,
+                            'max_capacity' => $this->editRackMaxCapacity,
+                            'customer_code' => $cust,
+                        ]);
+                    } else {
+                        $this->upsertPosition($rack, $l, $s, $posCode, $this->editRackMaxCapacity, $cust);
+                    }
+                }
+            }
+
+            DB::commit();
+            session()->flash('success', "Rak {$newRackCode} dan seluruh slotnya berhasil diperbarui.");
+            $this->showEditRackModal = false;
+
+            if ($this->selectedPositionId) {
+                $this->selectPosition($this->selectedPositionId);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menyimpan perubahan rak: " . $e->getMessage());
+        }
+    }
+
+    public function addLevelToRack($rackId)
+    {
+        try {
+            DB::beginTransaction();
+            $rack = WmsRack::with('positions')->findOrFail($rackId);
+            $maxLevel = $rack->positions->max('level_no') ?? 0;
+            $newLevel = $maxLevel + 1;
+            $maxSlots = $rack->positions->max('slot_no') ?? 1;
+            $samplePos = $rack->positions->first();
+
+            for ($s = 1; $s <= $maxSlots; $s++) {
+                $posCode = $this->generatePositionCode($rack, $newLevel, $s);
+                $this->upsertPosition(
+                    $rack,
+                    $newLevel,
+                    $s,
+                    $posCode,
+                    $samplePos?->max_capacity ?? 1,
+                    $samplePos?->customer_code
+                );
+            }
+
+            DB::commit();
+            session()->flash('success', "Berhasil menambahkan Level {$newLevel} pada Rak {$rack->rack_code}.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menambah level: " . $e->getMessage());
+        }
+    }
+
+    public function removeLevelFromRack($rackId)
+    {
+        try {
+            DB::beginTransaction();
+            $rack = WmsRack::with('positions')->findOrFail($rackId);
+            $maxLevel = $rack->positions->max('level_no');
+            if ($maxLevel <= 1) {
+                session()->flash('error', "Rak {$rack->rack_code} harus memiliki minimal 1 level.");
+                return;
+            }
+
+            $positionsOnMaxLevel = WmsPosition::where('rack_id', $rack->id)->where('level_no', $maxLevel)->get();
+            foreach ($positionsOnMaxLevel as $pos) {
+                $hasActivePallet = \App\Models\WmsPalletForm::where('position_id', $pos->id)->where('total_pallet_qty', '>', 0)->exists();
+                if ($hasActivePallet) {
+                    DB::rollBack();
+                    session()->flash('error', "Tidak dapat menghapus Level {$maxLevel} karena slot {$pos->position_code} masih berisi pallet aktif.");
+                    return;
+                }
+            }
+
+            foreach ($positionsOnMaxLevel as $pos) {
+                \App\Models\WmsPalletForm::where('position_id', $pos->id)->update(['position_id' => null]);
+                \App\Models\WmsPalletLog::where('position_id', $pos->id)->update(['position_id' => null]);
+                $pos->forceDelete();
+            }
+
+            DB::commit();
+            session()->flash('success', "Level {$maxLevel} pada Rak {$rack->rack_code} berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menghapus level: " . $e->getMessage());
+        }
+    }
+
+    public function addSlotToRack($rackId)
+    {
+        try {
+            DB::beginTransaction();
+            $rack = WmsRack::with('positions')->findOrFail($rackId);
+            $levels = $rack->positions->pluck('level_no')->unique()->values();
+            if ($levels->isEmpty()) {
+                $levels = collect([1]);
+            }
+            $maxSlot = $rack->positions->max('slot_no') ?? 0;
+            $newSlot = $maxSlot + 1;
+            $samplePos = $rack->positions->first();
+
+            foreach ($levels as $l) {
+                $posCode = $this->generatePositionCode($rack, $l, $newSlot);
+                $this->upsertPosition(
+                    $rack,
+                    $l,
+                    $newSlot,
+                    $posCode,
+                    $samplePos?->max_capacity ?? 1,
+                    $samplePos?->customer_code
+                );
+            }
+
+            DB::commit();
+            session()->flash('success', "Berhasil menambahkan Slot S{$newSlot} ke semua level pada Rak {$rack->rack_code}.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menambah slot: " . $e->getMessage());
+        }
+    }
+
+    public function removeSlotFromRack($rackId)
+    {
+        try {
+            DB::beginTransaction();
+            $rack = WmsRack::with('positions')->findOrFail($rackId);
+            $maxSlot = $rack->positions->max('slot_no');
+            if ($maxSlot <= 1) {
+                session()->flash('error', "Rak {$rack->rack_code} harus memiliki minimal 1 slot per level.");
+                return;
+            }
+
+            $positionsOnMaxSlot = WmsPosition::where('rack_id', $rack->id)->where('slot_no', $maxSlot)->get();
+            foreach ($positionsOnMaxSlot as $pos) {
+                $hasActivePallet = \App\Models\WmsPalletForm::where('position_id', $pos->id)->where('total_pallet_qty', '>', 0)->exists();
+                if ($hasActivePallet) {
+                    DB::rollBack();
+                    session()->flash('error', "Tidak dapat menghapus Slot S{$maxSlot} karena slot {$pos->position_code} masih berisi pallet aktif.");
+                    return;
+                }
+            }
+
+            foreach ($positionsOnMaxSlot as $pos) {
+                \App\Models\WmsPalletForm::where('position_id', $pos->id)->update(['position_id' => null]);
+                \App\Models\WmsPalletLog::where('position_id', $pos->id)->update(['position_id' => null]);
+                $pos->forceDelete();
+            }
+
+            DB::commit();
+            session()->flash('success', "Slot S{$maxSlot} pada Rak {$rack->rack_code} berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menghapus slot: " . $e->getMessage());
+        }
+    }
+
+    public function deletePositionSlot($positionId)
+    {
+        try {
+            DB::beginTransaction();
+            $pos = WmsPosition::findOrFail($positionId);
+            $hasActivePallet = \App\Models\WmsPalletForm::where('position_id', $pos->id)->where('total_pallet_qty', '>', 0)->exists();
+            if ($hasActivePallet) {
+                session()->flash('error', "Slot {$pos->position_code} masih berisi pallet aktif. Kosongkan atau pindahkan pallet terlebih dahulu.");
+                return;
+            }
+
+            $posCode = $pos->position_code;
+            \App\Models\WmsPalletForm::where('position_id', $pos->id)->update(['position_id' => null]);
+            \App\Models\WmsPalletLog::where('position_id', $pos->id)->update(['position_id' => null]);
+            $pos->forceDelete();
+
+            DB::commit();
+            $this->selectedPositionId = null;
+            $this->showDetail = false;
+            session()->flash('success', "Slot {$posCode} berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', "Gagal menghapus slot: " . $e->getMessage());
         }
     }
 
@@ -367,7 +748,10 @@ class RackMapping extends Component
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
+
         return view('livewire.wms.rack-mapping', [
+            'warehouse'           => $warehouse,
             'racks'               => $racks,
             'selectedPosData'     => $selectedPosData,
             'customers'           => $customers,

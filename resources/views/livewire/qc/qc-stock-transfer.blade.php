@@ -82,18 +82,33 @@
     </div>
 
     {{-- Filters Bar --}}
-    <div class="bg-white border border-[#E8E4DC] rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end flex-wrap">
+    <div class="bg-white border border-[#E8E4DC] rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end flex-wrap relative">
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-            <label class="text-[10px] font-bold text-[#78716C] uppercase">Tanggal Summary</label>
-            <input type="date" wire:model.live="filterDate" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
+            <label class="text-[10px] font-bold text-[#78716C] uppercase flex items-center justify-between">
+                <span>Tanggal Summary</span>
+                @if($filterDate)
+                    <button wire:click="$set('filterDate', '')" class="text-[10px] text-amber-600 hover:text-amber-800 font-bold bg-none border-none p-0 cursor-pointer">Reset</button>
+                @endif
+            </label>
+            <input type="date" wire:model.live="filterDate" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-            <label class="text-[10px] font-bold text-[#78716C] uppercase">No SPK / Label Box</label>
-            <input type="text" wire:model.live.debounce.300ms="filterSpk" placeholder="Cari SPK atau Label Box..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
+            <label class="text-[10px] font-bold text-[#78716C] uppercase flex items-center justify-between">
+                <span>No SPK / Label Box</span>
+                @if($filterSpk)
+                    <button wire:click="$set('filterSpk', '')" class="text-[10px] text-amber-600 hover:text-amber-800 font-bold bg-none border-none p-0 cursor-pointer">Reset</button>
+                @endif
+            </label>
+            <input type="text" wire:model.live.debounce.250ms="filterSpk" placeholder="Cari SPK atau Label Box..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-            <label class="text-[10px] font-bold text-[#78716C] uppercase">Item Code</label>
-            <input type="text" wire:model.live.debounce.300ms="filterItemCode" placeholder="Cari Item..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
+            <label class="text-[10px] font-bold text-[#78716C] uppercase flex items-center justify-between">
+                <span>Item Code</span>
+                @if($filterItemCode)
+                    <button wire:click="$set('filterItemCode', '')" class="text-[10px] text-amber-600 hover:text-amber-800 font-bold bg-none border-none p-0 cursor-pointer">Reset</button>
+                @endif
+            </label>
+            <input type="text" wire:model.live.debounce.250ms="filterItemCode" placeholder="Cari Item..." class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
             <label class="text-[10px] font-bold text-[#78716C] uppercase">Gudang Asal</label>
@@ -103,7 +118,7 @@
         </div>
         <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
             <label class="text-[10px] font-bold text-[#78716C] uppercase">Status QC</label>
-            <select wire:model.live="filterQcStatus" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full">
+            <select wire:model.live="filterQcStatus" class="border border-[#D6D3D1] rounded px-2.5 py-1.5 text-xs sm:text-sm font-semibold w-full focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
                 <option value="pending">Perlu QC (Belum & Sebagian)</option>
                 <option value="completed">Selesai QC</option>
                 <option value="all">Semua Status</option>
@@ -112,7 +127,9 @@
     </div>
 
     {{-- Main Container (Cards on Mobile, Table on Desktop) --}}
-    <div class="bg-white border border-[#E8E4DC] rounded-lg overflow-hidden">
+    <div class="bg-white border border-[#E8E4DC] rounded-lg overflow-hidden relative"
+         wire:loading.class="opacity-60"
+         wire:target="filterDate, filterSpk, filterItemCode, filterQcStatus, gotoPage, nextPage, previousPage">
 
         {{-- Desktop Table View (md:block) --}}
         <div class="hidden md:block overflow-x-auto">
