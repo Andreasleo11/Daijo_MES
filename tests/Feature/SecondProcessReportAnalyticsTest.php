@@ -562,4 +562,132 @@ class SecondProcessReportAnalyticsTest extends TestCase
         $response->assertSee('Export Paint CSV');
         $response->assertSee('Export Parts CSV');
     }
+
+    public function test_analytics_collects_ng_categories_and_distribution_breakdown(): void
+    {
+        $today = now()->format('Y-m-d');
+
+        $report = SecondProcessReport::create([
+            'date' => $today,
+            'unit_line' => 'Line 1',
+            'shift' => 1,
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'NG-BREAK-01',
+            'part_name' => 'Breakdown Test Part',
+            'customer' => 'Customer NG',
+            'jumlah_output' => 100,
+            'jumlah_ok' => 91,
+            'jumlah_ng' => 9,
+        ]);
+
+        SecondProcessNgRecord::create([
+            'report_id' => $report->id,
+            'ng_name' => 'BINTIK',
+            'total_ng' => 5,
+            'ng_input_item' => '[3] NG-INPUT | [2] NG-PROSES',
+            'ng_input_qty' => 5,
+        ]);
+
+        SecondProcessNgRecord::create([
+            'report_id' => $report->id,
+            'ng_name' => 'SCRATCH',
+            'total_ng' => 4,
+            'ng_input_item' => '[1] NG-INPUT | [3] NG-PROSES',
+            'ng_input_qty' => 4,
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+        ]));
+
+        $response->assertOk();
+
+        $ngCategories = $response->viewData('ngCategories');
+        $this->assertContains('NG-INPUT', $ngCategories);
+        $this->assertContains('NG-PROSES', $ngCategories);
+
+        $categoryBreakdown = $response->viewData('categoryBreakdown');
+        $this->assertArrayHasKey('NG-INPUT', $categoryBreakdown);
+        $this->assertArrayHasKey('NG-PROSES', $categoryBreakdown);
+        $this->assertEquals(4, $categoryBreakdown['NG-INPUT']['qty']); // 3 + 1
+        $this->assertEquals(5, $categoryBreakdown['NG-PROSES']['qty']); // 2 + 3
+        $this->assertEquals(44.4, $categoryBreakdown['NG-INPUT']['percentage']);
+        $this->assertEquals(55.6, $categoryBreakdown['NG-PROSES']['percentage']);
+
+        // Assert Pareto defaults across all categories
+        $topNg = $response->viewData('topNg');
+        $this->assertEquals(['BINTIK', 'SCRATCH'], $topNg['labels']);
+        $this->assertEquals([5, 4], $topNg['values']);
+
+        // View asserts
+        $response->assertSee('Top NG Defects (Pareto Analysis)');
+        $response->assertSee('Distribution:');
+        $response->assertSee('NG Category');
+    }
+
+    public function test_analytics_filters_pareto_chart_by_ng_category(): void
+    {
+        $today = now()->format('Y-m-d');
+
+        $report = SecondProcessReport::create([
+            'date' => $today,
+            'unit_line' => 'Line 1',
+            'shift' => 1,
+            'process_prod' => 'Painting',
+            'status' => 'submitted',
+            'part_number' => 'NG-FILTER-01',
+            'part_name' => 'Filter Test Part',
+            'customer' => 'Customer NG',
+            'jumlah_output' => 200,
+            'jumlah_ok' => 189,
+            'jumlah_ng' => 11,
+        ]);
+
+        SecondProcessNgRecord::create([
+            'report_id' => $report->id,
+            'ng_name' => 'BINTIK',
+            'total_ng' => 7,
+            'ng_input_item' => '[5] NG-INPUT | [2] NG-PROSES',
+            'ng_input_qty' => 7,
+        ]);
+
+        SecondProcessNgRecord::create([
+            'report_id' => $report->id,
+            'ng_name' => 'SCRATCH',
+            'total_ng' => 4,
+            'ng_input_item' => '[1] NG-INPUT | [3] NG-PROSES',
+            'ng_input_qty' => 4,
+        ]);
+
+        // 1. Filter by NG-INPUT
+        $inputResponse = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+            'ng_category' => 'NG-INPUT',
+        ]));
+
+        $inputResponse->assertOk();
+        $this->assertEquals('NG-INPUT', $inputResponse->viewData('selectedNgCategory'));
+        $inputTopNg = $inputResponse->viewData('topNg');
+        $this->assertEquals(['BINTIK', 'SCRATCH'], $inputTopNg['labels']);
+        $this->assertEquals([5, 1], $inputTopNg['values']);
+        $this->assertEquals([83.3, 100.0], $inputTopNg['cumulative_pct']);
+
+        // 2. Filter by NG-PROSES
+        $prosesResponse = $this->actingAs($this->user)->get(route('second-process.report-analytics', [
+            'date_from' => $today,
+            'date_to' => $today,
+            'ng_category' => 'NG-PROSES',
+        ]));
+
+        $prosesResponse->assertOk();
+        $this->assertEquals('NG-PROSES', $prosesResponse->viewData('selectedNgCategory'));
+        $prosesTopNg = $prosesResponse->viewData('topNg');
+        // SCRATCH has 3, BINTIK has 2 -> SCRATCH is #1 in NG-PROSES
+        $this->assertEquals(['SCRATCH', 'BINTIK'], $prosesTopNg['labels']);
+        $this->assertEquals([3, 2], $prosesTopNg['values']);
+        $this->assertEquals([60.0, 100.0], $prosesTopNg['cumulative_pct']);
+    }
 }

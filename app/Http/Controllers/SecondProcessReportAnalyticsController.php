@@ -127,15 +127,64 @@ class SecondProcessReportAnalyticsController extends Controller
         // Subquery for child table aggregations (avoids memory bloat and MySQL parameter limits)
         $reportIdsSubquery = (clone $baseQuery)->select('id');
 
-        // 4. Top NG Defects / Categories (Pareto Chart Data)
-        $topNgRaw = SecondProcessNgRecord::whereIn('report_id', $reportIdsSubquery)
-            ->select(DB::raw("COALESCE(NULLIF(ng_name, ''), ng_category, 'Uncategorized') as ng_label, SUM(total_ng) as total"))
-            ->groupBy('ng_label')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get();
+        $selectedNgCategory = $request->filled('ng_category') ? trim($request->input('ng_category')) : null;
 
-        $totalNgSum = $topNgRaw->sum('total');
+        // 4. Top NG Defects / Categories (Pareto Chart Data) with NG Remark Category filtering
+        $ngRecords = SecondProcessNgRecord::whereIn('report_id', $reportIdsSubquery)
+            ->where('total_ng', '>', 0)
+            ->get(['id', 'report_id', 'ng_name', 'ng_category', 'total_ng', 'ng_input_item']);
+
+        $categoryTotals = [];
+        $defectTotals = [];
+
+        foreach ($ngRecords as $rec) {
+            $label = $rec->ng_name ?: ($rec->ng_category ?: 'Uncategorized');
+            $allocations = $this->parseNgRemarkAllocations($rec->ng_input_item, (int) $rec->total_ng);
+
+            foreach ($allocations as $cat => $qty) {
+                $categoryTotals[$cat] = ($categoryTotals[$cat] ?? 0) + $qty;
+            }
+
+            if ($selectedNgCategory) {
+                $catQty = $allocations[$selectedNgCategory] ?? 0;
+                if ($catQty > 0) {
+                    $defectTotals[$label] = ($defectTotals[$label] ?? 0) + $catQty;
+                }
+            } else {
+                $qty = (int) $rec->total_ng;
+                if ($qty > 0) {
+                    $defectTotals[$label] = ($defectTotals[$label] ?? 0) + $qty;
+                }
+            }
+        }
+
+        // Available NG Remark categories (preset first, then any extra discovered)
+        $presetCategories = array_keys(config('mes.sp_ng_remark_categories', [
+            'NG-INPUT' => 'NG-INPUT',
+            'NG-PROSES' => 'NG-PROSES',
+        ]));
+        $extraCategories = array_diff(array_keys($categoryTotals), $presetCategories);
+        sort($extraCategories);
+        $ngCategories = array_values(array_unique(array_merge($presetCategories, $extraCategories)));
+
+        // Distribution breakdown across all categories
+        $categoryBreakdown = [];
+        $totalAllCategoryNg = array_sum($categoryTotals);
+        arsort($categoryTotals);
+        foreach ($categoryTotals as $cat => $qty) {
+            if ($qty > 0) {
+                $categoryBreakdown[$cat] = [
+                    'qty' => $qty,
+                    'percentage' => $totalAllCategoryNg > 0 ? round(($qty / $totalAllCategoryNg) * 100, 1) : 0,
+                ];
+            }
+        }
+
+        // Top 10 Pareto Chart Data
+        arsort($defectTotals);
+        $topSlice = array_slice($defectTotals, 0, 10, true);
+        $totalNgSum = array_sum($topSlice);
+
         $topNg = [
             'labels' => [],
             'values' => [],
@@ -143,10 +192,10 @@ class SecondProcessReportAnalyticsController extends Controller
         ];
 
         $runningSum = 0;
-        foreach ($topNgRaw as $row) {
-            $runningSum += $row->total;
-            $topNg['labels'][] = $row->ng_label;
-            $topNg['values'][] = (int) $row->total;
+        foreach ($topSlice as $label => $val) {
+            $runningSum += $val;
+            $topNg['labels'][] = $label;
+            $topNg['values'][] = (int) $val;
             $topNg['cumulative_pct'][] = $totalNgSum > 0 ? round(($runningSum / $totalNgSum) * 100, 1) : 0;
         }
 
@@ -201,7 +250,13 @@ class SecondProcessReportAnalyticsController extends Controller
             ->get();
 
         // 7b. Top 5 Products by NG Defects (High Risk / Quality Issues)
-        $topDefectProductsRaw = (clone $baseQuery)
+        $topDefectProductsQuery = (clone $baseQuery);
+        if ($selectedNgCategory) {
+            $topDefectProductsQuery->whereHas('ngRecords', function ($q) use ($selectedNgCategory) {
+                $q->where('ng_input_item', 'LIKE', "%{$selectedNgCategory}%");
+            });
+        }
+        $topDefectProductsRaw = $topDefectProductsQuery
             ->select(DB::raw("part_number, part_name, customer, SUM(jumlah_output) as total_output, SUM(jumlah_ok) as total_ok, SUM(jumlah_ng) as total_ng, SUM(jml_ng_lebur) as total_scrap"))
             ->groupBy('part_number', 'part_name', 'customer')
             ->having('total_ng', '>', 0)
@@ -307,7 +362,10 @@ class SecondProcessReportAnalyticsController extends Controller
             'dateFrom',
             'dateTo',
             'lines',
-            'processes'
+            'processes',
+            'selectedNgCategory',
+            'ngCategories',
+            'categoryBreakdown'
         ));
     }
 
@@ -525,5 +583,59 @@ class SecondProcessReportAnalyticsController extends Controller
             return "'" . $str;
         }
         return $str;
+    }
+
+    /**
+     * Parse serialized NG remark item allocations into an associative array of category => qty.
+     * Handles formats: "[3] NG-INPUT | [2] NG-PROSES", "[5] NG-INPUT", "NG-INPUT", etc.
+     */
+    protected function parseNgRemarkAllocations(?string $ngInputItem, int $totalNg): array
+    {
+        $allocations = [];
+        if (empty($ngInputItem)) {
+            if ($totalNg > 0) {
+                $allocations['UNCATEGORIZED'] = $totalNg;
+            }
+            return $allocations;
+        }
+
+        $parts = explode('|', $ngInputItem);
+        $parsedSum = 0;
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            $qty = 0;
+            $name = $part;
+            if (preg_match('/^\[(\d+)\]\s*(.*)$/', $part, $matches)) {
+                $qty = (int) $matches[1];
+                $name = trim($matches[2]);
+            }
+
+            // Normalize category name
+            $cleanName = strtoupper(preg_replace('/[\s_]+/', '-', trim($name)));
+            if ($cleanName === 'INPUT') {
+                $cleanName = 'NG-INPUT';
+            } elseif ($cleanName === 'PROSES') {
+                $cleanName = 'NG-PROSES';
+            }
+
+            if ($cleanName !== '') {
+                // If unbracketed legacy format (e.g. single "NG-INPUT"), fallback to totalNg
+                if ($qty === 0 && count($parts) === 1) {
+                    $qty = $totalNg;
+                }
+                $allocations[$cleanName] = ($allocations[$cleanName] ?? 0) + $qty;
+                $parsedSum += $qty;
+            }
+        }
+
+        if (empty($allocations) && $totalNg > 0) {
+            $allocations['UNCATEGORIZED'] = $totalNg;
+        }
+
+        return $allocations;
     }
 }

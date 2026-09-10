@@ -120,7 +120,7 @@
                 </div>
 
                 {{-- Row 2: Filter Form Inputs --}}
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                     {{-- Date From --}}
                     <div>
                         <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">From Date</label>
@@ -170,6 +170,16 @@
                             <option value="">All Statuses</option>
                             @foreach(['draft', 'submitted', 'pqc_approved', 'leader_approved', 'acknowledged'] as $s)
                                 <option value="{{ $s }}" {{ request('status') == $s ? 'selected' : '' }}>{{ ucwords(str_replace('_', ' ', $s)) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    {{-- NG Remark Category --}}
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">NG Category</label>
+                        <select name="ng_category" onchange="filterByNgCategory(this.value)" class="w-full border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Categories</option>
+                            @foreach($ngCategories as $cat)
+                                <option value="{{ $cat }}" {{ ($selectedNgCategory ?? request('ng_category')) == $cat ? 'selected' : '' }}>{{ $cat }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -387,11 +397,61 @@
                 </div>
 
                 {{-- Chart 4: NG Defects Pareto --}}
-                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800 text-sm">Top NG Defects (Pareto Analysis)</h3>
-                        <span class="text-xs text-gray-400">Defect Qty & Cumulative %</span>
+                <div id="top-ng-card" class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm scroll-mt-24">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-gray-800 text-sm">Top NG Defects (Pareto Analysis)</h3>
+                                @if(!empty($selectedNgCategory))
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                                        {{ $selectedNgCategory }}
+                                        <a href="{{ request()->fullUrlWithQuery(['ng_category' => null]) }}#top-ng-card" class="hover:text-purple-900 ml-0.5 font-black leading-none" title="Clear category filter">&times;</a>
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="text-xs text-gray-400">
+                                @if(!empty($selectedNgCategory))
+                                    Defect Qty &amp; Cumulative % for <strong>{{ $selectedNgCategory }}</strong>
+                                @else
+                                    Defect Qty &amp; Cumulative % across all categories
+                                @endif
+                            </span>
+                        </div>
+                        {{-- Category Filter Select on Card --}}
+                        <div class="flex items-center gap-1.5 no-print">
+                            <label for="pareto-ng-category" class="text-xs font-semibold text-gray-500 whitespace-nowrap">Filter:</label>
+                            <select id="pareto-ng-category" class="text-xs border-gray-300 rounded-lg py-1 px-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm"
+                                onchange="filterByNgCategory(this.value)">
+                                <option value="">All Categories</option>
+                                @foreach($ngCategories as $cat)
+                                    <option value="{{ $cat }}" {{ ($selectedNgCategory ?? request('ng_category')) == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
+
+                    {{-- Category Breakdown Summary Badges --}}
+                    @if(!empty($categoryBreakdown))
+                        <div class="flex flex-wrap items-center gap-1.5 mb-3 no-print">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide mr-0.5">Distribution:</span>
+                            <a href="{{ request()->fullUrlWithQuery(['ng_category' => null]) }}#top-ng-card"
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition {{ empty($selectedNgCategory) ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' }}"
+                                title="Show all defect categories">
+                                <span>All:</span>
+                                <span>{{ number_format(array_sum(array_column($categoryBreakdown, 'qty'))) }}</span>
+                            </a>
+                            @foreach($categoryBreakdown as $catName => $catData)
+                                <a href="{{ request()->fullUrlWithQuery(['ng_category' => $selectedNgCategory == $catName ? null : $catName]) }}#top-ng-card"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition {{ $selectedNgCategory == $catName ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' }}"
+                                    title="Filter by {{ $catName }}">
+                                    <span>{{ $catName }}:</span>
+                                    <span>{{ number_format($catData['qty']) }}</span>
+                                    <span class="text-[10px] {{ $selectedNgCategory == $catName ? 'text-purple-200' : 'text-gray-400' }}">({{ $catData['percentage'] }}%)</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+
                     <div class="relative h-72">
                         <canvas id="chartTopNg"></canvas>
                     </div>
@@ -781,7 +841,28 @@
                 if (form) form.submit();
             }
         }
+        function filterByNgCategory(val) {
+            const mainSelect = document.querySelector('select[name="ng_category"]');
+            if (mainSelect) {
+                mainSelect.value = val;
+            }
+            const form = document.getElementById('analytics-filter-form');
+            if (form) {
+                form.action = "{{ route('second-process.report-analytics') }}#top-ng-card";
+                form.submit();
+            }
+        }
         document.addEventListener('DOMContentLoaded', function() {
+            // Auto-center view to Top NG Defects (Pareto Analysis) card if category filter was changed or applied
+            if (window.location.hash === '#top-ng-card' || @json(!empty($selectedNgCategory))) {
+                const card = document.getElementById('top-ng-card');
+                if (card) {
+                    setTimeout(function() {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 150);
+                }
+            }
+
             if (typeof window.Chart === 'undefined') {
                 console.error('Chart.js is not loaded');
                 return;
