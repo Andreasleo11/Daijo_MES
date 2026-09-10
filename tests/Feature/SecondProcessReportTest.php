@@ -882,6 +882,132 @@ class SecondProcessReportTest extends TestCase
         $viewResponse->assertSee('form-error-summary');
         $viewResponse->assertSee('Part Number wajib diisi.');
     }
+
+    public function test_submitting_report_fails_when_ng_greater_than_zero_without_remark(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-NG-TEST-01',
+            'status' => 'submitted',
+            'ngs' => [
+                [
+                    'ng_name' => 'SCRATCH',
+                    'hours' => [
+                        1 => 5,
+                    ],
+                    'ng_input_item' => '',
+                    'ng_input_qty' => null,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['ngs.0.ng_input_item']);
+    }
+
+    public function test_submitting_report_fails_when_remark_quantity_mismatches_total_ng(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-NG-TEST-02',
+            'status' => 'submitted',
+            'ngs' => [
+                [
+                    'ng_name' => 'SCRATCH',
+                    'hours' => [
+                        1 => 5,
+                    ],
+                    'ng_input_item' => '[3] NG-INPUT',
+                    'ng_input_qty' => 3, // Mismatch: 3 vs 5
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['ngs.0.ng_input_qty']);
+    }
+
+    public function test_submitting_report_succeeds_and_normalizes_to_uppercase_when_remarks_match(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-NG-TEST-03',
+            'status' => 'submitted',
+            'ngs' => [
+                [
+                    'ng_name' => 'SCRATCH',
+                    'hours' => [
+                        1 => 2,
+                        2 => 3,
+                    ],
+                    // Mixed case & duplicates to test uppercase consolidation
+                    'ng_input_item' => '[2] ng-input | [3] Ng-Input',
+                    'ng_input_qty' => 5,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_ng_records', [
+            'ng_name' => 'SCRATCH',
+            'total_ng' => 5,
+            'ng_input_item' => '[5] NG-INPUT',
+            'ng_input_qty' => 5,
+        ]);
+    }
+
+    public function test_draft_report_can_be_saved_with_partial_or_missing_ng_remarks(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-NG-DRAFT-01',
+            'status' => 'draft',
+            'ngs' => [
+                [
+                    'ng_name' => 'SCRATCH',
+                    'hours' => [
+                        1 => 5,
+                    ],
+                    'ng_input_item' => '',
+                    'ng_input_qty' => null,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-NG-DRAFT-01',
+            'status' => 'draft',
+        ]);
+    }
 }
 
 

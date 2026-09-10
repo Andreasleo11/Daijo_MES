@@ -204,6 +204,8 @@ class SecondProcessReportController extends Controller
             'troubles.*.masalah' => 'Deskripsi Masalah Trouble',
             'hourly.*.ok_qty' => 'Qty OK',
             'hourly.*.ng_qty' => 'Qty NG',
+            'ngs.*.ng_input_item' => 'Detail Remark Defect (NG)',
+            'ngs.*.ng_input_qty' => 'Kuantitas Remark Defect (NG)',
         ];
 
         $customMessages = [
@@ -293,6 +295,37 @@ class SecondProcessReportController extends Controller
             'troubles.*.loss_time_minutes' => 'nullable|integer|min:0|max:1440',
         ], $customMessages, $customAttributes);
 
+        // Enforce defect remarks for submitted reports when Total NG > 0
+        $effectiveStatus = $validated['status'] ?? ($report->exists ? $report->status : 'draft');
+        if ($effectiveStatus === 'submitted' && !empty($validated['ngs']) && is_array($validated['ngs'])) {
+            $ngErrors = [];
+            foreach ($validated['ngs'] as $idx => $ng) {
+                $ngName = $ng['ng_name'] ?? ('Defect #' . ($idx + 1));
+                $colTotal = 0;
+                if (!empty($ng['hours']) && is_array($ng['hours'])) {
+                    foreach ($ng['hours'] as $val) {
+                        $colTotal += (int) $val;
+                    }
+                }
+
+                if ($colTotal > 0) {
+                    $rawItem = $ng['ng_input_item'] ?? null;
+                    $normalized = $this->normalizeNgRemarkItem($rawItem);
+
+                    if (empty($normalized['normalized_item'])) {
+                        $ngErrors["ngs.{$idx}.ng_input_item"] = "Remark detail wajib diisi untuk defect {$ngName} karena terdapat {$colTotal} defect tercatat.";
+                    } elseif (($normalized['total_qty'] ?? 0) !== $colTotal) {
+                        $remQty = $normalized['total_qty'] ?? 0;
+                        $ngErrors["ngs.{$idx}.ng_input_qty"] = "Total kuantitas remark untuk defect {$ngName} ({$remQty} pcs) harus sama dengan total defect tercatat ({$colTotal} pcs).";
+                    }
+                }
+            }
+
+            if (!empty($ngErrors)) {
+                throw \Illuminate\Validation\ValidationException::withMessages($ngErrors);
+            }
+        }
+
         // Sanitize next_production_schedule: discard empty strings, nulls, and whitespace
         $cleanSchedule = is_array($validated['next_production_schedule'] ?? null)
             ? array_values(array_filter(
@@ -353,6 +386,11 @@ class SecondProcessReportController extends Controller
                 }
                 $validated['ngs'][$key]['total_ng'] = $rowTotal;
                 $jumlah_ng += $rowTotal;
+
+                // Normalize remark item and quantity to canonical uppercase format
+                $normalized = $this->normalizeNgRemarkItem($ng['ng_input_item'] ?? null);
+                $validated['ngs'][$key]['ng_input_item'] = $normalized['normalized_item'];
+                $validated['ngs'][$key]['ng_input_qty'] = $normalized['total_qty'];
             }
         }
 
@@ -667,5 +705,73 @@ class SecondProcessReportController extends Controller
 
         return redirect()->route('second-process-reports.show', $id)
             ->with('success', 'Report was successfully rejected and returned to Draft.');
+    }
+
+    /**
+     * Normalize NG remark item string to canonical UPPERCASE hyphenated categories
+     * and consolidate quantities across identical intended categories.
+     *
+     * Example: "[2] ng-input | [3] Ng-Input | [1] debu cetakan"
+     * Result:  ['normalized_item' => '[5] NG-INPUT | [1] DEBU-CETAKAN', 'total_qty' => 6]
+     */
+    protected function normalizeNgRemarkItem(?string $rawItem): array
+    {
+        if (empty($rawItem) || trim($rawItem) === '') {
+            return ['normalized_item' => null, 'total_qty' => null];
+        }
+
+        $parts = explode(' | ', trim($rawItem));
+        $categoryTotals = [];
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            $qty = 0;
+            $name = $part;
+            if (preg_match('/^\[(\d+)\]\s*(.*)$/', $part, $matches)) {
+                $qty = (int) $matches[1];
+                $name = trim($matches[2]);
+            }
+
+            // Normalize category name: collapse whitespace and underscores to '-', then UPPERCASE
+            $cleanName = strtoupper(preg_replace('/[\s_]+/', '-', trim($name)));
+
+            // Standardize presets
+            if ($cleanName === 'NG-INPUT' || $cleanName === 'INPUT') {
+                $cleanName = 'NG-INPUT';
+            } elseif ($cleanName === 'NG-PROSES' || $cleanName === 'PROSES') {
+                $cleanName = 'NG-PROSES';
+            }
+
+            if ($cleanName !== '') {
+                if (!isset($categoryTotals[$cleanName])) {
+                    $categoryTotals[$cleanName] = 0;
+                }
+                $categoryTotals[$cleanName] += $qty;
+            }
+        }
+
+        if (empty($categoryTotals)) {
+            return ['normalized_item' => null, 'total_qty' => null];
+        }
+
+        $serializedParts = [];
+        $totalQty = 0;
+        foreach ($categoryTotals as $catName => $catQty) {
+            $totalQty += $catQty;
+            if ($catQty > 0) {
+                $serializedParts[] = "[{$catQty}] {$catName}";
+            } else {
+                $serializedParts[] = $catName;
+            }
+        }
+
+        return [
+            'normalized_item' => implode(' | ', $serializedParts),
+            'total_qty' => $totalQty > 0 ? $totalQty : null,
+        ];
     }
 }

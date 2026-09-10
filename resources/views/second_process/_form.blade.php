@@ -922,6 +922,31 @@
                                     @foreach ($defaultNgs as $index => $ng)
                                         @php
                                             $ngRecord = $report->ngRecords->where('ng_name', $ng)->first();
+                                            $rawItem = old("ngs.{$index}.ng_input_item", $ngRecord ? $ngRecord->ng_input_item : '');
+                                            $rawQty = old("ngs.{$index}.ng_input_qty", $ngRecord ? $ngRecord->ng_input_qty : '');
+                                            $colTotalNg = (int) old("ngs.{$index}.total_ng", $ngRecord ? $ngRecord->total_ng : 0);
+                                            $hasRemark = !empty($rawItem) || ($rawQty !== null && $rawQty !== '');
+                                            $remQty = ($rawQty !== null && $rawQty !== '') ? (int) $rawQty : 0;
+
+                                            if ($colTotalNg === 0) {
+                                                $btnClass = 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-700 font-semibold';
+                                                $labelText = 'Add Remark';
+                                            } elseif (!$hasRemark || $remQty === 0) {
+                                                $btnClass = 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100 font-bold animate-pulse';
+                                                $labelText = "Remark Needed (0/{$colTotalNg})";
+                                            } elseif ($remQty !== $colTotalNg) {
+                                                $btnClass = 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 font-bold';
+                                                $labelText = "Needs Update ({$remQty}/{$colTotalNg})";
+                                            } else {
+                                                $btnClass = 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 font-bold';
+                                                $prettified = preg_replace(
+                                                    '/\[(\d+)\]\s*([^\|]+)/',
+                                                    '$1x $2',
+                                                    $rawItem,
+                                                );
+                                                $prettified = str_replace(' | ', ', ', $prettified);
+                                                $labelText = "{$prettified} ({$remQty})";
+                                            }
                                         @endphp
                                         <th class="group px-3 py-2 w-32 text-center ng-type-header relative select-none border-b border-gray-200"
                                             data-ng="{{ $ng }}">
@@ -934,35 +959,6 @@
                                                         data-ng="{{ $ng }}"
                                                         title="Delete {{ $ng }}">&times;</button>
                                                 </div>
-                                                @php
-                                                    $hasRemark =
-                                                        $ngRecord &&
-                                                        (!empty($ngRecord->ng_input_item) ||
-                                                            ($ngRecord->ng_input_qty !== null &&
-                                                                $ngRecord->ng_input_qty !== ''));
-                                                    $btnClass = $hasRemark
-                                                        ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 font-bold'
-                                                        : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-700 font-semibold';
-
-                                                    $labelText = 'Add Remark';
-                                                    if ($hasRemark) {
-                                                        $item = $ngRecord->ng_input_item;
-                                                        $qty = $ngRecord->ng_input_qty;
-                                                        if ($item && $qty !== null) {
-                                                            $prettified = preg_replace(
-                                                                '/\[(\d+)\]\s*([^\|]+)/',
-                                                                '$1x $2',
-                                                                $item,
-                                                            );
-                                                            $prettified = str_replace(' | ', ', ', $prettified);
-                                                            $labelText = $prettified;
-                                                        } elseif ($item) {
-                                                            $labelText = $item;
-                                                        } elseif ($qty !== null) {
-                                                            $labelText = "Qty: {$qty}";
-                                                        }
-                                                    }
-                                                @endphp
                                                 <button type="button"
                                                     class="ng-remark-btn mt-1 flex items-center justify-between w-full px-2 py-1.5 text-[10px] rounded border transition-all select-none {{ $btnClass }}"
                                                     data-ng-name="{{ $ng }}"
@@ -978,16 +974,16 @@
                                                     </svg>
                                                 </button>
                                                 <input type="hidden" name="ngs[{{ $index }}][ng_input_item]"
-                                                    value="{{ $ngRecord ? $ngRecord->ng_input_item : '' }}"
+                                                    value="{{ $rawItem }}"
                                                     class="ng-input-item-hidden">
                                                 <input type="hidden" name="ngs[{{ $index }}][ng_input_qty]"
-                                                    value="{{ $ngRecord ? $ngRecord->ng_input_qty : '' }}"
+                                                    value="{{ $rawQty }}"
                                                     class="ng-input-qty-hidden">
                                                 <input type="hidden" name="ngs[{{ $index }}][ng_name]"
                                                     value="{{ $ng }}">
                                                 <input type="hidden" name="ngs[{{ $index }}][total_ng]"
                                                     id="ng-total-hidden-{{ $index }}"
-                                                    value="{{ $ngRecord ? $ngRecord->total_ng : 0 }}">
+                                                    value="{{ $colTotalNg }}">
                                             </div>
                                         </th>
                                     @endforeach
@@ -1041,7 +1037,7 @@
                                                 $ngDetail = $ngRecord
                                                     ? $ngRecord->hourlyDetails->where('hour_ke', $hour)->first()
                                                     : null;
-                                                $ngVal = $ngDetail ? $ngDetail->qty : '';
+                                                $ngVal = old("ngs.{$index}.hours.{$hour}", $ngDetail ? $ngDetail->qty : '');
                                             @endphp
                                             <td class="px-1.5 py-1.5 ng-cell transition-colors duration-100"
                                                 data-ng="{{ $ng }}">
@@ -1323,6 +1319,20 @@
                 class="text-white hover:text-gray-200 text-xl font-bold close-modal-btn">&times;</button>
         </div>
         <div class="p-6 space-y-4">
+            <!-- Balance Tracker Banner -->
+            <div id="modal-balance-banner" class="p-3 rounded-lg border bg-gray-50 border-gray-200 text-xs flex items-center justify-between transition-colors">
+                <div>
+                    <span class="text-gray-500 font-semibold">Target Defect:</span>
+                    <span id="modal-target-ng" class="font-bold text-gray-900 ml-1">0</span> <span class="text-[10px] text-gray-400">pcs</span>
+                    <span class="mx-2 text-gray-300">|</span>
+                    <span class="text-gray-500 font-semibold">Allocated:</span>
+                    <span id="modal-allocated-ng" class="font-bold text-gray-900 ml-1">0</span> <span class="text-[10px] text-gray-400">pcs</span>
+                </div>
+                <div id="modal-balance-badge" class="px-2 py-0.5 rounded font-extrabold text-[11px] bg-gray-200 text-gray-700">
+                    Remaining: 0
+                </div>
+            </div>
+
             <div id="modal-rows-container" class="space-y-3 max-h-60 overflow-y-auto">
                 <!-- Dynamic rows injected here -->
             </div>
@@ -1332,6 +1342,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg> Add Detail Row
             </button>
+            <div id="modal-validation-hint" class="text-[11px] text-amber-700 font-semibold hidden text-center bg-amber-50 p-2 rounded border border-amber-200">
+                Total kuantitas alokasi harus sama persis dengan target defect.
+            </div>
         </div>
         <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-2 border-t border-gray-100">
             <button type="button"
@@ -1491,7 +1504,7 @@
                 statusField.value = 'submitted';
             }
 
-            // Highlight checking of inputs before submit
+            // 1. Highlight checking of inputs before submit
             const formInputs = form.querySelectorAll('input[required], select[required]');
             let valid = true;
             let firstInvalid = null;
@@ -1513,6 +1526,63 @@
                 firstInvalid.focus();
                 alert(`Harap lengkapi kolom yang wajib diisi pada ${tabNamesMap[tabId] || tabId} untuk mengirim laporan.`);
                 return;
+            }
+
+            // 2. Strict check on Defect (NG) Remarks when Total NG > 0
+            const missingRemarkNgs = [];
+            activeNgs.forEach((ng, index) => {
+                const hiddenTotal = document.getElementById(`ng-total-hidden-${index}`);
+                const colTotal = hiddenTotal ? (parseInt(hiddenTotal.value) || 0) : 0;
+
+                if (colTotal > 0) {
+                    const th = document.querySelector(`th.ng-type-header[data-ng="${ng}"]`) || (hiddenTotal ? hiddenTotal.closest('th') : null);
+                    const itemHidden = th ? th.querySelector('.ng-input-item-hidden') : null;
+                    const qtyHidden = th ? th.querySelector('.ng-input-qty-hidden') : null;
+
+                    const itemVal = itemHidden ? itemHidden.value.trim() : '';
+                    const qtyVal = qtyHidden && qtyHidden.value !== '' ? parseInt(qtyHidden.value) : 0;
+
+                    if (!itemVal || qtyVal !== colTotal) {
+                        missingRemarkNgs.push({
+                            name: ng,
+                            total: colTotal,
+                            allocated: qtyVal,
+                            th: th
+                        });
+                    }
+                }
+            });
+
+            if (missingRemarkNgs.length > 0) {
+                switchTab('production');
+
+                missingRemarkNgs.forEach(item => {
+                    if (item.th) {
+                        item.th.classList.add('ring-2', 'ring-red-500', 'bg-red-50');
+                        setTimeout(() => {
+                            item.th.classList.remove('ring-2', 'ring-red-500', 'bg-red-50');
+                        }, 6000);
+                    }
+                });
+
+                const tableEl = document.getElementById('unified-production-table');
+                if (tableEl) {
+                    tableEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                const ngNamesList = missingRemarkNgs.map(item => `• ${item.name}: dialokasikan ${item.allocated} dari ${item.total} pcs`).join('\n');
+                alert(`Pengiriman laporan belum dapat diproses!\n\nTerdapat defect dengan nilai NG > 0 yang belum memiliki remark lengkap atau kuantitas alokasi belum sesuai:\n\n${ngNamesList}\n\nHarap klik tombol 'Add Remark' pada kolom header terkait dan sesuaikan detail defect.`);
+                return;
+            }
+
+            // Set loading state on submit button
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg> Submitting...`;
             }
 
             form.submit();
@@ -1827,7 +1897,7 @@
                 overallNg += rowTotal;
             });
 
-            // Sum by column (NG type total) to update hidden fields
+            // Sum by column (NG type total) to update hidden fields & remark button state
             activeNgs.forEach((ng, index) => {
                 const colInputs = document.querySelectorAll(
                     `.ng-hourly-input[data-ng-index="${index}"]`);
@@ -1838,6 +1908,10 @@
                 const hiddenTotal = document.getElementById(`ng-total-hidden-${index}`);
                 if (hiddenTotal) {
                     hiddenTotal.value = colTotal;
+                }
+                const th = document.querySelector(`th.ng-type-header[data-ng="${ng}"]`) || (hiddenTotal ? hiddenTotal.closest('th') : null);
+                if (th && typeof updateNgRemarkButtonState === 'function') {
+                    updateNgRemarkButtonState(th, colTotal);
                 }
             });
 
@@ -2002,23 +2076,186 @@
             });
         }
 
-        // Defect Remark Modal Handling
+        // Defect Remark Preset Categories & State Handling
+        const ngPresetCategories = {!! json_encode(config('mes.sp_ng_remark_categories')) !!};
         const remarkModal = document.getElementById('ng-remark-modal');
         const modalTitle = document.getElementById('modal-ng-title');
         const saveModalBtn = document.getElementById('save-modal-remark-btn');
         let activeRemarkButton = null;
 
-        // Function to add a row to the modal dynamically
+        // Centralized Remark Button UI State Handler
+        function updateNgRemarkButtonState(th, colTotal) {
+            if (!th) return;
+            const btn = th.querySelector('.ng-remark-btn');
+            if (!btn) return;
+            const previewLabel = btn.querySelector('.remark-preview-label');
+            const itemHidden = th.querySelector('.ng-input-item-hidden');
+            const qtyHidden = th.querySelector('.ng-input-qty-hidden');
+
+            const itemVal = itemHidden ? itemHidden.value.trim() : '';
+            const qtyVal = qtyHidden && qtyHidden.value !== '' ? parseInt(qtyHidden.value) : 0;
+
+            // Reset dynamic classes
+            btn.classList.remove(
+                'bg-gray-50', 'border-gray-200', 'text-gray-500', 'hover:bg-blue-50', 'hover:text-blue-700', 'font-semibold',
+                'bg-blue-50', 'border-blue-200', 'text-blue-700', 'hover:bg-blue-100', 'font-bold',
+                'bg-red-50', 'border-red-300', 'text-red-700', 'hover:bg-red-100', 'animate-pulse',
+                'bg-amber-50', 'border-amber-300', 'text-amber-800', 'hover:bg-amber-100'
+            );
+
+            if (colTotal === 0) {
+                btn.classList.add('bg-gray-50', 'border-gray-200', 'text-gray-500', 'hover:bg-blue-50', 'hover:text-blue-700', 'font-semibold');
+                if (previewLabel) previewLabel.textContent = 'Add Remark';
+            } else if (!itemVal || qtyVal === 0) {
+                // Total NG > 0, but no remark allocated
+                btn.classList.add('bg-red-50', 'border-red-300', 'text-red-700', 'hover:bg-red-100', 'font-bold', 'animate-pulse');
+                if (previewLabel) previewLabel.textContent = `Remark Needed (0/${colTotal})`;
+            } else if (qtyVal !== colTotal) {
+                // Total NG > 0, but remark qty mismatch
+                btn.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-800', 'hover:bg-amber-100', 'font-bold');
+                if (previewLabel) previewLabel.textContent = `Needs Update (${qtyVal}/${colTotal})`;
+            } else {
+                // Total NG > 0 and perfectly matched!
+                btn.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700', 'hover:bg-blue-100', 'font-bold');
+                let pretty = itemVal
+                    .replace(/\[(\d+)\]\s*([^\|]+)/g, '$1x $2')
+                    .replace(/\s*\|\s*/g, ', ');
+                if (previewLabel) previewLabel.textContent = `${pretty} (${qtyVal})`;
+            }
+        }
+
+        // Live Balance Tracker inside Modal
+        function updateModalBalance() {
+            if (!activeRemarkButton) return;
+            const colIndex = activeRemarkButton.getAttribute('data-ng-index');
+            const hiddenTotal = document.getElementById(`ng-total-hidden-${colIndex}`);
+            const targetNg = hiddenTotal ? (parseInt(hiddenTotal.value) || 0) : 0;
+
+            const rows = document.querySelectorAll('.modal-row');
+            let allocated = 0;
+
+            rows.forEach(row => {
+                const qtyInput = row.querySelector('.modal-row-qty');
+                const qtyVal = qtyInput && qtyInput.value !== '' ? (parseInt(qtyInput.value) || 0) : 0;
+                allocated += qtyVal;
+            });
+
+            const targetEl = document.getElementById('modal-target-ng');
+            const allocatedEl = document.getElementById('modal-allocated-ng');
+            const badgeEl = document.getElementById('modal-balance-badge');
+            const bannerEl = document.getElementById('modal-balance-banner');
+            const hintEl = document.getElementById('modal-validation-hint');
+
+            if (targetEl) targetEl.textContent = targetNg;
+            if (allocatedEl) allocatedEl.textContent = allocated;
+
+            const remaining = targetNg - allocated;
+
+            if (targetNg === 0) {
+                if (badgeEl) {
+                    badgeEl.className = 'px-2 py-0.5 rounded font-extrabold text-[11px] bg-gray-100 text-gray-700';
+                    badgeEl.textContent = 'No Defect (0)';
+                }
+                if (bannerEl) bannerEl.className = 'p-3 rounded-lg border bg-gray-50 border-gray-200 text-xs flex items-center justify-between transition-colors';
+                saveModalBtn.disabled = false;
+                saveModalBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                if (hintEl) hintEl.classList.add('hidden');
+            } else if (remaining === 0 && allocated > 0) {
+                if (badgeEl) {
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300';
+                    badgeEl.textContent = 'Matched (0 remaining)';
+                }
+                if (bannerEl) bannerEl.className = 'p-3 rounded-lg border bg-emerald-50/50 border-emerald-200 text-xs flex items-center justify-between transition-colors';
+                saveModalBtn.disabled = false;
+                saveModalBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                if (hintEl) hintEl.classList.add('hidden');
+            } else if (remaining > 0) {
+                if (badgeEl) {
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-amber-100 text-amber-800 border border-amber-300';
+                    badgeEl.textContent = `Remaining: ${remaining} pcs`;
+                }
+                if (bannerEl) bannerEl.className = 'p-3 rounded-lg border bg-amber-50/50 border-amber-200 text-xs flex items-center justify-between transition-colors';
+                saveModalBtn.disabled = true;
+                saveModalBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                if (hintEl) {
+                    hintEl.textContent = `Harap alokasikan sisa ${remaining} pcs defect agar total sesuai target (${targetNg} pcs).`;
+                    hintEl.classList.remove('hidden');
+                }
+            } else {
+                const over = Math.abs(remaining);
+                if (badgeEl) {
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-red-100 text-red-800 border border-red-300';
+                    badgeEl.textContent = `Exceeds Target: +${over} pcs`;
+                }
+                if (bannerEl) bannerEl.className = 'p-3 rounded-lg border bg-red-50/50 border-red-200 text-xs flex items-center justify-between transition-colors';
+                saveModalBtn.disabled = true;
+                saveModalBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                if (hintEl) {
+                    hintEl.textContent = `Kuantitas melebihi target defect sebesar ${over} pcs. Harap kurangi alokasi.`;
+                    hintEl.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Add row to Defect Detail modal
         function addModalRow(item = '', qty = '') {
             const container = document.getElementById('modal-rows-container');
             const div = document.createElement('div');
             div.className = 'flex items-center space-x-2 modal-row';
+
+            const trimmedItem = (item || '').trim();
+            const normalizedUpper = trimmedItem.replace(/[\s_]+/g, '-').toUpperCase();
+
+            let isPreset = false;
+            let selectedType = '__custom__';
+            let customVal = trimmedItem;
+
+            if (normalizedUpper === 'NG-INPUT' || normalizedUpper === 'INPUT') {
+                selectedType = 'NG-INPUT';
+                isPreset = true;
+                customVal = '';
+            } else if (normalizedUpper === 'NG-PROSES' || normalizedUpper === 'PROSES') {
+                selectedType = 'NG-PROSES';
+                isPreset = true;
+                customVal = '';
+            }
+
+            let optionsHtml = '';
+            for (const [key, label] of Object.entries(ngPresetCategories)) {
+                const sel = selectedType === key ? 'selected' : '';
+                optionsHtml += `<option value="${key}" ${sel}>${label}</option>`;
+            }
+            optionsHtml += `<option value="__custom__" ${!isPreset ? 'selected' : ''}>Custom...</option>`;
+
             div.innerHTML = `
-                <input type="text" class="flex-1 rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 px-2 modal-row-item" placeholder="Remark detail..." value="${escapeHtml(item)}">
-                <input type="number" class="w-20 rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 px-2 modal-row-qty" placeholder="Qty" value="${qty}">
+                <select class="w-36 rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 px-2 modal-row-type">
+                    ${optionsHtml}
+                </select>
+                <input type="text" class="flex-1 rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 px-2 modal-row-item-custom ${isPreset ? 'hidden' : ''}" placeholder="Kategori custom..." value="${escapeHtml(customVal)}">
+                <input type="number" min="1" class="w-20 rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 px-2 modal-row-qty text-center font-bold" placeholder="Qty" value="${qty}">
                 <button type="button" class="text-red-500 hover:text-red-700 font-bold delete-row-btn text-base px-1" title="Delete row">&times;</button>
             `;
             container.appendChild(div);
+
+            const select = div.querySelector('.modal-row-type');
+            const customInput = div.querySelector('.modal-row-item-custom');
+            const qtyInput = div.querySelector('.modal-row-qty');
+
+            select.addEventListener('change', function() {
+                if (this.value === '__custom__') {
+                    customInput.classList.remove('hidden');
+                    customInput.focus();
+                } else {
+                    customInput.classList.add('hidden');
+                    customInput.value = '';
+                }
+                updateModalBalance();
+            });
+
+            customInput.addEventListener('input', updateModalBalance);
+            qtyInput.addEventListener('input', updateModalBalance);
+
+            updateModalBalance();
         }
 
         // Helper to escape HTML tags in strings
@@ -2037,13 +2274,17 @@
             if (deleteBtn) {
                 const row = deleteBtn.closest('.modal-row');
                 const allRows = document.querySelectorAll('.modal-row');
-                // Keep at least one row
                 if (allRows.length > 1) {
                     row.remove();
                 } else {
-                    row.querySelector('.modal-row-item').value = '';
-                    row.querySelector('.modal-row-qty').value = '';
+                    const sel = row.querySelector('.modal-row-type');
+                    const custom = row.querySelector('.modal-row-item-custom');
+                    const qty = row.querySelector('.modal-row-qty');
+                    if (sel) sel.value = 'NG-INPUT';
+                    if (custom) { custom.value = ''; custom.classList.add('hidden'); }
+                    if (qty) qty.value = '';
                 }
+                updateModalBalance();
             }
         });
 
@@ -2073,7 +2314,7 @@
             const rawQty = qtyHidden.value.trim();
 
             if (rawItem) {
-                // Try to parse structured items like [8] X | [3] Y
+                // Parse structured items like [8] X | [3] Y
                 const parts = rawItem.split(' | ');
                 let parsedAny = false;
 
@@ -2085,7 +2326,6 @@
                     }
                 });
 
-                // If parsing failed or it's legacy data, load as a single row
                 if (!parsedAny) {
                     addModalRow(rawItem, rawQty);
                 }
@@ -2094,6 +2334,7 @@
                 addModalRow('', '');
             }
 
+            updateModalBalance();
             remarkModal.showModal();
         });
 
@@ -2113,7 +2354,7 @@
             }
         });
 
-        // Save details
+        // Save details with Uppercase Normalization & Consolidation
         saveModalBtn.addEventListener('click', function() {
             if (!activeRemarkButton) return;
 
@@ -2122,23 +2363,34 @@
             const qtyHidden = th.querySelector('.ng-input-qty-hidden');
 
             const rows = document.querySelectorAll('.modal-row');
-            let serializedParts = [];
-            let totalQty = 0;
+            const categoryMap = {}; // Normalized UPPERCASE category -> total qty
 
             rows.forEach(row => {
-                const itemVal = row.querySelector('.modal-row-item').value.trim();
+                const typeVal = row.querySelector('.modal-row-type').value;
+                const customVal = row.querySelector('.modal-row-item-custom').value.trim();
                 const qtyVal = parseInt(row.querySelector('.modal-row-qty').value) || 0;
 
-                if (itemVal || qtyVal > 0) {
-                    // Serialize as [qty] item or just item if qty is 0
-                    if (qtyVal > 0) {
-                        serializedParts.push(`[${qtyVal}] ${itemVal}`);
-                        totalQty += qtyVal;
-                    } else {
-                        serializedParts.push(itemVal);
+                let categoryName = '';
+                if (typeVal === '__custom__') {
+                    categoryName = customVal.replace(/[\s_]+/g, '-').toUpperCase();
+                } else {
+                    categoryName = typeVal.replace(/[\s_]+/g, '-').toUpperCase();
+                }
+
+                if (categoryName && qtyVal > 0) {
+                    if (!categoryMap[categoryName]) {
+                        categoryMap[categoryName] = 0;
                     }
+                    categoryMap[categoryName] += qtyVal;
                 }
             });
+
+            let serializedParts = [];
+            let totalQty = 0;
+            for (const [catName, catQty] of Object.entries(categoryMap)) {
+                totalQty += catQty;
+                serializedParts.push(`[${catQty}] ${catName}`);
+            }
 
             const finalItemVal = serializedParts.join(' | ');
 
@@ -2146,28 +2398,10 @@
             itemHidden.value = finalItemVal;
             qtyHidden.value = totalQty > 0 ? totalQty : '';
 
-            // Update button UI & Label
-            const previewLabel = activeRemarkButton.querySelector('.remark-preview-label');
-            const hasVal = finalItemVal !== '';
-
-            if (hasVal) {
-                activeRemarkButton.classList.remove('bg-gray-50', 'border-gray-200', 'text-gray-500',
-                    'hover:bg-blue-50', 'hover:text-blue-700', 'font-semibold');
-                activeRemarkButton.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700',
-                    'hover:bg-blue-100', 'font-bold');
-
-                // Format label prettily for preview: e.g. 8x X, 3x Y
-                let prettyLabel = finalItemVal
-                    .replace(/\[(\d+)\]\s*([^\|]+)/g, '$1x $2')
-                    .replace(/\s*\|\s*/g, ', ');
-                previewLabel.textContent = prettyLabel;
-            } else {
-                activeRemarkButton.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-700',
-                    'hover:bg-blue-100', 'font-bold');
-                activeRemarkButton.classList.add('bg-gray-50', 'border-gray-200', 'text-gray-500',
-                    'hover:bg-blue-50', 'hover:text-blue-700', 'font-semibold');
-                previewLabel.textContent = 'Add Remark';
-            }
+            // Update button UI state
+            const hiddenTotal = document.getElementById(`ng-total-hidden-${activeRemarkButton.getAttribute('data-ng-index')}`);
+            const colTotal = hiddenTotal ? (parseInt(hiddenTotal.value) || 0) : 0;
+            updateNgRemarkButtonState(th, colTotal);
 
             closeModal();
         });

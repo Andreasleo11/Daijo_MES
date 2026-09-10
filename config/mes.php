@@ -229,6 +229,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Second Process NG Remark Preset Categories
+    |--------------------------------------------------------------------------
+    |
+    | Standardized categories for NG root cause / defect source breakdown.
+    | Standardized in UPPERCASE with hyphen ('-') format for consistent data-processing.
+    |
+    */
+    'sp_ng_remark_categories' => [
+        'NG-INPUT'  => 'NG-INPUT',
+        'NG-PROSES' => 'NG-PROSES',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Second Process Default Target NG Rate (%)
     |--------------------------------------------------------------------------
     |
@@ -237,3 +251,4 @@ return [
     */
     'sp_target_ng_rate' => 2.0,
 ];
+
