@@ -86,8 +86,8 @@
                         </div>
 
                         <!-- Searchable Item Code Combobox -->
-                        <div x-data="itemPicker({
-                            items: {{ json_encode($items->map(fn($it) => [
+                        <script id="master-items-data" type="application/json">
+                            {!! json_encode($items->map(fn($it) => [
                                 'code' => $it->item_code,
                                 'name' => $it->item_name ?? '',
                                 'qad'  => ($it->description_in_foreign_lang && $it->description_in_foreign_lang !== '0') ? $it->description_in_foreign_lang : '',
@@ -95,114 +95,71 @@
                                 'color'=> ($it->color && $it->color !== '0') ? $it->color : '',
                                 'position' => ($it->position && $it->position !== '0') ? $it->position : '',
                                 'is_kr' => str_starts_with($it->item_code, 'K-')
-                            ])) }},
-                            selectedCode: '{{ old('item_code', '') }}'
-                        })" class="relative">
+                            ])) !!}
+                        </script>
+
+                        <div id="item-picker-root" class="relative">
                             <div class="flex items-center justify-between mb-2">
                                 <label for="item_search_input" class="block text-sm font-semibold text-slate-700">
                                     Item Code <span class="text-red-500">*</span>
                                 </label>
                                 <!-- Filter Branch Quick Switcher -->
                                 <div class="inline-flex rounded-md shadow-2xs border border-slate-200 p-0.5 bg-slate-50 text-[11px] font-bold">
-                                    <button type="button" @click="branchFilter = 'all'" :class="branchFilter === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">Semua</button>
-                                    <button type="button" @click="branchFilter = 'karawang'" :class="branchFilter === 'karawang' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">Karawang (K-)</button>
-                                    <button type="button" @click="branchFilter = 'kbn'" :class="branchFilter === 'kbn' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">KBN</button>
+                                    <button type="button" id="btn-branch-all" class="px-2.5 py-0.5 rounded transition font-bold">Semua</button>
+                                    <button type="button" id="btn-branch-kr" class="px-2.5 py-0.5 rounded transition font-bold">Karawang (K-)</button>
+                                    <button type="button" id="btn-branch-kbn" class="px-2.5 py-0.5 rounded transition font-bold">KBN</button>
                                 </div>
                             </div>
 
                             <!-- Hidden input for standard form submission -->
-                            <input type="hidden" id="item_code" name="item_code" :value="selectedItem ? selectedItem.code : ''" required>
+                            <input type="hidden" id="item_code" name="item_code" value="{{ old('item_code', '') }}" required>
 
                             <!-- Search Input & Trigger Box -->
                             <div class="relative">
                                 <div class="relative flex items-center">
                                     <input type="text"
                                            id="item_search_input"
-                                           x-ref="searchInput"
-                                           x-model="search"
-                                           @focus="openDropdown()"
-                                           @input="openDropdown()"
-                                           @keydown.down.prevent="navigate(1)"
-                                           @keydown.up.prevent="navigate(-1)"
-                                           @keydown.enter.prevent="selectHighlighted()"
-                                           @keydown.escape.prevent="closeDropdown()"
-                                           placeholder="🔍 Ketik untuk cari Item Code / Part Name (cth: K-...)..."
+                                           placeholder="🔍 Ketik Part No / Item Code (cth: K-... atau nama part)..."
                                            autocomplete="off"
-                                           class="block w-full pl-4 pr-10 py-2 border rounded-lg shadow-sm text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                                           :class="selectedItem ? 'border-indigo-500 bg-indigo-50/20 text-indigo-950 font-bold' : 'border-slate-300 bg-white text-slate-800'">
+                                           class="block w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
 
                                     <!-- Clear / Action button -->
                                     <button type="button"
-                                            x-show="selectedItem || search"
-                                            @click="clearSelection()"
+                                            id="btn-clear-item"
                                             title="Hapus / Cari item lain"
-                                            class="absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition">
+                                            class="hidden absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
 
                                 <!-- Selected Item Confirmation Ribbon -->
-                                <template x-if="selectedItem">
-                                    <div class="mt-1.5 flex items-center justify-between text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">
-                                        <div class="flex items-center gap-1.5 font-bold">
-                                            <span>✓ Terpilih:</span>
-                                            <span class="font-mono" x-text="selectedItem.code"></span>
-                                            <span class="text-[10px] px-1.5 py-0.2 rounded font-extrabold"
-                                                  :class="selectedItem.is_kr ? 'bg-cyan-100 text-cyan-800' : 'bg-purple-100 text-purple-800'"
-                                                  x-text="selectedItem.is_kr ? 'Karawang (K-)' : 'KBN'"></span>
-                                        </div>
-                                        <button type="button" @click="clearSelection()" class="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer">Ganti</button>
+                                <div id="selected-item-badge" class="hidden mt-1.5 flex items-center justify-between text-xs px-2.5 py-1.5 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">
+                                    <div class="flex items-center gap-1.5 font-bold flex-wrap">
+                                        <span>✓ Terpilih:</span>
+                                        <span class="font-mono font-black text-indigo-900" id="selected-code-text"></span>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-extrabold" id="selected-plant-badge"></span>
+                                        <span class="text-slate-600 font-normal truncate max-w-xs" id="selected-name-text"></span>
                                     </div>
-                                </template>
+                                    <button type="button" id="btn-change-item" class="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer ml-2 whitespace-nowrap">Ganti</button>
+                                </div>
 
                                 <!-- Dropdown Results List -->
-                                <div x-show="isOpen"
-                                     @click.away="closeDropdown()"
-                                     x-transition:enter="transition ease-out duration-100"
-                                     x-transition:enter-start="opacity-0 scale-95"
-                                     x-transition:enter-end="opacity-100 scale-100"
-                                     x-transition:leave="transition ease-in duration-75"
-                                     x-transition:leave-start="opacity-100 scale-100"
-                                     x-transition:leave-end="opacity-0 scale-95"
-                                     class="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-2xl border border-slate-200 max-h-72 overflow-y-auto divide-y divide-slate-100"
-                                     style="display: none;">
+                                <div id="item-dropdown"
+                                     class="hidden absolute z-50 mt-1 w-full bg-white rounded-xl shadow-2xl border border-slate-200 max-h-72 overflow-y-auto divide-y divide-slate-100"
+                                     style="box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
 
                                     <!-- Header inside Dropdown -->
                                     <div class="p-2 bg-slate-50 text-[11px] font-bold text-slate-500 flex justify-between items-center sticky top-0 z-10 border-b border-slate-100">
-                                        <span x-text="filteredItems.length + ' item ditemukan' + (search ? ' untuk \'' + search + '\'' : '')"></span>
+                                        <span id="dropdown-status-text">Ketik untuk mencari item</span>
                                         <span class="text-[10px] text-slate-400">Gunakan ↑ ↓ dan Enter</span>
                                     </div>
 
                                     <!-- List of Results -->
-                                    <template x-for="(item, idx) in filteredItems" :key="item.code">
-                                        <div :id="'item-opt-' + idx"
-                                             @click="selectItem(item)"
-                                             @mouseenter="highlightedIndex = idx"
-                                             class="p-2.5 cursor-pointer transition flex items-start justify-between gap-3 text-sm"
-                                             :class="{
-                                                 'bg-indigo-50/80 text-indigo-900': highlightedIndex === idx,
-                                                 'bg-white text-slate-800': highlightedIndex !== idx
-                                             }">
-                                            <div class="flex-1 min-w-0">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-extrabold font-mono text-indigo-700" x-text="item.code"></span>
-                                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-black"
-                                                          :class="item.is_kr ? 'bg-cyan-100 text-cyan-800 border border-cyan-200' : 'bg-purple-100 text-purple-800 border border-purple-200'"
-                                                          x-text="item.is_kr ? 'KR (K-)' : 'KBN'">
-                                                    </span>
-                                                </div>
-                                                <div class="text-xs text-slate-600 truncate mt-0.5" x-text="item.name || '-'"></div>
-                                                <template x-if="item.qad">
-                                                    <div class="text-[11px] text-slate-400 mt-0.5">QAD: <span class="font-semibold text-slate-600" x-text="item.qad"></span></div>
-                                                </template>
-                                            </div>
-                                            <span x-show="selectedItem && selectedItem.code === item.code" class="text-emerald-600 font-bold text-xs mt-1">✓ Aktif</span>
-                                        </div>
-                                    </template>
+                                    <div id="dropdown-items-list" class="divide-y divide-slate-100"></div>
 
                                     <!-- Empty State inside Dropdown -->
-                                    <div x-show="filteredItems.length === 0" class="p-6 text-center text-slate-400 text-sm">
-                                        Tidak ada item yang cocok dengan pencarian "<span class="font-bold text-slate-600" x-text="search"></span>".
+                                    <div id="dropdown-empty-state" class="hidden p-6 text-center text-slate-400 text-sm">
+                                        Tidak ada item yang cocok dengan pencarian.
                                     </div>
                                 </div>
                             </div>
@@ -507,133 +464,37 @@
 
     <!-- Scripts -->
     <script>
-        function itemPicker(config) {
-            return {
-                items: config.items || [],
-                search: '',
-                branchFilter: 'all', // 'all', 'karawang', 'kbn'
-                isOpen: false,
-                selectedItem: null,
-                highlightedIndex: 0,
-
-                init() {
-                    if (config.selectedCode) {
-                        const found = this.items.find(i => i.code === config.selectedCode);
-                        if (found) {
-                            this.selectItem(found);
-                        }
-                    }
-                },
-
-                get filteredItems() {
-                    let list = this.items;
-                    if (this.branchFilter === 'karawang') {
-                        list = list.filter(i => i.is_kr);
-                    } else if (this.branchFilter === 'kbn') {
-                        list = list.filter(i => !i.is_kr);
-                    }
-
-                    const q = this.search.trim().toLowerCase();
-                    if (!q) {
-                        return list.slice(0, 40);
-                    }
-
-                    return list.filter(i =>
-                        i.code.toLowerCase().includes(q) ||
-                        (i.name && i.name.toLowerCase().includes(q)) ||
-                        (i.qad && i.qad.toLowerCase().includes(q))
-                    ).slice(0, 60);
-                },
-
-                openDropdown() {
-                    this.isOpen = true;
-                    this.highlightedIndex = 0;
-                },
-
-                closeDropdown() {
-                    this.isOpen = false;
-                },
-
-                selectItem(item) {
-                    this.selectedItem = item;
-                    this.search = item.code;
-                    this.isOpen = false;
-
-                    const hiddenInput = document.getElementById('item_code');
-                    if (hiddenInput) {
-                        hiddenInput.value = item.code;
-                        hiddenInput.setAttribute('data-name', item.name || '');
-                        hiddenInput.setAttribute('data-qad', item.qad || '');
-                        hiddenInput.setAttribute('data-model', item.model || '');
-                        hiddenInput.setAttribute('data-color', item.color || '');
-                        hiddenInput.setAttribute('data-position', item.position || '');
-                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-
-                    // Auto switch warehouse default if Karawang vs KBN
-                    const whInput = document.getElementById('warehouse');
-                    if (whInput && (!whInput.value || whInput.value === 'WFI' || whInput.value === 'KRFFI' || whInput.value === 'FFI')) {
-                        if (item.is_kr) {
-                            whInput.value = 'KRFFI';
-                        } else {
-                            whInput.value = 'WFI';
-                        }
-                    }
-                },
-
-                clearSelection() {
-                    this.selectedItem = null;
-                    this.search = '';
-                    this.isOpen = true;
-
-                    const hiddenInput = document.getElementById('item_code');
-                    if (hiddenInput) {
-                        hiddenInput.value = '';
-                        hiddenInput.removeAttribute('data-name');
-                        hiddenInput.removeAttribute('data-qad');
-                        hiddenInput.removeAttribute('data-model');
-                        hiddenInput.removeAttribute('data-color');
-                        hiddenInput.removeAttribute('data-position');
-                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-
-                    this.$nextTick(() => {
-                        if (this.$refs.searchInput) {
-                            this.$refs.searchInput.focus();
-                        }
-                    });
-                },
-
-                navigate(dir) {
-                    if (!this.isOpen) {
-                        this.isOpen = true;
-                        return;
-                    }
-                    const count = this.filteredItems.length;
-                    if (count === 0) return;
-                    this.highlightedIndex = (this.highlightedIndex + dir + count) % count;
-                    this.scrollToHighlighted();
-                },
-
-                selectHighlighted() {
-                    if (this.isOpen && this.filteredItems.length > 0) {
-                        this.selectItem(this.filteredItems[this.highlightedIndex]);
-                    }
-                },
-
-                scrollToHighlighted() {
-                    this.$nextTick(() => {
-                        const el = document.getElementById('item-opt-' + this.highlightedIndex);
-                        if (el) {
-                            el.scrollIntoView({ block: 'nearest' });
-                        }
-                    });
-                }
-            };
-        }
-
         document.addEventListener('DOMContentLoaded', function () {
+            // 1. Load items from JSON script tag
+            let allItems = [];
+            try {
+                const dataEl = document.getElementById('master-items-data');
+                if (dataEl) {
+                    allItems = JSON.parse(dataEl.textContent || '[]');
+                }
+            } catch (e) {
+                console.error('Failed to parse master items:', e);
+            }
+
+            // Elements for Item Picker
+            const searchInput = document.getElementById('item_search_input');
             const hiddenItemCode = document.getElementById('item_code');
+            const dropdown = document.getElementById('item-dropdown');
+            const itemsListContainer = document.getElementById('dropdown-items-list');
+            const emptyState = document.getElementById('dropdown-empty-state');
+            const statusText = document.getElementById('dropdown-status-text');
+            const clearBtn = document.getElementById('btn-clear-item');
+            const changeBtn = document.getElementById('btn-change-item');
+            const selectedBadge = document.getElementById('selected-item-badge');
+            const selectedCodeText = document.getElementById('selected-code-text');
+            const selectedPlantBadge = document.getElementById('selected-plant-badge');
+            const selectedNameText = document.getElementById('selected-name-text');
+
+            const btnBranchAll = document.getElementById('btn-branch-all');
+            const btnBranchKr = document.getElementById('btn-branch-kr');
+            const btnBranchKbn = document.getElementById('btn-branch-kbn');
+
+            // Form inputs
             const itemNameInput = document.getElementById('item_name');
             const qadInput = document.getElementById('qad');
             const modelInput = document.getElementById('model');
@@ -651,6 +512,263 @@
             const cardSharp = document.getElementById('card_type_sharp');
             const cardYanfeng = document.getElementById('card_type_yanfeng');
             const cardItsp = document.getElementById('card_type_itsp');
+
+            // Current State
+            const urlParams = new URLSearchParams(window.location.search);
+            let currentBranch = urlParams.get('branch') || 'all';
+            if (currentBranch !== 'karawang' && currentBranch !== 'kbn') {
+                currentBranch = 'all';
+            }
+
+            let currentResults = [];
+            let highlightedIndex = 0;
+            let selectedItem = null;
+
+            function updateBranchButtonsUI() {
+                [btnBranchAll, btnBranchKr, btnBranchKbn].forEach(btn => {
+                    if (btn) {
+                        btn.className = 'px-2.5 py-0.5 rounded transition font-bold text-slate-600 hover:text-slate-900';
+                    }
+                });
+                if (currentBranch === 'karawang' && btnBranchKr) {
+                    btnBranchKr.className = 'px-2.5 py-0.5 rounded transition font-bold bg-cyan-600 text-white shadow-xs';
+                } else if (currentBranch === 'kbn' && btnBranchKbn) {
+                    btnBranchKbn.className = 'px-2.5 py-0.5 rounded transition font-bold bg-purple-600 text-white shadow-xs';
+                } else if (btnBranchAll) {
+                    btnBranchAll.className = 'px-2.5 py-0.5 rounded transition font-bold bg-indigo-600 text-white shadow-xs';
+                }
+            }
+
+            function getFilteredItems() {
+                let list = allItems;
+                if (currentBranch === 'karawang') {
+                    list = list.filter(i => i.is_kr);
+                } else if (currentBranch === 'kbn') {
+                    list = list.filter(i => !i.is_kr);
+                }
+
+                const q = (searchInput.value || '').trim().toLowerCase();
+                if (!q) {
+                    return list.slice(0, 50);
+                }
+
+                return list.filter(i =>
+                    (i.code && i.code.toLowerCase().includes(q)) ||
+                    (i.name && i.name.toLowerCase().includes(q)) ||
+                    (i.qad && i.qad.toLowerCase().includes(q))
+                ).slice(0, 80);
+            }
+
+            function renderDropdown() {
+                currentResults = getFilteredItems();
+                itemsListContainer.innerHTML = '';
+                highlightedIndex = 0;
+
+                const q = (searchInput.value || '').trim();
+                statusText.textContent = `${currentResults.length} item ditemukan${q ? ` untuk '${q}'` : ''}`;
+
+                if (currentResults.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    emptyState.innerHTML = `Tidak ada item yang cocok dengan pencarian "<strong>${escapeHtml(q)}</strong>".`;
+                } else {
+                    emptyState.classList.add('hidden');
+                    currentResults.forEach((item, idx) => {
+                        const row = document.createElement('div');
+                        row.id = 'opt-item-' + idx;
+                        row.className = `p-2.5 cursor-pointer transition flex items-start justify-between gap-3 text-sm hover:bg-indigo-50/80 ${idx === 0 ? 'bg-indigo-50/50' : 'bg-white'}`;
+
+                        const plantBadge = item.is_kr
+                            ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-cyan-100 text-cyan-800 border border-cyan-200">KR (K-)</span>'
+                            : '<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-100 text-purple-800 border border-purple-200">KBN</span>';
+
+                        const qadHtml = item.qad ? `<div class="text-[11px] text-slate-400 mt-0.5">QAD: <span class="font-semibold text-slate-600">${escapeHtml(item.qad)}</span></div>` : '';
+                        const isSelected = selectedItem && selectedItem.code === item.code;
+
+                        row.innerHTML = `
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold font-mono text-indigo-700">${escapeHtml(item.code)}</span>
+                                    ${plantBadge}
+                                </div>
+                                <div class="text-xs text-slate-600 truncate mt-0.5">${escapeHtml(item.name || '-')}</div>
+                                ${qadHtml}
+                            </div>
+                            ${isSelected ? '<span class="text-emerald-600 font-bold text-xs mt-1">✓ Aktif</span>' : ''}
+                        `;
+
+                        row.addEventListener('click', () => {
+                            selectItem(item);
+                        });
+
+                        row.addEventListener('mouseenter', () => {
+                            highlightIndex(idx);
+                        });
+
+                        itemsListContainer.appendChild(row);
+                    });
+                }
+
+                dropdown.classList.remove('hidden');
+                clearBtn.classList.toggle('hidden', !searchInput.value && !selectedItem);
+            }
+
+            function highlightIndex(idx) {
+                if (currentResults.length === 0) return;
+                const prevRow = document.getElementById('opt-item-' + highlightedIndex);
+                if (prevRow) {
+                    prevRow.classList.remove('bg-indigo-50/80', 'bg-indigo-50/50');
+                    prevRow.classList.add('bg-white');
+                }
+                highlightedIndex = idx;
+                const nextRow = document.getElementById('opt-item-' + highlightedIndex);
+                if (nextRow) {
+                    nextRow.classList.add('bg-indigo-50/80');
+                    nextRow.classList.remove('bg-white');
+                    nextRow.scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            function selectItem(item) {
+                selectedItem = item;
+                hiddenItemCode.value = item.code;
+                hiddenItemCode.setAttribute('data-name', item.name || '');
+                hiddenItemCode.setAttribute('data-qad', item.qad || '');
+                hiddenItemCode.setAttribute('data-model', item.model || '');
+                hiddenItemCode.setAttribute('data-color', item.color || '');
+                hiddenItemCode.setAttribute('data-position', item.position || '');
+                hiddenItemCode.dispatchEvent(new Event('change', { bubbles: true }));
+
+                searchInput.value = item.code;
+                searchInput.classList.add('border-indigo-500', 'bg-indigo-50/20', 'text-indigo-950', 'font-bold');
+                searchInput.classList.remove('border-slate-300', 'bg-white', 'text-slate-800');
+
+                // Show badge
+                selectedCodeText.textContent = item.code;
+                selectedNameText.textContent = item.name ? `— ${item.name}` : '';
+                if (item.is_kr) {
+                    selectedPlantBadge.textContent = 'Karawang (K-)';
+                    selectedPlantBadge.className = 'text-[10px] px-1.5 py-0.5 rounded font-extrabold bg-cyan-100 text-cyan-800';
+                } else {
+                    selectedPlantBadge.textContent = 'KBN';
+                    selectedPlantBadge.className = 'text-[10px] px-1.5 py-0.5 rounded font-extrabold bg-purple-100 text-purple-800';
+                }
+                selectedBadge.classList.remove('hidden');
+
+                // Auto switch warehouse default
+                if (warehouseInput && (!warehouseInput.value || warehouseInput.value === 'WFI' || warehouseInput.value === 'KRFFI' || warehouseInput.value === 'FFI')) {
+                    warehouseInput.value = item.is_kr ? 'KRFFI' : 'WFI';
+                }
+
+                dropdown.classList.add('hidden');
+                clearBtn.classList.remove('hidden');
+            }
+
+            function clearSelection() {
+                selectedItem = null;
+                hiddenItemCode.value = '';
+                hiddenItemCode.removeAttribute('data-name');
+                hiddenItemCode.removeAttribute('data-qad');
+                hiddenItemCode.removeAttribute('data-model');
+                hiddenItemCode.removeAttribute('data-color');
+                hiddenItemCode.removeAttribute('data-position');
+                hiddenItemCode.dispatchEvent(new Event('change', { bubbles: true }));
+
+                searchInput.value = '';
+                searchInput.classList.remove('border-indigo-500', 'bg-indigo-50/20', 'text-indigo-950', 'font-bold');
+                searchInput.classList.add('border-slate-300', 'bg-white', 'text-slate-800');
+
+                selectedBadge.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+
+                searchInput.focus();
+                renderDropdown();
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            }
+
+            // Event Listeners for Search Input
+            searchInput.addEventListener('focus', () => {
+                renderDropdown();
+            });
+
+            searchInput.addEventListener('input', () => {
+                if (selectedItem && searchInput.value !== selectedItem.code) {
+                    selectedItem = null;
+                    selectedBadge.classList.add('hidden');
+                    hiddenItemCode.value = '';
+                }
+                renderDropdown();
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (dropdown.classList.contains('hidden')) {
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        renderDropdown();
+                        e.preventDefault();
+                    }
+                    return;
+                }
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (currentResults.length > 0) {
+                        highlightIndex((highlightedIndex + 1) % currentResults.length);
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (currentResults.length > 0) {
+                        highlightIndex((highlightedIndex - 1 + currentResults.length) % currentResults.length);
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentResults.length > 0 && currentResults[highlightedIndex]) {
+                        selectItem(currentResults[highlightedIndex]);
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdown.classList.add('hidden');
+                }
+            });
+
+            // Branch Switchers
+            if (btnBranchAll) {
+                btnBranchAll.addEventListener('click', () => {
+                    currentBranch = 'all';
+                    updateBranchButtonsUI();
+                    renderDropdown();
+                    searchInput.focus();
+                });
+            }
+            if (btnBranchKr) {
+                btnBranchKr.addEventListener('click', () => {
+                    currentBranch = 'karawang';
+                    updateBranchButtonsUI();
+                    renderDropdown();
+                    searchInput.focus();
+                });
+            }
+            if (btnBranchKbn) {
+                btnBranchKbn.addEventListener('click', () => {
+                    currentBranch = 'kbn';
+                    updateBranchButtonsUI();
+                    renderDropdown();
+                    searchInput.focus();
+                });
+            }
+
+            if (clearBtn) clearBtn.addEventListener('click', clearSelection);
+            if (changeBtn) changeBtn.addEventListener('click', clearSelection);
+
+            // Click outside closes dropdown
+            document.addEventListener('click', (e) => {
+                const root = document.getElementById('item-picker-root');
+                if (root && !root.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
 
             // Handle Barcode Type Switch
             barcodeTypeRadios.forEach(radio => {
@@ -715,7 +833,7 @@
                     const itemPosition = this.getAttribute('data-position');
                     const itemCode = this.value;
 
-                    itemNameInput.value = itemName || '';
+                    if (itemNameInput) itemNameInput.value = itemName || '';
                     if (qadInput) qadInput.value = itemQad || '';
                     if (modelInput) modelInput.value = itemModel || '';
                     if (colorInput) colorInput.value = itemColor || '';
@@ -754,9 +872,11 @@
             }
 
             // Handle Manual SPK Toggle
-            manualSpkToggle.addEventListener('change', function () {
-                triggerManualToggle(this.checked);
-            });
+            if (manualSpkToggle) {
+                manualSpkToggle.addEventListener('change', function () {
+                    triggerManualToggle(this.checked);
+                });
+            }
 
             function triggerManualToggle(isManual) {
                 if (isManual) {
@@ -775,6 +895,18 @@
                     spkSelectContainer.classList.remove('hidden');
                     spkSelect.setAttribute('name', 'spk_number');
                     spkSelect.setAttribute('required', 'required');
+                }
+            }
+
+            // Init UI
+            updateBranchButtonsUI();
+
+            // Check if initial value exists
+            const initCode = hiddenItemCode.value;
+            if (initCode) {
+                const found = allItems.find(i => i.code === initCode);
+                if (found) {
+                    selectItem(found);
                 }
             }
         });
