@@ -51,7 +51,9 @@ class ApiLogDashboard extends Component
         if ($this->search) {
             $query->where(function($q) {
                 $q->where('endpoint', 'like', '%' . $this->search . '%')
-                  ->orWhere('message', 'like', '%' . $this->search . '%');
+                  ->orWhere('message', 'like', '%' . $this->search . '%')
+                  ->orWhere('api_name', 'like', '%' . $this->search . '%')
+                  ->orWhere('request_payload', 'like', '%' . $this->search . '%');
             });
         }
 

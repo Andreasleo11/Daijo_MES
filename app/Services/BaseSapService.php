@@ -153,15 +153,11 @@ class BaseSapService
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept'        => 'application/json',
-                    'Content-Type'  => 'application/json',  // ← tambah ini
+                    'Content-Type'  => 'application/json',
                     'Host'          => 'localhost',
                 ])
-                ->timeout(30)
+                ->timeout(60)
                 ->post($this->baseUrl . $endpoint, $payload);
-                
-            if ($response->successful()) {
-                return $response;
-            }
                 
             if ($response->status() === 401) {
                 Log::warning('SAP token expired during POST, refreshing...');
@@ -170,18 +166,16 @@ class BaseSapService
                 
                 $token = $this->getToken();
                 $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $token,  // ← fix typo ini
+                        'Authorization' => 'Bearer ' . $token,
                         'Accept'        => 'application/json',
-                        'Content-Type'  => 'application/json',  // ← tambah ini
+                        'Content-Type'  => 'application/json',
                         'Host'          => 'localhost',
                     ])
-                    ->timeout(30)
+                    ->timeout(60)
                     ->post($this->baseUrl . $endpoint, $payload);
-                    
-                return $response;
             }
             
-            throw new \Exception('SAP API Error: ' . $response->status());
+            return $response;
             
         } catch (\Exception $e) {
             Log::error('SAP POST request error: ' . $e->getMessage());

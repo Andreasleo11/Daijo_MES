@@ -141,9 +141,17 @@
                                     
                                     @php $isDone = in_array($pallet->sap_sync_status, [1, 4]); @endphp
 
+                                    @if(!$isDone)
+                                        <button wire:click="markAsSynced('{{ $pallet->pallet_id }}')"
+                                            wire:confirm="Tandai pallet {{ $pallet->pallet_id }} sebagai SUKSES di SAP? Gunakan ini jika sudah diverifikasi masuk di SAP."
+                                            class="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Tandai Sudah Masuk di SAP (Force Success)">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </button>
+                                    @endif
+
                                     <button wire:click="retrySync('{{ $pallet->pallet_id }}')" 
                                         @if($isDone) disabled @endif
-                                        class="p-2 {{ $isDone ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-green-600 hover:bg-green-50' }} rounded-lg transition-all" title="Retry Sync">
+                                        class="p-2 {{ $isDone ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-green-600 hover:bg-green-50' }} rounded-lg transition-all" title="Retry Sync ke SAP">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     </button>
 
@@ -276,13 +284,21 @@
                                                                 <span class="text-[9px] font-black text-gray-400 uppercase">Ignored</span>
                                                             @elseif($box->sap_sync_status == 2)
                                                                 <div class="flex items-center gap-2">
+                                                                    <button wire:click="markDetailAsSynced({{ $box->id }})" class="text-emerald-500 hover:text-emerald-700 transition-colors" title="Tandai item ini SUKSES di SAP">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                                    </button>
                                                                     <button wire:click="ignoreDetail({{ $box->id }})" class="text-red-300 hover:text-red-500 transition-colors" title="Ignore this box">
                                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
                                                                     </button>
                                                                     <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
                                                                 </div>
                                                             @else
-                                                                <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+                                                                <div class="flex items-center gap-2">
+                                                                    <button wire:click="markDetailAsSynced({{ $box->id }})" class="text-emerald-500 hover:text-emerald-700 transition-colors" title="Tandai item ini SUKSES di SAP">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                                    </button>
+                                                                    <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+                                                                </div>
                                                             @endif
                                                         </div>
                                                     </div>
