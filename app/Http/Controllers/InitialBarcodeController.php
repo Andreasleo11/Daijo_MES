@@ -74,15 +74,37 @@ class InitialBarcodeController extends Controller
 
     public function customGenerateForm(Request $request)
     {
-        $items = MasterListItem::orderBy('item_code')->get();
-        $logs = CustomBarcodeLog::latest()->take(20)->get();
+        $branch = $request->query('branch', 'all'); // 'all', 'karawang', 'kbn'
 
-        return view('barcode.custom_generate_form', compact('items', 'logs'));
+        $items = MasterListItem::orderBy('item_code')->get();
+
+        $logsQuery = CustomBarcodeLog::query();
+        if ($branch === 'karawang') {
+            $logsQuery->where('item_code', 'LIKE', 'K-%');
+        } elseif ($branch === 'kbn') {
+            $logsQuery->where('item_code', 'NOT LIKE', 'K-%');
+        }
+        $logs = $logsQuery->latest()->take(20)->get();
+
+        $branchCounts = [
+            'all' => CustomBarcodeLog::count(),
+            'karawang' => CustomBarcodeLog::where('item_code', 'LIKE', 'K-%')->count(),
+            'kbn' => CustomBarcodeLog::where('item_code', 'NOT LIKE', 'K-%')->count(),
+        ];
+
+        return view('barcode.custom_generate_form', compact('items', 'logs', 'branch', 'branchCounts'));
     }
 
     public function customGenerateLogs(Request $request)
     {
+        $branch = $request->input('branch', 'all'); // 'all', 'karawang', 'kbn'
         $query = CustomBarcodeLog::query();
+
+        if ($branch === 'karawang') {
+            $query->where('item_code', 'LIKE', 'K-%');
+        } elseif ($branch === 'kbn') {
+            $query->where('item_code', 'NOT LIKE', 'K-%');
+        }
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -107,14 +129,27 @@ class InitialBarcodeController extends Controller
 
         $logs = $query->latest()->paginate(25)->withQueryString();
 
+        $baseStatsQuery = CustomBarcodeLog::query();
+        if ($branch === 'karawang') {
+            $baseStatsQuery->where('item_code', 'LIKE', 'K-%');
+        } elseif ($branch === 'kbn') {
+            $baseStatsQuery->where('item_code', 'NOT LIKE', 'K-%');
+        }
+
         $stats = [
-            'total_print_jobs' => CustomBarcodeLog::count(),
-            'total_labels_printed' => CustomBarcodeLog::sum('total_labels'),
-            'today_print_jobs' => CustomBarcodeLog::whereDate('created_at', today())->count(),
-            'today_labels_printed' => CustomBarcodeLog::whereDate('created_at', today())->sum('total_labels'),
+            'total_print_jobs' => (clone $baseStatsQuery)->count(),
+            'total_labels_printed' => (clone $baseStatsQuery)->sum('total_labels'),
+            'today_print_jobs' => (clone $baseStatsQuery)->whereDate('created_at', today())->count(),
+            'today_labels_printed' => (clone $baseStatsQuery)->whereDate('created_at', today())->sum('total_labels'),
         ];
 
-        return view('barcode.custom_generate_logs', compact('logs', 'stats'));
+        $branchCounts = [
+            'all' => CustomBarcodeLog::count(),
+            'karawang' => CustomBarcodeLog::where('item_code', 'LIKE', 'K-%')->count(),
+            'kbn' => CustomBarcodeLog::where('item_code', 'NOT LIKE', 'K-%')->count(),
+        ];
+
+        return view('barcode.custom_generate_logs', compact('logs', 'stats', 'branch', 'branchCounts'));
     }
 
     public function getSpksByItem(Request $request)

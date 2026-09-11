@@ -11,7 +11,7 @@
                 <div class="mb-8 border-b pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold text-slate-800">Generate Custom Barcode Labels</h1>
-                        <p class="text-sm text-slate-500 mt-1">Select an item, SPK number, and configure layout options to print labels (12 labels per A4 sheet).</p>
+                        <p class="text-sm text-slate-500 mt-1">Pilih item (Karawang K- atau KBN), nomor SPK, dan cetak label barcode custom (12 label per lembar A4).</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <a href="{{ route('barcode.custom.logs') }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg border border-indigo-200 transition shadow-sm">
@@ -85,23 +85,127 @@
                             </div>
                         </div>
 
-                        <!-- Item Code -->
-                        <div>
-                            <label for="item_code" class="block text-sm font-semibold text-slate-700 mb-2">Item Code <span class="text-red-500">*</span></label>
-                            <select id="item_code" name="item_code" required class="block w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="">-- Select Item Code --</option>
-                                @foreach($items as $item)
-                                    <option value="{{ $item->item_code }}" 
-                                        data-name="{{ $item->item_name }}" 
-                                        data-qad="{{ ($item->description_in_foreign_lang && $item->description_in_foreign_lang !== '0') ? $item->description_in_foreign_lang : '' }}"
-                                        data-model="{{ ($item->family && $item->family !== '0') ? $item->family : '' }}"
-                                        data-color="{{ ($item->color && $item->color !== '0') ? $item->color : '' }}"
-                                        data-position="{{ ($item->position && $item->position !== '0') ? $item->position : '' }}"
-                                    >
-                                        {{ $item->item_code }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <!-- Searchable Item Code Combobox -->
+                        <div x-data="itemPicker({
+                            items: {{ json_encode($items->map(fn($it) => [
+                                'code' => $it->item_code,
+                                'name' => $it->item_name ?? '',
+                                'qad'  => ($it->description_in_foreign_lang && $it->description_in_foreign_lang !== '0') ? $it->description_in_foreign_lang : '',
+                                'model'=> ($it->family && $it->family !== '0') ? $it->family : '',
+                                'color'=> ($it->color && $it->color !== '0') ? $it->color : '',
+                                'position' => ($it->position && $it->position !== '0') ? $it->position : '',
+                                'is_kr' => str_starts_with($it->item_code, 'K-')
+                            ])) }},
+                            selectedCode: '{{ old('item_code', '') }}'
+                        })" class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <label for="item_search_input" class="block text-sm font-semibold text-slate-700">
+                                    Item Code <span class="text-red-500">*</span>
+                                </label>
+                                <!-- Filter Branch Quick Switcher -->
+                                <div class="inline-flex rounded-md shadow-2xs border border-slate-200 p-0.5 bg-slate-50 text-[11px] font-bold">
+                                    <button type="button" @click="branchFilter = 'all'" :class="branchFilter === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">Semua</button>
+                                    <button type="button" @click="branchFilter = 'karawang'" :class="branchFilter === 'karawang' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">Karawang (K-)</button>
+                                    <button type="button" @click="branchFilter = 'kbn'" :class="branchFilter === 'kbn' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2 py-0.5 rounded transition">KBN</button>
+                                </div>
+                            </div>
+
+                            <!-- Hidden input for standard form submission -->
+                            <input type="hidden" id="item_code" name="item_code" :value="selectedItem ? selectedItem.code : ''" required>
+
+                            <!-- Search Input & Trigger Box -->
+                            <div class="relative">
+                                <div class="relative flex items-center">
+                                    <input type="text"
+                                           id="item_search_input"
+                                           x-ref="searchInput"
+                                           x-model="search"
+                                           @focus="openDropdown()"
+                                           @input="openDropdown()"
+                                           @keydown.down.prevent="navigate(1)"
+                                           @keydown.up.prevent="navigate(-1)"
+                                           @keydown.enter.prevent="selectHighlighted()"
+                                           @keydown.escape.prevent="closeDropdown()"
+                                           placeholder="🔍 Ketik untuk cari Item Code / Part Name (cth: K-...)..."
+                                           autocomplete="off"
+                                           class="block w-full pl-4 pr-10 py-2 border rounded-lg shadow-sm text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                           :class="selectedItem ? 'border-indigo-500 bg-indigo-50/20 text-indigo-950 font-bold' : 'border-slate-300 bg-white text-slate-800'">
+
+                                    <!-- Clear / Action button -->
+                                    <button type="button"
+                                            x-show="selectedItem || search"
+                                            @click="clearSelection()"
+                                            title="Hapus / Cari item lain"
+                                            class="absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+
+                                <!-- Selected Item Confirmation Ribbon -->
+                                <template x-if="selectedItem">
+                                    <div class="mt-1.5 flex items-center justify-between text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">
+                                        <div class="flex items-center gap-1.5 font-bold">
+                                            <span>✓ Terpilih:</span>
+                                            <span class="font-mono" x-text="selectedItem.code"></span>
+                                            <span class="text-[10px] px-1.5 py-0.2 rounded font-extrabold"
+                                                  :class="selectedItem.is_kr ? 'bg-cyan-100 text-cyan-800' : 'bg-purple-100 text-purple-800'"
+                                                  x-text="selectedItem.is_kr ? 'Karawang (K-)' : 'KBN'"></span>
+                                        </div>
+                                        <button type="button" @click="clearSelection()" class="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer">Ganti</button>
+                                    </div>
+                                </template>
+
+                                <!-- Dropdown Results List -->
+                                <div x-show="isOpen"
+                                     @click.away="closeDropdown()"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-2xl border border-slate-200 max-h-72 overflow-y-auto divide-y divide-slate-100"
+                                     style="display: none;">
+
+                                    <!-- Header inside Dropdown -->
+                                    <div class="p-2 bg-slate-50 text-[11px] font-bold text-slate-500 flex justify-between items-center sticky top-0 z-10 border-b border-slate-100">
+                                        <span x-text="filteredItems.length + ' item ditemukan' + (search ? ' untuk \'' + search + '\'' : '')"></span>
+                                        <span class="text-[10px] text-slate-400">Gunakan ↑ ↓ dan Enter</span>
+                                    </div>
+
+                                    <!-- List of Results -->
+                                    <template x-for="(item, idx) in filteredItems" :key="item.code">
+                                        <div :id="'item-opt-' + idx"
+                                             @click="selectItem(item)"
+                                             @mouseenter="highlightedIndex = idx"
+                                             class="p-2.5 cursor-pointer transition flex items-start justify-between gap-3 text-sm"
+                                             :class="{
+                                                 'bg-indigo-50/80 text-indigo-900': highlightedIndex === idx,
+                                                 'bg-white text-slate-800': highlightedIndex !== idx
+                                             }">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-extrabold font-mono text-indigo-700" x-text="item.code"></span>
+                                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-black"
+                                                          :class="item.is_kr ? 'bg-cyan-100 text-cyan-800 border border-cyan-200' : 'bg-purple-100 text-purple-800 border border-purple-200'"
+                                                          x-text="item.is_kr ? 'KR (K-)' : 'KBN'">
+                                                    </span>
+                                                </div>
+                                                <div class="text-xs text-slate-600 truncate mt-0.5" x-text="item.name || '-'"></div>
+                                                <template x-if="item.qad">
+                                                    <div class="text-[11px] text-slate-400 mt-0.5">QAD: <span class="font-semibold text-slate-600" x-text="item.qad"></span></div>
+                                                </template>
+                                            </div>
+                                            <span x-show="selectedItem && selectedItem.code === item.code" class="text-emerald-600 font-bold text-xs mt-1">✓ Aktif</span>
+                                        </div>
+                                    </template>
+
+                                    <!-- Empty State inside Dropdown -->
+                                    <div x-show="filteredItems.length === 0" class="p-6 text-center text-slate-400 text-sm">
+                                        Tidak ada item yang cocok dengan pencarian "<span class="font-bold text-slate-600" x-text="search"></span>".
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Item Name (Auto Filled) -->
@@ -254,16 +358,29 @@
 
             <!-- Print History & Log Tracking -->
             <div class="mt-10 bg-white overflow-hidden shadow-xl sm:rounded-xl p-8 border border-slate-100">
-                <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-4">
+                <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <span>📋</span> History / Log Tracking Print Barcode
                         </h2>
-                        <p class="text-sm text-slate-500 mt-1">Daftar riwayat cetak label barcode custom yang pernah digenerate.</p>
+                        <p class="text-sm text-slate-500 mt-1">Daftar riwayat cetak label barcode custom yang pernah digenerate per branch.</p>
                     </div>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
-                        Total Riwayat: {{ isset($logs) ? count($logs) : 0 }}
-                    </span>
+                    
+                    <!-- Branch Tabs for Recent History -->
+                    <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-extrabold">
+                        <a href="{{ route('barcode.custom.form', ['branch' => 'all']) }}"
+                           class="px-3 py-1.5 rounded-lg transition {{ ($branch ?? 'all') === 'all' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                            Semua ({{ $branchCounts['all'] ?? 0 }})
+                        </a>
+                        <a href="{{ route('barcode.custom.form', ['branch' => 'karawang']) }}"
+                           class="px-3 py-1.5 rounded-lg transition {{ ($branch ?? 'all') === 'karawang' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                            Karawang K- ({{ $branchCounts['karawang'] ?? 0 }})
+                        </a>
+                        <a href="{{ route('barcode.custom.form', ['branch' => 'kbn']) }}"
+                           class="px-3 py-1.5 rounded-lg transition {{ ($branch ?? 'all') === 'kbn' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                            KBN ({{ $branchCounts['kbn'] ?? 0 }})
+                        </a>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -271,6 +388,7 @@
                         <thead class="bg-slate-50">
                             <tr>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Waktu Print</th>
+                                <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Branch</th>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">User</th>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Item & SPK</th>
                                 <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs">Label Seq / Total</th>
@@ -282,10 +400,24 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 bg-white">
                             @forelse($logs ?? [] as $log)
+                                @php
+                                    $isKarawang = str_starts_with($log->item_code, 'K-');
+                                @endphp
                                 <tr class="hover:bg-slate-50/80 transition-colors">
                                     <td class="px-4 py-3.5 whitespace-nowrap text-slate-700">
                                         <div class="font-medium text-slate-900">{{ $log->created_at->format('Y-m-d H:i:s') }}</div>
                                         <div class="text-xs text-slate-400">{{ $log->created_at->diffForHumans() }}</div>
+                                    </td>
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                        @if($isKarawang)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-black bg-cyan-100 text-cyan-800 border border-cyan-200">
+                                                <span>🏭</span> Karawang
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-black bg-purple-100 text-purple-800 border border-purple-200">
+                                                <span>🏢</span> KBN
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3.5 whitespace-nowrap text-slate-700">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
@@ -293,9 +425,11 @@
                                         </span>
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700">
-                                        <div class="font-bold text-indigo-700">{{ $log->item_code }}</div>
+                                        <div class="font-bold text-indigo-700 flex items-center gap-1.5 flex-wrap">
+                                            <span>{{ $log->item_code }}</span>
+                                        </div>
                                         <div class="text-xs text-slate-500">{{ $log->item_name }}</div>
-                                        <div class="text-xs text-slate-600 font-medium mt-0.5">SPK: <span class="font-mono">{{ $log->spk_number }}</span></div>
+                                        <div class="text-xs text-slate-600 font-medium mt-0.5">SPK: <span class="font-mono font-bold">{{ $log->spk_number }}</span></div>
                                         @if($log->customer && $log->customer !== '-')
                                             <div class="text-xs text-slate-400">Cust: {{ $log->customer }}</div>
                                         @endif
@@ -358,7 +492,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-8 text-center text-slate-400">
+                                    <td colspan="9" class="px-4 py-8 text-center text-slate-400">
                                         Belum ada data riwayat print barcode.
                                     </td>
                                 </tr>
@@ -373,8 +507,133 @@
 
     <!-- Scripts -->
     <script>
+        function itemPicker(config) {
+            return {
+                items: config.items || [],
+                search: '',
+                branchFilter: 'all', // 'all', 'karawang', 'kbn'
+                isOpen: false,
+                selectedItem: null,
+                highlightedIndex: 0,
+
+                init() {
+                    if (config.selectedCode) {
+                        const found = this.items.find(i => i.code === config.selectedCode);
+                        if (found) {
+                            this.selectItem(found);
+                        }
+                    }
+                },
+
+                get filteredItems() {
+                    let list = this.items;
+                    if (this.branchFilter === 'karawang') {
+                        list = list.filter(i => i.is_kr);
+                    } else if (this.branchFilter === 'kbn') {
+                        list = list.filter(i => !i.is_kr);
+                    }
+
+                    const q = this.search.trim().toLowerCase();
+                    if (!q) {
+                        return list.slice(0, 40);
+                    }
+
+                    return list.filter(i =>
+                        i.code.toLowerCase().includes(q) ||
+                        (i.name && i.name.toLowerCase().includes(q)) ||
+                        (i.qad && i.qad.toLowerCase().includes(q))
+                    ).slice(0, 60);
+                },
+
+                openDropdown() {
+                    this.isOpen = true;
+                    this.highlightedIndex = 0;
+                },
+
+                closeDropdown() {
+                    this.isOpen = false;
+                },
+
+                selectItem(item) {
+                    this.selectedItem = item;
+                    this.search = item.code;
+                    this.isOpen = false;
+
+                    const hiddenInput = document.getElementById('item_code');
+                    if (hiddenInput) {
+                        hiddenInput.value = item.code;
+                        hiddenInput.setAttribute('data-name', item.name || '');
+                        hiddenInput.setAttribute('data-qad', item.qad || '');
+                        hiddenInput.setAttribute('data-model', item.model || '');
+                        hiddenInput.setAttribute('data-color', item.color || '');
+                        hiddenInput.setAttribute('data-position', item.position || '');
+                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    // Auto switch warehouse default if Karawang vs KBN
+                    const whInput = document.getElementById('warehouse');
+                    if (whInput && (!whInput.value || whInput.value === 'WFI' || whInput.value === 'KRFFI' || whInput.value === 'FFI')) {
+                        if (item.is_kr) {
+                            whInput.value = 'KRFFI';
+                        } else {
+                            whInput.value = 'WFI';
+                        }
+                    }
+                },
+
+                clearSelection() {
+                    this.selectedItem = null;
+                    this.search = '';
+                    this.isOpen = true;
+
+                    const hiddenInput = document.getElementById('item_code');
+                    if (hiddenInput) {
+                        hiddenInput.value = '';
+                        hiddenInput.removeAttribute('data-name');
+                        hiddenInput.removeAttribute('data-qad');
+                        hiddenInput.removeAttribute('data-model');
+                        hiddenInput.removeAttribute('data-color');
+                        hiddenInput.removeAttribute('data-position');
+                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    this.$nextTick(() => {
+                        if (this.$refs.searchInput) {
+                            this.$refs.searchInput.focus();
+                        }
+                    });
+                },
+
+                navigate(dir) {
+                    if (!this.isOpen) {
+                        this.isOpen = true;
+                        return;
+                    }
+                    const count = this.filteredItems.length;
+                    if (count === 0) return;
+                    this.highlightedIndex = (this.highlightedIndex + dir + count) % count;
+                    this.scrollToHighlighted();
+                },
+
+                selectHighlighted() {
+                    if (this.isOpen && this.filteredItems.length > 0) {
+                        this.selectItem(this.filteredItems[this.highlightedIndex]);
+                    }
+                },
+
+                scrollToHighlighted() {
+                    this.$nextTick(() => {
+                        const el = document.getElementById('item-opt-' + this.highlightedIndex);
+                        if (el) {
+                            el.scrollIntoView({ block: 'nearest' });
+                        }
+                    });
+                }
+            };
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
-            const itemCodeSelect = document.getElementById('item_code');
+            const hiddenItemCode = document.getElementById('item_code');
             const itemNameInput = document.getElementById('item_name');
             const qadInput = document.getElementById('qad');
             const modelInput = document.getElementById('model');
@@ -447,52 +706,52 @@
             });
 
             // Handle Item Code Change (Auto fill Name, QAD, Model, Color, Position & fetch SPKs via AJAX)
-            itemCodeSelect.addEventListener('change', function () {
-                const selectedOption = itemCodeSelect.options[itemCodeSelect.selectedIndex];
-                const itemName = selectedOption.getAttribute('data-name');
-                const itemQad = selectedOption.getAttribute('data-qad');
-                const itemModel = selectedOption.getAttribute('data-model');
-                const itemColor = selectedOption.getAttribute('data-color');
-                const itemPosition = selectedOption.getAttribute('data-position');
-                const itemCode = this.value;
+            if (hiddenItemCode) {
+                hiddenItemCode.addEventListener('change', function () {
+                    const itemName = this.getAttribute('data-name');
+                    const itemQad = this.getAttribute('data-qad');
+                    const itemModel = this.getAttribute('data-model');
+                    const itemColor = this.getAttribute('data-color');
+                    const itemPosition = this.getAttribute('data-position');
+                    const itemCode = this.value;
 
-                itemNameInput.value = itemName || '';
-                if (qadInput) qadInput.value = itemQad || '';
-                if (modelInput) modelInput.value = itemModel || '';
-                if (colorInput) colorInput.value = itemColor || '';
-                if (positionInput) positionInput.value = itemPosition || '';
+                    itemNameInput.value = itemName || '';
+                    if (qadInput) qadInput.value = itemQad || '';
+                    if (modelInput) modelInput.value = itemModel || '';
+                    if (colorInput) colorInput.value = itemColor || '';
+                    if (positionInput) positionInput.value = itemPosition || '';
 
-                if (!itemCode) {
-                    spkSelect.innerHTML = '<option value="">-- Select Item Code First --</option>';
-                    return;
-                }
+                    if (!itemCode) {
+                        spkSelect.innerHTML = '<option value="">-- Select Item Code First --</option>';
+                        return;
+                    }
 
-                spkSelect.innerHTML = '<option value="">Loading SPKs...</option>';
+                    spkSelect.innerHTML = '<option value="">Loading SPKs...</option>';
 
-                fetch(`/api/get-spks-by-item?item_code=${encodeURIComponent(itemCode)}`)
-                    .then(response => response.json())
-                    .then(spks => {
-                        spkSelect.innerHTML = '';
-                        if (spks.length === 0) {
-                            spkSelect.innerHTML = '<option value="">No SPK found in history</option>';
-                            // Auto toggle manual input if no SPK is found
-                            manualSpkToggle.checked = true;
-                            triggerManualToggle(true);
-                        } else {
-                            spkSelect.innerHTML = '<option value="">-- Select SPK Number --</option>';
-                            spks.forEach(spk => {
-                                const option = document.createElement('option');
-                                option.value = spk;
-                                option.textContent = spk;
-                                spkSelect.appendChild(option);
-                            });
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error fetching SPKs:', err);
-                        spkSelect.innerHTML = '<option value="">Error loading SPKs</option>';
-                    });
-            });
+                    fetch(`/api/get-spks-by-item?item_code=${encodeURIComponent(itemCode)}`)
+                        .then(response => response.json())
+                        .then(spks => {
+                            spkSelect.innerHTML = '';
+                            if (spks.length === 0) {
+                                spkSelect.innerHTML = '<option value="">No SPK found in history</option>';
+                                manualSpkToggle.checked = true;
+                                triggerManualToggle(true);
+                            } else {
+                                spkSelect.innerHTML = '<option value="">-- Select SPK Number --</option>';
+                                spks.forEach(spk => {
+                                    const option = document.createElement('option');
+                                    option.value = spk;
+                                    option.textContent = spk;
+                                    spkSelect.appendChild(option);
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error fetching SPKs:', err);
+                            spkSelect.innerHTML = '<option value="">Error loading SPKs</option>';
+                        });
+                });
+            }
 
             // Handle Manual SPK Toggle
             manualSpkToggle.addEventListener('change', function () {
