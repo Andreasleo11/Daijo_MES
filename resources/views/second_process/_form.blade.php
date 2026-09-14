@@ -507,23 +507,23 @@
                 @endphp
 
                 @php
-                    $isPaintingProcess = (old('process_prod', $report->process_prod ?? 'Painting') === 'Painting');
+                    $isPaintApplicable = in_array(old('process_prod', $report->process_prod ?? 'Painting'), ['Painting', 'Repair']);
                 @endphp
 
                 <!-- Item Paint Table -->
-                <div id="paint-materials-card" class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between transition-all duration-200 {{ !$isPaintingProcess ? 'opacity-60 bg-gray-50' : '' }}">
+                <div id="paint-materials-card" class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between transition-all duration-200 {{ !$isPaintApplicable ? 'opacity-60 bg-gray-50' : '' }}">
                     <div>
                         <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
                             <div class="flex items-center gap-2">
                                 <h4 class="text-sm font-bold text-gray-700">Item Paint (Viscosity & Mixing Ratio)</h4>
-                                <span id="paint-process-badge" class="{{ $isPaintingProcess ? 'hidden' : '' }} text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                                    Hanya untuk Proses Painting
+                                <span id="paint-process-badge" class="{{ $isPaintApplicable ? 'hidden' : '' }} text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                    Hanya untuk Proses Painting & Repair
                                 </span>
                             </div>
                             <span class="text-[10px] text-gray-500">Filled during prep stage</span>
                         </div>
-                        <div id="paint-disabled-notice" class="{{ $isPaintingProcess ? 'hidden' : '' }} p-2.5 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between">
-                            <span>Item Paint dinonaktifkan karena Proses Prod bukan <strong>Painting</strong>.</span>
+                        <div id="paint-disabled-notice" class="{{ $isPaintApplicable ? 'hidden' : '' }} p-2.5 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between">
+                            <span>Item Paint dinonaktifkan karena Proses Prod bukan <strong>Painting</strong> atau <strong>Repair</strong>.</span>
                             <button type="button" onclick="switchTab('setup')" class="text-blue-700 underline font-bold ml-2">Ubah di Tab 1 &rarr;</button>
                         </div>
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -543,12 +543,12 @@
                                     @php $currIdx = $materialGlobalIndex++; @endphp
                                     <tr>
                                         <td class="px-3 py-2">
-                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="paint" {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                            <input type="hidden" name="materials[{{ $currIdx }}][type]" value="paint" {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                             <input type="text" name="materials[{{ $currIdx }}][item_name]"
                                                 value="{{ old('materials.' . $currIdx . '.item_name', $mat->item_name ?? '') }}"
                                                 placeholder="Paint Item Name"
-                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ $errors->has('materials.' . $currIdx . '.item_name') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 font-semibold {{ $errors->has('materials.' . $currIdx . '.item_name') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                             @if ($errors->has('materials.' . $currIdx . '.item_name'))
                                                 <p class="text-[10px] text-red-600 font-bold mt-0.5">{{ $errors->first('materials.' . $currIdx . '.item_name') }}</p>
                                             @endif
@@ -557,41 +557,41 @@
                                             <input type="text" name="materials[{{ $currIdx }}][lot_number]"
                                                 value="{{ old('materials.' . $currIdx . '.lot_number', $mat->lot_number ?? '') }}"
                                                 placeholder="Lot"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][visco]"
                                                 value="{{ old('materials.' . $currIdx . '.visco', $mat->visco ?? '') }}"
                                                 placeholder="Visco"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][mixing_ratio]"
                                                 value="{{ old('materials.' . $currIdx . '.mixing_ratio', $mat->mixing_ratio ?? '') }}"
                                                 placeholder="Ratio (e.g. 1:1.5)"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="number" step="any" name="materials[{{ $currIdx }}][qty]"
                                                 value="{{ old('materials.' . $currIdx . '.qty', $mat->qty ?? '') }}"
                                                 placeholder="Qty"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ $errors->has('materials.' . $currIdx . '.qty') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ $errors->has('materials.' . $currIdx . '.qty') ? 'border-red-500 ring-1 ring-red-500' : '' }} {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-2 py-2">
                                             <input type="text" name="materials[{{ $currIdx }}][uom]"
                                                 value="{{ old('materials.' . $currIdx . '.uom', $mat->uom ?? '') }}"
                                                 placeholder="UOM"
-                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintingProcess ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                                {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                                                class="w-full text-xs rounded border-gray-300 py-1 {{ !$isPaintApplicable ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                                                {{ !$isPaintApplicable ? 'disabled' : '' }}>
                                         </td>
                                         <td class="px-1 py-2 text-center">
                                             <button type="button" onclick="removeMaterialRow(this)"
-                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition {{ !$isPaintingProcess ? 'cursor-not-allowed opacity-50' : '' }}"
-                                                title="Remove Row" {{ !$isPaintingProcess ? 'disabled' : '' }}>&times;</button>
+                                                class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-sm rounded hover:bg-red-50 transition {{ !$isPaintApplicable ? 'cursor-not-allowed opacity-50' : '' }}"
+                                                title="Remove Row" {{ !$isPaintApplicable ? 'disabled' : '' }}>&times;</button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -600,8 +600,8 @@
                     </div>
                     <div class="p-3 bg-gray-50 border-t border-gray-200">
                         <button type="button" id="add-paint-item-btn" onclick="addPaintMaterialRow()"
-                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition {{ !$isPaintingProcess ? 'cursor-not-allowed opacity-50' : '' }}"
-                            {{ !$isPaintingProcess ? 'disabled' : '' }}>
+                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-1 px-2 rounded hover:bg-blue-50 transition {{ !$isPaintApplicable ? 'cursor-not-allowed opacity-50' : '' }}"
+                            {{ !$isPaintApplicable ? 'disabled' : '' }}>
                             + Add Paint Item
                         </button>
                     </div>
@@ -2577,7 +2577,7 @@
 
     window.addPaintMaterialRow = function() {
         const processSelect = document.getElementById('process_prod');
-        if (processSelect && processSelect.value !== 'Painting') {
+        if (processSelect && !['Painting', 'Repair'].includes(processSelect.value)) {
             return;
         }
         const tbody = document.getElementById('paint-materials-tbody');
@@ -2613,7 +2613,7 @@
 
     function togglePaintMaterialsByProcess() {
         const processSelect = document.getElementById('process_prod');
-        const isPainting = processSelect ? (processSelect.value === 'Painting') : true;
+        const isPaintApplicable = processSelect ? ['Painting', 'Repair'].includes(processSelect.value) : true;
 
         const paintCard = document.getElementById('paint-materials-card');
         const paintBadge = document.getElementById('paint-process-badge');
@@ -2623,7 +2623,7 @@
 
         if (!paintCard) return;
 
-        if (isPainting) {
+        if (isPaintApplicable) {
             paintCard.classList.remove('opacity-60', 'bg-gray-50');
             if (paintBadge) paintBadge.classList.add('hidden');
             if (paintNotice) paintNotice.classList.add('hidden');
