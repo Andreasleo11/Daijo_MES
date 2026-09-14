@@ -105,18 +105,20 @@ class BaseSapService
             
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
-                    'Accept' => 'application/json',
-                    'Host' => 'localhost',
+                    'Accept'        => 'application/json',
+                    'Host'          => 'localhost',
                 ])
-                ->timeout(30)
+                ->timeout(120) // 120s timeout for large data reports (Line Production, Reject, etc.)
+                ->connectTimeout(15)
+                ->retry(2, 1000, throw: false)
                 ->get($this->baseUrl . $endpoint, $params);
                 
-            if ($response->successful()) {
+            if ($response && $response->successful()) {
                 return $response->json();
             }
             
             // 401 = token expired
-            if ($response->status() === 401) {
+            if ($response && $response->status() === 401) {
                 Log::warning('SAP token expired, refreshing...');
                 Cache::forget('sap_token');
                 $this->token = null;
@@ -125,19 +127,25 @@ class BaseSapService
                 $token = $this->getToken();
                 $response = Http::withHeaders([
                         'Authorization' => 'Bearer ' . $token,
-                        'Accept' => 'application/json',
-                        'Host' => 'localhost',
+                        'Accept'        => 'application/json',
+                        'Host'          => 'localhost',
                     ])
-                    ->timeout(30)
+                    ->timeout(120)
+                    ->connectTimeout(15)
+                    ->retry(2, 1000, throw: false)
                     ->get($this->baseUrl . $endpoint, $params);
                     
-                return $response->json();
+                if ($response && $response->successful()) {
+                    return $response->json();
+                }
             }
             
-            throw new \Exception('SAP API Error: ' . $response->status());
+            $status = $response ? $response->status() : 'TIMEOUT/NO_RESPONSE';
+            $body   = $response ? $response->body() : 'No response from SAP server';
+            throw new \Exception("SAP GET Error [{$status}]: {$body}");
             
         } catch (\Exception $e) {
-            Log::error('SAP GET request error: ' . $e->getMessage());
+            Log::error("SAP GET request error ({$endpoint}): " . $e->getMessage());
             throw $e;
         }
     }
@@ -153,38 +161,36 @@ class BaseSapService
             $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept'        => 'application/json',
-                    'Content-Type'  => 'application/json',  // ← tambah ini
+                    'Content-Type'  => 'application/json',
                     'Host'          => 'localhost',
                 ])
-                ->timeout(30)
+                ->timeout(120)
+                ->connectTimeout(15)
+                ->retry(2, 1000, throw: false)
                 ->post($this->baseUrl . $endpoint, $payload);
                 
-            if ($response->successful()) {
-                return $response;
-            }
-                
-            if ($response->status() === 401) {
+            if ($response && $response->status() === 401) {
                 Log::warning('SAP token expired during POST, refreshing...');
                 Cache::forget('sap_token');
                 $this->token = null;
                 
                 $token = $this->getToken();
                 $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $token,  // ← fix typo ini
+                        'Authorization' => 'Bearer ' . $token,
                         'Accept'        => 'application/json',
-                        'Content-Type'  => 'application/json',  // ← tambah ini
+                        'Content-Type'  => 'application/json',
                         'Host'          => 'localhost',
                     ])
-                    ->timeout(30)
+                    ->timeout(120)
+                    ->connectTimeout(15)
+                    ->retry(2, 1000, throw: false)
                     ->post($this->baseUrl . $endpoint, $payload);
-                    
-                return $response;
             }
             
-            throw new \Exception('SAP API Error: ' . $response->status());
+            return $response;
             
         } catch (\Exception $e) {
-            Log::error('SAP POST request error: ' . $e->getMessage());
+            Log::error("SAP POST request error ({$endpoint}): " . $e->getMessage());
             throw $e;
         }
     }

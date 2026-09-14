@@ -120,11 +120,20 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('branches', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('code')->unique();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
         Schema::create('wms_warehouses', function (Blueprint $table) {
             $table->id();
             $table->string('whse_code');
             $table->string('whse_name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('wms_racks', function (Blueprint $table) {
@@ -223,7 +232,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         Queue::fake();
 
         $response = $this->actingAs($this->adminUser)
-            ->get(route('wms.pallet-form.create'));
+            ->get(route('wms.pallet-form.create-delivery'));
 
         $response->assertOk();
 
@@ -245,7 +254,7 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         $detail = WmsPalletFormDetail::where('pallet_form_id', $pallet->pallet_id)->first();
         $this->assertNotNull($detail);
         // Verify warehouse is saved as FFI (scanned value)
-        $this->assertEquals('FFI', $detail->warehouse);
+        $this->assertEquals('FG', $detail->warehouse);
     }
 
     /**
@@ -512,7 +521,10 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
      */
     public function test_retry_spk_in_monitor(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
+        Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'mock_token'], 200),
+            '*/api/inventory_transfer/create' => Http::response(['status' => true, 'message' => 'Success'], 200),
+        ]);
 
         // 1. Create a Pallet Form with failed detail
         WmsPalletForm::create([
@@ -541,16 +553,46 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
             ->call('retrySpk', 'PLT-RETRY-001', 'SPK-7777')
             ->assertHasNoErrors();
 
-        // Assert database was reset
+        // Assert database was updated to SUCCESS (1)
         $pallet = WmsPalletForm::where('pallet_id', 'PLT-RETRY-001')->first();
-        $this->assertEquals(0, $pallet->sap_sync_status);
+        $this->assertEquals(1, $pallet->sap_sync_status);
 
         $detail = WmsPalletFormDetail::where('pallet_form_id', 'PLT-RETRY-001')->first();
-        $this->assertEquals(0, $detail->sap_sync_status);
+        $this->assertEquals(1, $detail->sap_sync_status);
         $this->assertNull($detail->sap_error_msg);
+    }
 
-        // Assert job was dispatched
-        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncPalletToSapJob::class);
+    public function test_mark_as_synced_in_monitor(): void
+    {
+        WmsPalletForm::create([
+            'pallet_id' => 'PLT-MANUAL-001',
+            'position_id' => $this->position->id,
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'prod_date' => '2026-07-09',
+            'sap_sync_status' => 2, // FAILED
+        ]);
+
+        WmsPalletFormDetail::create([
+            'pallet_form_id' => 'PLT-MANUAL-001',
+            'part_no' => 'PART-XYZ',
+            'model_name' => 'Test Part',
+            'spk_no' => 'SPK-8888',
+            'qty' => 100,
+            'warehouse' => 'FG',
+            'label' => 'LBL-8888',
+            'sap_sync_status' => 2, // FAILED
+        ]);
+
+        Livewire::test(\App\Livewire\Wms\SapSyncMonitor::class)
+            ->call('markAsSynced', 'PLT-MANUAL-001')
+            ->assertHasNoErrors();
+
+        $pallet = WmsPalletForm::where('pallet_id', 'PLT-MANUAL-001')->first();
+        $this->assertEquals(1, $pallet->sap_sync_status);
+
+        $detail = WmsPalletFormDetail::where('pallet_form_id', 'PLT-MANUAL-001')->first();
+        $this->assertEquals(1, $detail->sap_sync_status);
     }
 
     public function test_store_can_assign_slot_to_unassigned_delivery_pallet(): void

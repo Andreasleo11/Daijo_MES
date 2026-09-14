@@ -117,11 +117,45 @@ class WmsSapSyncService extends BaseSapService
             
             Log::info("SAP Sync (Inventory Transfer) Response for Pallet {$palletId} [HTTP {$statusCode}]: " . $rawBody);
 
-            $success = $response->successful() && isset($json['status']) && $json['status'] === true;
+            // 1. Success check: HTTP 2xx and not explicitly flagged as failure
+            $hasExplicitFailure = (isset($json['status']) && ($json['status'] === false || $json['status'] === 'failed' || $json['status'] === 'error')) ||
+                                  (isset($json['success']) && $json['success'] === false);
 
-            // Handle SAP Idempotency: Jika SAP bilang sudah ada/duplicate, anggap SUKSES
-            $errorMsg = $json['message'] ?? ($rawBody ?: "SAP HTTP {$statusCode} error for Pallet {$palletId}");
-            $isDuplicate = (stripos($errorMsg, 'already exist') !== false || stripos($errorMsg, 'duplicate') !== false);
+            $success = $response->successful() && !$hasExplicitFailure;
+
+            // 2. Comprehensive Idempotency & Duplicate Detection:
+            // Extract error message from various SAP response schemas
+            $errorMsg = $json['message'] ?? ($json['error']['message']['value'] ?? ($json['error']['message'] ?? ($rawBody ?: "SAP HTTP {$statusCode} error for Pallet {$palletId}")));
+            
+            $duplicateKeywords = [
+                'already exist',
+                'already exists',
+                'already existed',
+                'duplicate',
+                'duplikasi',
+                'already transferred',
+                'already posted',
+                'already processed',
+                'already created',
+                'already closed',
+                'already dispatched',
+                'sudah ada',
+                'sudah diproses',
+                'sudah terkirim',
+                'sudah pernah ditransfer',
+                'cannot add document',
+                'cannot be added',
+                'already issued',
+                'document exists',
+            ];
+
+            $isDuplicate = false;
+            foreach ($duplicateKeywords as $kw) {
+                if (stripos($errorMsg, $kw) !== false) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
 
             if ($success || $isDuplicate) {
                 WmsPalletFormDetail::whereIn('id', $currentItemIds)
@@ -132,11 +166,11 @@ class WmsSapSyncService extends BaseSapService
                         'sap_sync_at'     => now(),
                     ]);
                 
-                $logMsg = $isDuplicate ? "Pallet {$palletId} marked as success (Duplicate/Already Exists)" : "Pallet {$palletId} synced successfully";
+                $logMsg = $isDuplicate ? "Pallet {$palletId} marked as success (Duplicate/Already Exists in SAP)" : "Pallet {$palletId} synced successfully to SAP";
                 Log::info("[WMS-SAP-TRANSFER] Pallet {$palletId} | IDs: " . implode(',', $currentItemIds) . " | " . $logMsg);
                 $this->saveApiLog('InventoryTransfer', 'POST', $endpoint, $payload, $json ?? ['body' => $rawBody], $statusCode, 'success', $logMsg);
             } else {
-                $displayError = "SAP API Error: " . $statusCode . ($errorMsg ? " - " . $errorMsg : "");
+                $displayError = "SAP API Error [{$statusCode}]: " . $errorMsg;
                 WmsPalletFormDetail::whereIn('id', $currentItemIds)
                     ->whereNotIn('sap_sync_status', [1, 4])
                     ->update([
@@ -153,7 +187,7 @@ class WmsSapSyncService extends BaseSapService
                 ->whereNotIn('sap_sync_status', [1, 4])
                 ->update([
                     'sap_sync_status' => 2,
-                    'sap_error_msg'   => $e->getMessage(),
+                    'sap_error_msg'   => 'Exception: ' . $e->getMessage(),
                     'sap_sync_at'     => now(),
                 ]);
             Log::error("[WMS-SAP-TRANSFER] Pallet {$palletId} | EXCEPTION: " . $e->getMessage());

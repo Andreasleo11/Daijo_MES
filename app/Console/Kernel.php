@@ -88,6 +88,14 @@ class Kernel extends ConsoleKernel
             ->timezone('Asia/Jakarta')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/db_backup.log'));
+
+        // Otomatis bersihkan data api_logs yang lebih tua dari 3 bulan (dijalankan setiap hari jam 02:00 WIB)
+        $schedule->command('model:prune', [
+            '--model' => [\App\Models\ApiLog::class]
+        ])
+            ->dailyAt('02:00')
+            ->timezone('Asia/Jakarta')
+            ->withoutOverlapping();
     }
 
     /**

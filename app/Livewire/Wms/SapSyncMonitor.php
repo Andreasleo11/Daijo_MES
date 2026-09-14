@@ -120,6 +120,67 @@ class SapSyncMonitor extends Component
     }
 
     /**
+     * Mark a pallet as already synced / success manually (e.g. verified directly in SAP)
+     */
+    public function markAsSynced($palletId)
+    {
+        WmsPalletForm::where('pallet_id', $palletId)->update([
+            'sap_sync_status' => 1, // 1 = SUCCESS
+            'sap_error_msg'   => null,
+            'sap_sync_at'     => now(),
+            'updated_at'      => now(),
+        ]);
+
+        WmsPalletFormDetail::where('pallet_form_id', $palletId)->update([
+            'sap_sync_status' => 1,
+            'sap_error_msg'   => 'Diverifikasi manual: Data sudah ada di SAP',
+            'sap_sync_at'     => now(),
+        ]);
+
+        if ($this->selectedPalletId === $palletId) {
+            $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $palletId)->get();
+        }
+
+        session()->flash('message', "Pallet {$palletId} berhasil ditandai SUKSES (Sudah Masuk di SAP).");
+    }
+
+    /**
+     * Mark a specific detail as synced manually
+     */
+    public function markDetailAsSynced($detailId)
+    {
+        $detail = WmsPalletFormDetail::find($detailId);
+        if (!$detail) return;
+
+        $detail->update([
+            'sap_sync_status' => 1,
+            'sap_error_msg'   => 'Diverifikasi manual: Data sudah ada di SAP',
+            'sap_sync_at'     => now(),
+        ]);
+
+        $palletId = $detail->pallet_form_id;
+
+        // Ground truth check: jika semua detail palet sudah sukses / ignored, update header jadi 1
+        $hasPendingOrError = WmsPalletFormDetail::where('pallet_form_id', $palletId)
+            ->whereNotIn('sap_sync_status', [1, 4])
+            ->exists();
+
+        if (!$hasPendingOrError) {
+            WmsPalletForm::where('pallet_id', $palletId)->update([
+                'sap_sync_status' => 1,
+                'sap_error_msg'   => null,
+                'sap_sync_at'     => now(),
+            ]);
+        }
+
+        if ($this->selectedPalletId) {
+            $this->palletDetails = WmsPalletFormDetail::where('pallet_form_id', $this->selectedPalletId)->get();
+        }
+
+        session()->flash('message', "Item #{$detail->label} berhasil ditandai SUKSES.");
+    }
+
+    /**
      * Mark a pallet as ignored
      */
     public function ignorePallet($palletId)
