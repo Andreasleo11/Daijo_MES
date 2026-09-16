@@ -454,8 +454,8 @@ class SecondProcessReportController extends Controller
             // Create Materials
             if (isset($validated['materials'])) {
                 foreach ($validated['materials'] as $material) {
-                    // Item Paint is only recorded if process_prod is Painting
-                    if (($material['type'] ?? '') === 'paint' && ($validated['process_prod'] ?? '') !== 'Painting') {
+                    // Item Paint is only recorded if process_prod is Painting or Repair
+                    if (($material['type'] ?? '') === 'paint' && !in_array(($validated['process_prod'] ?? ''), ['Painting', 'Repair'])) {
                         continue;
                     }
 

@@ -762,6 +762,71 @@ class SecondProcessReportTest extends TestCase
         $this->assertCount(0, $report->materials->where('type', 'paint'));
     }
 
+    public function test_item_paint_materials_allowed_when_process_prod_is_repair()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Repair',
+            'status' => 'draft',
+            'part_number' => 'PART-REPAIR-01',
+            'part_name' => 'Side Mirror',
+            'target_per_hour' => 100,
+
+            // Mixed materials (both paint and part)
+            'materials' => [
+                [
+                    'type' => 'part',
+                    'item_name' => 'Repairan 1',
+                    'lot_number' => 'LOT-REP-01',
+                    'qty' => 50,
+                    'uom' => 'Pcs',
+                ],
+                [
+                    'type' => 'paint',
+                    'item_name' => 'Paint Primer',
+                    'lot_number' => 'LOT-P-REP',
+                    'visco' => '14s',
+                    'mixing_ratio' => '1:1',
+                    'qty' => 5,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $report = SecondProcessReport::where('part_number', 'PART-REPAIR-01')->first();
+        $this->assertNotNull($report);
+
+        // Verify both part and paint materials are stored because process_prod is Repair
+        $this->assertCount(1, $report->materials->where('type', 'part'));
+        $this->assertCount(1, $report->materials->where('type', 'paint'));
+    }
+
+    public function test_edit_form_view_renders_paint_materials_enabled_for_repair_process()
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->actingAs($user);
+
+        $report = SecondProcessReport::create([
+            'date' => now()->toDateString(),
+            'unit_line' => 'Line 1',
+            'shift' => '1',
+            'process_prod' => 'Repair',
+            'part_number' => 'PART-EDIT-REPAIR',
+        ]);
+
+        $response = $this->get(route('second-process-reports.edit', $report->id));
+        $response->assertOk();
+        $response->assertSee('Hanya untuk Proses Painting & Repair', false);
+        $response->assertSee('id="paint-disabled-notice" class="hidden', false);
+    }
+
     public function test_store_cleans_empty_material_rows_and_does_not_fail_validation()
     {
         $user = User::factory()->create(['role_id' => $this->adminRole->id]);

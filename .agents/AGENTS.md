@@ -9,3 +9,43 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
 7. **Minimal Code**: Jika semua di atas tidak bisa, tulis kode seminimal mungkin yang bekerja dengan baik.
 
 *Catatan: Aspek keamanan (security), perlindungan data (data-loss protection), validasi input, penanganan error, dan aksesibilitas TIDAK BOLEH dikurangi atau diabaikan.*
+
+---
+
+# Daijo MES: App Context & Architecture
+
+## 1. Overview & Tech Stack
+- **Application**: PT Daijo Industrial MES (Manufacturing Execution System)
+- **Backend**: Laravel 12 (PHP 8.4), MySQL, Redis
+- **Frontend**: Blade templates, Tailwind CSS, Alpine.js, Livewire
+- **Dev & Test Environment**: Docker via Laravel Sail (`./vendor/bin/sail test`)
+
+## 2. Core Functional Modules & Domains
+1. **Second Process (`SecondProcessReport`)**:
+   - Manages daily secondary processing (Painting, Buffing, Amplas, Treatment, Packing, Rework, Repair, Assy).
+   - Form Tabs:
+     - **Tab 1 (Setup & Manpower)**: Shift logistics, part number, customer, manpowers.
+     - **Tab 2 (Materials)**: Item Paint (viscosity, mixing ratio, qty — active for `Painting` & `Repair`) and Item Parts / WIP Lots (WIP + Repairan reconciliation).
+     - **Tab 3 (Production Logs & NG)**: Target per hour, hourly production slots, NG breakdown by defects & remarks.
+     - **Tab 4 (Handover & Signs)**: Next schedule, downtime/troubles (`loss_time_minutes`), operator, PQC, and Leader approval signoffs.
+   - Analytics & Reports: `SecondProcessReportAnalyticsController`.
+
+2. **First Piece Inspection (`FirstPieceInspection`)**:
+   - Quality gate conducted at the start of a production run.
+   - Acts as a required approval gate before Second Process PQC signoff.
+
+3. **IPQC Inspection (`IpqcInspection`)**:
+   - In-Process Quality Control recording defect rates, sample inspection rounds, and judgements.
+
+4. **Work Orders & Assembly (`SpWorkOrder`, `AssemblyDailyProcess`)**:
+   - Work order dispatching, batch tracking, barcode generation, and packaging master/detail records.
+
+## 3. Essential Development Guidelines
+- Always verify changes with automated tests via Sail: `./vendor/bin/sail test --filter=<TestClass>`.
+- Maintain field validation integrity, error feedback banners, and tab switching handlers across legacy Blade views.
+- Keep calculations consistent between client-side Alpine/JS real-time updates and server-side controller persistence.
+
+## 4. Continuous Knowledge Maintenance (Mandatory for Agent)
+- **Automatic Updates**: Upon finishing an implementation plan, completing a major change, or before the conversation session wraps up / gets compacted, the agent **MUST automatically update `.agents/AGENTS.md`** with any new context, newly added features, schema changes, or discovered business rules.
+- **Autonomous & Zero-Prompt**: Do NOT wait for the user to ask or remind you to update this file. Proactively review and update it as part of finishing tasks.
+- **Maintain High-Signal Content**: Keep entries concise, structured, and focused on business rules, architecture, and gotchas so the file remains punchy and within optimal context size.
