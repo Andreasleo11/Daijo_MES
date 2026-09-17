@@ -83,6 +83,25 @@
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Weekend Half-Day Toggle (Weekly View) --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Setengah Hari</label>
+                    <div class="flex items-center gap-1.5 h-[42px]">
+                        <label class="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:bg-amber-50/50 transition">
+                            <input type="checkbox" wire:model.live="isSaturdayHalfDay" class="w-3.5 h-3.5 text-amber-600 rounded border-gray-300 focus:ring-amber-500">
+                            <span class="text-xs select-none {{ $isSaturdayHalfDay ? 'text-amber-800 font-bold' : 'text-gray-700 font-medium' }}">
+                                Sabtu
+                            </span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:bg-amber-50/50 transition">
+                            <input type="checkbox" wire:model.live="isSundayHalfDay" class="w-3.5 h-3.5 text-amber-600 rounded border-gray-300 focus:ring-amber-500">
+                            <span class="text-xs select-none {{ $isSundayHalfDay ? 'text-amber-800 font-bold' : 'text-gray-700 font-medium' }}">
+                                Minggu
+                            </span>
+                        </label>
+                    </div>
+                </div>
                 @endif
 
                 {{-- Item Code - Searchable Dropdown --}}

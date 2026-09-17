@@ -19,6 +19,8 @@ class ProductionDashboard extends Component
     public $itemCode = null;
     public $machineUserId = null;
     public bool $isHalfDay = false;
+    public bool $isSaturdayHalfDay = false;
+    public bool $isSundayHalfDay = false;
     
     // For searchable item code
     public $itemCodeSearch = '';
@@ -60,6 +62,9 @@ class ProductionDashboard extends Component
         $this->year = now()->year;
         $this->month = now()->month;
         $this->selectedDate = now()->format('Y-m-d');
+        $this->isHalfDay = false;
+        $this->isSaturdayHalfDay = false;
+        $this->isSundayHalfDay = false;
 
         $this->populateFilterOptions();
         $this->loadData();
@@ -207,21 +212,32 @@ class ProductionDashboard extends Component
 
     public function updatedSelectedDate()
     {
+        $this->isHalfDay = false;
         $this->updateItemCodes();
         $this->loadData();
     }
 
     public function updatedViewType()
     {
-        if ($this->viewType !== 'daily') {
-            $this->isHalfDay = false;
-        }
+        $this->isHalfDay = false;
+        $this->isSaturdayHalfDay = false;
+        $this->isSundayHalfDay = false;
         $this->updateWeeks();
         $this->updateItemCodes();
         $this->loadData();
     }
 
     public function updatedIsHalfDay()
+    {
+        $this->loadData();
+    }
+
+    public function updatedIsSaturdayHalfDay()
+    {
+        $this->loadData();
+    }
+
+    public function updatedIsSundayHalfDay()
     {
         $this->loadData();
     }
@@ -249,13 +265,24 @@ class ProductionDashboard extends Component
     {
         [$startDate, $endDate] = $this->getDateRange();
 
+        if ($this->viewType === 'daily') {
+            $halfDayParam = $this->isHalfDay;
+        } elseif ($this->viewType === 'weekly') {
+            $halfDayParam = [
+                'saturday' => $this->isSaturdayHalfDay,
+                'sunday'   => $this->isSundayHalfDay,
+            ];
+        } else {
+            $halfDayParam = null;
+        }
+
         $data = $this->productionService->getAllDashboardData(
             $startDate,
             $endDate,
             $this->itemCode,
             $this->machineUserId,
             $this->plant,
-            $this->isHalfDay
+            $halfDayParam
         );
 
         $this->chartData = $data['chart_data'] ?? [];
@@ -307,6 +334,8 @@ class ProductionDashboard extends Component
         $this->itemCodeSearch = '';
         $this->machineUserId = null;
         $this->isHalfDay = false;
+        $this->isSaturdayHalfDay = false;
+        $this->isSundayHalfDay = false;
 
         $this->updateFilteredMachines();
         $this->updateWeeks();

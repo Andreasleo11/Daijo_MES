@@ -185,14 +185,14 @@ class ProductionDashboardOptimizationTest extends TestCase
             'ng_quantity'      => 15,
         ]);
 
-        // Adjuster logged on Machine 1 only for Shift 1
+        // Adjuster logged on Machine 1 only for Shift 1 (08:15 WIB = 01:15 UTC)
         $adjLog = AdjustMachineLog::create([
             'user_id'    => $machine1->id,
             'item_code'  => 'PART-001',
             'pic'        => 'Budi (Adjuster)',
-            'end_time'   => '2026-08-15 08:35:00',
+            'end_time'   => '2026-08-15 01:35:00',
         ]);
-        $adjLog->created_at = '2026-08-15 08:15:00';
+        $adjLog->created_at = '2026-08-15 01:15:00';
         $adjLog->save();
 
         $service = app(ProductionDashboardService::class);
@@ -524,13 +524,92 @@ class ProductionDashboardOptimizationTest extends TestCase
         $this->assertEquals(35, $alpha1Ng + $alpha2Ng);
         $this->assertTrue(($alpha1Ng === 18 && $alpha2Ng === 17) || ($alpha1Ng === 17 && $alpha2Ng === 18));
 
-        // Test Livewire toggle
+        // Test Livewire toggle (defaults to false, manual toggle)
         Livewire::test(ProductionDashboard::class)
             ->set('viewType', 'daily')
-            ->set('selectedDate', '2026-09-12')
+            ->set('selectedDate', '2026-09-12') // Saturday
             ->set('machineUserId', (string)$machine->id)
-            ->set('isHalfDay', true)
+            ->assertSet('isHalfDay', false) // Not auto-enabled! Can be full day
+            ->set('isHalfDay', true) // Manual toggle
             ->assertSet('isHalfDay', true)
             ->assertSee('Setengah Hari');
+    }
+
+    public function test_weekly_view_manual_weekend_half_day_schedule_and_livewire()
+    {
+        $service = app(ProductionDashboardService::class);
+        $machine = User::create(['name' => 'K0450A', 'email' => 'k450_weekly@example.com', 'password' => 'secret']);
+
+        MasterListItem::create([
+            'item_code'         => 'ITEM-WEEKLY',
+            'cycle_time'        => 30.0,
+            'setup_time_minute' => 20.0,
+        ]);
+
+        // 1. Wednesday 2026-09-09 (Weekday): Log at 14:00 WIB (07:00 UTC)
+        // Weekday Shift 1 is 07:30 - 15:30 -> Always Shift 1!
+        $adjWed = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekday',
+        ]);
+        $adjWed->created_at = '2026-09-09 07:00:00';
+        $adjWed->save();
+
+        // 2. Saturday 2026-09-12 (Weekend): Log at 14:00 WIB (07:00 UTC)
+        // When Saturday half-day is enabled: Shift 1 is 07:30 - 12:30, Shift 2 is 12:30 - 17:30 -> Shift 2!
+        // When Saturday is full day: Shift 1 is 07:30 - 15:30 -> Shift 1!
+        $adjSat2 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekend S2',
+        ]);
+        $adjSat2->created_at = '2026-09-12 07:00:00';
+        $adjSat2->save();
+
+        // 3. Saturday 2026-09-12 (Weekend): Log at 18:00 WIB (11:00 UTC)
+        // When Saturday half-day is enabled: Shift 3 is 17:30 - 22:30 -> Shift 3!
+        $adjSat3 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekend S3',
+        ]);
+        $adjSat3->created_at = '2026-09-12 11:00:00';
+        $adjSat3->save();
+
+        $startOfWeek = Carbon::parse('2026-09-07')->startOfDay();
+        $endOfWeek = Carbon::parse('2026-09-13')->endOfDay();
+
+        // Case A: Full-day Saturday (default: saturday => false)
+        $dataFullDay = $service->getAllDashboardData($startOfWeek, $endOfWeek, null, (string)$machine->id, 'karawang', [
+            'saturday' => false,
+            'sunday'   => false,
+        ]);
+        $shiftsFullDay = $dataFullDay['shift_personnel_analysis']['shifts'];
+        // On normal schedule, 14:00 WIB falls in Shift 1 (07:30 - 15:30)
+        $this->assertContains('Adjuster Weekend S2', $shiftsFullDay[1]['adjusters']);
+
+        // Case B: Saturday marked half-day (saturday => true)
+        $dataHalfDay = $service->getAllDashboardData($startOfWeek, $endOfWeek, null, (string)$machine->id, 'karawang', [
+            'saturday' => true,
+            'sunday'   => false,
+        ]);
+        $shiftsHalfDay = $dataHalfDay['shift_personnel_analysis']['shifts'];
+        // On half-day schedule, 14:00 WIB falls in Shift 2 (12:30 - 17:30)
+        $this->assertContains('Adjuster Weekend S2', $shiftsHalfDay[2]['adjusters']);
+        // And 18:00 WIB falls in Shift 3 (17:30 - 22:30)
+        $this->assertContains('Adjuster Weekend S3', $shiftsHalfDay[3]['adjusters']);
+        // Wednesday remains Shift 1
+        $this->assertContains('Adjuster Weekday', $shiftsHalfDay[1]['adjusters']);
+
+        // Case C: Livewire component weekly toggle
+        Livewire::test(ProductionDashboard::class)
+            ->set('viewType', 'weekly')
+            ->assertSet('isSaturdayHalfDay', false)
+            ->assertSet('isSundayHalfDay', false)
+            ->set('isSaturdayHalfDay', true)
+            ->assertSet('isSaturdayHalfDay', true)
+            ->assertSee('Sabtu')
+            ->assertSee('Minggu');
     }
 }
