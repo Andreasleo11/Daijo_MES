@@ -1192,13 +1192,19 @@ class ProductionDashboardService
 
                 if (!empty($adjustersInShift)) {
                     $count = count($adjustersInShift);
-                    $splitNg = round($shiftNg / $count);
-                    $splitActual = round($shiftActual / $count);
+                    $baseNg = intdiv($shiftNg, $count);
+                    $remainderNg = $shiftNg % $count;
 
-                    foreach ($adjustersInShift as $adj) {
+                    $baseActual = intdiv($shiftActual, $count);
+                    $remainderActual = $shiftActual % $count;
+
+                    foreach ($adjustersInShift as $idx => $adj) {
+                        $adjNg = $baseNg + ($idx < $remainderNg ? 1 : 0);
+                        $adjActual = $baseActual + ($idx < $remainderActual ? 1 : 0);
+
                         if (isset($adjusterDailyNg[$adj][$dStr])) {
-                            $adjusterDailyNg[$adj][$dStr] += $splitNg;
-                            $adjusterDailyActual[$adj][$dStr] += $splitActual;
+                            $adjusterDailyNg[$adj][$dStr] += $adjNg;
+                            $adjusterDailyActual[$adj][$dStr] += $adjActual;
                         }
                     }
                 }

@@ -506,6 +506,24 @@ class ProductionDashboardOptimizationTest extends TestCase
         $this->assertEquals(20, $adjSummaries['Adjuster Beta']['total_ng']);
         $this->assertEquals(30, $adjSummaries['Adjuster Gamma']['total_ng']);
 
+        // Add second adjuster to Shift 1 with 35 NG to test exact division & balance (35 / 2 = 18 + 17 = 35)
+        $hr1->ngDetails()->first()->update(['ng_quantity' => 35]);
+        $adj1b = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-HALF-DAY',
+            'pic'       => 'Adjuster Alpha 2',
+        ]);
+        $adj1b->created_at = '2026-09-12 04:00:00';
+        $adj1b->save();
+
+        $dataBalanced = $service->getAllDashboardData($date, $date, null, (string)$machine->id, 'karawang', true);
+        $balancedSummaries = collect($dataBalanced['adjuster_ng_trend']['adjuster_summaries'])->keyBy('name');
+
+        $alpha1Ng = $balancedSummaries['Adjuster Alpha']['total_ng'];
+        $alpha2Ng = $balancedSummaries['Adjuster Alpha 2']['total_ng'];
+        $this->assertEquals(35, $alpha1Ng + $alpha2Ng);
+        $this->assertTrue(($alpha1Ng === 18 && $alpha2Ng === 17) || ($alpha1Ng === 17 && $alpha2Ng === 18));
+
         // Test Livewire toggle
         Livewire::test(ProductionDashboard::class)
             ->set('viewType', 'daily')
