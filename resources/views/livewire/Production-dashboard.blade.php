@@ -37,6 +37,16 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
                     <input type="date" wire:model.live="selectedDate" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Jadwal Shift</label>
+                    <label class="flex items-center gap-2 h-[42px] px-3 py-2 bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:bg-amber-50/50 transition">
+                        <input type="checkbox" wire:model.live="isHalfDay" class="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500">
+                        <span class="text-xs font-bold text-gray-700 select-none {{ $isHalfDay ? 'text-amber-800' : '' }}">
+                            Setengah Hari
+                        </span>
+                    </label>
+                </div>
                 @endif
 
                 {{-- Year (shown for monthly & weekly view) --}}
@@ -181,6 +191,11 @@
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
                             Date: {{ date('d M Y', strtotime($selectedDate)) }}
                         </span>
+                        @if($isHalfDay)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                                ⏱️ Setengah Hari (07:30-12:30 | 12:30-17:30 | 17:30-22:30)
+                            </span>
+                        @endif
                     @endif
                     @if($itemCode)
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-800">

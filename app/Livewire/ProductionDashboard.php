@@ -18,6 +18,7 @@ class ProductionDashboard extends Component
     public $selectedDate;
     public $itemCode = null;
     public $machineUserId = null;
+    public bool $isHalfDay = false;
     
     // For searchable item code
     public $itemCodeSearch = '';
@@ -212,8 +213,16 @@ class ProductionDashboard extends Component
 
     public function updatedViewType()
     {
+        if ($this->viewType !== 'daily') {
+            $this->isHalfDay = false;
+        }
         $this->updateWeeks();
         $this->updateItemCodes();
+        $this->loadData();
+    }
+
+    public function updatedIsHalfDay()
+    {
         $this->loadData();
     }
 
@@ -245,7 +254,8 @@ class ProductionDashboard extends Component
             $endDate,
             $this->itemCode,
             $this->machineUserId,
-            $this->plant
+            $this->plant,
+            $this->isHalfDay
         );
 
         $this->chartData = $data['chart_data'] ?? [];
@@ -268,15 +278,21 @@ class ProductionDashboard extends Component
             $date = !empty($this->selectedDate) ? Carbon::parse($this->selectedDate) : now();
             return [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
         } elseif ($this->viewType === 'weekly' && !empty($this->weeks)) {
-            $weekData = $this->weeks[$this->week - 1] ?? $this->weeks[0];
-            $startDate = Carbon::parse($weekData['start'])->startOfDay();
-            $endDate = Carbon::parse($weekData['end'])->endOfDay();
-            return [$startDate, $endDate];
-        } else {
-            $startDate = Carbon::createFromDate((int)$this->year, (int)$this->month, 1)->startOfMonth();
-            $endDate = Carbon::createFromDate((int)$this->year, (int)$this->month, 1)->endOfMonth();
-            return [$startDate, $endDate];
+            $weekIndex = max(0, $this->week - 1);
+            $weekData = $this->weeks[$weekIndex] ?? null;
+
+            if ($weekData) {
+                return [
+                    Carbon::parse($weekData['start'])->startOfDay(),
+                    Carbon::parse($weekData['end'])->endOfDay()
+                ];
+            }
         }
+
+        $startOfMonth = Carbon::createFromDate($this->year, $this->month, 1)->startOfDay();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth()->endOfDay();
+
+        return [$startOfMonth, $endOfMonth];
     }
 
     public function resetFilters()
@@ -290,6 +306,7 @@ class ProductionDashboard extends Component
         $this->itemCode = null;
         $this->itemCodeSearch = '';
         $this->machineUserId = null;
+        $this->isHalfDay = false;
 
         $this->updateFilteredMachines();
         $this->updateWeeks();
