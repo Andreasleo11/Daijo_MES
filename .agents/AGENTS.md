@@ -28,16 +28,25 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
      - **Tab 2 (Materials)**: Item Paint (viscosity, mixing ratio, qty — active for `Painting` & `Repair`) and Item Parts / WIP Lots (WIP + Repairan reconciliation).
      - **Tab 3 (Production Logs & NG)**: Target per hour, hourly production slots, NG breakdown by defects & remarks.
      - **Tab 4 (Handover & Signs)**: Next schedule, downtime/troubles (`loss_time_minutes`), operator, PQC, and Leader approval signoffs.
+   - **Customer Enforcement & Auto-Conversion**:
+     - The `customer` field is strictly enforced: must be an official customer name (`MasterCustomerDelivery::customer_name`) or `'N/A'`.
+     - Empty, `'0'`, `'-'`, or case-insensitive `'n/a'` are automatically normalized to `'N/A'`.
+     - Valid `customer_code` inputs (e.g. `CUST-001`) are automatically resolved and converted to `customer_name` on save.
+     - Part number search (`searchItems`) returns `$item->customer?->customer_name ?: 'N/A'` (never leaks raw codes or `'0'`).
    - Analytics & Reports: `SecondProcessReportAnalyticsController`.
 
-2. **First Piece Inspection (`FirstPieceInspection`)**:
+2. **Master List Items & Customer Relations (`MasterListItem`, `MasterListItemView`)**:
+   - Relates to `MasterCustomerDelivery` via `belongsTo(MasterCustomerDelivery::class, 'customer_code', 'customer_code')`.
+   - `/master-list-item` Livewire management view includes connection filters (`Total`, `✓ Terhubung`, `⚠️ Belum Terhubung`), unassigned badges, and inline editing to resolve disconnected part-customer relationships.
+
+3. **First Piece Inspection (`FirstPieceInspection`)**:
    - Quality gate conducted at the start of a production run.
    - Acts as a required approval gate before Second Process PQC signoff.
 
-3. **IPQC Inspection (`IpqcInspection`)**:
+4. **IPQC Inspection (`IpqcInspection`)**:
    - In-Process Quality Control recording defect rates, sample inspection rounds, and judgements.
 
-4. **Work Orders & Assembly (`SpWorkOrder`, `AssemblyDailyProcess`)**:
+5. **Work Orders & Assembly (`SpWorkOrder`, `AssemblyDailyProcess`)**:
    - Work order dispatching, batch tracking, barcode generation, and packaging master/detail records.
 
 ## 3. Essential Development Guidelines

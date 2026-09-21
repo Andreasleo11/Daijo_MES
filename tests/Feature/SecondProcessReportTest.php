@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\FirstPieceInspection;
+use App\Models\MasterCustomerDelivery;
+use App\Models\MasterListItem;
 use App\Models\Role;
 use App\Models\SecondProcessReport;
 use App\Models\SecondProcessTrouble;
@@ -20,6 +22,11 @@ class SecondProcessReportTest extends TestCase
     {
         parent::setUp();
         $this->adminRole = Role::create(['name' => 'ADMIN']);
+
+        MasterCustomerDelivery::create([
+            'customer_code' => 'CUST-TOYOTA',
+            'customer_name' => 'Toyota Motor Corp',
+        ]);
     }
 
     /**
@@ -1071,6 +1078,119 @@ class SecondProcessReportTest extends TestCase
         $this->assertDatabaseHas('second_process_reports', [
             'part_number' => 'PART-NG-DRAFT-01',
             'status' => 'draft',
+        ]);
+    }
+
+    public function test_search_items_returns_na_when_customer_relationship_is_missing(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        MasterListItem::create([
+            'item_code' => 'PART-DISCONNECTED-01',
+            'item_name' => 'Disconnected Widget',
+            'tipe_mesin' => '0',
+            'standart_packaging_list' => 10,
+            'setup_time_minute' => '0',
+            'pair' => '0',
+            'cavity' => 1,
+            'cycle_time' => 1.0,
+            'project_code' => 'MODEL-DISC',
+            'customer_code' => '0',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('second-process-reports.search-items', ['query' => 'PART-DISCONNECTED']));
+
+        $response->assertOk()
+            ->assertJsonFragment([
+                'item_code' => 'PART-DISCONNECTED-01',
+                'customer_name' => 'N/A',
+            ]);
+    }
+
+    public function test_save_report_auto_converts_customer_code_to_customer_name(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'draft',
+            'part_number' => 'PART-AUTO-CONVERT',
+            'customer' => 'CUST-TOYOTA',
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-AUTO-CONVERT',
+            'customer' => 'Toyota Motor Corp',
+        ]);
+    }
+
+    public function test_save_report_rejects_unregistered_customer(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'draft',
+            'part_number' => 'PART-UNREG-01',
+            'customer' => 'Completely Non-Existent Company',
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['customer']);
+        $this->assertDatabaseMissing('second_process_reports', [
+            'part_number' => 'PART-UNREG-01',
+        ]);
+    }
+
+    public function test_save_report_accepts_na_and_variants(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        // Variant 1: lowercase n/a
+        $payload1 = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'draft',
+            'part_number' => 'PART-NA-01',
+            'customer' => 'n/a',
+        ];
+
+        $response1 = $this->actingAs($user)->post(route('second-process-reports.store'), $payload1);
+        $response1->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-NA-01',
+            'customer' => 'N/A',
+        ]);
+
+        // Variant 2: empty string
+        $payload2 = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'status' => 'draft',
+            'part_number' => 'PART-NA-02',
+            'customer' => '',
+        ];
+
+        $response2 = $this->actingAs($user)->post(route('second-process-reports.store'), $payload2);
+        $response2->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-NA-02',
+            'customer' => 'N/A',
         ]);
     }
 }

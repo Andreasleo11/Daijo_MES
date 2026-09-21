@@ -184,6 +184,27 @@ class SecondProcessReportController extends Controller
             $request->merge(['troubles' => $cleanedTroubles]);
         }
 
+        // Pre-sanitize and auto-convert customer input
+        $rawCustomer = trim((string) $request->input('customer', ''));
+        if ($rawCustomer === '' || $rawCustomer === '0' || $rawCustomer === '-' || strcasecmp($rawCustomer, 'n/a') === 0) {
+            $normalizedCustomer = 'N/A';
+        } else {
+            // 1. Check if it matches an existing customer_name
+            $customerByName = MasterCustomerDelivery::where('customer_name', $rawCustomer)->first();
+            if ($customerByName) {
+                $normalizedCustomer = $customerByName->customer_name;
+            } else {
+                // 2. Auto-convert if it matches a known customer_code
+                $customerByCode = MasterCustomerDelivery::where('customer_code', $rawCustomer)->first();
+                if ($customerByCode) {
+                    $normalizedCustomer = $customerByCode->customer_name;
+                } else {
+                    $normalizedCustomer = $rawCustomer;
+                }
+            }
+        }
+        $request->merge(['customer' => $normalizedCustomer]);
+
         $customAttributes = [
             'date' => 'Tanggal (Date)',
             'unit_line' => 'Unit / Line',
@@ -228,7 +249,15 @@ class SecondProcessReportController extends Controller
             'model' => 'nullable|string',
             'part_number' => 'required|string',
             'part_name' => 'nullable|string',
-            'customer' => 'nullable|string',
+            'customer' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if ($value !== 'N/A' && !MasterCustomerDelivery::where('customer_name', $value)->exists()) {
+                        $fail('Kolom Customer harus berupa Nama Customer resmi yang terdaftar atau N/A.');
+                    }
+                },
+            ],
             'target_per_hour' => 'nullable|integer',
             'jml_input_wip' => 'nullable|integer',
             'repairan' => 'nullable|integer',
@@ -562,7 +591,7 @@ class SecondProcessReportController extends Controller
             ->limit(20)
             ->get()
             ->map(function ($item) {
-                $rawCust = $item->customer?->customer_name ?? $item->customer_code;
+                $rawCust = $item->customer?->customer_name;
                 $custName = (!empty($rawCust) && $rawCust !== '0' && $rawCust !== '-') ? $rawCust : 'N/A';
                 $rawModel = $item->project_code;
                 $modelCode = (!empty($rawModel) && $rawModel !== '0' && $rawModel !== '-') ? $rawModel : 'N/A';

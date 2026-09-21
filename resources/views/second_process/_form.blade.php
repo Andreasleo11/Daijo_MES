@@ -347,16 +347,22 @@
                             >
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Customer</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-gray-700 uppercase">Customer</label>
+                            <span class="text-[10px] text-gray-400 font-medium">Nama Resmi / N/A</span>
+                        </div>
                         <div class="relative">
                             <input type="text" name="customer" id="customer"
-                                value="{{ old('customer', $report->customer) }}" placeholder="Search Customer..."
-                                class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                value="{{ old('customer', $report->customer) }}" placeholder="Search Customer atau N/A"
+                                class="w-full rounded border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm @error('customer') border-red-500 ring-1 ring-red-500 @enderror"
                                 autocomplete="off">
                             <div id="customer-dropdown"
                                 class="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50 hidden">
                             </div>
                         </div>
+                        @error('customer')
+                            <p class="text-xs text-red-600 mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
             </div>

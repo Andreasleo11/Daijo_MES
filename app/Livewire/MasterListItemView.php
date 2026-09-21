@@ -14,6 +14,7 @@ class MasterListItemView extends Component
     public string $search       = '';
     public string $filterCustomer = '';
     public string $filterMachine  = '';
+    public string $filterConnection = 'all'; // 'all', 'connected', 'unassigned'
     public int    $perPage      = 25;
 
     // Edit state
@@ -54,6 +55,7 @@ class MasterListItemView extends Component
     public function updatingSearch()    { $this->resetPage(); }
     public function updatingFilterCustomer() { $this->resetPage(); }
     public function updatingFilterMachine()  { $this->resetPage(); }
+    public function updatingFilterConnection() { $this->resetPage(); }
 
     public function startEdit(int $id): void
     {
@@ -81,6 +83,10 @@ class MasterListItemView extends Component
     public function saveEdit(): void
     {
         $this->validate();
+
+        if (isset($this->editForm['customer_code']) && ($this->editForm['customer_code'] === '' || $this->editForm['customer_code'] === '0')) {
+            $this->editForm['customer_code'] = null;
+        }
 
         MasterListItem::findOrFail($this->editingId)->update($this->editForm);
 
@@ -117,11 +123,28 @@ class MasterListItemView extends Component
     {
         $this->validate();
 
+        if (isset($this->addForm['customer_code']) && ($this->addForm['customer_code'] === '' || $this->addForm['customer_code'] === '0')) {
+            $this->addForm['customer_code'] = null;
+        }
+
         MasterListItem::create($this->addForm);
 
         $this->isAdding = false;
         $this->addForm  = [];
         session()->flash('success', 'New item added successfully.');
+    }
+
+    public function getCountsProperty(): array
+    {
+        $total = MasterListItem::count();
+        $connected = MasterListItem::whereHas('customer')->count();
+        $unassigned = $total - $connected;
+
+        return [
+            'total' => $total,
+            'connected' => $connected,
+            'unassigned' => $unassigned,
+        ];
     }
 
     public function getCustomerListProperty()
@@ -142,14 +165,22 @@ class MasterListItemView extends Component
     {
         $items = MasterListItem::with('customer')
             ->when($this->search, fn($q) =>
-                $q->where('item_code', 'like', "%{$this->search}%")
-                  ->orWhere('item_name', 'like', "%{$this->search}%")
+                $q->where(function($query) {
+                    $query->where('item_code', 'like', "%{$this->search}%")
+                          ->orWhere('item_name', 'like', "%{$this->search}%");
+                })
             )
             ->when($this->filterCustomer, fn($q) =>
                 $q->where('customer_code', $this->filterCustomer)
             )
             ->when($this->filterMachine, fn($q) =>
                 $q->where('tipe_mesin', $this->filterMachine)
+            )
+            ->when($this->filterConnection === 'connected', fn($q) =>
+                $q->whereHas('customer')
+            )
+            ->when($this->filterConnection === 'unassigned', fn($q) =>
+                $q->whereDoesntHave('customer')
             )
             ->orderBy('item_code')
             ->paginate($this->perPage);
