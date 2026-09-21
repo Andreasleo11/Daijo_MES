@@ -496,7 +496,7 @@ class ProductionDashboardController extends Controller
                             $jamProdDetik += $totalQty * $cycleTimeSec;
                         }
                     }
-                    $totalProdDetik += min($jamProdDetik, 3600);
+                    $totalProdDetik += $jamProdDetik;
                 }
 
                 // Patokan berdasarkan shift aktif × 8 jam
@@ -510,13 +510,15 @@ class ProductionDashboardController extends Controller
 
                 $maxDetik     = max(($patokanJam * 3600) - $setupDowntimeSeconds, 0);
                 
-                $efficiency = $maxDetik > 0 ? ($totalProdDetik / $maxDetik) * 100 : 0;
+                // Capped agar total prod detik tidak melebihi jam aktif kerja mesin yang tersedia
+                $cappedProdDetik = min($totalProdDetik, $maxDetik);
+                $efficiency = $maxDetik > 0 ? ($cappedProdDetik / $maxDetik) * 100 : 0;
 
                 $structuredData[$machineName]['machine_efficiency']   = round(min($efficiency, 100), 2);
                 $structuredData[$machineName]['total_jam_aktif']      = $totalJamAktif;
                 $structuredData[$machineName]['patokan_jam']          = $patokanJam;
-                $structuredData[$machineName]['total_prod_menit']     = round($totalProdDetik / 60, 1);
-                $structuredData[$machineName]['total_downtime_menit'] = round(($maxDetik - $totalProdDetik) / 60, 1);
+                $structuredData[$machineName]['total_prod_menit']     = round($cappedProdDetik / 60, 1);
+                $structuredData[$machineName]['total_downtime_menit'] = round(($maxDetik - $cappedProdDetik) / 60, 1);
                 // dd($totalProdDetik);
                 // Daily percentage
                 $average = $remarks->avg(function ($remark) {
