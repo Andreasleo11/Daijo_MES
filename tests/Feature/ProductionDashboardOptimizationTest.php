@@ -185,14 +185,14 @@ class ProductionDashboardOptimizationTest extends TestCase
             'ng_quantity'      => 15,
         ]);
 
-        // Adjuster logged on Machine 1 only for Shift 1
+        // Adjuster logged on Machine 1 only for Shift 1 (08:15 WIB = 01:15 UTC)
         $adjLog = AdjustMachineLog::create([
             'user_id'    => $machine1->id,
             'item_code'  => 'PART-001',
             'pic'        => 'Budi (Adjuster)',
-            'end_time'   => '2026-08-15 08:35:00',
+            'end_time'   => '2026-08-15 01:35:00',
         ]);
-        $adjLog->created_at = '2026-08-15 08:15:00';
+        $adjLog->created_at = '2026-08-15 01:15:00';
         $adjLog->save();
 
         $service = app(ProductionDashboardService::class);
@@ -368,5 +368,248 @@ class ProductionDashboardOptimizationTest extends TestCase
 
         // Assert 'Other Person' from K0650A is NOT present when filtered to K0450A
         $this->assertNotContains('Other Person', $shifts[1]['adjusters']);
+    }
+
+    public function test_half_day_shift_schedule_categorization_and_adjuster_ng_trend(): void
+    {
+        $service = app(ProductionDashboardService::class);
+
+        // 1. Test getProductionDateAndShift directly
+        $timeS1 = Carbon::parse('2026-09-12 10:00:00', 'Asia/Jakarta');
+        $timeS2 = Carbon::parse('2026-09-12 14:00:00', 'Asia/Jakarta');
+        $timeS3 = Carbon::parse('2026-09-12 18:00:00', 'Asia/Jakarta');
+
+        // Under normal schedule:
+        // 10:00 -> Shift 1
+        // 14:00 -> Shift 1
+        // 18:00 -> Shift 2
+        $this->assertEquals(1, ProductionDashboardService::getProductionDateAndShift($timeS1, false)['shift']);
+        $this->assertEquals(1, ProductionDashboardService::getProductionDateAndShift($timeS2, false)['shift']);
+        $this->assertEquals(2, ProductionDashboardService::getProductionDateAndShift($timeS3, false)['shift']);
+
+        // Under half-day schedule:
+        // Shift 1: 07:30 - 12:30 -> 10:00 is Shift 1
+        // Shift 2: 12:30 - 17:30 -> 14:00 is Shift 2
+        // Shift 3: 17:30 - 22:30 -> 18:00 is Shift 3
+        $this->assertEquals(1, ProductionDashboardService::getProductionDateAndShift($timeS1, true)['shift']);
+        $this->assertEquals(2, ProductionDashboardService::getProductionDateAndShift($timeS2, true)['shift']);
+        $this->assertEquals(3, ProductionDashboardService::getProductionDateAndShift($timeS3, true)['shift']);
+
+        // 2. Integration test: DICs + Adjust Logs on half-day
+        $machine = User::firstOrCreate(
+            ['name' => 'K0450A'],
+            ['email' => 'k0450a_half@example.com', 'password' => 'secret']
+        );
+        $date = Carbon::parse('2026-09-12');
+
+        // Shift 1 DIC (10 NG)
+        $dic1 = DailyItemCode::create([
+            'user_id'    => $machine->id,
+            'item_code'  => 'ITEM-HALF-DAY',
+            'start_date' => '2026-09-12',
+            'shift'      => 1,
+            'target'     => 1000,
+        ]);
+        $hr1 = HourlyRemark::create([
+            'dic_id'            => $dic1->id,
+            'target'            => 1000,
+            'actual_production' => 900,
+        ]);
+        $ngType = ProductionNgType::firstOrCreate(['ng_type' => 'SCRATCH']);
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $hr1->id,
+            'ng_type_id'       => $ngType->id,
+            'ng_quantity'      => 10,
+        ]);
+
+        // Shift 2 DIC (20 NG)
+        $dic2 = DailyItemCode::create([
+            'user_id'    => $machine->id,
+            'item_code'  => 'ITEM-HALF-DAY',
+            'start_date' => '2026-09-12',
+            'shift'      => 2,
+            'target'     => 1000,
+        ]);
+        $hr2 = HourlyRemark::create([
+            'dic_id'            => $dic2->id,
+            'target'            => 1000,
+            'actual_production' => 900,
+        ]);
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $hr2->id,
+            'ng_type_id'       => $ngType->id,
+            'ng_quantity'      => 20,
+        ]);
+
+        // Shift 3 DIC (30 NG)
+        $dic3 = DailyItemCode::create([
+            'user_id'    => $machine->id,
+            'item_code'  => 'ITEM-HALF-DAY',
+            'start_date' => '2026-09-12',
+            'shift'      => 3,
+            'target'     => 1000,
+        ]);
+        $hr3 = HourlyRemark::create([
+            'dic_id'            => $dic3->id,
+            'target'            => 1000,
+            'actual_production' => 900,
+        ]);
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $hr3->id,
+            'ng_type_id'       => $ngType->id,
+            'ng_quantity'      => 30,
+        ]);
+
+        // Adjust log at 10:00 WIB (03:00 UTC) -> S1: Adjuster Alpha
+        $adj1 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-HALF-DAY',
+            'pic'       => 'Adjuster Alpha',
+        ]);
+        $adj1->created_at = '2026-09-12 03:00:00';
+        $adj1->save();
+
+        // Adjust log at 14:00 WIB (07:00 UTC) -> S2: Adjuster Beta
+        $adj2 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-HALF-DAY',
+            'pic'       => 'Adjuster Beta',
+        ]);
+        $adj2->created_at = '2026-09-12 07:00:00';
+        $adj2->save();
+
+        // Adjust log at 18:00 WIB (11:00 UTC) -> S3: Adjuster Gamma
+        $adj3 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-HALF-DAY',
+            'pic'       => 'Adjuster Gamma',
+        ]);
+        $adj3->created_at = '2026-09-12 11:00:00';
+        $adj3->save();
+
+        // Test with $isHalfDay = true
+        $dataHalfDay = $service->getAllDashboardData($date, $date, null, (string)$machine->id, 'karawang', true);
+
+        $shiftHalfDay = $dataHalfDay['shift_personnel_analysis']['shifts'];
+        $this->assertEquals(['Adjuster Alpha'], $shiftHalfDay[1]['adjusters']);
+        $this->assertEquals('07:30 - 12:30', $shiftHalfDay[1]['time_range']);
+
+        $this->assertEquals(['Adjuster Beta'], $shiftHalfDay[2]['adjusters']);
+        $this->assertEquals('12:30 - 17:30', $shiftHalfDay[2]['time_range']);
+
+        $this->assertEquals(['Adjuster Gamma'], $shiftHalfDay[3]['adjusters']);
+        $this->assertEquals('17:30 - 22:30', $shiftHalfDay[3]['time_range']);
+
+        // Check Adjuster NG Trend: all 3 adjusters get their shift's NG (10, 20, 30)
+        $adjSummaries = collect($dataHalfDay['adjuster_ng_trend']['adjuster_summaries'])->keyBy('name');
+        $this->assertEquals(10, $adjSummaries['Adjuster Alpha']['total_ng']);
+        $this->assertEquals(20, $adjSummaries['Adjuster Beta']['total_ng']);
+        $this->assertEquals(30, $adjSummaries['Adjuster Gamma']['total_ng']);
+
+        // Add second adjuster to Shift 1 with 35 NG to test exact division & balance (35 / 2 = 18 + 17 = 35)
+        $hr1->ngDetails()->first()->update(['ng_quantity' => 35]);
+        $adj1b = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-HALF-DAY',
+            'pic'       => 'Adjuster Alpha 2',
+        ]);
+        $adj1b->created_at = '2026-09-12 04:00:00';
+        $adj1b->save();
+
+        $dataBalanced = $service->getAllDashboardData($date, $date, null, (string)$machine->id, 'karawang', true);
+        $balancedSummaries = collect($dataBalanced['adjuster_ng_trend']['adjuster_summaries'])->keyBy('name');
+
+        $alpha1Ng = $balancedSummaries['Adjuster Alpha']['total_ng'];
+        $alpha2Ng = $balancedSummaries['Adjuster Alpha 2']['total_ng'];
+        $this->assertEquals(35, $alpha1Ng + $alpha2Ng);
+        $this->assertTrue(($alpha1Ng === 18 && $alpha2Ng === 17) || ($alpha1Ng === 17 && $alpha2Ng === 18));
+
+        // Test Livewire toggle (defaults to false, manual toggle)
+        Livewire::test(ProductionDashboard::class)
+            ->set('viewType', 'daily')
+            ->set('selectedDate', '2026-09-12') // Saturday
+            ->set('machineUserId', (string)$machine->id)
+            ->assertSet('isHalfDay', false) // Not auto-enabled! Can be full day
+            ->set('isHalfDay', true) // Manual toggle
+            ->assertSet('isHalfDay', true)
+            ->assertSee('Setengah Hari');
+    }
+
+    public function test_weekly_view_manual_weekend_half_day_schedule_and_livewire()
+    {
+        $service = app(ProductionDashboardService::class);
+        $machine = User::create(['name' => 'K0450A', 'email' => 'k450_weekly@example.com', 'password' => 'secret']);
+
+        MasterListItem::create([
+            'item_code'         => 'ITEM-WEEKLY',
+            'cycle_time'        => 30.0,
+            'setup_time_minute' => 20.0,
+        ]);
+
+        // 1. Wednesday 2026-09-09 (Weekday): Log at 14:00 WIB (07:00 UTC)
+        // Weekday Shift 1 is 07:30 - 15:30 -> Always Shift 1!
+        $adjWed = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekday',
+        ]);
+        $adjWed->created_at = '2026-09-09 07:00:00';
+        $adjWed->save();
+
+        // 2. Saturday 2026-09-12 (Weekend): Log at 14:00 WIB (07:00 UTC)
+        // When Saturday half-day is enabled: Shift 1 is 07:30 - 12:30, Shift 2 is 12:30 - 17:30 -> Shift 2!
+        // When Saturday is full day: Shift 1 is 07:30 - 15:30 -> Shift 1!
+        $adjSat2 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekend S2',
+        ]);
+        $adjSat2->created_at = '2026-09-12 07:00:00';
+        $adjSat2->save();
+
+        // 3. Saturday 2026-09-12 (Weekend): Log at 18:00 WIB (11:00 UTC)
+        // When Saturday half-day is enabled: Shift 3 is 17:30 - 22:30 -> Shift 3!
+        $adjSat3 = AdjustMachineLog::create([
+            'user_id'   => $machine->id,
+            'item_code' => 'ITEM-WEEKLY',
+            'pic'       => 'Adjuster Weekend S3',
+        ]);
+        $adjSat3->created_at = '2026-09-12 11:00:00';
+        $adjSat3->save();
+
+        $startOfWeek = Carbon::parse('2026-09-07')->startOfDay();
+        $endOfWeek = Carbon::parse('2026-09-13')->endOfDay();
+
+        // Case A: Full-day Saturday (default: saturday => false)
+        $dataFullDay = $service->getAllDashboardData($startOfWeek, $endOfWeek, null, (string)$machine->id, 'karawang', [
+            'saturday' => false,
+            'sunday'   => false,
+        ]);
+        $shiftsFullDay = $dataFullDay['shift_personnel_analysis']['shifts'];
+        // On normal schedule, 14:00 WIB falls in Shift 1 (07:30 - 15:30)
+        $this->assertContains('Adjuster Weekend S2', $shiftsFullDay[1]['adjusters']);
+
+        // Case B: Saturday marked half-day (saturday => true)
+        $dataHalfDay = $service->getAllDashboardData($startOfWeek, $endOfWeek, null, (string)$machine->id, 'karawang', [
+            'saturday' => true,
+            'sunday'   => false,
+        ]);
+        $shiftsHalfDay = $dataHalfDay['shift_personnel_analysis']['shifts'];
+        // On half-day schedule, 14:00 WIB falls in Shift 2 (12:30 - 17:30)
+        $this->assertContains('Adjuster Weekend S2', $shiftsHalfDay[2]['adjusters']);
+        // And 18:00 WIB falls in Shift 3 (17:30 - 22:30)
+        $this->assertContains('Adjuster Weekend S3', $shiftsHalfDay[3]['adjusters']);
+        // Wednesday remains Shift 1
+        $this->assertContains('Adjuster Weekday', $shiftsHalfDay[1]['adjusters']);
+
+        // Case C: Livewire component weekly toggle
+        Livewire::test(ProductionDashboard::class)
+            ->set('viewType', 'weekly')
+            ->assertSet('isSaturdayHalfDay', false)
+            ->assertSet('isSundayHalfDay', false)
+            ->set('isSaturdayHalfDay', true)
+            ->assertSet('isSaturdayHalfDay', true)
+            ->assertSee('Sabtu')
+            ->assertSee('Minggu');
     }
 }

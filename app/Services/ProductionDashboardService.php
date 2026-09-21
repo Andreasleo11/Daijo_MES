@@ -50,24 +50,77 @@ class ProductionDashboardService
     }
 
     /**
+     * Check if a specific date operates under half-day schedule.
+     * Checks dates marked half_day = 1 in HolidaySchedule.
+     */
+    public static function isDateHalfDay(Carbon|string $date, ?array $preloadedHalfDayDates = null): bool
+    {
+        $carbonDate = $date instanceof Carbon ? $date : Carbon::parse($date);
+        $dateStr = $carbonDate->format('Y-m-d');
+
+        if ($preloadedHalfDayDates !== null) {
+            return isset($preloadedHalfDayDates[$dateStr]);
+        }
+
+        try {
+            return \App\Models\Setting\HolidaySchedule::whereDate('date', $dateStr)
+                ->where('half_day', 1)
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Determination of shift (1, 2, 3) and production date from local (WIB) timestamp
+     * Normal schedule:
      * Shift 1: 07:30 - 15:30
      * Shift 2: 15:30 - 23:30
      * Shift 3: 23:30 - 07:30 (next day)
+     *
+     * Half-day schedule (when enabled, or half_day dates):
+     * Shift 1: 07:30 - 12:30
+     * Shift 2: 12:30 - 17:30
+     * Shift 3: 17:30 - 22:30 (rollover until 07:30 next day)
      */
-    public static function getProductionDateAndShift(Carbon $localTime): array
-    {
+    public static function getProductionDateAndShift(
+        Carbon $localTime,
+        bool|array|null $isHalfDay = null,
+        ?array $preloadedHalfDayDates = null
+    ): array {
         $timePart = $localTime->format('H:i:s');
-        $datePart = $localTime->format('Y-m-d');
+        $targetDate = ($timePart < '07:30:00') ? $localTime->copy()->subDay() : $localTime->copy();
+        $prodDate = $targetDate->format('Y-m-d');
+
+        $halfDayActive = false;
+        if ($isHalfDay === true) {
+            $halfDayActive = true;
+        } elseif ($isHalfDay === false) {
+            $halfDayActive = false;
+        } elseif (is_array($isHalfDay)) {
+            $halfDayActive = ($targetDate->isSaturday() && !empty($isHalfDay['saturday']))
+                || ($targetDate->isSunday() && !empty($isHalfDay['sunday']))
+                || (!empty($isHalfDay[$prodDate]))
+                || self::isDateHalfDay($targetDate, $preloadedHalfDayDates);
+        } else {
+            $halfDayActive = self::isDateHalfDay($targetDate, $preloadedHalfDayDates);
+        }
+
+        if ($halfDayActive) {
+            if ($timePart >= '07:30:00' && $timePart < '12:30:00') {
+                return ['date' => $prodDate, 'shift' => 1];
+            } elseif ($timePart >= '12:30:00' && $timePart < '17:30:00') {
+                return ['date' => $prodDate, 'shift' => 2];
+            } else {
+                return ['date' => $prodDate, 'shift' => 3];
+            }
+        }
 
         if ($timePart >= '07:30:00' && $timePart < '15:30:00') {
-            return ['date' => $datePart, 'shift' => 1];
+            return ['date' => $prodDate, 'shift' => 1];
         } elseif ($timePart >= '15:30:00' && $timePart < '23:30:00') {
-            return ['date' => $datePart, 'shift' => 2];
+            return ['date' => $prodDate, 'shift' => 2];
         } else {
-            $prodDate = ($timePart < '07:30:00')
-                ? $localTime->copy()->subDay()->format('Y-m-d')
-                : $datePart;
             return ['date' => $prodDate, 'shift' => 3];
         }
     }
@@ -96,10 +149,24 @@ class ProductionDashboardService
         Carbon $endDate,
         ?string $itemCode = null,
         ?string $machineUserId = null,
-        ?string $plant = null
+        ?string $plant = null,
+        bool|array|null $isHalfDay = null
     ): array {
         $startDateStr = $startDate->format('Y-m-d');
         $endDateStr = $endDate->format('Y-m-d');
+
+        // Preload holiday schedule half-day dates in window for ultra-fast in-memory check
+        $preloadedHalfDayDates = [];
+        try {
+            $preloadedHalfDayDates = \App\Models\Setting\HolidaySchedule::whereBetween('date', [$startDateStr, $endDateStr])
+                ->where('half_day', 1)
+                ->pluck('date')
+                ->map(fn($d) => Carbon::parse($d)->format('Y-m-d'))
+                ->flip()
+                ->toArray();
+        } catch (\Throwable $e) {
+            $preloadedHalfDayDates = [];
+        }
 
         // Pre-fetch machine IDs for the selected plant for instant indexed queries (no slow whereHas subqueries)
         $plantMachineIds = null;
@@ -133,20 +200,21 @@ class ProductionDashboardService
 
         $dailyData = $dicQuery->get();
 
-        // 2. Batch preload MasterListItems
-        $uniqueItemCodes = $dailyData->pluck('item_code')->filter()->unique();
-        $masterItems = MasterListItem::whereIn('item_code', $uniqueItemCodes)
-            ->get(['item_code', 'cycle_time', 'setup_time_minute'])
-            ->keyBy('item_code');
+        // 2. Fetch Master Items mapped by item_code
+        $neededItemCodes = $dailyData->pluck('item_code')->filter()->unique()->values()->toArray();
+        $masterItems = !empty($neededItemCodes)
+            ? MasterListItem::whereIn('item_code', $neededItemCodes)->get()->keyBy('item_code')
+            : collect();
 
-        // 3. Shift Time Window for Logs (07:30 Jakarta time of startDate to 07:30 Jakarta time next day after endDate)
+        // 3. Fetch Adjust Logs & Mould Change Logs in precise local timestamp window
+        // Note: logs are created in UTC or local server time, query by window
         $windowStartUtc = Carbon::parse($startDateStr . ' 07:30:00', 'Asia/Jakarta')->setTimezone('UTC');
         $windowEndUtc = Carbon::parse($endDateStr . ' 07:30:00', 'Asia/Jakarta')->addDay()->setTimezone('UTC');
 
         // Strict plant filtering for Adjust and Mould Change logs
         $effectivePlant = $plant;
         if (!$effectivePlant && $machineUserId) {
-            $targetUser = $dailyData->firstWhere('user_id', $machineUserId)?->user ?? User::find($machineUserId);
+            $targetUser = User::find($machineUserId);
             if ($targetUser) {
                 $effectivePlant = str_starts_with(strtoupper($targetUser->name), 'K') ? 'karawang' : 'kbn';
             }
@@ -198,13 +266,17 @@ class ProductionDashboardService
             $mouldLogsRaw,
             $masterItems,
             $startDate,
-            $endDate
+            $endDate,
+            $isHalfDay,
+            $preloadedHalfDayDates
         );
         $adjusterNgTrend = $this->processAdjusterNgTrend(
             $dailyData,
             $adjustLogsRaw,
             $startDate,
-            $endDate
+            $endDate,
+            $isHalfDay,
+            $preloadedHalfDayDates
         );
 
         return [
@@ -799,12 +871,47 @@ class ProductionDashboardService
         $mouldLogsRaw,
         $masterItems,
         Carbon $startDate,
-        Carbon $endDate
+        Carbon $endDate,
+        bool|array|null $isHalfDay = null,
+        ?array $preloadedHalfDayDates = null
     ): array {
+        $isSingleDay = $startDate->isSameDay($endDate);
+        $isHalfDaySingleDay = false;
+        if ($isSingleDay) {
+            if ($isHalfDay === true) {
+                $isHalfDaySingleDay = true;
+            } elseif (is_array($isHalfDay)) {
+                $isHalfDaySingleDay = ($startDate->isSaturday() && !empty($isHalfDay['saturday']))
+                    || ($startDate->isSunday() && !empty($isHalfDay['sunday']))
+                    || (!empty($isHalfDay[$startDate->format('Y-m-d')]))
+                    || self::isDateHalfDay($startDate, $preloadedHalfDayDates);
+            } else {
+                $isHalfDaySingleDay = self::isDateHalfDay($startDate, $preloadedHalfDayDates);
+            }
+        }
+
         $shiftDefs = [
-            1 => ['name' => 'Shift 1 (Pagi)', 'time' => '07:30 - 15:30', 'theme' => 'amber'],
-            2 => ['name' => 'Shift 2 (Sore)', 'time' => '15:30 - 23:30', 'theme' => 'emerald'],
-            3 => ['name' => 'Shift 3 (Malam)', 'time' => '23:30 - 07:30', 'theme' => 'indigo'],
+            1 => [
+                'name'  => 'Shift 1 (Pagi)',
+                'time'  => !$isSingleDay
+                    ? '07:30 - 15:30 (Setengah Hari: 07:30 - 12:30)'
+                    : ($isHalfDaySingleDay ? '07:30 - 12:30' : '07:30 - 15:30'),
+                'theme' => 'amber',
+            ],
+            2 => [
+                'name'  => 'Shift 2 (Sore)',
+                'time'  => !$isSingleDay
+                    ? '15:30 - 23:30 (Setengah Hari: 12:30 - 17:30)'
+                    : ($isHalfDaySingleDay ? '12:30 - 17:30' : '15:30 - 23:30'),
+                'theme' => 'emerald',
+            ],
+            3 => [
+                'name'  => 'Shift 3 (Malam)',
+                'time'  => !$isSingleDay
+                    ? '23:30 - 07:30 (Setengah Hari: 17:30 - 22:30)'
+                    : ($isHalfDaySingleDay ? '17:30 - 22:30' : '23:30 - 07:30'),
+                'theme' => 'indigo',
+            ],
         ];
 
         // Format and categorize Adjust Logs fast
@@ -812,7 +919,7 @@ class ProductionDashboardService
         $processedAdjustLogs = [];
         foreach ($adjustLogsRaw as $log) {
             $localCreated = self::getLocalCarbon($log->created_at);
-            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shiftInfo = self::getProductionDateAndShift($localCreated, $isHalfDay, $preloadedHalfDayDates);
             $shiftNum = $shiftInfo['shift'];
 
             $durationMin = 0;
@@ -854,7 +961,7 @@ class ProductionDashboardService
         $processedMouldLogs = [];
         foreach ($mouldLogsRaw as $log) {
             $localCreated = self::getLocalCarbon($log->created_at);
-            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shiftInfo = self::getProductionDateAndShift($localCreated, $isHalfDay, $preloadedHalfDayDates);
             $shiftNum = $shiftInfo['shift'];
 
             $durationMin = 0;
@@ -1065,7 +1172,9 @@ class ProductionDashboardService
         $dailyData,
         $adjustLogsRaw,
         Carbon $startDate,
-        Carbon $endDate
+        Carbon $endDate,
+        bool|array|null $isHalfDay = null,
+        ?array $preloadedHalfDayDates = null
     ): array {
         $period = CarbonPeriod::create($startDate, $endDate);
         $dateLabels = [];
@@ -1086,7 +1195,7 @@ class ProductionDashboardService
             if (empty($pic)) continue;
 
             $localCreated = self::getLocalCarbon($log->created_at);
-            $shiftInfo = self::getProductionDateAndShift($localCreated);
+            $shiftInfo = self::getProductionDateAndShift($localCreated, $isHalfDay, $preloadedHalfDayDates);
             $shift = $shiftInfo['shift'];
             $prodDate = $shiftInfo['date'];
 
@@ -1155,13 +1264,19 @@ class ProductionDashboardService
 
                 if (!empty($adjustersInShift)) {
                     $count = count($adjustersInShift);
-                    $splitNg = round($shiftNg / $count);
-                    $splitActual = round($shiftActual / $count);
+                    $baseNg = intdiv($shiftNg, $count);
+                    $remainderNg = $shiftNg % $count;
 
-                    foreach ($adjustersInShift as $adj) {
+                    $baseActual = intdiv($shiftActual, $count);
+                    $remainderActual = $shiftActual % $count;
+
+                    foreach ($adjustersInShift as $idx => $adj) {
+                        $adjNg = $baseNg + ($idx < $remainderNg ? 1 : 0);
+                        $adjActual = $baseActual + ($idx < $remainderActual ? 1 : 0);
+
                         if (isset($adjusterDailyNg[$adj][$dStr])) {
-                            $adjusterDailyNg[$adj][$dStr] += $splitNg;
-                            $adjusterDailyActual[$adj][$dStr] += $splitActual;
+                            $adjusterDailyNg[$adj][$dStr] += $adjNg;
+                            $adjusterDailyActual[$adj][$dStr] += $adjActual;
                         }
                     }
                 }
@@ -1231,7 +1346,8 @@ class ProductionDashboardService
         Carbon $endDate,
         ?string $itemCode = null,
         ?string $machineUserId = null,
-        ?string $plant = null
+        ?string $plant = null,
+        bool|array|null $isHalfDay = null
     ): array {
         $startDateStr = $startDate->format('Y-m-d');
         $endDateStr = $endDate->format('Y-m-d');
@@ -1274,7 +1390,7 @@ class ProductionDashboardService
         if ($plant === 'karawang') $dicQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', 'K%')->orWhere('name', 'LIKE', 'k%'));
         elseif ($plant === 'kbn') $dicQuery->whereHas('user', fn($q) => $q->where('name', 'NOT LIKE', 'K%')->where('name', 'NOT LIKE', 'k%'));
 
-        return $this->processAdjusterNgTrend($dicQuery->get(), $adjustLogs, $startDate, $endDate);
+        return $this->processAdjusterNgTrend($dicQuery->get(), $adjustLogs, $startDate, $endDate, $isHalfDay);
     }
 
     /**

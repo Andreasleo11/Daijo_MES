@@ -418,6 +418,11 @@ Route::middleware('auth')->group(function (){
     //untuk upload spk history di program store 
     Route::get('/upload-spk-history', \App\Livewire\UploadSpkHistory::class)->middleware('store.access')->name('upload.spk.history');
 
+    Route::prefix('wms')->name('wms.')->group(function () {
+        Route::get('/sap-sync-monitor', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor');
+        Route::get('/sap-sync-monitor-delivery', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor-delivery');
+    });
+
     Route::prefix('wms')->name('wms.')->middleware('store.access')->group(function () {
         Route::get('/dashboard', \App\Livewire\Wms\WmsDashboard::class)->name('dashboard');
         Route::get('/outbound', \App\Livewire\Wms\PalletOutbound::class)->name('outbound');
@@ -428,8 +433,6 @@ Route::middleware('auth')->group(function (){
         Route::get('/pallet-form/create-delivery', \App\Livewire\Wms\PalletFormCreator::class)->name('pallet-form.create-delivery');
         Route::get('/pallet-form/sorting', \App\Livewire\Wms\PalletSorting::class)->name('pallet-form.sorting');
         Route::get('/pallet-form/picking-guide', \App\Livewire\Wms\PickingGuide::class)->name('pallet-form.picking-guide');
-        Route::get('/sap-sync-monitor', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor');
-        Route::get('/sap-sync-monitor-delivery', \App\Livewire\Wms\SapSyncMonitor::class)->name('sap-sync-monitor-delivery');
         Route::get('/pallet-form/print/{id}', function ($id) {
             $palletForm = \App\Models\WmsPalletForm::with('position')->findOrFail($id);
             return view('wms.pallet_form_print', compact('palletForm'));

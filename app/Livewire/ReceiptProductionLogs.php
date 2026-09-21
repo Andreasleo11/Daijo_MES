@@ -197,6 +197,9 @@ class ReceiptProductionLogs extends Component
             return;
         }
 
+        $count = count($this->selectedLogs);
+        $totalQty = (int) DB::table('production_summary')->whereIn('id', $this->selectedLogs)->sum('total_quantity');
+
         DB::table('production_summary')
             ->whereIn('id', $this->selectedLogs)
             ->update([
@@ -204,14 +207,13 @@ class ReceiptProductionLogs extends Component
                 'updated_at' => now(),
             ]);
 
-        $count = count($this->selectedLogs);
-
         $this->selectedLogs = [];
         $this->selectAll = false;
 
         $this->clearStatsCache();
 
-        $this->dispatch('push-notification', ['status' => 'success', 'message' => "{$count} SPK berhasil diabaikan"]);
+        $formattedQty = number_format($totalQty);
+        $this->dispatch('push-notification', ['status' => 'success', 'message' => "{$count} SPK ({$formattedQty} pcs) berhasil diabaikan"]);
     }
 
     /**
@@ -364,6 +366,7 @@ class ReceiptProductionLogs extends Component
             }
 
             $dispatchedCount = 0;
+            $dispatchedQty = 0;
 
             foreach ($summaries as $summary) {
                 // Lock record di UI thread segera agar status berubah jadi "Processing"
@@ -375,6 +378,7 @@ class ReceiptProductionLogs extends Component
                 if ($locked) {
                     PushSingleReceiptProductionJob::dispatch($summary->id);
                     $dispatchedCount++;
+                    $dispatchedQty += (int) $summary->total_quantity;
                 }
             }
 
@@ -383,9 +387,10 @@ class ReceiptProductionLogs extends Component
 
             $this->clearStatsCache();
 
+            $formattedQty = number_format($dispatchedQty);
             $this->dispatch('push-notification', [
                 'status' => 'success',
-                'message' => "Bulk push terpilih: {$dispatchedCount} SPK dikirim ke background queue"
+                'message' => "Bulk push terpilih: {$dispatchedCount} SPK ({$formattedQty} pcs) dikirim ke background queue"
             ]);
 
             $this->dispatch('sap-push-success');
@@ -539,6 +544,26 @@ class ReceiptProductionLogs extends Component
             ->when($this->filterStatus === 'pending', fn($q) => $q->whereIn('production_summary.sap_sent', [0, 2, 3]))
             ->when($this->filterStatus === 'ignored', fn($q) => $q->where('production_summary.sap_sent', 99))
             ->sum('production_summary.total_quantity');
+    }
+
+    public function getSelectedSummaryProperty(): array
+    {
+        if (empty($this->selectedLogs)) {
+            return [
+                'count'     => 0,
+                'total_qty' => 0,
+            ];
+        }
+
+        $result = DB::table('production_summary')
+            ->whereIn('id', $this->selectedLogs)
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(total_quantity), 0) as total_qty')
+            ->first();
+
+        return [
+            'count'     => (int) ($result->count ?? 0),
+            'total_qty' => (int) ($result->total_qty ?? 0),
+        ];
     }
 
     public function getStatsProperty()
