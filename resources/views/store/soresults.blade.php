@@ -928,6 +928,21 @@
             checkBtn.addEventListener('click', () => location.reload());
         }
 
+        function resetScanForm() {
+            if (spkInput) spkInput.value = '';
+            if (quantityInput) quantityInput.value = '';
+            if (warehouseInput) warehouseInput.value = '';
+            if (labelInput) labelInput.value = '';
+            if (labelsBulkInput) labelsBulkInput.value = '';
+            if (pkgNameInput) pkgNameInput.value = '';
+            if (pkgLabelInput) pkgLabelInput.value = '';
+            if (pkgWhseInput) pkgWhseInput.value = '';
+            
+            if (spkInput) {
+                spkInput.focus();
+            }
+        }
+
         // --- AJAX SUBMIT FUNCTION (Reliable) ---
         function submitScanForm(form) {
             clearTimeout(autoSubmitTimer);
@@ -963,49 +978,11 @@
                         if (pkgNameInput) pkgNameInput.focus();
                     } else {
                         // TAHAP 2/ORIGINAL: Reset seluruh field agar kosong semua untuk scan berikutnya
-                        const bulkToggle = document.getElementById('bulkScanToggle');
-                        if (bulkToggle && bulkToggle.checked) {
-                            if (spkInput) spkInput.value = '';
-                            if (quantityInput) quantityInput.value = '';
-                            if (warehouseInput) warehouseInput.value = '';
-                            if (labelsBulkInput) {
-                                labelsBulkInput.value = '';
-                            }
-                            if (spkInput) {
-                                spkInput.focus();
-                            }
-                        } else {
-                            // Single scan: Reset seluruh field form scan (SPK, Quantity, Warehouse, Label, dan Packaging)
-                            if (spkInput) spkInput.value = '';
-                            if (quantityInput) quantityInput.value = '';
-                            if (warehouseInput) warehouseInput.value = '';
-                            if (labelInput) {
-                                labelInput.value = '';
-                            }
-                            if (pkgNameInput) pkgNameInput.value = '';
-                            if (pkgLabelInput) pkgLabelInput.value = '';
-                            if (pkgWhseInput) pkgWhseInput.value = '';
-                            
-                            if (spkInput) {
-                                spkInput.focus();
-                            }
-                        }
+                        resetScanForm();
                     }
                 } else {
                     showAlert(data.message || "Unknown error", "error");
-                    const bulkToggle = document.getElementById('bulkScanToggle');
-                    if (bulkToggle && bulkToggle.checked) {
-                        if (labelsBulkInput) {
-                            labelsBulkInput.focus();
-                            labelsBulkInput.select();
-                        }
-                    } else {
-                        // Single scan: Jangan reset form, cukup focus & select input label biar gampang ditimpa / scan ulang
-                        if (labelInput) {
-                            labelInput.focus();
-                            labelInput.select();
-                        }
-                    }
+                    resetScanForm();
                 }
             })
             .catch(error => {
@@ -1015,6 +992,7 @@
                 }
                 console.error('Error:', error);
                 showAlert("Terjadi kesalahan koneksi ke server.", "error");
+                resetScanForm();
             });
         }
 
