@@ -1022,6 +1022,7 @@ class SecondProcessReportTest extends TestCase
             'shift' => '1',
             'process_prod' => 'Painting',
             'part_number' => 'PART-NG-TEST-03',
+            'jml_input_wip' => 5,
             'status' => 'submitted',
             'ngs' => [
                 [
@@ -1191,6 +1192,193 @@ class SecondProcessReportTest extends TestCase
         $this->assertDatabaseHas('second_process_reports', [
             'part_number' => 'PART-NA-02',
             'customer' => 'N/A',
+        ]);
+    }
+
+    public function test_submitting_report_fails_when_total_input_less_than_total_output(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-INPUT-DEFICIT',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'submitted',
+            'jml_input_wip' => 50,
+            'repairan' => 0,
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 60, 'ng_qty' => 0],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['sisa_input']);
+        $this->assertDatabaseMissing('second_process_reports', [
+            'part_number' => 'PART-INPUT-DEFICIT',
+        ]);
+    }
+
+    public function test_submitting_report_fails_when_remaining_input_exists_without_remark(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-REMAINING-NO-REMARK',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'submitted',
+            'jml_input_wip' => 100,
+            'repairan' => 0,
+            'sisa_input_remark' => '',
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 80, 'ng_qty' => 0],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertSessionHasErrors(['sisa_input_remark']);
+        $this->assertDatabaseMissing('second_process_reports', [
+            'part_number' => 'PART-REMAINING-NO-REMARK',
+        ]);
+    }
+
+    public function test_submitting_report_succeeds_when_remaining_input_has_valid_remark(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-REMAINING-WITH-REMARK',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'submitted',
+            'jml_input_wip' => 100,
+            'repairan' => 0,
+            'sisa_input_remark' => 'Sisa 20 pcs dilanjutkan ke shift 2',
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 80, 'ng_qty' => 0],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-REMAINING-WITH-REMARK',
+            'status' => 'submitted',
+            'sisa_input' => 20,
+            'sisa_input_remark' => 'Sisa 20 pcs dilanjutkan ke shift 2',
+        ]);
+    }
+
+    public function test_submitting_report_succeeds_when_input_equals_output_without_sisa_remark(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-INPUT-EQUALS-OUTPUT',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'submitted',
+            'jml_input_wip' => 100,
+            'repairan' => 0,
+            'sisa_input_remark' => null,
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 100, 'ng_qty' => 0],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-INPUT-EQUALS-OUTPUT',
+            'status' => 'submitted',
+            'sisa_input' => 0,
+        ]);
+    }
+
+    public function test_saving_draft_allowed_when_input_less_than_output_or_missing_remark(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-DRAFT-ANOMALY',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'draft',
+            'jml_input_wip' => 50,
+            'repairan' => 0,
+            'sisa_input_remark' => '',
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 80, 'ng_qty' => 0],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-DRAFT-ANOMALY',
+            'status' => 'draft',
+            'sisa_input' => -30,
+        ]);
+    }
+
+    public function test_submitting_report_includes_scrap_ng_lebur_in_output_accumulation(): void
+    {
+        $user = User::factory()->create(['role_id' => $this->adminRole->id]);
+
+        $payload = [
+            'date' => now()->format('Y-m-d'),
+            'unit_line' => 'Painting Line 1',
+            'shift' => '1',
+            'process_prod' => 'Painting',
+            'part_number' => 'PART-SCRAP-ACCUMULATION',
+            'customer' => 'Toyota Motor Corp',
+            'status' => 'submitted',
+            'jml_input_wip' => 100,
+            'repairan' => 0,
+            'jml_ng_lebur' => 10,
+            'sisa_input_remark' => 'Sisa 10 pcs',
+            'hourly' => [
+                ['hour_ke' => 1, 'ok_qty' => 70, 'ng_qty' => 10],
+            ],
+            'ngs' => [
+                [
+                    'ng_name' => 'DEFECT-01',
+                    'hours' => [1 => 10],
+                    'ng_input_item' => '[10] REMARK',
+                    'ng_input_qty' => 10,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('second-process-reports.store'), $payload);
+        $response->assertRedirect(route('second-process-reports.index'));
+
+        // Total Output: 70 (OK) + 10 (NG) + 10 (Scrap) = 90
+        // Sisa Input: 100 (Input) - 90 (Output) = 10
+        $this->assertDatabaseHas('second_process_reports', [
+            'part_number' => 'PART-SCRAP-ACCUMULATION',
+            'status' => 'submitted',
+            'jumlah_output' => 90,
+            'sisa_input' => 10,
+            'sisa_input_remark' => 'Sisa 10 pcs',
         ]);
     }
 }

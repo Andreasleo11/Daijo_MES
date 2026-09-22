@@ -289,6 +289,23 @@
                         <td class="border border-black p-2 font-bold bg-gray-50">Jml NG Lebur</td>
                         <td class="border border-black p-2">{{ $report->jml_ng_lebur }}</td>
                     </tr>
+                    <tr>
+                        <td colspan="4" class="border border-black"></td>
+                        <td class="border border-black p-2 font-bold bg-gray-50">Sisa Input</td>
+                        <td class="border border-black p-2 font-bold {{ ($report->sisa_input ?? 0) > 0 ? 'text-amber-700' : (($report->sisa_input ?? 0) < 0 ? 'text-red-700' : 'text-green-700') }}">
+                            {{ $report->sisa_input ?? 0 }} pcs
+                            @if (($report->sisa_input ?? 0) === 0)
+                                <span class="text-[10px] font-normal text-green-700 ml-1">(Ideal)</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @if (!empty($report->sisa_input_remark))
+                    <tr>
+                        <td colspan="4" class="border border-black"></td>
+                        <td class="border border-black p-2 font-bold bg-gray-50">Remark Sisa Input</td>
+                        <td class="border border-black p-2 text-xs italic">{{ $report->sisa_input_remark }}</td>
+                    </tr>
+                    @endif
                 </tbody>
             </table>
 

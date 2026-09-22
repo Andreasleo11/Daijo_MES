@@ -26,7 +26,7 @@
     $tabErrorKeys = [
         'setup' => ['date', 'unit_line', 'shift', 'process_prod', 'status', 'output_destination', 'part_number', 'part_name', 'model', 'customer', 'manpower'],
         'materials' => ['materials'],
-        'production' => ['target_per_hour', 'jml_input_wip', 'repairan', 'hourly', 'ngs', 'ng_remarks'],
+        'production' => ['target_per_hour', 'jml_input_wip', 'repairan', 'hourly', 'ngs', 'ng_remarks', 'sisa_input', 'sisa_input_remark'],
         'handover' => ['next_production_schedule', 'absent_employees', 'production_notes', 'troubles', 'created_by_name', 'pqc_name', 'leader_name', 'acknowledged_by_name'],
     ];
 
@@ -723,133 +723,158 @@
         <!-- TAB 3: PRODUCTION & NG LOGS -->
         <div id="tab-content-production" class="tab-pane hidden space-y-8">
 
-            <!-- Shift Production Calculations Header -->
-            <div class="mb-8">
-                <h4 class="text-lg font-extrabold text-gray-800 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                        </path>
-                    </svg>
-                    Target & Shift Accumulation
-                </h4>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Input Parameters Group -->
-                    <div class="col-span-2 md:col-span-4 lg:col-span-2 grid grid-cols-2 gap-4">
-                        <div
-                            class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Target
-                                Perjam</label>
-                            <input type="number" name="target_per_hour" id="target_per_hour"
-                                value="{{ $report->target_per_hour }}"
-                                class="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold transition-all"
-                                placeholder="0">
+            <!-- Unified Production & Reconciliation Command Bar (Responsive & Direct) -->
+            <div id="reconcile-summary-card" class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5 overflow-hidden transition-all duration-200">
+                <input type="hidden" name="sisa_input" id="sisa_input" value="{{ old('sisa_input', $report->sisa_input ?? 0) }}">
+                
+                <!-- Hidden inputs preserved for form persistence and JS calculations -->
+                <input type="hidden" name="jml_input_wip" id="jml_input_wip" value="{{ $report->jml_input_wip }}">
+                <input type="hidden" name="repairan" id="repairan" value="{{ $report->repairan }}">
+                <input type="hidden" name="jumlah_ok" id="jumlah_ok" value="{{ $report->jumlah_ok }}">
+                <input type="hidden" name="jumlah_ng" id="jumlah_ng" value="{{ $report->jumlah_ng }}">
+                <input type="hidden" name="jumlah_output" id="jumlah_output" value="{{ $report->jumlah_output }}">
+                <input type="hidden" name="ng_prosentase" id="ng_prosentase" value="{{ $report->ng_prosentase }}">
+
+                @php
+                    $calcTotalReportInput = ($report->jml_input_wip ?? 0) + ($report->repairan ?? 0);
+                    $calcTotalReportOutput = ($report->jumlah_ok ?? 0) + ($report->jumlah_ng ?? 0) + ($report->jml_ng_lebur ?? 0);
+                    $calcSisaInput = $calcTotalReportInput - $calcTotalReportOutput;
+                @endphp
+
+                <!-- Tier 1: Read-Only KPI Monitoring (Responsive 3-Col / 1-Col Grid) -->
+                <div class="p-3 sm:p-4 bg-slate-50/80 border-b border-gray-200/80 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+                    
+                    <!-- Card 1: Input Material -->
+                    <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-200 shadow-2xs flex flex-col justify-between space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Input Material</span>
+                            <button type="button" onclick="switchTab('materials')" class="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer" title="Periksa Item Parts di Tab 2">Tab 2 &rarr;</button>
                         </div>
-                        <div
-                            class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <div class="flex justify-between items-center mb-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Jml Input WIP</label>
-                                <button type="button" onclick="switchTab('materials')" class="text-[10px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline" title="Buka Tab 2 untuk melihat atau mengubah breakdown WIP">Tab 2 &rarr;</button>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <div class="text-2xl sm:text-3xl font-black font-mono text-gray-900 leading-none">
+                                <span id="reconcile-total-input">{{ number_format($calcTotalReportInput) }}</span> <span class="text-xs font-semibold text-gray-500">pcs</span>
                             </div>
-                            <input type="number" name="jml_input_wip" id="jml_input_wip"
-                                value="{{ $report->jml_input_wip }}"
-                                class="w-full rounded-md border-gray-200 bg-gray-50 text-sm font-bold text-gray-800 font-mono transition-all cursor-not-allowed"
-                                placeholder="0" readonly title="Dihitung otomatis dari breakdown Item Parts / WIP Lots di Tab 2">
-                        </div>
-                        <div
-                            class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <div class="flex justify-between items-center mb-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Repairan</label>
-                                <button type="button" onclick="switchTab('materials')" class="text-[10px] text-orange-600 hover:text-orange-800 font-semibold cursor-pointer underline" title="Buka Tab 2 untuk melihat atau mengubah breakdown Repairan">Tab 2 &rarr;</button>
+                            <div class="text-right text-xs font-mono font-semibold text-gray-600 space-y-0.5 border-l border-gray-100 pl-2.5">
+                                <div>WIP: <strong id="reconcile-wip-qty" class="text-blue-700">{{ number_format($report->jml_input_wip ?? 0) }}</strong></div>
+                                <div>Rep: <strong id="reconcile-repairan-qty" class="text-amber-700">{{ number_format($report->repairan ?? 0) }}</strong></div>
                             </div>
-                            <input type="number" name="repairan" id="repairan" value="{{ $report->repairan }}"
-                                class="w-full rounded-md border-gray-200 bg-gray-50 text-sm font-bold text-gray-800 font-mono transition-all cursor-not-allowed"
-                                placeholder="0" readonly title="Dihitung otomatis dari breakdown Item Parts / WIP Lots di Tab 2">
-                        </div>
-                        <div
-                            class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Jml
-                                NG Lebur</label>
-                            <input type="number" name="jml_ng_lebur" id="jml_ng_lebur"
-                                value="{{ $report->jml_ng_lebur }}"
-                                class="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm font-semibold transition-all"
-                                placeholder="0">
                         </div>
                     </div>
 
-                    <!-- Calculated Stats Group -->
-                    <div class="col-span-2 md:col-span-4 lg:col-span-2 grid grid-cols-2 gap-4">
-                        <div
-                            class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl shadow-sm border border-blue-200 relative overflow-hidden group">
-                            <div
-                                class="absolute top-0 right-0 -mr-4 -mt-4 text-blue-200 opacity-50 group-hover:scale-110 transition-transform">
-                                <svg class="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                                    </path>
-                                </svg>
-                            </div>
-                            <label
-                                class="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 relative z-10">Total
-                                Output</label>
-                            <input type="number" name="jumlah_output" id="jumlah_output"
-                                value="{{ $report->jumlah_output }}"
-                                class="w-full bg-transparent border-none text-3xl font-extrabold text-blue-900 p-0 focus:ring-0 relative z-10"
-                                readonly>
+                    <!-- Card 2: Total Output -->
+                    <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-200 shadow-2xs flex flex-col justify-between space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Output</span>
+                            <span class="text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                                <span id="ng_prosentase_display">{{ number_format($report->ng_prosentase ?? 0, 2) }}</span>% NG
+                            </span>
                         </div>
-                        <div
-                            class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl shadow-sm border border-green-200 relative overflow-hidden group">
-                            <div
-                                class="absolute top-0 right-0 -mr-4 -mt-4 text-green-200 opacity-50 group-hover:scale-110 transition-transform">
-                                <svg class="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <div class="text-2xl sm:text-3xl font-black font-mono text-gray-900 leading-none">
+                                <span id="reconcile-total-output">{{ number_format($calcTotalReportOutput) }}</span> <span class="text-xs font-semibold text-gray-500">pcs</span>
                             </div>
-                            <label
-                                class="block text-xs font-bold text-green-800 uppercase tracking-wider mb-2 relative z-10">Jumlah
-                                OK</label>
-                            <input type="number" name="jumlah_ok" id="jumlah_ok" value="{{ $report->jumlah_ok }}"
-                                class="w-full bg-transparent border-none text-3xl font-extrabold text-green-700 p-0 focus:ring-0 relative z-10"
-                                readonly>
-                        </div>
-                        <div
-                            class="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-xl shadow-sm border border-red-200 relative overflow-hidden group">
-                            <div
-                                class="absolute top-0 right-0 -mr-4 -mt-4 text-red-200 opacity-50 group-hover:scale-110 transition-transform">
-                                <svg class="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z">
-                                    </path>
-                                </svg>
-                            </div>
-                            <label
-                                class="block text-xs font-bold text-red-800 uppercase tracking-wider mb-2 relative z-10">Jumlah
-                                NG</label>
-                            <input type="number" name="jumlah_ng" id="jumlah_ng" value="{{ $report->jumlah_ng }}"
-                                class="w-full bg-transparent border-none text-3xl font-extrabold text-red-700 p-0 focus:ring-0 relative z-10"
-                                readonly>
-                        </div>
-                        <div
-                            class="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl shadow-sm border border-orange-200 relative overflow-hidden group">
-                            <div
-                                class="absolute top-0 right-0 -mr-4 -mt-4 text-orange-200 opacity-50 group-hover:scale-110 transition-transform">
-                                <svg class="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                                    <path d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
-                                </svg>
-                            </div>
-                            <label
-                                class="block text-xs font-bold text-orange-800 uppercase tracking-wider mb-2 relative z-10">NG
-                                %</label>
-                            <div class="flex items-center relative z-10">
-                                <input type="number" name="ng_prosentase" id="ng_prosentase" step="0.01"
-                                    value="{{ $report->ng_prosentase }}"
-                                    class="w-2/3 bg-transparent border-none text-3xl font-extrabold text-orange-700 p-0 focus:ring-0"
-                                    readonly>
-                                <span class="text-xl font-bold text-orange-600">%</span>
+                            <div class="flex items-center gap-1.5 text-xs font-mono font-bold border-l border-gray-100 pl-2.5">
+                                <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200" title="Total OK">OK:<span id="reconcile-ok-qty" class="ml-0.5">{{ number_format($report->jumlah_ok ?? 0) }}</span></span>
+                                <span class="px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200" title="Total NG">NG:<span id="reconcile-ng-qty" class="ml-0.5">{{ number_format($report->jumlah_ng ?? 0) }}</span></span>
+                                <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200" title="Scrap lebur">Scrap:<span id="reconcile-scrap-qty" class="ml-0.5">{{ number_format($report->jml_ng_lebur ?? 0) }}</span></span>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Card 3: Sisa Material & Balance -->
+                    <div id="reconcile-balance-pill" class="p-3.5 sm:p-4 rounded-xl border flex flex-col justify-between space-y-2 transition-colors duration-200 {{ $calcTotalReportInput < $calcTotalReportOutput ? 'bg-red-50 border-red-300 text-red-900' : ($calcSisaInput > 0 ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900') }}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-80">Sisa Material</span>
+                            <span id="reconcile-status-badge" class="text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border {{ $calcTotalReportInput < $calcTotalReportOutput ? 'bg-red-200 text-red-900 border-red-300' : ($calcSisaInput > 0 ? 'bg-amber-200 text-amber-900 border-amber-300' : 'bg-emerald-200 text-emerald-900 border-emerald-300') }}">
+                                {{ $calcTotalReportInput < $calcTotalReportOutput ? '⛔ Defisit' : ($calcSisaInput > 0 ? '⚠️ Ada Sisa' : '✓ Ideal') }}
+                            </span>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <div class="text-2xl sm:text-3xl font-black font-mono leading-none">
+                                <span id="reconcile-sisa-qty">{{ number_format(abs($calcSisaInput)) }}</span> <span class="text-xs font-semibold opacity-75">pcs</span>
+                            </div>
+                            <div id="reconcile-inline-note" class="text-xs font-semibold text-right leading-tight max-w-[190px]">
+                                @if ($calcTotalReportInput < $calcTotalReportOutput)
+                                    Output melebihi Input! Submission diblokir.
+                                @elseif ($calcSisaInput > 0)
+                                    Ada sisa input. Remark wajib diisi.
+                                @else
+                                    Material seimbang (Ideal).
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deficit Alert Banner (Responsive Flex Layout) -->
+                <div id="reconcile-state-deficit" class="{{ $calcTotalReportInput >= $calcTotalReportOutput ? 'hidden' : '' }} px-4 py-2.5 bg-red-100 border-b border-red-300 text-xs sm:text-sm text-red-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="font-extrabold text-red-700">⛔ Peringatan Defisit:</span>
+                        <span>Output melebihi Input sebesar <strong class="reconcile-deficit-amount font-mono text-red-950 font-black">{{ number_format(max(0, $calcTotalReportOutput - $calcTotalReportInput)) }}</strong> pcs.</span>
+                    </div>
+                    <button type="button" onclick="switchTab('materials')" class="text-xs sm:text-sm font-bold text-red-900 underline hover:text-red-950 whitespace-nowrap">
+                        Sesuaikan di Tab 2 (Materials) &rarr;
+                    </button>
+                </div>
+
+                <!-- Tier 2: Interactive Inputs Strip (Touch-Friendly Responsive Grid) -->
+                <div class="p-3.5 sm:p-4 bg-white border-t border-gray-100">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-5">
+                        <!-- Target Produksi / Jam -->
+                        <div>
+                            <label for="target_per_hour" class="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5">
+                                Target Produksi / Jam
+                            </label>
+                            <div class="relative rounded-lg shadow-2xs">
+                                <input type="number" name="target_per_hour" id="target_per_hour"
+                                    value="{{ $report->target_per_hour }}"
+                                    placeholder="0"
+                                    class="w-full text-sm sm:text-base font-bold font-mono py-2.5 pl-3.5 pr-20 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-xs sm:text-sm text-gray-400 font-semibold">
+                                    pcs / jam
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scrap / NG Lebur -->
+                        <div>
+                            <label for="jml_ng_lebur" class="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                                <span>Kuantitas Scrap (Lebur)</span>
+                                <span class="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">+ ke Total Output</span>
+                            </label>
+                            <div class="relative rounded-lg shadow-2xs">
+                                <input type="number" name="jml_ng_lebur" id="jml_ng_lebur"
+                                    value="{{ $report->jml_ng_lebur }}"
+                                    placeholder="0"
+                                    class="w-full text-sm sm:text-base font-bold font-mono py-2.5 pl-3.5 pr-14 rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 bg-white"
+                                    title="Part rusak lebur/scrap. Otomatis menambah Total Output.">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-xs sm:text-sm text-gray-400 font-semibold">
+                                    pcs
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 3: Sisa Input Remark (Expands conditionally when Sisa > 0) -->
+                @php
+                    $hasRemainingInput = old('sisa_input_remark', $report->sisa_input_remark ?? '') !== ''
+                        || ($calcTotalReportInput > $calcTotalReportOutput);
+                @endphp
+                <div id="reconcile-remark-container" class="{{ !$hasRemainingInput ? 'hidden' : '' }} px-4 py-3 bg-amber-50/90 border-t border-amber-200">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="sisa_input_remark" class="text-xs sm:text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                            <span>Alasan / Remark Sisa Input</span>
+                            <span class="text-red-600 font-black text-xs">* (Wajib diisi jika ada sisa)</span>
+                        </label>
+                        <span class="text-xs text-amber-700 font-medium">Jelaskan penanganan sisa WIP</span>
+                    </div>
+                    <textarea name="sisa_input_remark" id="sisa_input_remark" rows="2"
+                        placeholder="Contoh: Sisa 20 pcs belum selesai di-spray karena waktu shift habis, dilanjutkan shift berikutnya."
+                        class="w-full text-xs sm:text-sm rounded-lg border-amber-300 focus:border-amber-500 focus:ring-amber-500 bg-white py-2 px-3 {{ $errors->has('sisa_input_remark') ? 'border-red-500 ring-1 ring-red-500' : '' }}">{{ old('sisa_input_remark', $report->sisa_input_remark ?? '') }}</textarea>
+                    @if ($errors->has('sisa_input_remark'))
+                        <p class="text-xs text-red-600 font-bold mt-1">{{ $errors->first('sisa_input_remark') }}</p>
+                    @endif
                 </div>
             </div>
 
@@ -917,14 +942,20 @@
                                         class="px-3 py-3 w-16 text-center sticky left-0 bg-gray-50 z-20 shadow-[1px_0_0_0_#e5e7eb]">
                                         Hour</th>
                                     <th
-                                        class="px-3 py-3 w-28 text-center bg-green-50 text-green-800 font-bold border-l border-green-100">
-                                        OK Qty</th>
+                                        class="px-3 py-2.5 w-28 text-center bg-green-50 text-green-800 font-bold border-l border-green-100">
+                                        <div class="leading-tight text-xs sm:text-sm">OK Qty</div>
+                                        <span class="inline-block text-[10px] font-bold text-green-800 bg-green-200/70 px-1.5 py-0.5 rounded mt-0.5 uppercase tracking-wider">Input</span>
+                                    </th>
                                     <th
-                                        class="px-3 py-3 w-28 text-center bg-green-50 text-green-700 border-r border-green-100">
-                                        Accum OK</th>
+                                        class="px-3 py-2.5 w-28 text-center bg-green-50/60 text-green-700 border-r border-green-100">
+                                        <div class="leading-tight text-xs sm:text-sm">Accum OK</div>
+                                        <span class="inline-block text-[10px] font-bold text-gray-500 bg-gray-200/70 px-1.5 py-0.5 rounded mt-0.5 uppercase tracking-wider">Auto</span>
+                                    </th>
                                     <th
-                                        class="px-3 py-3 w-24 text-center bg-red-50 text-red-800 font-bold border-r border-red-100">
-                                        Total NG</th>
+                                        class="px-3 py-2.5 w-24 text-center bg-red-50/60 text-red-800 font-bold border-r border-red-100">
+                                        <div class="leading-tight text-xs sm:text-sm">Total NG</div>
+                                        <span class="inline-block text-[10px] font-bold text-gray-500 bg-gray-200/70 px-1.5 py-0.5 rounded mt-0.5 uppercase tracking-wider">Auto</span>
+                                    </th>
                                     @foreach ($defaultNgs as $index => $ng)
                                         @php
                                             $ngRecord = $report->ngRecords->where('ng_name', $ng)->first();
@@ -1581,6 +1612,51 @@
                 return;
             }
 
+            // 3. Strict Material Input vs Production Output Reconciliation (Output = OK + NG + Scrap)
+            const wipVal = parseInt(document.getElementById('jml_input_wip')?.value) || 0;
+            const repVal = parseInt(document.getElementById('repairan')?.value) || 0;
+            const totalInputVal = wipVal + repVal;
+
+            const okVal = parseInt(document.getElementById('jumlah_ok')?.value) || 0;
+            const ngVal = parseInt(document.getElementById('jumlah_ng')?.value) || 0;
+            const scrapVal = parseInt(document.getElementById('jml_ng_lebur')?.value) || 0;
+            const totalOutputVal = okVal + ngVal + scrapVal;
+
+            const sisaInputVal = totalInputVal - totalOutputVal;
+
+            if (totalInputVal < totalOutputVal) {
+                switchTab('production');
+                const reconcileCard = document.getElementById('reconcile-summary-card');
+                if (reconcileCard) {
+                    reconcileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    reconcileCard.classList.add('ring-4', 'ring-red-500');
+                    setTimeout(() => reconcileCard.classList.remove('ring-4', 'ring-red-500'), 6000);
+                }
+                const deficit = totalOutputVal - totalInputVal;
+                alert(`Pengiriman laporan DITOLAK!\n\nTotal Output (${totalOutputVal.toLocaleString()} pcs) MELEBIHI Total Input (${totalInputVal.toLocaleString()} pcs) sebesar ${deficit.toLocaleString()} pcs.\n\nKuantitas output tidak boleh melebihi material masuk. Silakan periksa kembali WIP / Repairan di Tab 2 atau input hasil produksi di Tab 3.`);
+                return;
+            }
+
+            if (sisaInputVal > 0) {
+                const remarkInput = document.getElementById('sisa_input_remark');
+                const remarkVal = remarkInput ? remarkInput.value.trim() : '';
+
+                if (!remarkVal) {
+                    switchTab('production');
+                    const reconcileCard = document.getElementById('reconcile-summary-card');
+                    if (reconcileCard) {
+                        reconcileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    if (remarkInput) {
+                        remarkInput.classList.add('ring-2', 'ring-red-500', 'border-red-500');
+                        remarkInput.focus();
+                        setTimeout(() => remarkInput.classList.remove('ring-2', 'ring-red-500', 'border-red-500'), 6000);
+                    }
+                    alert(`Pengiriman laporan belum dapat diproses!\n\nTerdapat SISA INPUT sebanyak ${sisaInputVal.toLocaleString()} pcs (Total Input: ${totalInputVal.toLocaleString()} pcs, Total Output: ${totalOutputVal.toLocaleString()} pcs).\n\nAlasan/remark sisa input wajib diisi sebelum laporan disubmit. Silakan isi kolom 'Alasan / Remark Sisa Input' di Tab 3.`);
+                    return;
+                }
+            }
+
             // Set loading state on submit button
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -1928,7 +2004,9 @@
         function calculateSummaryTotals() {
             const totalOk = parseInt(totalOkField.value) || 0;
             const totalNg = parseInt(totalNgField.value) || 0;
-            const totalOutput = totalOk + totalNg;
+            const ngLeburField = document.getElementById('jml_ng_lebur');
+            const totalScrap = ngLeburField ? (parseInt(ngLeburField.value) || 0) : 0;
+            const totalOutput = totalOk + totalNg + totalScrap;
 
             totalOutputField.value = totalOutput;
 
@@ -1939,27 +2017,145 @@
                 ngPercentageField.value = '0.00';
             }
 
+            const ngPctDisplay = document.getElementById('ng_prosentase_display');
+            if (ngPctDisplay) {
+                ngPctDisplay.textContent = ngPercentageField.value;
+            }
+
             validateTotals();
+            updateMaterialReconciliation();
         }
 
         function validateTotals() {
             const totalOk = parseInt(totalOkField.value) || 0;
             const totalNg = parseInt(totalNgField.value) || 0;
-            const expectedOutput = totalOk + totalNg;
+            const ngLeburField = document.getElementById('jml_ng_lebur');
+            const totalScrap = ngLeburField ? (parseInt(ngLeburField.value) || 0) : 0;
+            const expectedOutput = totalOk + totalNg + totalScrap;
             const inputOutput = parseInt(totalOutputField.value) || 0;
             const validationMessage = document.getElementById('totals-validation-message');
 
-            if (inputOutput > 0 && (totalOk + totalNg !== inputOutput)) {
+            if (inputOutput > 0 && (expectedOutput !== inputOutput)) {
                 validationMessage.innerHTML = `
         <div class="p-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded text-xs flex items-center shadow-sm">
             <svg class="w-4 h-4 mr-2 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span><strong>Peringatan Validasi:</strong> Total OK (${totalOk}) + Total NG (${totalNg}) = ${totalOk + totalNg}, tidak sama dengan Jumlah Output (${inputOutput}). Silakan periksa kembali input hasil produksi Anda.</span>
+            <span><strong>Peringatan Validasi:</strong> Total OK (${totalOk}) + Total NG (${totalNg}) + Scrap (${totalScrap}) = ${expectedOutput}, tidak sama dengan Jumlah Output (${inputOutput}). Silakan periksa kembali input hasil produksi Anda.</span>
         </div>
     `;
             } else {
                 validationMessage.innerHTML = '';
             }
         }
+
+        function updateMaterialReconciliation() {
+            const wipField = document.getElementById('jml_input_wip');
+            const repField = document.getElementById('repairan');
+            const totalOkField = document.getElementById('jumlah_ok');
+            const totalNgField = document.getElementById('jumlah_ng');
+            const ngLeburField = document.getElementById('jml_ng_lebur');
+            const sisaInputField = document.getElementById('sisa_input');
+
+            const wip = wipField ? (parseInt(wipField.value) || 0) : 0;
+            const rep = repField ? (parseInt(repField.value) || 0) : 0;
+            const totalInput = wip + rep;
+
+            const totalOk = totalOkField ? (parseInt(totalOkField.value) || 0) : 0;
+            const totalNg = totalNgField ? (parseInt(totalNgField.value) || 0) : 0;
+            const scrap = ngLeburField ? (parseInt(ngLeburField.value) || 0) : 0;
+            const totalOutput = totalOk + totalNg + scrap;
+
+            const sisa = totalInput - totalOutput;
+
+            if (sisaInputField) {
+                sisaInputField.value = sisa;
+            }
+
+            // Update badge / text numbers
+            const totalInputLabel = document.getElementById('reconcile-total-input');
+            const totalOutputLabel = document.getElementById('reconcile-total-output');
+            const sisaLabel = document.getElementById('reconcile-sisa-qty');
+            const wipLabel = document.getElementById('reconcile-wip-qty');
+            const repLabel = document.getElementById('reconcile-repairan-qty');
+            const okLabel = document.getElementById('reconcile-ok-qty');
+            const ngLabel = document.getElementById('reconcile-ng-qty');
+            const scrapLabel = document.getElementById('reconcile-scrap-qty');
+            const balancePill = document.getElementById('reconcile-balance-pill');
+            const statusBadge = document.getElementById('reconcile-status-badge');
+            const inlineNote = document.getElementById('reconcile-inline-note');
+
+            if (totalInputLabel) totalInputLabel.textContent = totalInput.toLocaleString();
+            if (totalOutputLabel) totalOutputLabel.textContent = totalOutput.toLocaleString();
+            if (sisaLabel) sisaLabel.textContent = Math.abs(sisa).toLocaleString();
+            if (wipLabel) wipLabel.textContent = wip.toLocaleString();
+            if (repLabel) repLabel.textContent = rep.toLocaleString();
+            if (okLabel) okLabel.textContent = totalOk.toLocaleString();
+            if (ngLabel) ngLabel.textContent = totalNg.toLocaleString();
+            if (scrapLabel) scrapLabel.textContent = scrap.toLocaleString();
+
+            // Update balance pill styling preserving grid layout classes
+            const pillBaseClasses = 'p-3.5 sm:p-4 rounded-xl border flex flex-col justify-between space-y-2 transition-colors duration-200 ';
+            if (balancePill) {
+                balancePill.className = pillBaseClasses +
+                    (totalInput < totalOutput ? 'bg-red-50 border-red-300 text-red-900' :
+                    (sisa > 0 ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'));
+            }
+
+            // Update status badge & inline note
+            if (statusBadge) {
+                if (totalInput < totalOutput) {
+                    statusBadge.className = 'text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border bg-red-200 text-red-900 border-red-300';
+                    statusBadge.textContent = '⛔ Defisit';
+                } else if (sisa > 0) {
+                    statusBadge.className = 'text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border bg-amber-200 text-amber-900 border-amber-300';
+                    statusBadge.textContent = '⚠️ Ada Sisa';
+                } else {
+                    statusBadge.className = 'text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border bg-emerald-200 text-emerald-900 border-emerald-300';
+                    statusBadge.textContent = '✓ Ideal';
+                }
+            }
+
+            if (inlineNote) {
+                if (totalInput < totalOutput) {
+                    inlineNote.textContent = 'Output melebihi Input! Submission diblokir.';
+                } else if (sisa > 0) {
+                    inlineNote.textContent = 'Ada sisa input. Remark wajib diisi.';
+                } else {
+                    inlineNote.textContent = 'Material seimbang (Ideal).';
+                }
+            }
+
+            // Dynamic State Indicators (Deficit banner & Remark container)
+            const stateDeficit = document.getElementById('reconcile-state-deficit');
+            const remarkContainer = document.getElementById('reconcile-remark-container');
+
+            if (totalInput < totalOutput) {
+                if (stateDeficit) {
+                    stateDeficit.classList.remove('hidden');
+                    const defAmount = totalOutput - totalInput;
+                    const defSpan = stateDeficit.querySelector('.reconcile-deficit-amount');
+                    if (defSpan) defSpan.textContent = defAmount.toLocaleString();
+                }
+                if (remarkContainer) {
+                    remarkContainer.classList.add('hidden');
+                }
+            } else if (sisa > 0) {
+                if (stateDeficit) {
+                    stateDeficit.classList.add('hidden');
+                }
+                if (remarkContainer) {
+                    remarkContainer.classList.remove('hidden');
+                }
+            } else {
+                if (stateDeficit) {
+                    stateDeficit.classList.add('hidden');
+                }
+                const remarkInput = document.getElementById('sisa_input_remark');
+                if (remarkContainer && (!remarkInput || !remarkInput.value.trim())) {
+                    remarkContainer.classList.add('hidden');
+                }
+            }
+        }
+        window.updateMaterialReconciliation = updateMaterialReconciliation;
 
         document.addEventListener('input', function(e) {
             if (e.target.classList.contains('hourly-ok-input')) {
@@ -1972,6 +2168,14 @@
                 } else {
                     e.target.classList.remove('bg-red-50', 'text-red-700', 'font-bold', 'shadow-inner');
                 }
+            }
+            if (e.target.id === 'jml_ng_lebur') {
+                calculateSummaryTotals();
+            }
+        });
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'jml_ng_lebur') {
+                calculateSummaryTotals();
             }
         });
 
@@ -2730,6 +2934,10 @@
         if (sumWipBadge) sumWipBadge.textContent = totalWip.toLocaleString();
         if (sumRepBadge) sumRepBadge.textContent = totalRepairan.toLocaleString();
         if (sumTotalBadge) sumTotalBadge.textContent = (totalWip + totalRepairan).toLocaleString();
+
+        if (typeof updateMaterialReconciliation === 'function') {
+            updateMaterialReconciliation();
+        }
     }
     window.updatePartMaterialsBreakdown = updatePartMaterialsBreakdown;
 
@@ -2915,6 +3123,9 @@
         });
     }
     updatePartMaterialsBreakdown();
+    if (typeof updateMaterialReconciliation === 'function') {
+        updateMaterialReconciliation();
+    }
 
     // Item Paint Conditional Toggling based on Proses Prod
     const processProdEl = document.getElementById('process_prod');

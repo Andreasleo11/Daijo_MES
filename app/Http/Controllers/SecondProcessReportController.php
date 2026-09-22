@@ -220,6 +220,8 @@ class SecondProcessReportController extends Controller
             'materials.*.lot_number' => 'Lot Number Material',
             'materials.*.visco' => 'Viscosity Material',
             'materials.*.mixing_ratio' => 'Mixing Ratio Material',
+            'sisa_input' => 'Sisa Input WIP',
+            'sisa_input_remark' => 'Alasan / Remark Sisa Input',
             'troubles.*.loss_time_minutes' => 'Loss Time (menit)',
             'troubles.*.penanganan' => 'Penanganan Trouble',
             'troubles.*.masalah' => 'Deskripsi Masalah Trouble',
@@ -262,6 +264,8 @@ class SecondProcessReportController extends Controller
             'jml_input_wip' => 'nullable|integer',
             'repairan' => 'nullable|integer',
             'jumlah_output' => 'nullable|integer',
+            'sisa_input' => 'nullable|integer',
+            'sisa_input_remark' => 'nullable|string',
             'jumlah_ok' => 'nullable|integer',
             'jumlah_ng' => 'nullable|integer',
             'ng_prosentase' => 'nullable|numeric',
@@ -423,7 +427,8 @@ class SecondProcessReportController extends Controller
             }
         }
 
-        $jumlah_output = $jumlah_ok + $jumlah_ng;
+        $jml_ng_lebur = (int) ($validated['jml_ng_lebur'] ?? 0);
+        $jumlah_output = $jumlah_ok + $jumlah_ng + $jml_ng_lebur;
         $ng_prosentase = 0;
         if ($jumlah_output > 0) {
             $ng_prosentase = round(($jumlah_ng / $jumlah_output) * 100, 2);
@@ -434,9 +439,30 @@ class SecondProcessReportController extends Controller
         $validated['jumlah_output'] = $jumlah_output;
         $validated['ng_prosentase'] = $ng_prosentase;
 
+        // Auto-calculate remaining WIP / Material input balance (Output = OK + NG + Scrap)
+        $totalInput = (int) ($validated['jml_input_wip'] ?? 0) + (int) ($validated['repairan'] ?? 0);
+        $totalOutput = $jumlah_output;
+        $sisaInput = $totalInput - $totalOutput;
+        $validated['sisa_input'] = $sisaInput;
 
         // Auto-assign status
         $validated['status'] = $validated['status'] ?? ($report->exists ? $report->status : 'draft');
+        $effectiveStatus = $validated['status'];
+
+        // Enforce material input vs output reconciliation when submitting report
+        if ($effectiveStatus === 'submitted') {
+            if ($totalInput < $totalOutput) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sisa_input' => "Total Output ({$totalOutput} pcs) tidak boleh melebihi Total Input ({$totalInput} pcs). Periksa kembali kuantitas WIP / Repairan di Tab 2 atau input hasil produksi di Tab 3.",
+                ]);
+            }
+
+            if ($sisaInput > 0 && empty(trim((string) ($validated['sisa_input_remark'] ?? '')))) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sisa_input_remark' => "Terdapat sisa input sebanyak {$sisaInput} pcs. Alasan / remark sisa input wajib diisi sebelum laporan disubmit.",
+                ]);
+            }
+        }
 
         if (! $report->exists) {
             $validated['created_by_name'] = auth()->user()->name;

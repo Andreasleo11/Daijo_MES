@@ -33,6 +33,26 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
      - Empty, `'0'`, `'-'`, or case-insensitive `'n/a'` are automatically normalized to `'N/A'`.
      - Valid `customer_code` inputs (e.g. `CUST-001`) are automatically resolved and converted to `customer_name` on save.
      - Part number search (`searchItems`) returns `$item->customer?->customer_name ?: 'N/A'` (never leaks raw codes or `'0'`).
+   - **Material Input vs Production Output Reconciliation**:
+     - `Total Input = jml_input_wip + repairan` (accumulated in Tab 2).
+     - `Total Output = jumlah_ok + jumlah_ng + jml_ng_lebur` (accumulated from OK, NG, and Scrap in Tab 3).
+     - `sisa_input = Total Input - Total Output` (persisted in `sisa_input` column).
+     - **Deficit (`Total Input < Total Output`)**: Submission blocked in client-side JS and backend controller (`ValidationException` on `sisa_input`). Draft saving allowed.
+     - **Leftover (`Total Input > Total Output`)**: Allowed to submit, but creator must provide `sisa_input_remark`.
+     - **Ideal (`Total Input == Total Output`)**: Submittable immediately without requiring remarks.
+   - **Tab 3 UI Layout & Zone Separation (Responsive & Direct)**:
+     - **Zone 1 (Read-Only Information Monitoring `#reconcile-summary-card`)**: Responsive 3-column / 1-column grid (`sm:grid-cols-3`), larger shop-floor typography (`text-2xl sm:text-3xl` figures), and direct labels without verbose paragraphs:
+       - Card 1: Input Material (`#reconcile-total-input` + WIP & Repairan breakdown + Tab 2 shortcut).
+       - Card 2: Total Output (`#reconcile-total-output` + NG % badge + OK, NG, Scrap statistic chips).
+       - Card 3: Sisa Material (`#reconcile-sisa-qty` + dynamic status badge `⛔ Defisit` / `⚠️ Ada Sisa` / `✓ Ideal` + direct inline note).
+       - Deficit Banner (`#reconcile-state-deficit`): Responsive flex alert showing exact deficit pcs and Tab 2 link.
+     - **Zone 2 (User Input Parameters Strip)**: Integrated touch-friendly 2-column input strip (`grid-cols-1 sm:grid-cols-2`):
+       - Form input for `target_per_hour` (Target Produksi / Jam with `pcs/jam` suffix, 42px touch height, `text-sm sm:text-base`).
+       - Form input for `jml_ng_lebur` (Scrap/Lebur with `pcs` suffix and `+ ke Total Output` badge).
+       - Conditional `sisa_input_remark` textarea when `sisa_input > 0`.
+     - **Zone 3 (Hourly Production & Defect Grid `#unified-production-table`)**:
+       - Distinct column indicators: `OK Qty (INPUT)` vs `Accum OK (AUTO)` and `Total NG (AUTO)` with clear typography.
+     - Full backward compatibility: all form input names (`target_per_hour`, `jml_input_wip`, `repairan`, `jml_ng_lebur`, `jumlah_output`, `jumlah_ok`, `jumlah_ng`, `ng_prosentase`, `sisa_input`, `sisa_input_remark`) strictly preserved.
    - Analytics & Reports: `SecondProcessReportAnalyticsController`.
 
 2. **Master List Items & Customer Relations (`MasterListItem`, `MasterListItemView`)**:
