@@ -53,10 +53,36 @@
                 margin-bottom:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <div>
             <label style="font-size:10px; font-weight:700; color:#9A9590; display:block;
-                          text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">Tanggal</label>
-            <input type="date" wire:model.live="filterDate"
-                   style="border:1px solid #D8D4CC; border-radius:2px; padding:6px 10px;
-                          font-size:12px; font-family:'IBM Plex Sans',sans-serif; color:#1A1816;">
+                          text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">Mode</label>
+            <div style="display:flex; border:1px solid #D8D4CC; border-radius:2px; overflow:hidden;">
+                <button wire:click="$set('filterMode', 'daily')"
+                        style="padding:6px 12px; font-size:11px; font-weight:600; border:none; cursor:pointer;
+                               font-family:'IBM Plex Sans',sans-serif; transition:all .15s;
+                               {{ $filterMode === 'daily' ? 'background:#1A1816; color:#fff;' : 'background:#fff; color:#9A9590;' }}">
+                    Harian
+                </button>
+                <button wire:click="$set('filterMode', 'monthly')"
+                        style="padding:6px 12px; font-size:11px; font-weight:600; border:none; cursor:pointer;
+                               font-family:'IBM Plex Sans',sans-serif; border-left:1px solid #D8D4CC; transition:all .15s;
+                               {{ $filterMode === 'monthly' ? 'background:#1A1816; color:#fff;' : 'background:#fff; color:#9A9590;' }}">
+                    Bulanan
+                </button>
+            </div>
+        </div>
+        <div>
+            <label style="font-size:10px; font-weight:700; color:#9A9590; display:block;
+                          text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">
+                {{ $filterMode === 'monthly' ? 'Bulan' : 'Tanggal' }}
+            </label>
+            @if($filterMode === 'monthly')
+                <input type="month" wire:model.live="filterMonth"
+                       style="border:1px solid #D8D4CC; border-radius:2px; padding:6px 10px;
+                              font-size:12px; font-family:'IBM Plex Sans',sans-serif; color:#1A1816;">
+            @else
+                <input type="date" wire:model.live="filterDate"
+                       style="border:1px solid #D8D4CC; border-radius:2px; padding:6px 10px;
+                              font-size:12px; font-family:'IBM Plex Sans',sans-serif; color:#1A1816;">
+            @endif
         </div>
         <div>
             <label style="font-size:10px; font-weight:700; color:#9A9590; display:block;

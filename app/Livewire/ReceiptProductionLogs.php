@@ -15,6 +15,8 @@ class ReceiptProductionLogs extends Component
     use WithPagination;
 
     public string $filterDate   = '';
+    public string $filterMonth  = '';
+    public string $filterMode   = 'daily'; // 'daily' or 'monthly'
     public string $filterSpk    = '';
     public string $filterStatus = '';
     public int    $perPage      = 50;
@@ -34,14 +36,50 @@ class ReceiptProductionLogs extends Component
     {
         Carbon::setLocale('id');
         $this->filterDate = now()->timezone('Asia/Jakarta')->format('Y-m-d');
+        $this->filterMonth = now()->timezone('Asia/Jakarta')->format('Y-m');
     }
 
     private function clearStatsCache(): void
     {
-        cache()->forget("receipt_stats_{$this->filterDate}_all");
-        cache()->forget("receipt_stats_{$this->filterDate}_FFI");
-        cache()->forget("receipt_stats_{$this->filterDate}_KRFFI");
-        cache()->forget("receipt_stats_{$this->filterDate}");
+        $key = $this->filterMode === 'monthly' ? $this->filterMonth : $this->filterDate;
+        cache()->forget("receipt_stats_{$key}_all");
+        cache()->forget("receipt_stats_{$key}_FFI");
+        cache()->forget("receipt_stats_{$key}_KRFFI");
+        cache()->forget("receipt_stats_{$key}");
+    }
+
+    public function updatingFilterMode(): void
+    {
+        $this->resetPage();
+        $this->clearStatsCache();
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    public function updatingFilterMonth(): void
+    {
+        $this->resetPage();
+        $this->clearStatsCache();
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    /**
+     * Apply date filter based on current mode (daily or monthly)
+     */
+    private function applyDateFilter($query, string $column = 'production_summary.created_date')
+    {
+        if ($this->filterMode === 'monthly' && $this->filterMonth) {
+            $start = Carbon::createFromFormat('Y-m', $this->filterMonth)->startOfMonth()->toDateString();
+            $end   = Carbon::createFromFormat('Y-m', $this->filterMonth)->endOfMonth()->toDateString();
+            return $query->whereBetween($column, [$start, $end]);
+        }
+
+        if ($this->filterMode === 'daily' && $this->filterDate) {
+            return $query->where($column, $this->filterDate);
+        }
+
+        return $query;
     }
 
     public function updatingFilterItemCode() 
@@ -161,8 +199,8 @@ class ReceiptProductionLogs extends Component
                           GROUP BY spk_code) as psd'),
                 'production_summary.spk_code', '=', 'psd.spk_code'
             )
-            ->when($this->filterDate, fn($q) =>
-                $q->where('production_summary.created_date', $this->filterDate)
+            ->when($this->filterDate || $this->filterMonth, fn($q) =>
+                $this->applyDateFilter($q, 'production_summary.created_date')
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -287,8 +325,8 @@ class ReceiptProductionLogs extends Component
                     $q->where('warehouse', $this->filterWarehouse)
                 )
                 ->whereIn('sap_sent', [0, 3]) // Hanya pending atau failed
-                ->when($this->filterDate, fn($q) =>
-                    $q->where('created_date', $this->filterDate)
+                ->when($this->filterDate || $this->filterMonth, fn($q) =>
+                    $this->applyDateFilter($q, 'created_date')
                 )
                 ->when($this->filterSpk, fn($q) =>
                     $q->where('spk_code', 'like', "%{$this->filterSpk}%")
@@ -475,8 +513,8 @@ class ReceiptProductionLogs extends Component
                 'production_summary.created_date',
                 'production_summary.created_at'
             )
-            ->when($this->filterDate, fn($q) =>
-                $q->where('production_summary.created_date', $this->filterDate)
+            ->when($this->filterDate || $this->filterMonth, fn($q) =>
+                $this->applyDateFilter($q, 'production_summary.created_date')
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -526,8 +564,8 @@ class ReceiptProductionLogs extends Component
     public function getFilteredTotalQtyProperty()
     {
         return $this->baseQuery()
-            ->when($this->filterDate, fn($q) =>
-                $q->where('production_summary.created_date', $this->filterDate)
+            ->when($this->filterDate || $this->filterMonth, fn($q) =>
+                $this->applyDateFilter($q, 'production_summary.created_date')
             )
             ->when($this->filterSpk, fn($q) =>
                 $q->where('production_summary.spk_code', 'like', "%{$this->filterSpk}%")
@@ -568,7 +606,8 @@ class ReceiptProductionLogs extends Component
 
     public function getStatsProperty()
     {
-        $cacheKey = "receipt_stats_{$this->filterDate}_" . ($this->filterWarehouse ?: 'all');
+        $dateKey = $this->filterMode === 'monthly' ? $this->filterMonth : $this->filterDate;
+        $cacheKey = "receipt_stats_{$dateKey}_" . ($this->filterWarehouse ?: 'all');
     
         return cache()->remember(
             $cacheKey,
@@ -579,8 +618,8 @@ class ReceiptProductionLogs extends Component
                     ->when($this->filterWarehouse, fn($q) =>
                         $q->where('warehouse', $this->filterWarehouse)
                     )
-                    ->when($this->filterDate, fn($q) =>
-                        $q->where('created_date', $this->filterDate)
+                    ->when($this->filterDate || $this->filterMonth, fn($q) =>
+                        $this->applyDateFilter($q, 'created_date')
                     );
 
                 $result = (clone $base)
