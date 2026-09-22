@@ -70,7 +70,9 @@ class ReceiptProductionLogs extends Component
     private function applyDateFilter($query, string $column = 'production_summary.created_date')
     {
         if ($this->filterMode === 'monthly' && $this->filterMonth) {
-            return $query->whereRaw("DATE_FORMAT({$column}, '%Y-%m') = ?", [$this->filterMonth]);
+            $start = Carbon::createFromFormat('Y-m', $this->filterMonth)->startOfMonth()->toDateString();
+            $end   = Carbon::createFromFormat('Y-m', $this->filterMonth)->endOfMonth()->toDateString();
+            return $query->whereBetween($column, [$start, $end]);
         }
 
         if ($this->filterMode === 'daily' && $this->filterDate) {
