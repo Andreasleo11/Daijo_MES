@@ -58,6 +58,25 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
      - *Inbound Master*: `SpkMasterService` (`/api/sap_production_order/list` synced to `spk_masters` & `spk_change_logs` 6x daily).
    - *Configuration*: All SAP connection parameters (`base_url`, `auth_url`, `company_db`, `username`, `password`) are centralized under `config('services.sap.*')` to guarantee safe production deployment under `php artisan config:cache`.
 
+5. **Production Dashboard (`ProductionDashboard`, `ProductionDashboardService`)**:
+   - High-performance production tracking, NG rates, adjust/mould setup times, and adjuster NG trend.
+   - **Shift Schedules & Half-Day Logic**:
+     - *Normal Schedule*: Shift 1 (07:30 - 15:30), Shift 2 (15:30 - 23:30), Shift 3 (23:30 - 07:30 next day).
+     - *Half-Day Schedule*: Shift 1 (07:30 - 12:30), Shift 2 (12:30 - 17:30), Shift 3 (17:30 - 22:30, rollover to 07:30 next day).
+     - *Daily View*: Manual toggle "Setengah Hari" (defaults to unchecked/OFF) so Saturday/Sunday can run full-day or half-day as needed.
+     - *Weekly View*: Dedicated manual checkboxes "Sabtu" and "Minggu" under "Setengah Hari" (default unchecked/OFF). Weekdays (Mon–Fri) always use normal schedule, while Saturday and/or Sunday use half-day only when checked by user.
+     - *NG & Output Balance*: Multi-adjuster shift distribution uses integer division (`intdiv`) plus remainder allocation (`$baseNg + ($idx < $rem ? 1 : 0)`) so the sum of individual adjuster NGs strictly matches the shift total.
+     - *Machine Efficiency & Prod Time*: Calculated based on total accumulated production seconds from cycle times capped against available operating time (`maxDetik`), avoiding premature individual hourly clamp loss.
+
+6. **SAP Receipt Monitor (`ReceiptProductionLogs`, `production_summary`)**:
+   - Monitors SPK receipts pushed to SAP from production scanning.
+   - Bulk push & ignore actions feature real-time selection calculation (`selectedSummary`), displaying selected SPK count and total quantity (`pcs`) across top action bars, floating bottom action pills, and confirmation dialogs.
+
+7. **Store Out & Delivery Scanning (`SOController`, `soresults`)**:
+   - High-throughput scanning for sales orders / delivery orders (`/so/process/{docNum}`).
+   - Fast sub-second scan processing via composite database indexes on `scanned_data` (`[doc_num, item_code]`, `[doc_num, spk_code, label]`), `so_datas` (`[doc_num, item_code]`), and `wms_pallet_form_details` (`[part_no, label]`).
+   - Frontend scanning features immediate Enter key handling, composite tab-delimited QR barcode parsing, and rapid debouncing (150ms).
+
 ## 3. Essential Development Guidelines
 - Always verify changes with automated tests via Sail: `./vendor/bin/sail test --filter=<TestClass>`.
 - Maintain field validation integrity, error feedback banners, and tab switching handlers across legacy Blade views.
