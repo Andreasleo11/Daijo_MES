@@ -497,7 +497,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 @php
                     $materialGlobalIndex = 0;
-                    $paintMaterials = $report->materials ? $report->materials->where('type', 'paint')->values() : collect();
+                    $paintMaterials = $report->materials ?: collect();
                     if ($paintMaterials->isEmpty() && !$report->exists) {
                         $defaultPaints = config('mes.sp_default_paint_materials');
                         foreach ($defaultPaints as $pName) {

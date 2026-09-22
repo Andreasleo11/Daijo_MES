@@ -9,7 +9,7 @@ return [
     | Define the primary operational timezone for shop floor logs and shifts.
     |
     */
-    'timezone' => env('MES_TIMEZONE', 'Asia/Jakarta'),
+    'timezone' => env('APP_TIMEZONE'),
 
     /*
     |--------------------------------------------------------------------------
@@ -102,10 +102,7 @@ return [
     */
     'chemical_processes' => [
         'Painting',
-        'Printing',
-        'Silk Screen',
-        'Tampoprint',
-        'Cat',
+        'Repair'
     ],
 
     /*
@@ -137,6 +134,8 @@ return [
     */
     'sp_processes' => [
         'Painting',
+        'Painting Basecoat',
+        'Painting Topcoat',
         'Buffing',
         'Amplas',
         'Treatment',
@@ -169,12 +168,9 @@ return [
     |
     */
     'sp_default_paint_materials' => [
-        'Paint Primer',
+        'Paint',
         'Hardener',
-        'Paint Basecoat',
-        'Hardener',
-        'Paint Topcoat',
-        'Hardener',
+        'Thinner',
     ],
 
     /*
