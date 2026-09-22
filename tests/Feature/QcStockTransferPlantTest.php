@@ -19,6 +19,7 @@ class QcStockTransferPlantTest extends TestCase
     {
         parent::setUp();
         Http::fake([
+            '*/auth/token' => Http::response(['access_token' => 'fake_test_token'], 200),
             '*/api/inventory_transfer/create' => Http::response(['status' => true, 'message' => 'Success'], 200),
         ]);
     }

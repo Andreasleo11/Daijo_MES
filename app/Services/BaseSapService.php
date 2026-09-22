@@ -7,12 +7,14 @@ use Illuminate\Support\Facades\Log;
 
 class BaseSapService
 {
-    protected $baseUrl = 'http://192.168.6.149:9001';
-    protected $authUrl = 'http://192.168.6.149:9001/auth/token';
+    protected $baseUrl;
+    protected $authUrl;
     protected $token;
     
     public function __construct()
     {
+        $this->baseUrl = config('services.sap.base_url');
+        $this->authUrl = config('services.sap.auth_url');
         // Jangan authenticate di constructor - lazy load aja
         $this->token = null;
     }
@@ -76,9 +78,9 @@ class BaseSapService
                 ])
                 ->timeout(30)
                 ->post($this->authUrl, [
-                    'CompanyDB' => env('SAP_COMPANY_DB'),
-                    'Username' => env('SAP_USERNAME'),
-                    'Password' => env('SAP_PASSWORD'),
+                    'CompanyDB' => config('services.sap.company_db', env('SAP_COMPANY_DB')),
+                    'Username'  => config('services.sap.username', env('SAP_USERNAME')),
+                    'Password'  => config('services.sap.password', env('SAP_PASSWORD')),
                 ]);
                 
             if ($response->successful()) {

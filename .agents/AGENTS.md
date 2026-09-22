@@ -49,6 +49,15 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
 5. **Work Orders & Assembly (`SpWorkOrder`, `AssemblyDailyProcess`)**:
    - Work order dispatching, batch tracking, barcode generation, and packaging master/detail records.
 
+6. **SAP ERP Gateway (`BaseSapService`)**:
+   - Central integration gateway with SAP Business One API (`http://192.168.6.149:9001`).
+   - Implements lazy token loading, cache stampede atomic lock (`Cache::lock('sap_token_lock', 40)`), 50-minute TTL, and auto-refresh on 401 Unauthorized with 120s timeout and retries.
+   - Audits all traffic via `saveApiLog()` into `api_logs` table.
+   - **Key Subservices**:
+     - *Outbound Pushes*: `ReceiptProductionService` (`/api/receipt_production/create` every 10m via `sap:dispatch-receipt`), `QcTransferService` (`/api/inventory_transfer/create` for QC Pass/Fail splits), `WmsSapSyncService` (`/api/inventory_transfer/create` for Pallet moves).
+     - *Inbound Master*: `SpkMasterService` (`/api/sap_production_order/list` synced to `spk_masters` & `spk_change_logs` 6x daily).
+   - *Configuration*: All SAP connection parameters (`base_url`, `auth_url`, `company_db`, `username`, `password`) are centralized under `config('services.sap.*')` to guarantee safe production deployment under `php artisan config:cache`.
+
 ## 3. Essential Development Guidelines
 - Always verify changes with automated tests via Sail: `./vendor/bin/sail test --filter=<TestClass>`.
 - Maintain field validation integrity, error feedback banners, and tab switching handlers across legacy Blade views.
