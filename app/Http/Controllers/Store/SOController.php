@@ -188,8 +188,10 @@ class SOController extends Controller
         $item_code = SpkItemHistory::where('spk_number', $spk_code)
             ->value('item_code');
 
-        // Fetch the item data
-        $item = SoData::where('item_code', $item_code)->where('doc_num', $doc_num)->first();
+        // Fetch the item data (only required fields)
+        $item = SoData::where('item_code', $item_code)
+            ->where('doc_num', $doc_num)
+            ->first(['quantity', 'packaging_quantity', 'item_code', 'doc_num']);
         
         if (! $item) {
             $msg = 'Item not found for SPK ' . $spk_code;
@@ -199,12 +201,13 @@ class SOController extends Controller
             return redirect()->back()->withErrors(['error' => $msg]);
         }
 
-        $existingScans = ScannedData::where('item_code', $item_code)
+        // Fast SQL sum without instantiating all model rows into memory
+        $currentScannedQty = (int) ScannedData::where('item_code', $item_code)
             ->where('doc_num', $doc_num)
-            ->get();
+            ->sum('quantity');
 
         $totalNewQty = count($labels) * $quantity;
-        $scannedTotalQuantity = $existingScans->sum('quantity') + $totalNewQty;
+        $scannedTotalQuantity = $currentScannedQty + $totalNewQty;
     
         if ($scannedTotalQuantity > $item->quantity) {
             $msg = 'All required CTN have been scanned / Quantity exceeds SO required quantity (' . $item->quantity . ')';
@@ -213,8 +216,6 @@ class SOController extends Controller
             }
             return redirect()->back()->withErrors(['error' => $msg]);
         }
-
-        $photo = MasterItemPhoto::where('item_code', $item_code)->first();
         
         // Tentukan dulu ini Step 1 atau Step 2 sebelum cek duplikat
         $packagingName = $request->input('packaging_name');
@@ -222,21 +223,19 @@ class SOController extends Controller
         $packagingWhse = $request->input('packaging_warehouse');
         $newScans = [];
 
-        // Cek duplikat HANYA untuk Step 1 (scan produk)
+        // Cek duplikat HANYA untuk Step 1 (scan produk) via single WHERE IN query
         if (empty($packagingName)) {
-            foreach ($labels as $label) {
-                $existingScan = ScannedData::where('spk_code', $spk_code)
-                    ->where('label', $label)
-                    ->where('doc_num', $doc_num)
-                    ->first();
+            $existingDuplicate = ScannedData::where('spk_code', $spk_code)
+                ->where('doc_num', $doc_num)
+                ->whereIn('label', $labels)
+                ->value('label');
 
-                if ($existingScan) {
-                    $msg = 'Label "' . $label . '" already scanned for this SPK/SO';
-                    if ($request->ajax() || $request->wantsJson()) {
-                        return response()->json(['success' => false, 'message' => $msg]);
-                    }
-                    return redirect()->back()->withErrors(['error' => $msg]);
+            if ($existingDuplicate !== null) {
+                $msg = 'Label "' . $existingDuplicate . '" already scanned for this SPK/SO';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg]);
                 }
+                return redirect()->back()->withErrors(['error' => $msg]);
             }
         }
 
@@ -325,8 +324,13 @@ class SOController extends Controller
 
         // --- AJAX RESPONSES ---
         if ($request->ajax() || $request->wantsJson()) {
-            $count = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->count();
-            $totalQty = ScannedData::where('doc_num', $doc_num)->where('item_code', $item_code)->sum('quantity');
+            // Single aggregated query for count and sum
+            $itemScans = ScannedData::where('doc_num', $doc_num)
+                ->where('item_code', $item_code)
+                ->selectRaw('COUNT(*) as ctn_count, COALESCE(SUM(quantity), 0) as total_qty')
+                ->first();
+            $count = (int) ($itemScans->ctn_count ?? 0);
+            $totalQty = (int) ($itemScans->total_qty ?? 0);
 
             // Determine next step for focus management
             $scanMode = $request->input('scan_mode', 'OFF');
@@ -336,7 +340,9 @@ class SOController extends Controller
             }
 
             // Cek apakah seluruh SO sudah selesai
-            $rawItems = SoData::where('doc_num', $doc_num)->get();
+            $rawItems = SoData::where('doc_num', $doc_num)
+                ->select('item_code', 'quantity', 'packaging_quantity')
+                ->get();
             $scanSummaries = ScannedData::where('doc_num', $doc_num)
                 ->select('item_code', DB::raw('count(*) as count'))
                 ->groupBy('item_code')
@@ -377,6 +383,8 @@ class SOController extends Controller
                 'allFinished' => $allFinished
             ]);
         }
+
+        $photo = MasterItemPhoto::where('item_code', $item_code)->first();
 
         return redirect()->back()->with([
             'success' => 'Barcode scanned successfully',

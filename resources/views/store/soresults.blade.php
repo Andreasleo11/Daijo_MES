@@ -804,9 +804,27 @@
         }
 
         // --- ADDITIVE FOCUS & PARSING LOGIC ---
+        function handleCompositeBarcode(val) {
+            if (!val || !val.includes('\t')) return false;
+            const parts = val.split('\t');
+            if (parts.length >= 4) {
+                if (spkInput) spkInput.value = parts[0].trim();
+                if (quantityInput) quantityInput.value = parts[1].trim();
+                if (warehouseInput) warehouseInput.value = parts[2].trim();
+                if (labelInput) labelInput.value = parts[3].trim();
+                return true;
+            }
+            return false;
+        }
+
         if (spkInput) {
             spkInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
+                    if (handleCompositeBarcode(this.value)) {
+                        e.preventDefault();
+                        submitScanForm(barcodeForm);
+                        return;
+                    }
                     const bulkToggle = document.getElementById('bulkScanToggle');
                     if (bulkToggle && bulkToggle.checked) {
                         e.preventDefault();
@@ -814,6 +832,13 @@
                     } else if (toggle.checked) {
                         // Jika Mode ON, tetap biarkan submit untuk validasi SPK dulu
                         console.log("Submitting SPK for validation...");
+                    }
+                }
+            });
+            spkInput.addEventListener('input', function() {
+                if (this.value.includes('\t')) {
+                    if (handleCompositeBarcode(this.value)) {
+                        submitScanForm(barcodeForm);
                     }
                 }
             });
@@ -838,6 +863,21 @@
                     if (bulkToggle && bulkToggle.checked) {
                         e.preventDefault();
                         if (labelsBulkInput) labelsBulkInput.focus();
+                    } else if (labelInput && !labelInput.value.trim()) {
+                        e.preventDefault();
+                        labelInput.focus();
+                    }
+                }
+            });
+        }
+
+        if (labelInput) {
+            labelInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(autoSubmitTimer);
+                    if (this.value.trim() !== '') {
+                        submitScanForm(barcodeForm);
                     }
                 }
             });
@@ -863,6 +903,18 @@
             });
         }
 
+        if (pkgWhseInput) {
+            pkgWhseInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(autoSubmitTimer);
+                    if (this.value.trim() !== '') {
+                        submitScanForm(barcodeForm);
+                    }
+                }
+            });
+        }
+
         // --- ORIGINAL LOGIC REMAINS ---
         const checkBtn = document.getElementById('check-finish-btn');
         const scanBtn = document.getElementById('scanModeBtn');
@@ -874,6 +926,21 @@
         // Refresh Manual (Check Finish)
         if (checkBtn) {
             checkBtn.addEventListener('click', () => location.reload());
+        }
+
+        function resetScanForm() {
+            if (spkInput) spkInput.value = '';
+            if (quantityInput) quantityInput.value = '';
+            if (warehouseInput) warehouseInput.value = '';
+            if (labelInput) labelInput.value = '';
+            if (labelsBulkInput) labelsBulkInput.value = '';
+            if (pkgNameInput) pkgNameInput.value = '';
+            if (pkgLabelInput) pkgLabelInput.value = '';
+            if (pkgWhseInput) pkgWhseInput.value = '';
+            
+            if (spkInput) {
+                spkInput.focus();
+            }
         }
 
         // --- AJAX SUBMIT FUNCTION (Reliable) ---
@@ -911,49 +978,11 @@
                         if (pkgNameInput) pkgNameInput.focus();
                     } else {
                         // TAHAP 2/ORIGINAL: Reset seluruh field agar kosong semua untuk scan berikutnya
-                        const bulkToggle = document.getElementById('bulkScanToggle');
-                        if (bulkToggle && bulkToggle.checked) {
-                            if (spkInput) spkInput.value = '';
-                            if (quantityInput) quantityInput.value = '';
-                            if (warehouseInput) warehouseInput.value = '';
-                            if (labelsBulkInput) {
-                                labelsBulkInput.value = '';
-                            }
-                            if (spkInput) {
-                                spkInput.focus();
-                            }
-                        } else {
-                            // Single scan: Reset seluruh field form scan (SPK, Quantity, Warehouse, Label, dan Packaging)
-                            if (spkInput) spkInput.value = '';
-                            if (quantityInput) quantityInput.value = '';
-                            if (warehouseInput) warehouseInput.value = '';
-                            if (labelInput) {
-                                labelInput.value = '';
-                            }
-                            if (pkgNameInput) pkgNameInput.value = '';
-                            if (pkgLabelInput) pkgLabelInput.value = '';
-                            if (pkgWhseInput) pkgWhseInput.value = '';
-                            
-                            if (spkInput) {
-                                spkInput.focus();
-                            }
-                        }
+                        resetScanForm();
                     }
                 } else {
                     showAlert(data.message || "Unknown error", "error");
-                    const bulkToggle = document.getElementById('bulkScanToggle');
-                    if (bulkToggle && bulkToggle.checked) {
-                        if (labelsBulkInput) {
-                            labelsBulkInput.focus();
-                            labelsBulkInput.select();
-                        }
-                    } else {
-                        // Single scan: Jangan reset form, cukup focus & select input label biar gampang ditimpa / scan ulang
-                        if (labelInput) {
-                            labelInput.focus();
-                            labelInput.select();
-                        }
-                    }
+                    resetScanForm();
                 }
             })
             .catch(error => {
@@ -963,31 +992,28 @@
                 }
                 console.error('Error:', error);
                 showAlert("Terjadi kesalahan koneksi ke server.", "error");
+                resetScanForm();
             });
         }
 
         // --- INTERCEPT SCAN FORM ---
         if (barcodeForm) {
-            // Timer untuk AJAX #1 (Label SPK)
+            // Fast auto-submit timer untuk single scan jika scanner tidak mengirim Enter (150ms)
             if (labelInput) {
                 labelInput.addEventListener('input', () => {
-                    // Hanya AJAX #1 jika Mode ON dan packaging masih kosong
-                    // Atau selalu AJAX jika Mode OFF
                     const mode = document.getElementById('scan_mode_input').value;
-                    const pkgIsVisible = !document.getElementById('packaging_barcode_section').classList.contains('hidden');
-                    
                     if (mode === 'OFF' || (mode === 'ON' && pkgNameInput.value.trim() === '')) {
                         clearTimeout(autoSubmitTimer);
                         autoSubmitTimer = setTimeout(() => {
                             if (labelInput.value.trim() !== '') {
                                 submitScanForm(barcodeForm);
                             }
-                        }, 1000);
+                        }, 150);
                     }
                 });
             }
 
-            // Timer untuk AJAX #2 (Warehouse Packaging)
+            // Fast auto-submit timer untuk Warehouse Packaging (150ms)
             if (pkgWhseInput) {
                 pkgWhseInput.addEventListener('input', () => {
                     if (pkgNameInput.value.trim() !== '') {
@@ -996,7 +1022,7 @@
                             if (pkgWhseInput.value.trim() !== '') {
                                 submitScanForm(barcodeForm);
                             }
-                        }, 1000);
+                        }, 150);
                     }
                 });
             }
