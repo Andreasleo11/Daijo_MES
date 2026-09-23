@@ -76,7 +76,7 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
    - **Key Subservices**:
      - *Outbound Pushes*: `ReceiptProductionService` (`/api/receipt_production/create` every 10m via `sap:dispatch-receipt`), `QcTransferService` (`/api/inventory_transfer/create` for QC Pass/Fail splits), `WmsSapSyncService` (`/api/inventory_transfer/create` for Pallet moves).
      - *Inbound Master*: `SpkMasterService` (`/api/sap_production_order/list` synced to `spk_masters` & `spk_change_logs` 6x daily).
-   - *Configuration*: All SAP connection parameters (`base_url`, `auth_url`, `company_db`, `username`, `password`) are centralized under `config('services.sap.*')` to guarantee safe production deployment under `php artisan config:cache`.
+   - *Configuration*: All SAP connection parameters (`base_url`, `auth_url`, `company_db`, `username`, `password`) are centralized under `config('services.sap.*')` with default URL fallbacks (`http://192.168.6.149:9001`) in [config/services.php](file:///home/andreas/projects/Daijo_MES/config/services.php) and [BaseSapService.php](file:///home/andreas/projects/Daijo_MES/app/Services/BaseSapService.php) to guarantee safe execution even if `.env` does not specify `SAP_BASE_URL` or `SAP_AUTH_URL`.
 
 5. **Production Dashboard (`ProductionDashboard`, `ProductionDashboardService`)**:
    - High-performance production tracking, NG rates, adjust/mould setup times, and adjuster NG trend.
