@@ -86,7 +86,7 @@
                         <tr class="hover:bg-gray-50/80 transition-colors group">
                             <td class="py-4 px-6">
                                 <span class="text-sm font-black text-gray-900 tracking-tight">{{ $pallet->pallet_id }}</span>
-                                <div class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">{{ $pallet->created_at->format('d M Y H:i') }}</div>
+                                <div class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">{{ $pallet->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') }}</div>
                             </td>
                             <td class="py-4 px-6">
                                 <span class="text-sm font-black text-blue-600 tracking-tight">{{ $pallet->part_no }}</span>
