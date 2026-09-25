@@ -746,4 +746,48 @@ class WmsPalletFormCreatorDeliveryTest extends TestCase
         $zeroQtyPallet->refresh();
         $this->assertNull($zeroQtyPallet->position_id);
     }
+
+    public function test_double_click_or_duplicate_generate_form_is_idempotent_and_prevents_duplicate_pallets(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. First submission via Livewire
+        $testComponent = Livewire::test(\App\Livewire\Wms\PalletFormCreator::class, ['isDelivery' => true])
+            ->set('prod_date', '2026-09-25')
+            ->set('delivery_name', 'Driver Test')
+            ->set('delivery_shift', '1')
+            ->set('lot_no', 'LOT-DOUBLE-01')
+            ->call('addItem', 'LBL-DOUBLE-01', 'SPK-1234', 50, 'FFI')
+            ->call('generateForm');
+
+        $testComponent->assertSet('showSuccessModal', true);
+        $firstPalletId = $testComponent->get('lastGeneratedPalletId');
+        $this->assertNotEmpty($firstPalletId);
+
+        // Assert exactly 1 pallet exists in database
+        $this->assertEquals(1, WmsPalletForm::where('lot_no', 'LOT-DOUBLE-01')->count());
+        $this->assertEquals(1, WmsPalletFormDetail::where('label', 'LBL-DOUBLE-01')->count());
+
+        // 2. Simulate double click on same component: calling generateForm again
+        $testComponent->call('generateForm');
+
+        // Assert STILL only 1 pallet exists
+        $this->assertEquals(1, WmsPalletForm::where('lot_no', 'LOT-DOUBLE-01')->count());
+        $this->assertEquals($firstPalletId, $testComponent->get('lastGeneratedPalletId'));
+
+        // 3. Simulate concurrent parallel request (separate component instance with same items)
+        $parallelComponent = Livewire::test(\App\Livewire\Wms\PalletFormCreator::class, ['isDelivery' => true])
+            ->set('prod_date', '2026-09-25')
+            ->set('delivery_name', 'Driver Test')
+            ->set('delivery_shift', '1')
+            ->set('lot_no', 'LOT-DOUBLE-01')
+            ->call('addItem', 'LBL-DOUBLE-01', 'SPK-1234', 50, 'FFI')
+            ->call('generateForm');
+
+        // Assert parallel request is blocked by idempotency / label guard and returns existing pallet
+        $this->assertEquals(1, WmsPalletForm::where('lot_no', 'LOT-DOUBLE-01')->count());
+        $this->assertEquals(1, WmsPalletFormDetail::where('label', 'LBL-DOUBLE-01')->count());
+        $this->assertEquals($firstPalletId, $parallelComponent->get('lastGeneratedPalletId'));
+        $parallelComponent->assertSet('showSuccessModal', true);
+    }
 }

@@ -330,11 +330,14 @@
                             </div>
                         @endif
 
-                        <div class="pt-4 border-t border-gray-100">
-                            <button wire:click="generateForm" type="button"
+                        <div class="pt-4 border-t border-gray-100" x-data="{ isSubmitting: false }">
+                            <button 
+                                @click="if (isSubmitting) { $event.preventDefault(); return false; } isSubmitting = true; setTimeout(() => isSubmitting = false, 4000);"
+                                wire:click.throttle.2000ms="generateForm" 
+                                type="button"
                                 wire:loading.attr="disabled"
                                 wire:target="generateForm"
-                                @if($isProcessing) disabled @endif
+                                :disabled="isSubmitting || @js($isProcessing)"
                                 class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center disabled:bg-gray-400 disabled:shadow-none text-sm uppercase">
                                 <span wire:loading.remove wire:target="generateForm">GENERATE PALLET FORM</span>
                                 <span wire:loading wire:target="generateForm">PROCESSING...</span>

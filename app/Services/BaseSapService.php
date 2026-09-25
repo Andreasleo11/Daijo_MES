@@ -13,8 +13,8 @@ class BaseSapService
     
     public function __construct()
     {
-        $this->baseUrl = config('services.sap.base_url');
-        $this->authUrl = config('services.sap.auth_url');
+        $this->baseUrl = config('services.sap.base_url') ?: 'http://192.168.6.149:9001';
+        $this->authUrl = config('services.sap.auth_url') ?: 'http://192.168.6.149:9001/auth/token';
         // Jangan authenticate di constructor - lazy load aja
         $this->token = null;
     }

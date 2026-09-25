@@ -9,6 +9,7 @@ use App\Models\MasterListItem;
 use App\Services\WmsService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class PalletFormCreator extends Component
 {
@@ -316,10 +317,68 @@ class PalletFormCreator extends Component
             return;
         }
 
+        // Jika modal sukses sudah terbuka dengan pallet yang sama, cegah generate ulang
+        if ($this->showSuccessModal && $this->lastGeneratedPalletId) {
+            return;
+        }
+
         if ($this->isProcessing) return;
         $this->isProcessing = true;
 
+        // ─── 1. Atomic Lock per User/Session ──────────────────────────────────────
+        $userKey = auth()->id() ?? session()->getId() ?? 'guest';
+        $lock = Cache::lock("wms_pallet_gen_lock_{$userKey}", 15);
+
+        if (! $lock->get()) {
+            return; // Request lain sedang berjalan, abaikan klik ganda
+        }
+
         try {
+            // ─── 2. Idempotency Fingerprint Hash ──────────────────────────────────
+            $fingerprint = md5(json_encode([
+                'date'           => $this->prod_date,
+                'lot_no'         => $this->lot_no,
+                'delivery_name'  => $this->delivery_name,
+                'delivery_shift' => $this->delivery_shift,
+                'items'          => collect($this->scanned_items)->map(fn($item) => [
+                    'spk'         => $item['spk_no'] ?? null,
+                    'label'       => $item['label'] ?? null,
+                    'qty'         => (float)($item['qty'] ?? 0),
+                    'part_no'     => $item['part_no'] ?? null,
+                    'is_no_label' => (bool)($item['is_no_label'] ?? false),
+                ])->values()->all(),
+            ]));
+
+            $idempotencyKey = "wms_pallet_gen_hash_{$fingerprint}";
+            if ($existingPalletId = Cache::get($idempotencyKey)) {
+                $this->lastGeneratedPalletId = $existingPalletId;
+                $this->showSuccessModal = true;
+                return;
+            }
+
+            // ─── 3. Database Guard: Cek apakah label ini sudah masuk pallet dalam 10 menit terakhir ───
+            $scannedLabels = collect($this->scanned_items)
+                ->where('is_no_label', false)
+                ->pluck('label')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (! empty($scannedLabels)) {
+                $recentDuplicateDetail = WmsPalletFormDetail::whereIn('label', $scannedLabels)
+                    ->where('created_at', '>=', now()->subMinutes(10))
+                    ->latest('id')
+                    ->first();
+
+                if ($recentDuplicateDetail) {
+                    $this->lastGeneratedPalletId = $recentDuplicateDetail->pallet_form_id;
+                    $this->showSuccessModal = true;
+                    Cache::put($idempotencyKey, $recentDuplicateDetail->pallet_form_id, now()->addMinutes(5));
+                    return;
+                }
+            }
+
             DB::beginTransaction();
 
             // --- Hitung summary untuk header ---
@@ -372,6 +431,9 @@ class PalletFormCreator extends Component
 
             DB::commit();
 
+            // Simpan hash idempotency agar request duplikat dalam 5 menit berikutnya tidak membuat pallet baru
+            Cache::put($idempotencyKey, $palletId, now()->addSeconds(30));
+
             $this->lastGeneratedPalletId = $palletId;
             $this->showSuccessModal = true;
 
@@ -382,6 +444,7 @@ class PalletFormCreator extends Component
             DB::rollBack();
             session()->flash('error', $e->getMessage());
         } finally {
+            optional($lock)->release();
             $this->isProcessing = false;
         }
     }
