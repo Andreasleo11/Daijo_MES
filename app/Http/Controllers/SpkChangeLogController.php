@@ -25,7 +25,19 @@ class SpkChangeLogController extends Controller
         }
 
         if ($request->filled('change_type')) {
-            $logQuery->where('change_type', $request->change_type);
+            if ($request->change_type === 'PLANNED_QTY_CHANGE') {
+                $logQuery->where('change_type', 'QTY_CHANGE')
+                         ->whereNotNull('old_planned_qty')
+                         ->whereNotNull('new_planned_qty')
+                         ->whereColumn('old_planned_qty', '!=', 'new_planned_qty');
+            } elseif ($request->change_type === 'COMPLETED_QTY_CHANGE') {
+                $logQuery->where('change_type', 'QTY_CHANGE')
+                         ->whereNotNull('old_completed_qty')
+                         ->whereNotNull('new_completed_qty')
+                         ->whereColumn('old_completed_qty', '!=', 'new_completed_qty');
+            } else {
+                $logQuery->where('change_type', $request->change_type);
+            }
         }
 
         if ($request->filled('batch_id')) {
@@ -65,14 +77,24 @@ class SpkChangeLogController extends Controller
 
         // 5. Summary Statistics
         $stats = [
-            'total_master_spk' => SpkMaster::count(),
-            'total_changes'    => SpkChangeLog::count(),
-            'total_new'        => SpkChangeLog::where('change_type', 'NEW')->count(),
-            'total_qty_change' => SpkChangeLog::where('change_type', 'QTY_CHANGE')->count(),
-            'total_removed'    => SpkChangeLog::where('change_type', 'REMOVED')->count(),
-            'last_sync'        => $lastSyncTime,
-            'last_sync_status' => $lastSyncStatus,
-            'last_sync_message'=> $lastSyncMessage,
+            'total_master_spk'    => SpkMaster::count(),
+            'total_changes'       => SpkChangeLog::count(),
+            'total_new'           => SpkChangeLog::where('change_type', 'NEW')->count(),
+            'total_qty_change'    => SpkChangeLog::where('change_type', 'QTY_CHANGE')->count(),
+            'total_qty_planned'   => SpkChangeLog::where('change_type', 'QTY_CHANGE')
+                                        ->whereNotNull('old_planned_qty')
+                                        ->whereNotNull('new_planned_qty')
+                                        ->whereColumn('old_planned_qty', '!=', 'new_planned_qty')
+                                        ->count(),
+            'total_qty_completed' => SpkChangeLog::where('change_type', 'QTY_CHANGE')
+                                        ->whereNotNull('old_completed_qty')
+                                        ->whereNotNull('new_completed_qty')
+                                        ->whereColumn('old_completed_qty', '!=', 'new_completed_qty')
+                                        ->count(),
+            'total_removed'       => SpkChangeLog::where('change_type', 'REMOVED')->count(),
+            'last_sync'           => $lastSyncTime,
+            'last_sync_status'    => $lastSyncStatus,
+            'last_sync_message'   => $lastSyncMessage,
         ];
 
         return view('spk.changes-index', compact('logs', 'masterSpks', 'batches', 'stats'));

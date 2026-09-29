@@ -75,12 +75,11 @@ class Kernel extends ConsoleKernel
         //     ->dailyAt('09:00')
         //     ->timezone('Asia/Jakarta'); // or your preferred timezone
 
-        $schedule->command('spk:sync')->dailyAt('07:40')->timezone('Asia/Jakarta');
-        $schedule->command('spk:sync')->dailyAt('10:00')->timezone('Asia/Jakarta');
-        $schedule->command('spk:sync')->dailyAt('12:00')->timezone('Asia/Jakarta');
-        $schedule->command('spk:sync')->dailyAt('15:00')->timezone('Asia/Jakarta');
-        $schedule->command('spk:sync')->dailyAt('17:00')->timezone('Asia/Jakarta');
-        $schedule->command('spk:sync')->dailyAt('23:00')->timezone('Asia/Jakarta');
+        // Sinkronisasi data SPK dari SAP setiap 10 menit (selaras dengan sap:dispatch-receipt)
+        $schedule->command('spk:sync')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/spk_sync.log'));
 
         // Otomatis backup database MySQL setiap hari jam 21:00 WIB (9 malam, menyimpan 14 hari terakhir)
         $schedule->command('db:backup --keep-days=14')

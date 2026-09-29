@@ -175,20 +175,25 @@ class SpkMasterService extends BaseSapService
                 DB::table('spk_change_logs')->insert($changeLogs);
             }
 
-            // Hapus data lama & simpan data baru ke spk_masters
-            DB::table('spk_masters')->truncate();
-
+            // Siapkan payload data baru sebelum truncate agar jeda tabel kosong seminimal mungkin
+            $newSpkRecords = [];
             foreach ($spkData as $row) {
-                DB::table('spk_masters')->insert([
-                    'spk_number' => $row['SPKNo'],
-                    'post_date' => $row['PostDate'],
-                    'due_date' => $row['DueDate'],
-                    'production_status' => $row['Status'],
-                    'item_code' => $row['ItemCode'],
-                    'planned_quantity' => $row['PlannedQty'],
+                $newSpkRecords[] = [
+                    'spk_number'         => $row['SPKNo'],
+                    'post_date'          => $row['PostDate'],
+                    'due_date'           => $row['DueDate'],
+                    'production_status'  => $row['Status'],
+                    'item_code'          => $row['ItemCode'],
+                    'planned_quantity'   => $row['PlannedQty'],
                     'completed_quantity' => $row['CompletedQty'],
-                    'warehouse' => $row['Warehouse'],
-                ]);
+                    'warehouse'          => $row['Warehouse'],
+                ];
+            }
+
+            // Hapus data lama & simpan data baru ke spk_masters secara bulk
+            DB::table('spk_masters')->truncate();
+            foreach (array_chunk($newSpkRecords, 500) as $chunk) {
+                DB::table('spk_masters')->insert($chunk);
             }
 
             // Simpan log sukses

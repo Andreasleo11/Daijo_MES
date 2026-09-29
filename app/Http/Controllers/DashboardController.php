@@ -1672,23 +1672,8 @@ class DashboardController extends Controller
         }
         $dicId = $dic->id;
 
-        $spkToUpdate = ProductionScannedData::where('dic_id', $dicId)
-            ->get();
-        // dd($spkToUpdate);
-        // Loop berdasarkan item_code
-        foreach ($spkToUpdate as $scanned) {
-            // spk_code dan quantity dari ProductionScannedData
-            $spkNumber = $scanned->spk_code; // asumsi 'spk_code' ada di tabel ini
-            $additionalQty = (int) $scanned->quantity;
-
-            if ($additionalQty > 0) {
-                $spk = SpkMaster::where('spk_number', $spkNumber)->first();
-                if ($spk) {
-                    $spk->completed_quantity += $additionalQty;
-                    $spk->save();
-                }
-            }
-        }
+        // Catatan: completed_quantity di spk_masters tidak di-increment manual di sini,
+        // melainkan tersinkronisasi murni dari SAP (Receipt Production / SAP Production Order Sync).
 
         // Update status DIC jadi done
         DailyItemCode::where('id', $dicId)->update(['is_done' => 1]);
@@ -1702,7 +1687,7 @@ class DashboardController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'SPK quantities updated successfully.');
+        return redirect()->back()->with('success', 'Shift SPK berhasil diselesaikan.');
     }
 
     // function untuk reset jobs manual (operator)
@@ -1770,28 +1755,6 @@ class DashboardController extends Controller
                 'success' => 'Data sent to PPIC!',
                 'deactivateScanMode' => true, // Add this flag
             ]);
-
-        foreach ($uniquedata as $spk) {
-            $real_spk = SpkMaster::where('spk_number', $spk['spk'])->first();
-            // dd($spk);
-            $count = $spk['count']; // Assuming 'count' exists in $spk
-            $item_perpack = $spk['item_perpack']; // Assuming 'item_perpack' exists in $spk
-
-            if ($spk['start_label'] !== 1) {
-                $newCompletedQuantity = $real_spk->completed_quantity + $count * $item_perpack;
-                dd($newCompletedQuantity);
-                dd($real_spk);
-
-                $real_spk->completed_quantity = $newCompletedQuantity;
-                $real_spk->save(); // Save the updated record
-            } else {
-                $completedQuantity = $count * $item_perpack;
-                dd($completedQuantity);
-                $real_spk->completed_quantity = $newCompletedQuantity;
-                $real_spk->save();
-            }
-            // dd($spk);
-        }
 
         // Find all jobs related to the user
         $jobs = MachineJob::where('user_id', auth()->user()->id)->get();

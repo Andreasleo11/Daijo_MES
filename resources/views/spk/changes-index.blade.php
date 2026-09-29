@@ -61,7 +61,7 @@
         @endif
 
         <!-- Summary Statistics Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xl">
                     📦
@@ -82,23 +82,33 @@
                 </div>
             </div>
 
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black text-xl">
-                    🟡
-                </div>
-                <div>
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Perubahan Qty</span>
-                    <span class="text-2xl font-black text-amber-600">{{ number_format($stats['total_qty_change']) }}</span>
-                </div>
-            </div>
-
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-red-100 flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-black text-xl">
                     🔴
                 </div>
                 <div>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Qty Planned Berubah</span>
+                    <span class="text-2xl font-black text-red-600">{{ number_format($stats['total_qty_planned'] ?? 0) }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black text-xl">
+                    🟡
+                </div>
+                <div>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Qty Completed Berubah</span>
+                    <span class="text-2xl font-black text-amber-600">{{ number_format($stats['total_qty_completed'] ?? 0) }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gray-50 text-gray-600 flex items-center justify-center font-black text-xl">
+                    🚫
+                </div>
+                <div>
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">SPK Dihapus/Closed</span>
-                    <span class="text-2xl font-black text-red-600">{{ number_format($stats['total_removed']) }}</span>
+                    <span class="text-2xl font-black text-gray-700">{{ number_format($stats['total_removed']) }}</span>
                 </div>
             </div>
         </div>
@@ -119,7 +129,9 @@
                     <select name="change_type" class="w-full border border-gray-300 rounded-xl text-xs p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="">Semua Perubahan Log</option>
                         <option value="NEW" {{ request('change_type') == 'NEW' ? 'selected' : '' }}>🟢 SPK BARU</option>
-                        <option value="QTY_CHANGE" {{ request('change_type') == 'QTY_CHANGE' ? 'selected' : '' }}>🟡 PERUBAHAN QTY</option>
+                        <option value="PLANNED_QTY_CHANGE" {{ request('change_type') == 'PLANNED_QTY_CHANGE' ? 'selected' : '' }}>🔴 PERUBAHAN QUANTITY PLANNED</option>
+                        <option value="COMPLETED_QTY_CHANGE" {{ request('change_type') == 'COMPLETED_QTY_CHANGE' ? 'selected' : '' }}>🟡 PERUBAHAN QTY COMPLETED</option>
+                        <option value="QTY_CHANGE" {{ request('change_type') == 'QTY_CHANGE' ? 'selected' : '' }}>⚖️ SEMUA PERUBAHAN QTY</option>
                         <option value="STATUS_CHANGE" {{ request('change_type') == 'STATUS_CHANGE' ? 'selected' : '' }}>🔵 PERUBAHAN STATUS</option>
                         <option value="REMOVED" {{ request('change_type') == 'REMOVED' ? 'selected' : '' }}>🔴 SPK DIHAPUS / CLOSED</option>
                     </select>
@@ -280,9 +292,28 @@
                                             🟢 SPK BARU
                                         </span>
                                     @elseif($log->change_type === 'QTY_CHANGE')
-                                        <span class="inline-block px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 font-extrabold rounded-lg text-[10px] tracking-wide">
-                                            🟡 PERUBAHAN QTY
-                                        </span>
+                                        @php
+                                            $isPlannedChange = ($log->old_planned_qty !== null && $log->new_planned_qty !== null && $log->old_planned_qty !== $log->new_planned_qty);
+                                            $isCompletedChange = ($log->old_completed_qty !== null && $log->new_completed_qty !== null && $log->old_completed_qty !== $log->new_completed_qty);
+                                        @endphp
+                                        @if($isPlannedChange && $isCompletedChange)
+                                            <div class="flex flex-col gap-1 items-center">
+                                                <span class="inline-block px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 font-extrabold rounded-lg text-[9px] tracking-wide">
+                                                    🔴 PERUBAHAN QUANTITY PLANNED
+                                                </span>
+                                                <span class="inline-block px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 font-extrabold rounded-lg text-[9px] tracking-wide">
+                                                    🟡 PERUBAHAN QTY COMPLETED
+                                                </span>
+                                            </div>
+                                        @elseif($isPlannedChange)
+                                            <span class="inline-block px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 font-extrabold rounded-lg text-[10px] tracking-wide">
+                                                🔴 PERUBAHAN QUANTITY PLANNED
+                                            </span>
+                                        @else
+                                            <span class="inline-block px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 font-extrabold rounded-lg text-[10px] tracking-wide">
+                                                🟡 PERUBAHAN QTY COMPLETED
+                                            </span>
+                                        @endif
                                     @elseif($log->change_type === 'STATUS_CHANGE')
                                         <span class="inline-block px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 font-extrabold rounded-lg text-[10px] tracking-wide">
                                             🔵 STATUS CHANGED
@@ -394,25 +425,15 @@
                     <div x-show="!loadingHistory && historyList.length > 0" class="relative border-l-2 border-indigo-200 ml-4 space-y-6">
                         <template x-for="(item, index) in historyList" :key="item.id">
                             <div class="relative pl-6">
-                                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-white"
-                                     :class="{
-                                        'bg-emerald-500': item.change_type === 'NEW',
-                                        'bg-amber-500': item.change_type === 'QTY_CHANGE',
-                                        'bg-blue-500': item.change_type === 'STATUS_CHANGE',
-                                        'bg-red-500': item.change_type === 'REMOVED'
-                                     }">
+                                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-2xs"
+                                     :class="getTimelineDotClass(item)">
                                 </div>
                                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-2xs">
-                                    <div class="flex items-center justify-between mb-1.5">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
                                         <span class="text-xs font-black text-gray-700" x-text="formatDate(item.created_at)"></span>
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase"
-                                              :class="{
-                                                'bg-emerald-100 text-emerald-800': item.change_type === 'NEW',
-                                                'bg-amber-100 text-amber-800': item.change_type === 'QTY_CHANGE',
-                                                'bg-blue-100 text-blue-800': item.change_type === 'STATUS_CHANGE',
-                                                'bg-red-100 text-red-800': item.change_type === 'REMOVED'
-                                              }"
-                                              x-text="item.change_type">
+                                        <span class="px-2 py-0.5 rounded text-[10px] uppercase tracking-wide"
+                                              :class="getTimelineBadgeClass(item)"
+                                              x-text="getTimelineBadgeText(item)">
                                         </span>
                                     </div>
 
@@ -532,6 +553,44 @@
                     if (!dateStr) return '-';
                     const d = new Date(dateStr);
                     return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                },
+
+                getTimelineDotClass(item) {
+                    if (item.change_type === 'NEW') return 'bg-emerald-500';
+                    if (item.change_type === 'REMOVED') return 'bg-red-500';
+                    if (item.change_type === 'STATUS_CHANGE') return 'bg-blue-500';
+                    if (item.change_type === 'QTY_CHANGE') {
+                        const hasPlanned = item.old_planned_qty !== null && item.new_planned_qty !== null && Number(item.old_planned_qty) !== Number(item.new_planned_qty);
+                        return hasPlanned ? 'bg-red-500' : 'bg-amber-500';
+                    }
+                    return 'bg-gray-400';
+                },
+
+                getTimelineBadgeClass(item) {
+                    if (item.change_type === 'NEW') return 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold';
+                    if (item.change_type === 'REMOVED') return 'bg-red-100 text-red-800 border border-red-200 font-extrabold';
+                    if (item.change_type === 'STATUS_CHANGE') return 'bg-blue-100 text-blue-800 border border-blue-200 font-extrabold';
+                    if (item.change_type === 'QTY_CHANGE') {
+                        const hasPlanned = item.old_planned_qty !== null && item.new_planned_qty !== null && Number(item.old_planned_qty) !== Number(item.new_planned_qty);
+                        return hasPlanned 
+                            ? 'bg-red-50 text-red-700 border border-red-200 font-extrabold shadow-2xs' 
+                            : 'bg-amber-50 text-amber-700 border border-amber-200 font-extrabold shadow-2xs';
+                    }
+                    return 'bg-gray-100 text-gray-800 font-bold';
+                },
+
+                getTimelineBadgeText(item) {
+                    if (item.change_type === 'NEW') return '🟢 SPK BARU';
+                    if (item.change_type === 'REMOVED') return '🔴 SPK DIHAPUS';
+                    if (item.change_type === 'STATUS_CHANGE') return '🔵 STATUS CHANGED';
+                    if (item.change_type === 'QTY_CHANGE') {
+                        const hasPlanned = item.old_planned_qty !== null && item.new_planned_qty !== null && Number(item.old_planned_qty) !== Number(item.new_planned_qty);
+                        const hasCompleted = item.old_completed_qty !== null && item.new_completed_qty !== null && Number(item.old_completed_qty) !== Number(item.new_completed_qty);
+                        if (hasPlanned && hasCompleted) return '🔴 PERUBAHAN QTY PLANNED & COMPLETED';
+                        if (hasPlanned) return '🔴 PERUBAHAN QUANTITY PLANNED';
+                        return '🟡 PERUBAHAN QTY COMPLETED';
+                    }
+                    return item.change_type;
                 }
             };
         }
