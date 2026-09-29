@@ -15,8 +15,9 @@
                 <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
                     <span class="font-bold text-gray-400">Terakhir Diberbarui:</span>
                     @if($stats['last_sync'])
+                        @php $lastSync = \Carbon\Carbon::parse($stats['last_sync'])->timezone('Asia/Jakarta'); @endphp
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-extrabold rounded-lg border border-indigo-100 shadow-2xs">
-                            🕒 {{ \Carbon\Carbon::parse($stats['last_sync'])->format('d M Y H:i:s') }} ({{ \Carbon\Carbon::parse($stats['last_sync'])->diffForHumans() }})
+                            🕒 {{ $lastSync->format('d M Y H:i:s') }} WIB ({{ $lastSync->diffForHumans() }})
                         </span>
                     @else
                         <span class="text-gray-400 italic">Belum ada data sync</span>
@@ -144,7 +145,7 @@
                         <option value="">Semua Batch Sesi</option>
                         @foreach($batches as $b)
                             <option value="{{ $b->sync_batch_id }}" {{ request('batch_id') == $b->sync_batch_id ? 'selected' : '' }}>
-                                {{ $b->sync_batch_id }} ({{ \Carbon\Carbon::parse($b->created_at)->format('d M Y H:i') }})
+                                {{ $b->sync_batch_id }} ({{ \Carbon\Carbon::parse($b->created_at)->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB)
                             </option>
                         @endforeach
                     </select>
@@ -271,7 +272,7 @@
                             @endphp
                             <tr class="hover:bg-gray-50/60 transition">
                                 <td class="py-3.5 px-5 font-bold text-gray-600">
-                                    {{ \Carbon\Carbon::parse($log->created_at)->format('d M Y H:i:s') }}
+                                    {{ \Carbon\Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('d M Y H:i:s') }}
                                     <span class="block text-[9px] text-gray-400 font-mono">{{ $log->sync_batch_id }}</span>
                                 </td>
 
@@ -552,7 +553,15 @@
                 formatDate(dateStr) {
                     if (!dateStr) return '-';
                     const d = new Date(dateStr);
-                    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    return d.toLocaleDateString('id-ID', { 
+                        day: '2-digit', 
+                        month: 'short', 
+                        year: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        timeZone: 'Asia/Jakarta'
+                    });
                 },
 
                 getTimelineDotClass(item) {

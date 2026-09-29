@@ -78,6 +78,7 @@ class Kernel extends ConsoleKernel
         // Sinkronisasi data SPK dari SAP setiap 10 menit (selaras dengan sap:dispatch-receipt)
         $schedule->command('spk:sync')
             ->everyTenMinutes()
+            ->timezone('Asia/Jakarta')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/spk_sync.log'));
 
