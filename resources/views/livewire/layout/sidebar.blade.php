@@ -273,6 +273,9 @@ new class extends Component {
                 @if (auth()->user()?->can('view-pe-links'))
                     <livewire:sidebar-link href="{{ route('master-item.index') }}" label="Master Item"
                         :active="request()->routeIs('master-item.index')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('master-bom.index') }}" label="Master List BOM"
+                        :active="request()->routeIs('master-bom.index')" wire:navigate />
                 @endif
 
 
@@ -295,6 +298,8 @@ new class extends Component {
                 @if (auth()->user()?->can('view-ppic-links'))
                     <livewire:sidebar-link href="{{ route('daily-item-code.index') }}" label="Daily Production Plan"
                         :active="request()->routeIs('daily-item-code.index')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('ppic.listup.index') }}" label="PPIC List Up Mesin"
+                        :active="request()->routeIs('ppic.listup.*')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('ppic.machine-daily-report') }}"
                         label="Laporan Produksi Mesin" :active="request()->routeIs('ppic.machine-daily-report')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('spk.changes.index') }}" label="Audit Log SPK (SAP Sync)"

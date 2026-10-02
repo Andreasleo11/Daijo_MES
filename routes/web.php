@@ -610,6 +610,7 @@ Route::middleware('auth')->group(function (){
     Route::get('/daily-item-codes/daily', [DailyItemCodeController::class, 'daily'])->name('daily-item-code.daily');
     Route::put('/daily-item-codes/{id}', [DailyItemCodeController::class, 'update'])->name('daily-item-code.update');
     Route::delete('/daily-item-codes/{id}', [DailyItemCodeController::class, 'destroy'])->name('daily-item-code.destroy');
+    Route::get('/ppic/listup-machine', \App\Livewire\Ppic\PpicListUpMachine::class)->name('ppic.listup.index');
     //ROUTE UNTUK FITUR DAILY ITEM CODES
 
     //Route untuk bikin tanggal Maintenance (not finish)

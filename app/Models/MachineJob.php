@@ -14,6 +14,7 @@ class MachineJob extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'branch_id',
         'item_code',
         'shift',
