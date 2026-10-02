@@ -159,6 +159,15 @@
                         <option value="NO_PROJECT">Tanpa Project Code</option>
                     </select>
 
+                    <!-- Family Filter -->
+                    <select wire:model.live="fgFamilyFilter" class="bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold px-3 py-2 text-teal-800 outline-none max-w-[200px]">
+                        <option value="">🏷️ Semua Family</option>
+                        @foreach($familyList as $f)
+                            <option value="{{ $f->family }}">{{ $f->family }} ({{ $f->count }} FG)</option>
+                        @endforeach
+                        <option value="NO_FAMILY">Tanpa Family</option>
+                    </select>
+
                     <!-- Packaging Filter -->
                     <select wire:model.live="fgPackagingFilter" class="bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold px-3 py-2 text-gray-700 outline-none">
                         <option value="all">📦 Semua Kemasan</option>
@@ -270,6 +279,7 @@
                         <tr>
                             <th class="py-3 px-4 text-center w-12">#</th>
                             <th class="py-3 px-4">Project SAP</th>
+                            <th class="py-3 px-4">Family</th>
                             <th class="py-3 px-4">Kode FG (Finished Good)</th>
                             <th class="py-3 px-4">Deskripsi Produk</th>
                             <th class="py-3 px-4">Customer</th>
@@ -290,10 +300,28 @@
 
                                 <!-- Project SAP -->
                                 <td class="py-3 px-4">
-                                    @if(!empty($fg->project_code))
+                                    @php
+                                        $displayProject = !empty($fg->project_code) ? $fg->project_code : $fg->family;
+                                    @endphp
+                                    @if(!empty($displayProject))
                                         <span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1">
                                             <span>🏷️</span>
-                                            <span>{{ $fg->project_code }}</span>
+                                            <span>{{ $displayProject }}</span>
+                                        </span>
+                                    @else
+                                        <span class="text-gray-300 text-[11px]">-</span>
+                                    @endif
+                                </td>
+
+                                <!-- Family -->
+                                <td class="py-3 px-4">
+                                    @php
+                                        $displayFamily = !empty($fg->family) ? $fg->family : $fg->project_code;
+                                    @endphp
+                                    @if(!empty($displayFamily))
+                                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-teal-50 text-teal-800 border border-teal-200 inline-flex items-center gap-1 font-mono shadow-2xs">
+                                            <span>🏷️</span>
+                                            <span>{{ $displayFamily }}</span>
                                         </span>
                                     @else
                                         <span class="text-gray-300 text-[11px]">-</span>
@@ -416,7 +444,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="py-12 text-center text-gray-400">
+                                <td colspan="12" class="py-12 text-center text-gray-400">
                                     <div class="text-3xl mb-2">🔍</div>
                                     <div class="text-sm font-bold">Tidak ada Finished Goods yang sesuai kriteria filter.</div>
                                     <div class="text-xs text-gray-400 mt-1">Coba sesuaikan pencarian atau reset filter.</div>
@@ -810,7 +838,12 @@
                             </span>
                             @if(!empty($selectedFg->project_code))
                                 <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                    🏷️ Project: {{ $selectedFg->project_code }}
+                                    📁 Project: {{ $selectedFg->project_code }}
+                                </span>
+                            @endif
+                            @if(!empty($selectedFg->family))
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-800 border border-teal-200">
+                                    🏷️ Family: {{ $selectedFg->family }}
                                 </span>
                             @endif
                             @if(!empty($selectedFg->customer_name))
@@ -1077,13 +1110,18 @@
                 <!-- Modal Top Bar -->
                 <div class="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gray-50/60 shrink-0">
                     <div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-800">
                                 Parent Item
                             </span>
                             <h2 class="text-xl font-black text-gray-900 font-mono">
                                 {{ $selectedParentItem }}
                             </h2>
+                            @if(!empty($selectedParentFamily))
+                                <span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 font-mono">
+                                    🏷️ Family: {{ $selectedParentFamily }}
+                                </span>
+                            @endif
                         </div>
                         <p class="text-xs text-gray-500 font-medium mt-1">
                             {{ $selectedParentDesc ?: 'Tidak ada deskripsi' }}

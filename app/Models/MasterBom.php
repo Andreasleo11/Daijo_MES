@@ -19,6 +19,8 @@ class MasterBom extends Model
         'component_description',
         'quantity',
         'uom',
+        'family',
+        'family_2',
         'is_active',
     ];
 

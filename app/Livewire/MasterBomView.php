@@ -28,6 +28,7 @@ class MasterBomView extends Component
     // FG Headers Filter & Search
     public string $fgSearch = '';
     public string $fgProjectFilter = '';
+    public string $fgFamilyFilter = '';
     public string $fgPackagingFilter = 'all'; // all, with_pkg, without_pkg
     public string $fgDepthFilter = 'all'; // all, 1, 2, 3, 4+
     public int $fgPerPage = 15;
@@ -62,6 +63,7 @@ class MasterBomView extends Component
     // Tree / Detail Modal State (Visual Explorer)
     public ?string $selectedParentItem = null;
     public ?string $selectedParentDesc = null;
+    public ?string $selectedParentFamily = null;
     public array $explodedTree = [];
     public array $treeSummaryData = [];
     public string $treeActiveTab = 'tree'; // 'tree' or 'summary'
@@ -81,6 +83,7 @@ class MasterBomView extends Component
         'activeMainTab'       => ['as' => 'tab', 'except' => 'production'],
         'fgSearch'            => ['as' => 'fg_q', 'except' => ''],
         'fgProjectFilter'     => ['as' => 'project', 'except' => ''],
+        'fgFamilyFilter'      => ['as' => 'family', 'except' => ''],
         'fgPackagingFilter'   => ['as' => 'pkg', 'except' => 'all'],
         'fgDepthFilter'       => ['as' => 'depth', 'except' => 'all'],
         'whereUsedSearch'     => ['as' => 'where_used', 'except' => ''],
@@ -193,6 +196,8 @@ class MasterBomView extends Component
                 'component_desc' => null,
                 'quantity'       => null,
                 'uom'            => null,
+                'family_1'       => null,
+                'family_2'       => null,
             ];
 
             $descCount = 0;
@@ -216,6 +221,12 @@ class MasterBomView extends Component
                     $colIndex['quantity'] = $colLetter;
                 } elseif (str_contains($normalized, 'uom') || str_contains($normalized, 'unit') || str_contains($normalized, 'stock')) {
                     $colIndex['uom'] = $colLetter;
+                } elseif (str_contains($normalized, 'family')) {
+                    if ($colIndex['family_1'] === null) {
+                        $colIndex['family_1'] = $colLetter;
+                    } else {
+                        $colIndex['family_2'] = $colLetter;
+                    }
                 }
             }
 
@@ -225,8 +236,11 @@ class MasterBomView extends Component
             if ($colIndex['component_desc'] === null) $colIndex['component_desc'] = 'E';
             if ($colIndex['quantity'] === null) $colIndex['quantity'] = 'F';
             if ($colIndex['uom'] === null) $colIndex['uom'] = 'G';
+            if ($colIndex['family_1'] === null) $colIndex['family_1'] = 'H';
+            if ($colIndex['family_2'] === null) $colIndex['family_2'] = 'I';
 
             $recordsToInsert = [];
+            $detectedFamilies = [];
             $now = now();
             $batchSize = 1000;
             $totalImported = 0;
@@ -253,6 +267,23 @@ class MasterBomView extends Component
                 $uom = isset($row[$colIndex['uom']]) ? strtoupper(trim((string)$row[$colIndex['uom']])) : 'PCS';
                 $lineId = ($colIndex['line_id'] && isset($row[$colIndex['line_id']])) ? trim((string)$row[$colIndex['line_id']]) : null;
 
+                // Baca 2 Kolom Family
+                $fam1 = ($colIndex['family_1'] && isset($row[$colIndex['family_1']])) ? trim((string)$row[$colIndex['family_1']]) : '';
+                $fam2 = ($colIndex['family_2'] && isset($row[$colIndex['family_2']])) ? trim((string)$row[$colIndex['family_2']]) : '';
+
+                if (!empty($fam1)) {
+                    $detectedFamilies[$fam1] = true;
+                }
+                if (!empty($fam2)) {
+                    $detectedFamilies[$fam2] = true;
+                }
+
+                // Logika Prioritas:
+                // Ambil kolom pertama dulu jika terisi (termasuk jika keduanya terisi).
+                // Jika hanya kolom kedua yang terisi -> ambil kolom kedua.
+                // Jika kosong -> null.
+                $resolvedFamily = !empty($fam1) ? $fam1 : (!empty($fam2) ? $fam2 : null);
+
                 $recordsToInsert[] = [
                     'sap_line_id'           => $lineId,
                     'parent_item'           => $parentItem,
@@ -261,6 +292,8 @@ class MasterBomView extends Component
                     'component_description' => $compDesc,
                     'quantity'              => $qty,
                     'uom'                   => $uom,
+                    'family'                => $resolvedFamily,
+                    'family_2'              => !empty($fam2) ? $fam2 : null,
                     'created_at'            => $now,
                     'updated_at'            => $now,
                 ];
@@ -275,6 +308,17 @@ class MasterBomView extends Component
             if (!empty($recordsToInsert)) {
                 MasterBom::insert($recordsToInsert);
                 $totalImported += count($recordsToInsert);
+            }
+
+            // Sync list family yang didistinct ke config/bom_projects.php untuk deteksi dummy code
+            if (!empty($detectedFamilies)) {
+                $cleanFamilies = array_values(array_filter(array_keys($detectedFamilies), function ($f) {
+                    $f = trim((string)$f);
+                    return !empty($f) && $f !== '-' && $f !== '0' && strtoupper($f) !== 'N/A' && strtoupper($f) !== 'FAMILY';
+                }));
+                if (!empty($cleanFamilies)) {
+                    (new \App\Services\MasterBomSyncService())->updateConfigFileIfChanged($cleanFamilies);
+                }
             }
 
             $this->closeUploadModal();
@@ -358,6 +402,8 @@ class MasterBomView extends Component
     {
         $this->selectedParentItem = $parentItem;
         $this->selectedParentDesc = $parentDesc ?: MasterBom::where('parent_item', $parentItem)->value('parent_description');
+        $this->selectedParentFamily = MasterBomFgHeader::where('fg_item_code', $parentItem)->value('family')
+            ?: MasterBom::where('parent_item', $parentItem)->whereNotNull('family')->value('family');
         $this->simulationQty = 1.0;
         $this->treeActiveTab = 'tree';
 
@@ -567,8 +613,22 @@ class MasterBomView extends Component
                 });
             }
 
+            if (Schema::hasTable('master_boms')) {
+                Schema::table('master_boms', function ($table) {
+                    if (!Schema::hasColumn('master_boms', 'family')) {
+                        $table->string('family', 150)->nullable()->after('uom');
+                    }
+                    if (!Schema::hasColumn('master_boms', 'family_2')) {
+                        $table->string('family_2', 150)->nullable()->after('family');
+                    }
+                });
+            }
+
             if (Schema::hasTable('master_bom_fg_headers')) {
                 Schema::table('master_bom_fg_headers', function ($table) {
+                    if (!Schema::hasColumn('master_bom_fg_headers', 'family')) {
+                        $table->string('family', 150)->nullable()->after('project_code');
+                    }
                     if (!Schema::hasColumn('master_bom_fg_headers', 'is_verified')) {
                         $table->boolean('is_verified')->default(false);
                     }
@@ -579,6 +639,19 @@ class MasterBomView extends Component
                         $table->string('verified_by_name', 150)->nullable();
                     }
                 });
+            }
+
+            // USER REQUIREMENT: Auto-sync project_code dari family jika project_code masih kosong
+            if (Schema::hasTable('master_bom_fg_headers') && Schema::hasColumn('master_bom_fg_headers', 'family')) {
+                DB::table('master_bom_fg_headers')
+                    ->where(function ($q) {
+                        $q->whereNull('project_code')->orWhere('project_code', '');
+                    })
+                    ->whereNotNull('family')
+                    ->where('family', '!=', '')
+                    ->update([
+                        'project_code' => DB::raw('family')
+                    ]);
             }
         } catch (\Throwable $e) {
             // Silently ignore if already created concurrently
@@ -694,15 +767,36 @@ class MasterBomView extends Component
                     $q->where('fg_item_code', 'like', "%{$term}%")
                       ->orWhere('fg_description', 'like', "%{$term}%")
                       ->orWhere('project_code', 'like', "%{$term}%")
+                      ->orWhere('family', 'like', "%{$term}%")
                       ->orWhere('customer_name', 'like', "%{$term}%");
                 });
             }
 
             if (!empty($this->fgProjectFilter)) {
                 if ($this->fgProjectFilter === 'NO_PROJECT') {
-                    $fgQuery->whereNull('project_code');
+                    $fgQuery->where(function ($q) {
+                        $q->whereNull('project_code')->orWhere('project_code', '');
+                    })->where(function ($q) {
+                        $q->whereNull('family')->orWhere('family', '');
+                    });
                 } else {
-                    $fgQuery->where('project_code', $this->fgProjectFilter);
+                    $fgQuery->where(function ($q) {
+                        $q->where('project_code', $this->fgProjectFilter)
+                          ->orWhere('family', $this->fgProjectFilter);
+                    });
+                }
+            }
+
+            if (!empty($this->fgFamilyFilter)) {
+                if ($this->fgFamilyFilter === 'NO_FAMILY') {
+                    $fgQuery->where(function ($q) {
+                        $q->whereNull('family')->orWhere('family', '');
+                    });
+                } else {
+                    $fgQuery->where(function ($q) {
+                        $q->where('family', $this->fgFamilyFilter)
+                          ->orWhere('project_code', $this->fgFamilyFilter);
+                    });
                 }
             }
 
@@ -720,15 +814,32 @@ class MasterBomView extends Component
                 }
             }
 
-            $fgHeaders = $fgQuery->orderByRaw('CASE WHEN project_code IS NOT NULL THEN 0 ELSE 1 END')
-                ->orderBy('project_code')
+            $fgHeaders = $fgQuery->orderByRaw('CASE WHEN COALESCE(NULLIF(project_code, ""), family) IS NOT NULL THEN 0 ELSE 1 END')
+                ->orderByRaw('COALESCE(NULLIF(project_code, ""), family)')
                 ->orderBy('fg_item_code')
                 ->paginate($this->fgPerPage, ['*'], 'fg_page');
 
-            $projectList = MasterBomFgHeader::whereNotNull('project_code')
-                ->select('project_code', DB::raw('count(*) as count'))
-                ->groupBy('project_code')
-                ->orderBy('project_code')
+            // Project List mendeteksi dan mengelompokkan Family juga
+            $projectList = MasterBomFgHeader::select(
+                    DB::raw('COALESCE(NULLIF(project_code, ""), family) as project_code'),
+                    DB::raw('count(*) as count')
+                )
+                ->where(function ($q) {
+                    $q->where(function ($sq) {
+                        $sq->whereNotNull('project_code')->where('project_code', '!=', '');
+                    })->orWhere(function ($sq) {
+                        $sq->whereNotNull('family')->where('family', '!=', '');
+                    });
+                })
+                ->groupBy(DB::raw('COALESCE(NULLIF(project_code, ""), family)'))
+                ->orderBy(DB::raw('COALESCE(NULLIF(project_code, ""), family)'))
+                ->get();
+
+            $familyList = MasterBomFgHeader::whereNotNull('family')
+                ->where('family', '!=', '')
+                ->select('family', DB::raw('count(*) as count'))
+                ->groupBy('family')
+                ->orderBy('family')
                 ->get();
 
             // Fetch modal components jika sedang aktif
@@ -864,6 +975,7 @@ class MasterBomView extends Component
             // Tab 1: Production Data
             'fgHeaders'          => $fgHeaders,
             'projectList'        => $projectList,
+            'familyList'         => $familyList,
             'modalComponents'    => $modalComponents,
             'whereUsedResults'   => $whereUsedResults,
 

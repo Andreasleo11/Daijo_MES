@@ -93,6 +93,7 @@ class MasterBomSyncService
                     'fg_item_code'     => $fgCode,
                     'fg_description'   => $fgMeta['desc'] ?? null,
                     'project_code'     => $fgMeta['project_code'] ?? null,
+                    'family'           => $fgMeta['family'] ?? null,
                     'customer_name'    => $fgMeta['customer'] ?? null,
                     'uom'              => $fgMeta['uom'] ?? 'PCS',
                     'total_wip_count'  => $stats['wip_count'],
@@ -313,6 +314,25 @@ PHP;
                 $projectCode = $itemToProjectMap[$parentCode] 
                     ?? ($itemToProjectMap[rtrim($parentCode, '.')] ?? null);
 
+                // Ambil family: prioritas dari kolom family pada BOM parent ini
+                $family = $children->pluck('family')->filter()->first();
+
+                // Deteksi jika parentCode ada di list dummy/family
+                if (empty($family)) {
+                    $family = $projectCode;
+                }
+
+                // USER REQUIREMENT: Project mendeteksi Family juga!
+                // Masukkan family ke grouping project jika project_code belum terisi
+                if (empty($projectCode) && !empty($family)) {
+                    $projectCode = $family;
+                }
+
+                // Jika family belum terisi tapi projectCode ada, samakan ke family
+                if (empty($family) && !empty($projectCode)) {
+                    $family = $projectCode;
+                }
+
                 // Deteksi customer dari project code atau nama/deskripsi
                 $customer = $this->guessCustomer($projectCode ?: $parentCode, $desc);
 
@@ -320,6 +340,7 @@ PHP;
                     'desc'         => $desc,
                     'uom'          => $uom,
                     'project_code' => $projectCode,
+                    'family'       => $family,
                     'customer'     => $customer,
                     'has_packaging'=> $hasPackaging,
                 ];

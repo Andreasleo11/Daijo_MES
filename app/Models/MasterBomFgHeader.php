@@ -16,6 +16,7 @@ class MasterBomFgHeader extends Model
         'fg_item_code',
         'fg_description',
         'project_code',
+        'family',
         'customer_name',
         'uom',
         'total_wip_count',
