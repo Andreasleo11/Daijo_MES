@@ -160,6 +160,7 @@ use App\Livewire\ManualSync;
     //Route untuk photo master item
 
     Route::get('/master-list-item', MasterListItemView::class)->name('master-list-item');
+    Route::get('/master-bom', \App\Livewire\MasterBomView::class)->name('master-bom.index');
 
     //ROUTE untuk handle ng-type produksi 
     Route::get('/ng-types', [ProductionNgController::class, 'index'])->name('ngtypes.index');

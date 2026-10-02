@@ -93,6 +93,7 @@ new class extends Component {
                     ['name' => 'inventory.mtr', 'label' => 'Master MTR'],
                     ['name' => 'inventory.fg', 'label' => 'Master FG'],
                     ['name' => 'master-list-item', 'label' => 'Master List Item'],
+                    ['name' => 'master-bom.index', 'label' => 'Master BOM (SAP)'],
                     ['name' => 'barcode.box_master.index', 'label' => 'Master Box Data'],
                     ['name' => 'barcode.box_detail.index', 'label' => 'Master Box Detail'],
                     ['name' => 'wms.mapping', 'label' => 'Warehouse Mapping'],

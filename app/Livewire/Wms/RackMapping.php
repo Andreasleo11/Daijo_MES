@@ -19,7 +19,7 @@ class RackMapping extends Component
     // Filtering & Search State
     public $filterCustomer = '';
     public $searchItem = '';
-    protected $queryString = ['filterCustomer', 'searchItem'];
+    protected $queryString = ['filterCustomer', 'searchItem', 'whseId'];
     
     // UI State
     public $showDetail = false;
@@ -32,11 +32,16 @@ class RackMapping extends Component
     public $newMaxCapacity = 1;
     public $showAddRackModal = false;
 
-    // Warehouse Edit State
-    public $whseId = 1;
+    // Warehouse State
+    public $whseId = null;
     public $whseName = '';
     public $whseCode = '';
     public $showEditWarehouseModal = false;
+
+    // Create Warehouse State
+    public $showCreateWarehouseModal = false;
+    public $newWhseCode = '';
+    public $newWhseName = '';
 
     // Edit Rack & Dimension State
     public $editingRackId = null;
@@ -247,7 +252,12 @@ class RackMapping extends Component
     {
         $wmsService = $wmsService ?? app(WmsService::class);
         $this->validate([
-            'newRackCode' => ['required', Rule::unique('wms_racks', 'rack_code')->whereNull('deleted_at')],
+            'newRackCode' => [
+                'required', 
+                Rule::unique('wms_racks', 'rack_code')
+                    ->where('whse_id', $this->whseId)
+                    ->whereNull('deleted_at')
+            ],
             'newLevels' => 'required|integer|min:1',
             'newSlotsPerLevel' => 'required|integer|min:1',
             'newRackCustomer' => 'nullable|string',
@@ -258,7 +268,7 @@ class RackMapping extends Component
             DB::beginTransaction();
 
             $rack = WmsRack::create([
-                'whse_id' => $this->whseId ?: 1,
+                'whse_id' => $this->whseId,
                 'rack_code' => strtoupper($this->newRackCode),
             ]);
 
@@ -326,13 +336,90 @@ class RackMapping extends Component
 
     public function mount()
     {
-        $warehouse = \App\Models\WmsWarehouse::first() ?? \App\Models\WmsWarehouse::create([
-            'whse_code' => 'J06',
-            'whse_name' => 'Monitoring Hunian Rak Gudang J06 (Highly Marelli)',
-        ]);
+        $warehouse = null;
+        if ($this->whseId) {
+            $warehouse = \App\Models\WmsWarehouse::find($this->whseId);
+        }
+
+        if (!$warehouse) {
+            $warehouse = \App\Models\WmsWarehouse::first() ?? \App\Models\WmsWarehouse::create([
+                'whse_code' => 'J06',
+                'whse_name' => 'Monitoring Hunian Rak Gudang J06 (Highly Marelli)',
+            ]);
+        }
+
         $this->whseId = $warehouse->id;
         $this->whseName = $warehouse->whse_name;
         $this->whseCode = $warehouse->whse_code;
+    }
+
+    public function updatedWhseId($value)
+    {
+        $warehouse = \App\Models\WmsWarehouse::find($value);
+        if ($warehouse) {
+            $this->whseId = $warehouse->id;
+            $this->whseName = $warehouse->whse_name;
+            $this->whseCode = $warehouse->whse_code;
+            $this->selectedPositionId = null;
+            $this->showDetail = false;
+        }
+    }
+
+    public function openCreateWarehouseModal()
+    {
+        $this->newWhseCode = '';
+        $this->newWhseName = '';
+        $this->showCreateWarehouseModal = true;
+    }
+
+    public function createWarehouse()
+    {
+        $this->validate([
+            'newWhseCode' => 'required|string|max:50|unique:wms_warehouses,whse_code',
+            'newWhseName' => 'required|string|max:255',
+        ]);
+
+        $newWarehouse = \App\Models\WmsWarehouse::create([
+            'whse_code' => strtoupper(trim($this->newWhseCode)),
+            'whse_name' => trim($this->newWhseName),
+        ]);
+
+        $this->whseId = $newWarehouse->id;
+        $this->whseCode = $newWarehouse->whse_code;
+        $this->whseName = $newWarehouse->whse_name;
+        $this->selectedPositionId = null;
+        $this->showDetail = false;
+        $this->showCreateWarehouseModal = false;
+        $this->reset(['newWhseCode', 'newWhseName']);
+
+        session()->flash('success', "Gudang baru {$newWarehouse->whse_code} ({$newWarehouse->whse_name}) berhasil dibuat dan langsung dipilih. Anda bisa langsung menambahkan rak (+ ADD RACK).");
+    }
+
+    public function deleteWarehouse($id)
+    {
+        $whse = \App\Models\WmsWarehouse::find($id);
+        if (!$whse) return;
+
+        if ($whse->racks()->exists()) {
+            session()->flash('error', "Gudang {$whse->whse_code} tidak dapat dihapus karena masih memiliki rak aktif. Hapus seluruh rak terlebih dahulu.");
+            return;
+        }
+
+        if (\App\Models\WmsWarehouse::count() <= 1) {
+            session()->flash('error', "Minimal harus ada 1 gudang di sistem.");
+            return;
+        }
+
+        $code = $whse->whse_code;
+        $whse->delete();
+
+        $fallback = \App\Models\WmsWarehouse::first();
+        $this->whseId = $fallback->id;
+        $this->whseName = $fallback->whse_name;
+        $this->whseCode = $fallback->whse_code;
+        $this->showEditWarehouseModal = false;
+
+        session()->flash('success', "Gudang {$code} berhasil dihapus.");
     }
 
     public function openEditWarehouseModal()
@@ -350,19 +437,24 @@ class RackMapping extends Component
     {
         $this->validate([
             'whseName' => 'required|string|max:255',
-            'whseCode' => 'required|string|max:50',
+            'whseCode' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('wms_warehouses', 'whse_code')->ignore($this->whseId)->whereNull('deleted_at'),
+            ],
         ]);
 
         $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
         if (!$warehouse) {
             $warehouse = \App\Models\WmsWarehouse::create([
-                'whse_code' => strtoupper($this->whseCode),
-                'whse_name' => $this->whseName,
+                'whse_code' => strtoupper(trim($this->whseCode)),
+                'whse_name' => trim($this->whseName),
             ]);
         } else {
             $warehouse->update([
-                'whse_name' => $this->whseName,
-                'whse_code' => strtoupper($this->whseCode),
+                'whse_name' => trim($this->whseName),
+                'whse_code' => strtoupper(trim($this->whseCode)),
             ]);
         }
 
@@ -644,17 +736,20 @@ class RackMapping extends Component
     {
         $hasCustomerTable = \Illuminate\Support\Facades\Schema::hasTable('master_customer_delivery');
 
-        $racks = WmsRack::with(['positions' => function($query) use ($hasCustomerTable) {
-            if ($hasCustomerTable) {
-                $query->with('customer');
-            }
-            $query->with(['palletForms' => function($q) {
-                $q->with('details');
+        $racks = WmsRack::where('whse_id', $this->whseId)
+            ->with(['positions' => function($query) use ($hasCustomerTable) {
+                if ($hasCustomerTable) {
+                    $query->with('customer');
+                }
+                $query->with(['palletForms' => function($q) {
+                    $q->with('details');
+                }])
+                ->withCount('palletForms')
+                ->orderBy('level_no', 'desc')
+                ->orderBy('slot_no', 'asc');
             }])
-            ->withCount('palletForms')
-            ->orderBy('level_no', 'desc')
-            ->orderBy('slot_no', 'asc');
-        }])->get();
+            ->orderBy('rack_code')
+            ->get();
 
         $matchingPositionIds = [];
         $searchTerm = trim($this->searchItem);
@@ -749,9 +844,11 @@ class RackMapping extends Component
             ->get();
 
         $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
+        $warehouses = \App\Models\WmsWarehouse::orderBy('whse_code')->get();
 
         return view('livewire.wms.rack-mapping', [
             'warehouse'           => $warehouse,
+            'warehouses'          => $warehouses,
             'racks'               => $racks,
             'selectedPosData'     => $selectedPosData,
             'customers'           => $customers,

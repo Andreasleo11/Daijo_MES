@@ -2,15 +2,44 @@
     <div class="max-w-7xl mx-auto space-y-6">
         
         <!-- Header & Legenda -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Warehouse Mapping</h1>
-                    <button wire:click="openEditWarehouseModal" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Informasi Gudang">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </button>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div class="space-y-2">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h1 class="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
+                        🏭 Warehouse Mapping
+                    </h1>
+
+                    <!-- Active Warehouse Selector Dropdown -->
+                    <div class="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-2xs">
+                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider pl-2">Pilih Gudang:</span>
+                        <select wire:model.live="whseId" class="bg-white border-0 rounded-lg text-xs font-black text-blue-700 px-3 py-1.5 shadow-xs focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                            @foreach($warehouses as $w)
+                                <option value="{{ $w->id }}">
+                                    {{ $w->whse_code }} — {{ $w->whse_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons for Warehouse -->
+                    <div class="flex items-center gap-1.5">
+                        <button wire:click="openEditWarehouseModal" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 bg-gray-100 rounded-xl transition border border-gray-200 cursor-pointer" title="Edit Informasi Gudang Aktif">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        
+                        <button wire:click="openCreateWarehouseModal" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            <span>+ TAMBAH GUDANG</span>
+                        </button>
+                    </div>
                 </div>
-                <p class="text-gray-500 text-sm font-medium">{{ $warehouse->whse_name ?? 'Monitoring Hunian Rak Gudang J06 (Highly Marelli)' }}</p>
+
+                <div class="flex items-center gap-2 text-xs text-gray-500 font-semibold">
+                    <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-mono font-bold text-[11px] border border-blue-100">{{ $warehouse->whse_code ?? 'N/A' }}</span>
+                    <span>{{ $warehouse->whse_name ?? 'Monitoring Rak Gudang' }}</span>
+                    <span class="text-gray-300">•</span>
+                    <span class="text-gray-500 font-bold">{{ $racks->count() }} Rak Terdaftar</span>
+                </div>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
                 <!-- Item / Pallet / SPK Search Input with Dropdown Suggestions -->
@@ -126,7 +155,7 @@
         <div class="flex flex-col lg:flex-row gap-6">
             <!-- Grid Container -->
             <div class="flex-grow flex flex-wrap gap-6 items-start" id="mapping-grid">
-                @foreach($racks as $rack)
+                @forelse($racks as $rack)
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)]">
                         <div class="flex justify-between items-center border-b border-gray-50 pb-3">
                             <div class="flex items-center gap-2">
@@ -223,7 +252,23 @@
                             @endforeach
                         </div>
                     </div>
-                @endforeach
+                @empty
+                    <div class="w-full bg-white rounded-3xl p-12 border-2 border-dashed border-gray-200 text-center space-y-4">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl">
+                            📦
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-gray-800 uppercase tracking-tight">Belum Ada Rak di Gudang Ini</h3>
+                            <p class="text-xs text-gray-500 font-medium max-w-md mx-auto mt-1">
+                                Gudang <strong>{{ $warehouse->whse_code ?? 'N/A' }} ({{ $warehouse->whse_name ?? 'N/A' }})</strong> belum memiliki data rak. Silakan tambahkan rak pertama untuk mulai memetakan slot penyimpanan.
+                            </p>
+                        </div>
+                        <button wire:click="$set('showAddRackModal', true)" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition-all shadow-md inline-flex items-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            <span>+ TAMBAH RAK PERTAMA</span>
+                        </button>
+                    </div>
+                @endforelse
             </div>
 
             <!-- Detail Sidebar -->
@@ -442,6 +487,43 @@
 
     </div>
 
+    <!-- Create Warehouse Modal -->
+    @if($showCreateWarehouseModal)
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
+                <div class="bg-emerald-600 p-6 text-white text-center">
+                    <h3 class="text-lg font-black uppercase tracking-tight">Tambah Gudang Baru</h3>
+                    <p class="text-xs text-emerald-100 mt-1">Daftarkan lokasi gudang baru untuk pemetaan rak</p>
+                </div>
+                
+                <div class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Kode Gudang <span class="text-red-500">*</span></label>
+                        <input type="text" wire:model.defer="newWhseCode" placeholder="Ex: WH-02 / J07" 
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-emerald-500 outline-none font-black text-base uppercase tracking-wider transition-all">
+                        @error('newWhseCode') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Nama / Deskripsi Gudang <span class="text-red-500">*</span></label>
+                        <textarea wire:model.defer="newWhseName" rows="2" placeholder="Ex: Gudang Finish Good Gedung B" 
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-emerald-500 outline-none font-bold text-sm transition-all"></textarea>
+                        @error('newWhseName') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800">
+                        💡 Setelah gudang baru dibuat, sistem otomatis mengalihkan ke gudang ini sehingga Anda bisa langsung klik <strong>+ ADD RACK</strong> untuk membuat rak.
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button wire:click="$set('showCreateWarehouseModal', false)" class="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all">Batal</button>
+                        <button wire:click="createWarehouse" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-md">Buat Gudang</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Edit Warehouse Modal -->
     @if($showEditWarehouseModal)
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -465,6 +547,15 @@
                             class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-bold text-sm transition-all"></textarea>
                         @error('whseName') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
                     </div>
+
+                    @if($racks->isEmpty() && count($warehouses) > 1)
+                        <div class="pt-2 border-t border-gray-100 flex justify-between items-center">
+                            <span class="text-[10px] text-gray-400 italic">Gudang belum memiliki rak</span>
+                            <button type="button" wire:click="deleteWarehouse({{ $whseId }})" onclick="return confirm('Apakah Anda yakin ingin menghapus gudang {{ $whseCode }}? Tindakan ini tidak dapat dibatalkan.')" class="text-red-500 hover:text-red-700 text-xs font-bold underline cursor-pointer">
+                                Hapus Gudang Ini
+                            </button>
+                        </div>
+                    @endif
 
                     <div class="flex gap-3 pt-2">
                         <button wire:click="$set('showEditWarehouseModal', false)" class="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all">Batal</button>
@@ -550,6 +641,9 @@
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
                 <div class="bg-blue-600 p-8 text-white text-center">
+                    <span class="px-2.5 py-0.5 bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-wider mb-2 inline-block">
+                        Gudang: {{ $whseCode }} ({{ $whseName }})
+                    </span>
                     <h3 class="text-xl font-black italic uppercase tracking-tighter">Add New Rack</h3>
                     <div class="w-10 h-1 bg-white/20 mx-auto mt-2 rounded"></div>
                 </div>
