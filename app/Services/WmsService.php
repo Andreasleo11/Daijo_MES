@@ -175,4 +175,46 @@ class WmsService
             'notes' => $notes
         ]);
     }
+
+    /**
+     * Get sorted pick recommendations by Shortest Path to Exit Gate.
+     *
+     * @param string $partNo Part number to pick
+     * @param float $neededQty Quantity needed (0 for all available)
+     * @return \Illuminate\Support\Collection
+     */
+    public function getShortestPathPickLocations(string $partNo, float $neededQty = 0)
+    {
+        $pallets = WmsPalletForm::with(['position.rack'])
+            ->whereNotNull('position_id')
+            ->where('status', 'STORED')
+            ->where('total_pallet_qty', '>', 0)
+            ->where(function($q) use ($partNo) {
+                $q->where('part_no', $partNo)
+                  ->orWhereHas('details', function($dq) use ($partNo) {
+                      $dq->where('part_no', $partNo)->where('qty', '>', 0);
+                  });
+            })
+            ->get();
+
+        $sorted = $pallets->sortBy(function($plt) {
+            return $plt->position?->distance_score ?? 99999;
+        })->values();
+
+        if ($neededQty <= 0) {
+            return $sorted;
+        }
+
+        $allocated = collect();
+        $accum = 0;
+        foreach ($sorted as $p) {
+            $allocated->push($p);
+            $accum += (float) $p->total_pallet_qty;
+            if ($accum >= $neededQty) {
+                break;
+            }
+        }
+
+        return $allocated;
+    }
 }

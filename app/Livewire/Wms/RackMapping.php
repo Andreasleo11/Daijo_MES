@@ -6,11 +6,14 @@ use App\Models\WmsRack;
 use App\Models\WmsPosition;
 use App\Services\WmsService;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class RackMapping extends Component
 {
+    use WithFileUploads;
+
     // Slot Detail & Edit State
     public $selectedPositionId;
     public $editMaxCapacity;
@@ -19,7 +22,9 @@ class RackMapping extends Component
     // Filtering & Search State
     public $filterCustomer = '';
     public $searchItem = '';
-    protected $queryString = ['filterCustomer', 'searchItem', 'whseId'];
+    public $viewMode = 'layout'; // 'layout' (denah 2D) or 'grid' (card list)
+    public $activeLevel = 1;    // Level filter for 2D layout (1, 2, 3)
+    protected $queryString = ['filterCustomer', 'searchItem', 'whseId', 'viewMode', 'activeLevel'];
     
     // UI State
     public $showDetail = false;
@@ -36,6 +41,9 @@ class RackMapping extends Component
     public $whseId = null;
     public $whseName = '';
     public $whseCode = '';
+    public $whseExitLocation = 'BOTTOM_RIGHT';
+    public $uploadBlueprint = null;
+    public $currentLayoutImage = null;
     public $showEditWarehouseModal = false;
 
     // Create Warehouse State
@@ -200,16 +208,18 @@ class RackMapping extends Component
 
         if ($samplePos && !empty($samplePos->position_code)) {
             // Pattern: WHSE-CUST-RACK-L1S1
-            if (preg_match('/^[A-Za-z0-9]+-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+S\d+$/i', $samplePos->position_code, $matches)) {
-                $custCode = $matches[1];
-                return "{$whseCode}-{$custCode}-{$rack->rack_code}-L{$levelNo}S{$slotNo}";
+            if (preg_match('/^([A-Za-z0-9]+)-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+S\d+$/i', $samplePos->position_code, $matches)) {
+                $whsePrefix = $matches[1];
+                $custCode = $matches[2];
+                return "{$whsePrefix}-{$custCode}-{$rack->rack_code}-L{$levelNo}S{$slotNo}";
             }
             // Pattern: WHSE-CUST-RACK-L01-S01
-            if (preg_match('/^[A-Za-z0-9]+-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+-S\d+$/i', $samplePos->position_code, $matches)) {
-                $custCode = $matches[1];
+            if (preg_match('/^([A-Za-z0-9]+)-([A-Za-z0-9]+)-[A-Za-z0-9]+-L\d+-S\d+$/i', $samplePos->position_code, $matches)) {
+                $whsePrefix = $matches[1];
+                $custCode = $matches[2];
                 $lStr = str_pad($levelNo, 2, '0', STR_PAD_LEFT);
                 $sStr = str_pad($slotNo, 2, '0', STR_PAD_LEFT);
-                return "{$whseCode}-{$custCode}-{$rack->rack_code}-L{$lStr}-S{$sStr}";
+                return "{$whsePrefix}-{$custCode}-{$rack->rack_code}-L{$lStr}-S{$sStr}";
             }
         }
 
@@ -429,8 +439,22 @@ class RackMapping extends Component
             $this->whseId = $warehouse->id;
             $this->whseName = $warehouse->whse_name;
             $this->whseCode = $warehouse->whse_code;
+            $this->whseExitLocation = $warehouse->exit_location ?? 'BOTTOM_RIGHT';
+            $this->currentLayoutImage = $warehouse->layout_image;
         }
+        $this->uploadBlueprint = null;
         $this->showEditWarehouseModal = true;
+    }
+
+    public function removeLayoutImage()
+    {
+        $warehouse = \App\Models\WmsWarehouse::find($this->whseId);
+        if ($warehouse && $warehouse->layout_image) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($warehouse->layout_image);
+            $warehouse->update(['layout_image' => null]);
+            $this->currentLayoutImage = null;
+            session()->flash('success', 'Gambar layout berhasil dihapus.');
+        }
     }
 
     public function saveWarehouse()
@@ -443,26 +467,40 @@ class RackMapping extends Component
                 'max:50',
                 Rule::unique('wms_warehouses', 'whse_code')->ignore($this->whseId)->whereNull('deleted_at'),
             ],
+            'whseExitLocation' => 'required|in:BOTTOM_LEFT,BOTTOM_RIGHT,TOP_LEFT,TOP_RIGHT',
+            'uploadBlueprint' => 'nullable|image|max:5120',
         ]);
 
         $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
+        
+        $imagePath = $warehouse?->layout_image;
+        if ($this->uploadBlueprint) {
+            $imagePath = $this->uploadBlueprint->store('wms/layouts', 'public');
+        }
+
         if (!$warehouse) {
             $warehouse = \App\Models\WmsWarehouse::create([
                 'whse_code' => strtoupper(trim($this->whseCode)),
                 'whse_name' => trim($this->whseName),
+                'exit_location' => $this->whseExitLocation,
+                'layout_image' => $imagePath,
             ]);
         } else {
             $warehouse->update([
                 'whse_name' => trim($this->whseName),
                 'whse_code' => strtoupper(trim($this->whseCode)),
+                'exit_location' => $this->whseExitLocation,
+                'layout_image' => $imagePath,
             ]);
         }
 
         $this->whseId = $warehouse->id;
         $this->whseName = $warehouse->whse_name;
         $this->whseCode = $warehouse->whse_code;
+        $this->currentLayoutImage = $warehouse->layout_image;
+        $this->uploadBlueprint = null;
 
-        session()->flash('success', 'Informasi Gudang berhasil diperbarui.');
+        session()->flash('success', 'Informasi Gudang & Denah Layout berhasil disimpan.');
         $this->showEditWarehouseModal = false;
     }
 
@@ -846,10 +884,19 @@ class RackMapping extends Component
         $warehouse = \App\Models\WmsWarehouse::find($this->whseId) ?? \App\Models\WmsWarehouse::first();
         $warehouses = \App\Models\WmsWarehouse::orderBy('whse_code')->get();
 
+        $racksByCode = $racks->keyBy('rack_code');
+        $racksSortedByDistance = $racks->sortBy('distance_score')->values();
+        $rackRanks = [];
+        foreach ($racksSortedByDistance as $idx => $r) {
+            $rackRanks[$r->rack_code] = $idx + 1;
+        }
+
         return view('livewire.wms.rack-mapping', [
             'warehouse'           => $warehouse,
             'warehouses'          => $warehouses,
             'racks'               => $racks,
+            'racksByCode'         => $racksByCode,
+            'rackRanks'           => $rackRanks,
             'selectedPosData'     => $selectedPosData,
             'customers'           => $customers,
             'unassignedPallets'   => $unassignedPallets,

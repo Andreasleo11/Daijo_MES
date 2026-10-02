@@ -23,8 +23,9 @@
 
                     <!-- Action Buttons for Warehouse -->
                     <div class="flex items-center gap-1.5">
-                        <button wire:click="openEditWarehouseModal" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 bg-gray-100 rounded-xl transition border border-gray-200 cursor-pointer" title="Edit Informasi Gudang Aktif">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        <button wire:click="openEditWarehouseModal" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-black transition border border-blue-200 shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Upload Gambar Layout & Edit Pengaturan Gudang">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            <span>📷 UPLOAD LAYOUT / EDIT GUDANG</span>
                         </button>
                         
                         <button wire:click="openCreateWarehouseModal" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
@@ -104,6 +105,20 @@
                     </select>
                 </div>
 
+                <!-- View Mode Switcher -->
+                <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-2xs">
+                    <button wire:click="$set('viewMode', 'layout')" 
+                            class="px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1.5 cursor-pointer {{ $viewMode === 'layout' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-600 hover:text-blue-600' }}"
+                            title="Tampilkan Denah Fisik 2D Sesuai Layout Gudang Asli">
+                        <span>🗺️ Denah 2D ({{ $warehouse->whse_code ?? 'Gudang' }})</span>
+                    </button>
+                    <button wire:click="$set('viewMode', 'grid')" 
+                            class="px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1.5 cursor-pointer {{ $viewMode === 'grid' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-600 hover:text-blue-600' }}"
+                            title="Tampilkan Kartu Rak Standar">
+                        <span>📋 Grid Kartu</span>
+                    </button>
+                </div>
+
                 <div class="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <div class="flex items-center px-3 py-1 bg-white rounded-lg border border-gray-200 text-[10px] font-bold text-gray-400">
                         <span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span> EMPTY
@@ -153,9 +168,20 @@
         @endif
 
         <div class="flex flex-col lg:flex-row gap-6">
-            <!-- Grid Container -->
-            <div class="flex-grow flex flex-wrap gap-6 items-start" id="mapping-grid">
-                @forelse($racks as $rack)
+            <!-- Main Mapping View (2D Layout or Card Grid) -->
+            <div class="flex-grow min-w-0">
+                @if($viewMode === 'layout')
+                    @if(str_contains(strtoupper($warehouse->whse_code ?? ''), 'GUA'))
+                        @include('livewire.wms.partials.gua-layout')
+                    @elseif(str_contains(strtoupper($warehouse->whse_code ?? ''), '06') || str_contains(strtoupper($warehouse->whse_code ?? ''), 'J06'))
+                        @include('livewire.wms.partials.j06-layout')
+                    @else
+                        @include('livewire.wms.partials.gub-layout')
+                    @endif
+                @else
+                    <!-- Grid Container -->
+                    <div class="flex flex-wrap gap-6 items-start" id="mapping-grid">
+                        @forelse($racks as $rack)
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)]">
                         <div class="flex justify-between items-center border-b border-gray-50 pb-3">
                             <div class="flex items-center gap-2">
@@ -269,6 +295,8 @@
                         </button>
                     </div>
                 @endforelse
+                    </div>
+                @endif
             </div>
 
             <!-- Detail Sidebar -->
@@ -546,6 +574,49 @@
                         <textarea wire:model.defer="whseName" rows="2" placeholder="Ex: Monitoring Hunian Rak Gudang J06 (Highly Marelli)" 
                             class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-bold text-sm transition-all"></textarea>
                         @error('whseName') <span class="text-[10px] text-red-500 font-bold uppercase mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <!-- Exit Location Dropdown -->
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">
+                            🚪 Posisi Pintu Keluar (Exit Gate)
+                        </label>
+                        <select wire:model.defer="whseExitLocation" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none font-bold text-xs uppercase transition-all">
+                            <option value="BOTTOM_LEFT">Kiri Bawah (Bottom-Left) — Cocok untuk GUA</option>
+                            <option value="BOTTOM_RIGHT">Kanan Bawah (Bottom-Right) — Cocok untuk GUB</option>
+                            <option value="TOP_LEFT">Kiri Atas (Top-Left)</option>
+                            <option value="TOP_RIGHT">Kanan Atas (Top-Right)</option>
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-1 italic">
+                            * Titik nol patokan penghitungan Shortest Path ke pintu keluar.
+                        </p>
+                    </div>
+
+                    <!-- Blueprint Image Upload -->
+                    <div class="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <label class="block text-[10px] font-black uppercase text-slate-700 tracking-widest">
+                            📷 Upload File Gambar Layout / Blueprint Denah
+                        </label>
+                        <input type="file" wire:model="uploadBlueprint" accept="image/png,image/jpeg,image/webp"
+                            class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                        <div wire:loading wire:target="uploadBlueprint" class="text-[10px] text-blue-600 font-bold animate-pulse">
+                            Sedang mengunggah gambar...
+                        </div>
+                        @error('uploadBlueprint') <span class="text-[10px] text-red-500 font-bold block mt-1">{{ $message }}</span> @enderror
+
+                        @if ($uploadBlueprint)
+                            <div class="mt-2 p-2 bg-white rounded-xl border border-emerald-300 space-y-1">
+                                <span class="text-[9px] font-bold text-emerald-600 uppercase">Preview Baru:</span>
+                                <img src="{{ $uploadBlueprint->temporaryUrl() }}" class="max-h-36 rounded-lg mx-auto object-contain border border-gray-100">
+                            </div>
+                        @elseif ($currentLayoutImage)
+                            <div class="mt-2 p-2 bg-white rounded-xl border border-gray-200 flex items-center justify-between gap-3">
+                                <img src="{{ asset('storage/' . $currentLayoutImage) }}" class="max-h-20 rounded-lg object-contain border border-gray-100">
+                                <button type="button" wire:click="removeLayoutImage" class="text-xs text-red-500 hover:text-red-700 font-bold underline cursor-pointer">
+                                    Hapus Gambar Denah
+                                </button>
+                            </div>
+                        @endif
                     </div>
 
                     @if($racks->isEmpty() && count($warehouses) > 1)
