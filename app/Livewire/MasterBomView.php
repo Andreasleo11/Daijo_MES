@@ -819,20 +819,21 @@ class MasterBomView extends Component
                 ->orderBy('fg_item_code')
                 ->paginate($this->fgPerPage, ['*'], 'fg_page');
 
-            // Project List mendeteksi dan mengelompokkan Family juga
-            $projectList = MasterBomFgHeader::select(
-                    DB::raw('COALESCE(NULLIF(project_code, ""), family) as project_code'),
-                    DB::raw('count(*) as count')
-                )
-                ->where(function ($q) {
-                    $q->where(function ($sq) {
-                        $sq->whereNotNull('project_code')->where('project_code', '!=', '');
-                    })->orWhere(function ($sq) {
-                        $sq->whereNotNull('family')->where('family', '!=', '');
-                    });
-                })
-                ->groupBy(DB::raw('COALESCE(NULLIF(project_code, ""), family)'))
-                ->orderBy(DB::raw('COALESCE(NULLIF(project_code, ""), family)'))
+            // Project List mendeteksi dan mengelompokkan Family juga (Subquery untuk MySQL ONLY_FULL_GROUP_BY compliance)
+            $projectList = DB::table(function ($query) {
+                    $query->from('master_bom_fg_headers')
+                        ->selectRaw('COALESCE(NULLIF(project_code, ""), family) as project_code')
+                        ->where(function ($q) {
+                            $q->where(function ($sq) {
+                                $sq->whereNotNull('project_code')->where('project_code', '!=', '');
+                            })->orWhere(function ($sq) {
+                                $sq->whereNotNull('family')->where('family', '!=', '');
+                            });
+                        });
+                }, 'sub')
+                ->select('project_code', DB::raw('COUNT(*) as count'))
+                ->groupBy('project_code')
+                ->orderBy('project_code')
                 ->get();
 
             $familyList = MasterBomFgHeader::whereNotNull('family')
