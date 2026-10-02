@@ -48,10 +48,82 @@
                     {{ $node['component_item'] }}
                 </span>
                 
-                <span class="px-2 py-0.5 text-[9px] font-black rounded-md border flex items-center gap-1 {{ $category['badge'] }}">
-                    <span>{{ $category['icon'] }}</span>
-                    <span>{{ $category['label'] }}</span>
-                </span>
+                @if(!$isWip)
+                    <!-- PE Editable Material Type Badge -->
+                    <div x-data="{ openTypeDropdown: false }" class="relative inline-block">
+                        <button type="button" 
+                                @click.stop="openTypeDropdown = !openTypeDropdown" 
+                                class="px-2 py-0.5 text-[9px] font-black rounded-md border flex items-center gap-1 cursor-pointer transition hover:opacity-85 shadow-2xs {{ $category['badge'] }}"
+                                title="Klik untuk ubah tipe material ini (Khusus PE / Engineering)">
+                            <span>{{ $category['icon'] }}</span>
+                            <span>{{ $category['label'] }}</span>
+                            <span class="text-[8px] opacity-70 ml-0.5">▼</span>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div x-show="openTypeDropdown" 
+                             @click.outside="openTypeDropdown = false" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             style="display: none;"
+                             class="absolute left-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 min-w-[200px] text-xs space-y-1">
+                            <div class="px-2 py-1 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100 flex items-center justify-between">
+                                <span>Ubah Tipe Material (PE)</span>
+                                <span class="text-gray-300 text-[9px] font-mono">{{ $node['component_item'] }}</span>
+                            </div>
+                            
+                            <button type="button" 
+                                    wire:click="updateMaterialType('{{ $node['component_item'] }}', 'RAW_MATERIAL')"
+                                    @click="openTypeDropdown = false"
+                                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-2 font-bold text-slate-800 text-[11px] cursor-pointer {{ ($node['category']['type'] ?? '') === 'RAW_MATERIAL' ? 'bg-slate-100 font-black' : '' }}">
+                                <span>🧩</span>
+                                <span>Material / Part</span>
+                            </button>
+
+                            <button type="button" 
+                                    wire:click="updateMaterialType('{{ $node['component_item'] }}', 'RESIN')"
+                                    @click="openTypeDropdown = false"
+                                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-purple-50 flex items-center gap-2 font-bold text-purple-900 text-[11px] cursor-pointer {{ ($node['category']['type'] ?? '') === 'RESIN' ? 'bg-purple-100 font-black' : '' }}">
+                                <span>🧬</span>
+                                <span>Biji Plastik / Resin</span>
+                            </button>
+
+                            <button type="button" 
+                                    wire:click="updateMaterialType('{{ $node['component_item'] }}', 'CHEMICAL')"
+                                    @click="openTypeDropdown = false"
+                                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-cyan-50 flex items-center gap-2 font-bold text-cyan-900 text-[11px] cursor-pointer {{ ($node['category']['type'] ?? '') === 'CHEMICAL' ? 'bg-cyan-100 font-black' : '' }}">
+                                <span>🧪</span>
+                                <span>Cat / Chemical</span>
+                            </button>
+
+                            <button type="button" 
+                                    wire:click="updateMaterialType('{{ $node['component_item'] }}', 'HARDWARE')"
+                                    @click="openTypeDropdown = false"
+                                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-2 font-bold text-blue-900 text-[11px] cursor-pointer {{ ($node['category']['type'] ?? '') === 'HARDWARE' ? 'bg-blue-100 font-black' : '' }}">
+                                <span>🔩</span>
+                                <span>Hardware / Fastener</span>
+                            </button>
+
+                            <button type="button" 
+                                    wire:click="updateMaterialType('{{ $node['component_item'] }}', 'PACKAGING')"
+                                    @click="openTypeDropdown = false"
+                                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 flex items-center gap-2 font-bold text-emerald-900 text-[11px] cursor-pointer {{ ($node['category']['type'] ?? '') === 'PACKAGING' ? 'bg-emerald-100 font-black' : '' }}">
+                                <span>📦</span>
+                                <span>Packaging / Kemasan</span>
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <!-- WIP Badge (Non-material, fixed type) -->
+                    <span class="px-2 py-0.5 text-[9px] font-black rounded-md border flex items-center gap-1 {{ $category['badge'] }}">
+                        <span>{{ $category['icon'] }}</span>
+                        <span>{{ $category['label'] }}</span>
+                    </span>
+                @endif
 
                 @if($hasChildren)
                     <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">

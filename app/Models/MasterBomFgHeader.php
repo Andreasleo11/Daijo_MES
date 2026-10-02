@@ -22,6 +22,9 @@ class MasterBomFgHeader extends Model
         'total_raw_count',
         'max_depth_level',
         'has_packaging',
+        'is_verified',
+        'verified_at',
+        'verified_by_name',
         'is_active',
     ];
 
@@ -30,6 +33,8 @@ class MasterBomFgHeader extends Model
         'total_raw_count' => 'integer',
         'max_depth_level' => 'integer',
         'has_packaging'   => 'boolean',
+        'is_verified'     => 'boolean',
+        'verified_at'     => 'datetime',
         'is_active'       => 'boolean',
     ];
 

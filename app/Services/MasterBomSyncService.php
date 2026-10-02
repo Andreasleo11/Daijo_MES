@@ -47,6 +47,11 @@ class MasterBomSyncService
             MasterBomComponent::query()->delete();
             MasterBomFgHeader::query()->delete();
 
+            // Load existing PE audit verifications so they are preserved
+            $verifications = \Illuminate\Support\Facades\Schema::hasTable('master_bom_verifications')
+                ? \App\Models\MasterBomVerification::all()->keyBy('parent_item')
+                : collect();
+
             $fgHeadersToInsert = [];
             $componentsToInsert = [];
             $now = now();
@@ -81,6 +86,8 @@ class MasterBomSyncService
                     [$fgCode => true] // branch visited set cegah circular
                 );
 
+                $verif = $verifications->get($fgCode);
+
                 $fgHeadersToInsert[] = [
                     'id'               => $fgId,
                     'fg_item_code'     => $fgCode,
@@ -92,6 +99,9 @@ class MasterBomSyncService
                     'total_raw_count'  => $stats['raw_count'],
                     'max_depth_level'  => $stats['max_depth'],
                     'has_packaging'    => $stats['has_packaging'],
+                    'is_verified'      => $verif ? true : false,
+                    'verified_at'      => $verif?->verified_at,
+                    'verified_by_name' => $verif?->verified_by_name,
                     'is_active'        => true,
                     'created_at'       => $now,
                     'updated_at'       => $now,

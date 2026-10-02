@@ -5,10 +5,14 @@ namespace App\Livewire;
 use App\Models\MasterBom;
 use App\Models\MasterBomFgHeader;
 use App\Models\MasterBomComponent;
+use App\Models\MasterBomVerification;
+use App\Models\MasterBomVerificationLog;
+use App\Models\MasterBomMaterialOverride;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MasterBomView extends Component
@@ -64,6 +68,12 @@ class MasterBomView extends Component
     public float $simulationQty = 1.0;
     public bool $showTreeModal = false;
 
+    // PE Audit Verification State
+    public bool $treeIsVerified = false;
+    public ?string $treeVerifiedAt = null;
+    public ?string $treeVerifiedBy = null;
+    public array $treeVerificationLogs = [];
+
     // Delete Confirmation
     public bool $showDeleteAllModal = false;
 
@@ -81,6 +91,8 @@ class MasterBomView extends Component
 
     public function mount()
     {
+        $this->ensureAuditTablesExist();
+
         // Jika tabel valid belum ada tapi data staging ada, default ke tab staging
         if (!request()->has('tab')) {
             $validCount = MasterBomFgHeader::count();
@@ -352,7 +364,225 @@ class MasterBomView extends Component
         $this->explodedTree = MasterBom::explodeTree($parentItem, 1.0);
         $this->treeSummaryData = MasterBom::getFlattenedSummary($parentItem, 1.0);
 
+        // Load verification status for this parent item
+        $verification = MasterBomVerification::where('parent_item', $parentItem)->first();
+        if (!$verification) {
+            $fg = MasterBomFgHeader::where('fg_item_code', $parentItem)->first();
+            if ($fg && $fg->is_verified) {
+                $this->treeIsVerified = true;
+                $this->treeVerifiedAt = $fg->verified_at ? \Carbon\Carbon::parse($fg->verified_at)->format('d/m/Y H:i') : null;
+                $this->treeVerifiedBy = $fg->verified_by_name;
+            } else {
+                $this->treeIsVerified = false;
+                $this->treeVerifiedAt = null;
+                $this->treeVerifiedBy = null;
+            }
+        } else {
+            $this->treeIsVerified = true;
+            $this->treeVerifiedAt = $verification->verified_at ? \Carbon\Carbon::parse($verification->verified_at)->format('d/m/Y H:i') : null;
+            $this->treeVerifiedBy = $verification->verified_by_name;
+        }
+
+        $this->loadVerificationLogs($parentItem);
         $this->showTreeModal = true;
+    }
+
+    /**
+     * Muat riwayat seluruh log verifikasi (termasuk verifikasi ulang) untuk part ini
+     */
+    public function loadVerificationLogs(string $parentItem): void
+    {
+        $this->ensureAuditTablesExist();
+        $this->treeVerificationLogs = MasterBomVerificationLog::where('parent_item', $parentItem)
+            ->orderByDesc('verified_at')
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'id'               => $log->id,
+                    'verified_at'      => $log->verified_at ? \Carbon\Carbon::parse($log->verified_at)->format('d/m/Y H:i') : '-',
+                    'verified_by_name' => $log->verified_by_name ?: 'PE Engineering',
+                    'notes'            => $log->notes ?: 'Verifikasi BOM',
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Verifikasi atau Verifikasi Ulang Audit BOM oleh PE
+     */
+    public function verifyBom(string $parentItem, ?string $note = null)
+    {
+        $this->ensureAuditTablesExist();
+        $user = auth()->user();
+        $userName = $user ? ($user->name . ' (' . ($user->role?->name ?? 'PE') . ')') : 'PE Engineering';
+        $now = now();
+        $formattedTime = $now->format('d/m/Y H:i');
+
+        // Jika log masih kosong tapi sudah pernah diverifikasi sebelumnya, backfill log lama agar tidak hilang
+        $existingLogCount = MasterBomVerificationLog::where('parent_item', $parentItem)->count();
+        if ($existingLogCount === 0) {
+            $existingVerif = MasterBomVerification::where('parent_item', $parentItem)->first();
+            if ($existingVerif && $existingVerif->verified_at) {
+                MasterBomVerificationLog::create([
+                    'parent_item'      => $parentItem,
+                    'verified_at'      => $existingVerif->verified_at,
+                    'verified_by'      => $existingVerif->verified_by,
+                    'verified_by_name' => $existingVerif->verified_by_name,
+                    'notes'            => $existingVerif->notes ?: 'Verifikasi Awal',
+                ]);
+                $existingLogCount++;
+            }
+        }
+
+        $logNote = !empty($note) 
+            ? $note 
+            : ($existingLogCount === 0 ? 'Verifikasi Awal' : 'Verifikasi Ulang #' . $existingLogCount);
+
+        // 1. Simpan baris baru di tabel history log (riwayat permanen)
+        MasterBomVerificationLog::create([
+            'parent_item'      => $parentItem,
+            'verified_at'      => $now,
+            'verified_by'      => auth()->id(),
+            'verified_by_name' => $userName,
+            'notes'            => $logNote,
+        ]);
+
+        // 2. Perbarui pointer verifikasi terakhir
+        MasterBomVerification::updateOrCreate(
+            ['parent_item' => $parentItem],
+            [
+                'verified_at'      => $now,
+                'verified_by'      => auth()->id(),
+                'verified_by_name' => $userName,
+                'notes'            => $logNote,
+            ]
+        );
+
+        MasterBomFgHeader::where('fg_item_code', $parentItem)->update([
+            'is_verified'      => true,
+            'verified_at'      => $now,
+            'verified_by_name' => $userName,
+        ]);
+
+        $this->treeIsVerified = true;
+        $this->treeVerifiedAt = $formattedTime;
+        $this->treeVerifiedBy = $userName;
+
+        $this->loadVerificationLogs($parentItem);
+
+        session()->flash('success', "✓ BOM {$parentItem} berhasil diverifikasi ({$logNote}) oleh {$userName} pada {$formattedTime}!");
+    }
+
+    /**
+     * Batalkan status verifikasi audit PE (riwayat log tetap aman)
+     */
+    public function unverifyBom(string $parentItem)
+    {
+        $this->ensureAuditTablesExist();
+        MasterBomVerification::where('parent_item', $parentItem)->delete();
+        MasterBomFgHeader::where('fg_item_code', $parentItem)->update([
+            'is_verified'      => false,
+            'verified_at'      => null,
+            'verified_by_name' => null,
+        ]);
+
+        $this->treeIsVerified = false;
+        $this->treeVerifiedAt = null;
+        $this->treeVerifiedBy = null;
+
+        $this->loadVerificationLogs($parentItem);
+
+        session()->flash('info', "Status aktif verifikasi audit BOM {$parentItem} telah dinonaktifkan (riwayat log tetap tersimpan).");
+    }
+
+    /**
+     * Override tipe material khusus PE (RAW_MATERIAL, RESIN, CHEMICAL, HARDWARE, PACKAGING)
+     */
+    public function updateMaterialType(string $itemCode, string $newType)
+    {
+        $this->ensureAuditTablesExist();
+        $user = auth()->user();
+        $userName = $user ? $user->name : 'PE Engineering';
+
+        MasterBomMaterialOverride::setOverride($itemCode, $newType, auth()->id(), $userName);
+
+        // Update in master_bom_components if present
+        MasterBomComponent::where('component_item', $itemCode)->update([
+            'item_type' => $newType,
+        ]);
+
+        // Re-explode tree to reflect changes immediately
+        if (!empty($this->selectedParentItem)) {
+            $qty = max(0.0001, (float)$this->simulationQty);
+            $this->explodedTree = MasterBom::explodeTree($this->selectedParentItem, $qty);
+            $this->treeSummaryData = MasterBom::getFlattenedSummary($this->selectedParentItem, $qty);
+        }
+
+        // If multilevel component modal is open for an FG, refresh it too
+        if ($this->selectedFgId) {
+            $this->showFgComponents($this->selectedFgId);
+        }
+
+        session()->flash('success', "Tipe material {$itemCode} berhasil diperbarui menjadi {$newType}!");
+    }
+
+    /**
+     * Pastikan tabel audit dan override terbuat secara self-healing
+     */
+    protected function ensureAuditTablesExist(): void
+    {
+        try {
+            if (!Schema::hasTable('master_bom_verifications')) {
+                Schema::create('master_bom_verifications', function ($table) {
+                    $table->id();
+                    $table->string('parent_item', 100)->unique()->index();
+                    $table->timestamp('verified_at');
+                    $table->unsignedBigInteger('verified_by')->nullable();
+                    $table->string('verified_by_name', 150)->nullable();
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            if (!Schema::hasTable('master_bom_verification_logs')) {
+                Schema::create('master_bom_verification_logs', function ($table) {
+                    $table->id();
+                    $table->string('parent_item', 100)->index();
+                    $table->timestamp('verified_at');
+                    $table->unsignedBigInteger('verified_by')->nullable();
+                    $table->string('verified_by_name', 150)->nullable();
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            if (!Schema::hasTable('master_bom_material_overrides')) {
+                Schema::create('master_bom_material_overrides', function ($table) {
+                    $table->id();
+                    $table->string('item_code', 100)->unique()->index();
+                    $table->string('item_type', 30);
+                    $table->unsignedBigInteger('updated_by')->nullable();
+                    $table->string('updated_by_name', 150)->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            if (Schema::hasTable('master_bom_fg_headers')) {
+                Schema::table('master_bom_fg_headers', function ($table) {
+                    if (!Schema::hasColumn('master_bom_fg_headers', 'is_verified')) {
+                        $table->boolean('is_verified')->default(false);
+                    }
+                    if (!Schema::hasColumn('master_bom_fg_headers', 'verified_at')) {
+                        $table->timestamp('verified_at')->nullable();
+                    }
+                    if (!Schema::hasColumn('master_bom_fg_headers', 'verified_by_name')) {
+                        $table->string('verified_by_name', 150)->nullable();
+                    }
+                });
+            }
+        } catch (\Throwable $e) {
+            // Silently ignore if already created concurrently
+        }
     }
 
     public function updateSimulation()
@@ -370,6 +600,9 @@ class MasterBomView extends Component
         $this->selectedParentDesc = null;
         $this->explodedTree = [];
         $this->treeSummaryData = [];
+        $this->treeIsVerified = false;
+        $this->treeVerifiedAt = null;
+        $this->treeVerifiedBy = null;
     }
 
     /**

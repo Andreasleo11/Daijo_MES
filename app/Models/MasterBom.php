@@ -60,6 +60,13 @@ class MasterBom extends Model
         }
 
         $code = strtoupper(trim($itemCode));
+
+        // 0. Prioritas Utama: Cek jika ada Override Tipe Material manual oleh PE / Engineering
+        $manualOverride = MasterBomMaterialOverride::getOverrideFor($code);
+        if ($manualOverride) {
+            return self::formatCategoryFromType($manualOverride);
+        }
+
         $desc = strtoupper(trim($desc));
 
         // 1. Packaging / Kemasan (PRIORITAS UTAMA: Box, Partisi, Board, Bag, Karton, dsb)
@@ -130,6 +137,57 @@ class MasterBom extends Model
             'icon'   => '🧩',
             'color'  => 'slate',
         ];
+    }
+
+    /**
+     * Format array kategori dan styling badge berdasarkan kode tipe (RAW_MATERIAL, RESIN, CHEMICAL, HARDWARE, PACKAGING, WIP)
+     */
+    public static function formatCategoryFromType(string $type): array
+    {
+        return match (strtoupper(trim($type))) {
+            'PACKAGING' => [
+                'type'   => 'PACKAGING',
+                'label'  => 'Packaging / Kemasan',
+                'badge'  => 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                'icon'   => '📦',
+                'color'  => 'emerald',
+            ],
+            'CHEMICAL' => [
+                'type'   => 'CHEMICAL',
+                'label'  => 'Cat / Chemical',
+                'badge'  => 'bg-cyan-100 text-cyan-900 border-cyan-300',
+                'icon'   => '🧪',
+                'color'  => 'cyan',
+            ],
+            'RESIN' => [
+                'type'   => 'RESIN',
+                'label'  => 'Biji Plastik / Resin',
+                'badge'  => 'bg-purple-100 text-purple-900 border-purple-300',
+                'icon'   => '🧬',
+                'color'  => 'purple',
+            ],
+            'HARDWARE' => [
+                'type'   => 'HARDWARE',
+                'label'  => 'Hardware / Fastener',
+                'badge'  => 'bg-blue-100 text-blue-900 border-blue-300',
+                'icon'   => '🔩',
+                'color'  => 'blue',
+            ],
+            'WIP' => [
+                'type'   => 'WIP',
+                'label'  => 'WIP / Sub-Assembly',
+                'badge'  => 'bg-amber-100 text-amber-900 border-amber-300',
+                'icon'   => '⚙️',
+                'color'  => 'amber',
+            ],
+            default => [
+                'type'   => 'RAW_MATERIAL',
+                'label'  => 'Material / Part',
+                'badge'  => 'bg-slate-100 text-slate-800 border-slate-300',
+                'icon'   => '🧩',
+                'color'  => 'slate',
+            ],
+        };
     }
 
     /**

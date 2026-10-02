@@ -277,6 +277,7 @@
                             <th class="py-3 px-4 text-center">Bahan Baku</th>
                             <th class="py-3 px-4 text-center">Kedalaman</th>
                             <th class="py-3 px-4 text-center">Kemasan</th>
+                            <th class="py-3 px-3 text-center">Audit PE</th>
                             <th class="py-3 px-4 text-center">Aksi / Eksplorasi</th>
                         </tr>
                     </thead>
@@ -361,6 +362,34 @@
                                         </span>
                                     @else
                                         <span class="text-gray-300 text-[10px]">-</span>
+                                    @endif
+                                </td>
+
+                                <!-- Audit PE -->
+                                <td class="py-3 px-3 text-center">
+                                    @if($fg->is_verified)
+                                        <div class="inline-flex items-center gap-1.5 justify-center">
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 shadow-2xs cursor-help" 
+                                                  title="Diverifikasi oleh {{ $fg->verified_by_name }} pada {{ $fg->verified_at ? \Carbon\Carbon::parse($fg->verified_at)->format('d/m/Y H:i') : '-' }}">
+                                                <span>✓</span>
+                                                <span>{{ $fg->verified_at ? \Carbon\Carbon::parse($fg->verified_at)->format('d/m H:i') : '-' }}</span>
+                                            </span>
+                                            <button type="button" 
+                                                    wire:click="verifyBom('{{ $fg->fg_item_code }}', 'Verifikasi Ulang PE')" 
+                                                    wire:confirm="Verifikasi ulang BOM {{ $fg->fg_item_code }} sekarang? Log verifikasi lama akan tetap tersimpan di riwayat."
+                                                    class="p-1 rounded-lg bg-gray-100 hover:bg-amber-100 text-gray-500 hover:text-amber-800 transition cursor-pointer shadow-2xs text-[10px]"
+                                                    title="Verifikasi Ulang PE (Log lama tetap tersimpan)">
+                                                🔄
+                                            </button>
+                                        </div>
+                                    @else
+                                        <button type="button" 
+                                                wire:click="verifyBom('{{ $fg->fg_item_code }}')" 
+                                                class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 hover:bg-emerald-600 text-amber-700 hover:text-white border border-amber-200 hover:border-transparent inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                                                title="Klik untuk verifikasi audit PE">
+                                            <span>⚠️</span>
+                                            <span>Verifikasi</span>
+                                        </button>
                                     @endif
                                 </td>
 
@@ -918,14 +947,71 @@
                                                 <span class="px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
                                                     ⚙️ WIP SUB-ASSY
                                                 </span>
-                                            @elseif($c->item_type === 'PACKAGING')
-                                                <span class="px-2 py-0.5 rounded text-[9px] font-black bg-teal-100 text-teal-800 border border-teal-200">
-                                                    📦 KEMASAN
-                                                </span>
                                             @else
-                                                <span class="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                    🧪 RAW MATERIAL
-                                                </span>
+                                                @php
+                                                    $typeCategory = \App\Models\MasterBom::formatCategoryFromType($c->item_type);
+                                                @endphp
+                                                <div x-data="{ openTypeDropdown: false }" class="relative inline-block">
+                                                    <button type="button" 
+                                                            @click.stop="openTypeDropdown = !openTypeDropdown" 
+                                                            class="px-2 py-0.5 rounded-md font-bold text-[9px] border inline-flex items-center gap-1 cursor-pointer hover:opacity-85 shadow-2xs {{ $typeCategory['badge'] }}"
+                                                            title="Klik untuk ubah tipe material ini (Khusus PE / Engineering)">
+                                                        <span>{{ $typeCategory['icon'] }}</span>
+                                                        <span>{{ $typeCategory['label'] }}</span>
+                                                        <span class="text-[8px] opacity-70 ml-0.5">▼</span>
+                                                    </button>
+
+                                                    <div x-show="openTypeDropdown" 
+                                                         @click.outside="openTypeDropdown = false" 
+                                                         x-transition
+                                                         style="display: none;"
+                                                         class="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 min-w-[200px] text-xs space-y-1 text-left">
+                                                        <div class="px-2 py-1 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100 flex items-center justify-between">
+                                                            <span>Ubah Tipe Material (PE)</span>
+                                                            <span class="text-gray-300 text-[9px] font-mono">{{ $c->component_item }}</span>
+                                                        </div>
+                                                        
+                                                        <button type="button" 
+                                                                wire:click="updateMaterialType('{{ $c->component_item }}', 'RAW_MATERIAL')"
+                                                                @click="openTypeDropdown = false"
+                                                                class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-2 font-bold text-slate-800 text-[11px] cursor-pointer {{ $c->item_type === 'RAW_MATERIAL' ? 'bg-slate-100 font-black' : '' }}">
+                                                            <span>🧩</span>
+                                                            <span>Material / Part</span>
+                                                        </button>
+
+                                                        <button type="button" 
+                                                                wire:click="updateMaterialType('{{ $c->component_item }}', 'RESIN')"
+                                                                @click="openTypeDropdown = false"
+                                                                class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-purple-50 flex items-center gap-2 font-bold text-purple-900 text-[11px] cursor-pointer {{ $c->item_type === 'RESIN' ? 'bg-purple-100 font-black' : '' }}">
+                                                            <span>🧬</span>
+                                                            <span>Biji Plastik / Resin</span>
+                                                        </button>
+
+                                                        <button type="button" 
+                                                                wire:click="updateMaterialType('{{ $c->component_item }}', 'CHEMICAL')"
+                                                                @click="openTypeDropdown = false"
+                                                                class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-cyan-50 flex items-center gap-2 font-bold text-cyan-900 text-[11px] cursor-pointer {{ $c->item_type === 'CHEMICAL' ? 'bg-cyan-100 font-black' : '' }}">
+                                                            <span>🧪</span>
+                                                            <span>Cat / Chemical</span>
+                                                        </button>
+
+                                                        <button type="button" 
+                                                                wire:click="updateMaterialType('{{ $c->component_item }}', 'HARDWARE')"
+                                                                @click="openTypeDropdown = false"
+                                                                class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-2 font-bold text-blue-900 text-[11px] cursor-pointer {{ $c->item_type === 'HARDWARE' ? 'bg-blue-100 font-black' : '' }}">
+                                                            <span>🔩</span>
+                                                            <span>Hardware / Fastener</span>
+                                                        </button>
+
+                                                        <button type="button" 
+                                                                wire:click="updateMaterialType('{{ $c->component_item }}', 'PACKAGING')"
+                                                                @click="openTypeDropdown = false"
+                                                                class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 flex items-center gap-2 font-bold text-emerald-900 text-[11px] cursor-pointer {{ $c->item_type === 'PACKAGING' ? 'bg-emerald-100 font-black' : '' }}">
+                                                            <span>📦</span>
+                                                            <span>Packaging / Kemasan</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             @endif
                                         </td>
 
@@ -1004,7 +1090,98 @@
                         </p>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <!-- PE Audit Verification Widget -->
+                        @if($treeIsVerified)
+                            <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-2xl px-3.5 py-1.5 shadow-2xs">
+                                <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
+                                    ✓
+                                </div>
+                                <div class="text-left">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-black text-emerald-900 tracking-tight">Audit PE Sah</span>
+                                        <span class="text-[9px] bg-emerald-200 text-emerald-950 font-black px-1.5 py-0.2 rounded">VERIFIED</span>
+                                    </div>
+                                    <div class="text-[10px] text-emerald-700 font-semibold">
+                                        {{ $treeVerifiedBy ?: 'PE Engineering' }} &bull; {{ $treeVerifiedAt }}
+                                    </div>
+                                </div>
+                                <button type="button" 
+                                        wire:click="unverifyBom('{{ $selectedParentItem }}')" 
+                                        wire:confirm="Batalkan status verifikasi audit PE untuk BOM ini? Riwayat log tetap tersimpan."
+                                        class="ml-2 text-[10px] text-slate-400 hover:text-rose-600 font-bold underline cursor-pointer"
+                                        title="Nonaktifkan status verifikasi aktif (riwayat log tetap aman)">
+                                    Batal
+                                </button>
+                            </div>
+
+                            <!-- Tombol Verifikasi Ulang -->
+                            <button type="button" 
+                                    wire:click="verifyBom('{{ $selectedParentItem }}', 'Verifikasi Ulang PE')" 
+                                    wire:confirm="Verifikasi ulang BOM {{ $selectedParentItem }} sekarang? Log lama akan tetap tersimpan di riwayat."
+                                    class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-amber-100 flex items-center gap-1.5 cursor-pointer"
+                                    title="Verifikasi ulang BOM ini (Log lama tetap tersimpan)">
+                                <span>🔄</span>
+                                <span>Verifikasi Ulang</span>
+                            </button>
+                        @else
+                            <button type="button" 
+                                    wire:click="verifyBom('{{ $selectedParentItem }}')" 
+                                    class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-100 flex items-center gap-1.5 cursor-pointer">
+                                <span>✓</span>
+                                <span>Verifikasi Audit (PE)</span>
+                            </button>
+                        @endif
+
+                        <!-- Riwayat Log Verifikasi Dropdown -->
+                        @if(!empty($treeVerificationLogs))
+                            <div x-data="{ openLogs: false }" class="relative">
+                                <button type="button" 
+                                        @click.stop="openLogs = !openLogs" 
+                                        class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                        title="Lihat riwayat seluruh log verifikasi BOM ini">
+                                    <span>📜</span>
+                                    <span>Riwayat ({{ count($treeVerificationLogs) }})</span>
+                                    <span class="text-[9px]">▼</span>
+                                </button>
+
+                                <div x-show="openLogs" 
+                                     @click.outside="openLogs = false" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     style="display: none;"
+                                     class="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 min-w-[300px] max-w-sm text-xs space-y-2">
+                                    <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+                                        <span class="font-black text-gray-900 text-xs flex items-center gap-1.5">
+                                            <span>📜</span>
+                                            <span>Riwayat Audit Verifikasi</span>
+                                        </span>
+                                        <span class="text-[10px] text-gray-400 font-bold font-mono">{{ count($treeVerificationLogs) }} Log</span>
+                                    </div>
+
+                                    <div class="max-h-60 overflow-y-auto space-y-2 pr-1">
+                                        @foreach($treeVerificationLogs as $idx => $log)
+                                            <div class="p-2.5 rounded-xl transition {{ $loop->first ? 'bg-emerald-50/80 border border-emerald-200 shadow-2xs' : 'bg-gray-50 border border-gray-100' }}">
+                                                <div class="flex items-center justify-between text-[10px]">
+                                                    <span class="font-black {{ $loop->first ? 'text-emerald-900' : 'text-gray-700' }}">
+                                                        {{ $loop->first ? '⭐ Terkini' : '#' . (count($treeVerificationLogs) - $idx) }} &bull; {{ $log['notes'] }}
+                                                    </span>
+                                                    <span class="font-mono text-gray-400 text-[9px]">{{ $log['verified_at'] }}</span>
+                                                </div>
+                                                <div class="text-[11px] font-semibold text-gray-600 mt-1">
+                                                    Oleh: <span class="font-bold text-gray-800">{{ $log['verified_by_name'] }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         <button type="button" wire:click="closeTreeModal" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm transition cursor-pointer">
                             ✕
                         </button>
@@ -1094,10 +1271,67 @@
                                             @forelse($treeSummaryData['materials'] ?? [] as $mat)
                                                 <tr class="hover:bg-gray-50/60 transition">
                                                     <td class="py-2.5 px-4">
-                                                        <span class="px-2 py-0.5 rounded-md font-bold text-[9px] border inline-flex items-center gap-1 {{ $mat['category']['badge'] }}">
-                                                            <span>{{ $mat['category']['icon'] }}</span>
-                                                            <span>{{ $mat['category']['label'] }}</span>
-                                                        </span>
+                                                        <div x-data="{ openTypeDropdown: false }" class="relative inline-block">
+                                                            <button type="button" 
+                                                                    @click.stop="openTypeDropdown = !openTypeDropdown" 
+                                                                    class="px-2 py-0.5 rounded-md font-bold text-[9px] border inline-flex items-center gap-1 cursor-pointer hover:opacity-85 shadow-2xs {{ $mat['category']['badge'] }}"
+                                                                    title="Klik untuk ubah tipe material ini (Khusus PE / Engineering)">
+                                                                <span>{{ $mat['category']['icon'] }}</span>
+                                                                <span>{{ $mat['category']['label'] }}</span>
+                                                                <span class="text-[8px] opacity-70 ml-0.5">▼</span>
+                                                            </button>
+
+                                                            <div x-show="openTypeDropdown" 
+                                                                 @click.outside="openTypeDropdown = false" 
+                                                                 x-transition
+                                                                 style="display: none;"
+                                                                 class="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 min-w-[200px] text-xs space-y-1">
+                                                                <div class="px-2 py-1 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100 flex items-center justify-between">
+                                                                    <span>Ubah Tipe Material (PE)</span>
+                                                                    <span class="text-gray-300 text-[9px] font-mono">{{ $mat['item_code'] }}</span>
+                                                                </div>
+                                                                
+                                                                <button type="button" 
+                                                                        wire:click="updateMaterialType('{{ $mat['item_code'] }}', 'RAW_MATERIAL')"
+                                                                        @click="openTypeDropdown = false"
+                                                                        class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-2 font-bold text-slate-800 text-[11px] cursor-pointer {{ ($mat['category']['type'] ?? '') === 'RAW_MATERIAL' ? 'bg-slate-100 font-black' : '' }}">
+                                                                    <span>🧩</span>
+                                                                    <span>Material / Part</span>
+                                                                </button>
+
+                                                                <button type="button" 
+                                                                        wire:click="updateMaterialType('{{ $mat['item_code'] }}', 'RESIN')"
+                                                                        @click="openTypeDropdown = false"
+                                                                        class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-purple-50 flex items-center gap-2 font-bold text-purple-900 text-[11px] cursor-pointer {{ ($mat['category']['type'] ?? '') === 'RESIN' ? 'bg-purple-100 font-black' : '' }}">
+                                                                    <span>🧬</span>
+                                                                    <span>Biji Plastik / Resin</span>
+                                                                </button>
+
+                                                                <button type="button" 
+                                                                        wire:click="updateMaterialType('{{ $mat['item_code'] }}', 'CHEMICAL')"
+                                                                        @click="openTypeDropdown = false"
+                                                                        class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-cyan-50 flex items-center gap-2 font-bold text-cyan-900 text-[11px] cursor-pointer {{ ($mat['category']['type'] ?? '') === 'CHEMICAL' ? 'bg-cyan-100 font-black' : '' }}">
+                                                                    <span>🧪</span>
+                                                                    <span>Cat / Chemical</span>
+                                                                </button>
+
+                                                                <button type="button" 
+                                                                        wire:click="updateMaterialType('{{ $mat['item_code'] }}', 'HARDWARE')"
+                                                                        @click="openTypeDropdown = false"
+                                                                        class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-2 font-bold text-blue-900 text-[11px] cursor-pointer {{ ($mat['category']['type'] ?? '') === 'HARDWARE' ? 'bg-blue-100 font-black' : '' }}">
+                                                                    <span>🔩</span>
+                                                                    <span>Hardware / Fastener</span>
+                                                                </button>
+
+                                                                <button type="button" 
+                                                                        wire:click="updateMaterialType('{{ $mat['item_code'] }}', 'PACKAGING')"
+                                                                        @click="openTypeDropdown = false"
+                                                                        class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 flex items-center gap-2 font-bold text-emerald-900 text-[11px] cursor-pointer {{ ($mat['category']['type'] ?? '') === 'PACKAGING' ? 'bg-emerald-100 font-black' : '' }}">
+                                                                    <span>📦</span>
+                                                                    <span>Packaging / Kemasan</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td class="py-2.5 px-4 font-mono font-black text-gray-900">
                                                         {{ $mat['item_code'] }}
