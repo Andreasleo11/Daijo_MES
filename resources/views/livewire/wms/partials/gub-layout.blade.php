@@ -36,6 +36,7 @@
                 </button>
             </div>
         </div>
+    </div>
 
     <!-- Layout Canvas Grid -->
     <div class="space-y-4">

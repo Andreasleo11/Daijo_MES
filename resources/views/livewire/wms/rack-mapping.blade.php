@@ -300,7 +300,7 @@
             </div>
 
             <!-- Detail Sidebar -->
-            <div class="w-full lg:w-96 flex-shrink-0">
+            <div class="{{ ($showDetail && $selectedPosData) ? 'w-full lg:w-96 flex-shrink-0 block' : ($viewMode === 'grid' ? 'w-full lg:w-96 flex-shrink-0 hidden lg:block' : 'hidden') }}">
                 @if($showDetail && $selectedPosData)
                     <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden sticky top-6 animate-in slide-in-from-right duration-300">
                         <div class="bg-blue-600 p-8 text-white relative">
@@ -501,7 +501,7 @@
                             @endif
                         </div>
                     </div>
-                @else
+                @elseif($viewMode === 'grid')
                     <div class="h-full flex items-center justify-center border-4 border-dashed border-gray-100 rounded-[3rem] p-12 grayscale opacity-40">
                         <div class="text-center space-y-4">
                             <svg class="w-20 h-20 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
