@@ -947,7 +947,28 @@ class DashboardController extends Controller
             : collect();
 
         $setupMolders = OperatorUser::where('position', 'Setup Mold')->get();
-        $adjusters    = OperatorUser::where('position', 'Adjuster')->get();
+
+        $karawangAdjusters = [
+            'Haerul Anwar',
+            'Rudi Siswanto',
+            'Rodi Khayrudin',
+            'Agung Setyawan',
+        ];
+
+        $machineName = strtoupper(trim($user->name ?? ''));
+        $isKarawangMachine = str_starts_with($machineName, 'K');
+
+        if ($isKarawangMachine) {
+            $adjusters = OperatorUser::whereIn('name', $karawangAdjusters)
+                ->orderBy('name', 'asc')
+                ->get();
+        } else {
+            $adjusters = OperatorUser::where('position', 'Adjuster')
+                ->whereNotIn('name', $karawangAdjusters)
+                ->orderBy('name', 'asc')
+                ->get();
+        }
+
         $allOperators = OperatorUser::orderBy('name', 'asc')->get();
 
         $assignedOperators = [];
@@ -1883,6 +1904,29 @@ class DashboardController extends Controller
             'pic_name' => 'required|string|max:255',
             'item_code' => 'nullable|string|max:255',
         ]);
+
+        $karawangAdjusters = [
+            'Haerul Anwar',
+            'Rudi Siswanto',
+            'Rodi Khayrudin',
+            'Agung Setyawan',
+        ];
+
+        $user = Auth::user();
+        $machineName = strtoupper(trim($user->name ?? ''));
+        $isKarawangMachine = str_starts_with($machineName, 'K');
+
+        if ($isKarawangMachine && !in_array($request->pic_name, $karawangAdjusters)) {
+            return response()->json([
+                'error' => 'Mesin Karawang (' . ($user->name ?? 'K') . ') hanya boleh di-adjust oleh adjuster Karawang: ' . implode(', ', $karawangAdjusters) . '.'
+            ], 422);
+        }
+
+        if (!$isKarawangMachine && in_array($request->pic_name, $karawangAdjusters)) {
+            return response()->json([
+                'error' => 'Adjuster Karawang (' . $request->pic_name . ') tidak diizinkan melakukan adjust pada mesin KBN (' . ($user->name ?? 'KBN') . ').'
+            ], 422);
+        }
 
         $currentItemCode = MachineJob::where('user_id', $userId)->value('item_code');
         $operatorUser = OperatorUser::where('name', $request->pic_name)->first();
