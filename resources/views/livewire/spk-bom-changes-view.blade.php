@@ -737,11 +737,25 @@
                         @error('editPlanQty') <span class="text-[11px] text-red-600 font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
-                    <div>
+                    <div x-data="{
+                            base: @entangle('editBaseQty'),
+                            target: {{ (float) $editSpkPlannedQty }},
+                            calcPlan() {
+                                let v = parseFloat(String(this.base || '').replace(',', '.'));
+                                if (!isNaN(v) && v > 0 && this.target > 0) {
+                                    $wire.set('editPlanQty', (v * this.target).toFixed(4));
+                                }
+                            }
+                         }">
                         <label class="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1">
                             Base Qty (Opsional / Per Unit FG)
                         </label>
-                        <input type="text" inputmode="decimal" wire:model.live.debounce.250ms="editBaseQty" placeholder="Biarkan kosong jika tidak diubah..."
+                        <input type="text" 
+                            inputmode="decimal" 
+                            x-model="base"
+                            @input="calcPlan()"
+                            wire:model.blur="editBaseQty" 
+                            placeholder="Biarkan kosong jika tidak diubah..."
                             class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
 
@@ -837,14 +851,26 @@
                     </div>
 
                     <!-- Input Base Qty & Auto-Calculated Plan Qty Strip -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                         x-data="{
+                            base: @entangle('addBaseQty'),
+                            target: {{ (float) $addSpkPlannedQty }},
+                            get planCalculated() {
+                                let v = parseFloat(String(this.base || '').replace(',', '.'));
+                                return (!isNaN(v) && v > 0) ? (v * this.target).toFixed(4) : '-';
+                            }
+                         }">
                         <!-- 1. BASE QTY (INPUT UTAMA OLEH USER) -->
                         <div>
                             <label class="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                                 <span>Base Qty (Per Unit FG)</span>
                                 <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" inputmode="decimal" wire:model.live.debounce.250ms="addBaseQty" placeholder="Contoh: 0.15"
+                            <input type="text" 
+                                inputmode="decimal" 
+                                x-model="base"
+                                wire:model.blur="addBaseQty" 
+                                placeholder="Contoh: 0.15"
                                 class="w-full px-3.5 py-2.5 bg-white border-2 border-emerald-500 rounded-xl text-sm font-black text-gray-900 focus:ring-2 focus:ring-emerald-400 outline-none font-mono shadow-xs">
                             <span class="text-[10px] text-gray-500 font-semibold mt-1 block">
                                 Kebutuhan per 1 unit FG
@@ -859,7 +885,7 @@
                                 <span class="text-[9px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-bold">Auto SPK</span>
                             </label>
                             <div class="px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-mono font-black text-gray-800 flex items-center justify-between">
-                                <span>{{ $addPlanQty !== null ? number_format($addPlanQty, 4) : '-' }}</span>
+                                <span class="font-mono font-black text-gray-800 text-sm" x-text="planCalculated"></span>
                                 <span class="text-[11px] text-gray-400 font-semibold">PCS/KG</span>
                             </div>
                             <span class="text-[10px] text-emerald-700 font-bold mt-1 block">
@@ -1027,13 +1053,25 @@
                         </div>
 
                         <!-- Grid Base Qty & Auto Plan Qty -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                             x-data="{
+                                base: @entangle('replaceBaseQty'),
+                                target: {{ (float) $replaceSpkPlannedQty }},
+                                get planCalculated() {
+                                    let v = parseFloat(String(this.base || '').replace(',', '.'));
+                                    return (!isNaN(v) && v > 0) ? (v * this.target).toFixed(4) : '-';
+                                }
+                             }">
                             <div>
                                 <label class="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                                     <span>Base Qty (Per Unit FG)</span>
                                     <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" inputmode="decimal" wire:model.live.debounce.250ms="replaceBaseQty" placeholder="Contoh: 0.15"
+                                <input type="text" 
+                                    inputmode="decimal" 
+                                    x-model="base"
+                                    wire:model.blur="replaceBaseQty" 
+                                    placeholder="Contoh: 0.15"
                                     class="w-full px-3.5 py-2.5 bg-white border-2 border-amber-500 rounded-xl text-sm font-black text-gray-900 focus:ring-2 focus:ring-amber-400 outline-none font-mono shadow-xs">
                                 <span class="text-[10px] text-gray-500 font-semibold mt-1 block">Kebutuhan per unit</span>
                                 @error('replaceBaseQty') <span class="text-[11px] text-red-600 font-bold mt-1 block">{{ $message }}</span> @enderror
@@ -1045,7 +1083,7 @@
                                     <span class="text-[9px] px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded font-bold">Auto SPK</span>
                                 </label>
                                 <div class="px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-mono font-black text-gray-800 flex items-center justify-between">
-                                    <span>{{ $replacePlanQty !== null ? number_format($replacePlanQty, 4) : '-' }}</span>
+                                    <span class="font-mono font-black text-gray-800 text-sm" x-text="planCalculated"></span>
                                     <span class="text-[11px] text-gray-400 font-semibold">PCS/KG</span>
                                 </div>
                                 <span class="text-[10px] text-amber-700 font-bold mt-1 block">

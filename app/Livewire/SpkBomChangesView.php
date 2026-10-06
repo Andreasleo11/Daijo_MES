@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\MasterBom;
 use App\Models\MasterBomFgHeader;
 use App\Models\MasterListItem;
+use App\Models\MasterListMaterial;
 use App\Models\SpkBomChangeLog;
 use App\Models\SpkMaster;
 use App\Services\SpkBomService;
@@ -400,11 +401,12 @@ class SpkBomChangesView extends Component
     public function updatedAddItemCode(): void
     {
         $this->showAddDropdown = true;
-        $match = MasterListItem::where('item_code', trim($this->addItemCode))->first();
+        $match = MasterListMaterial::where('item_code', trim($this->addItemCode))->first();
         if ($match) {
-            $this->addItemName = $match->item_name ?: '';
+            $this->addItemName = $match->item_description ?: $match->item_code;
         } else {
-            $this->addItemName = '';
+            $fallback = MasterListItem::where('item_code', trim($this->addItemCode))->first();
+            $this->addItemName = $fallback?->item_name ?: '';
         }
     }
 
@@ -414,13 +416,42 @@ class SpkBomChangesView extends Component
         if (strlen($term) < 1) {
             return [];
         }
-        return MasterListItem::where(function ($q) use ($term) {
+
+        // 1. Ambil dari MasterListMaterial
+        $list = MasterListMaterial::where(function ($q) use ($term) {
                 $q->where('item_code', 'like', "%{$term}%")
-                  ->orWhere('item_name', 'like', "%{$term}%");
+                  ->orWhere('item_description', 'like', "%{$term}%");
             })
             ->limit(15)
-            ->get(['item_code', 'item_name'])
+            ->get(['item_code', 'item_description', 'purchasing_uom'])
+            ->map(function ($item) {
+                return [
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_description ?: $item->item_code,
+                    'uom'       => $item->purchasing_uom ?: 'PCS',
+                ];
+            })
             ->toArray();
+
+        // 2. Fallback ke MasterListItem jika tidak ditemukan di MasterListMaterial
+        if (empty($list)) {
+            $list = MasterListItem::where(function ($q) use ($term) {
+                    $q->where('item_code', 'like', "%{$term}%")
+                      ->orWhere('item_name', 'like', "%{$term}%");
+                })
+                ->limit(15)
+                ->get(['item_code', 'item_name'])
+                ->map(function ($item) {
+                    return [
+                        'item_code' => $item->item_code,
+                        'item_name' => $item->item_name ?: $item->item_code,
+                        'uom'       => 'PCS',
+                    ];
+                })
+                ->toArray();
+        }
+
+        return $list;
     }
 
     public function selectAddMaterial(string $itemCode, ?string $itemName = null): void
@@ -566,11 +597,12 @@ class SpkBomChangesView extends Component
     public function updatedReplaceNewItemCode(): void
     {
         $this->showReplaceDropdown = true;
-        $match = MasterListItem::where('item_code', trim($this->replaceNewItemCode))->first();
+        $match = MasterListMaterial::where('item_code', trim($this->replaceNewItemCode))->first();
         if ($match) {
-            $this->replaceNewItemName = $match->item_name ?: '';
+            $this->replaceNewItemName = $match->item_description ?: $match->item_code;
         } else {
-            $this->replaceNewItemName = '';
+            $fallback = MasterListItem::where('item_code', trim($this->replaceNewItemCode))->first();
+            $this->replaceNewItemName = $fallback?->item_name ?: '';
         }
     }
 
@@ -580,13 +612,42 @@ class SpkBomChangesView extends Component
         if (strlen($term) < 1) {
             return [];
         }
-        return MasterListItem::where(function ($q) use ($term) {
+
+        // 1. Ambil dari MasterListMaterial
+        $list = MasterListMaterial::where(function ($q) use ($term) {
                 $q->where('item_code', 'like', "%{$term}%")
-                  ->orWhere('item_name', 'like', "%{$term}%");
+                  ->orWhere('item_description', 'like', "%{$term}%");
             })
             ->limit(15)
-            ->get(['item_code', 'item_name'])
+            ->get(['item_code', 'item_description', 'purchasing_uom'])
+            ->map(function ($item) {
+                return [
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_description ?: $item->item_code,
+                    'uom'       => $item->purchasing_uom ?: 'PCS',
+                ];
+            })
             ->toArray();
+
+        // 2. Fallback ke MasterListItem jika tidak ditemukan di MasterListMaterial
+        if (empty($list)) {
+            $list = MasterListItem::where(function ($q) use ($term) {
+                    $q->where('item_code', 'like', "%{$term}%")
+                      ->orWhere('item_name', 'like', "%{$term}%");
+                })
+                ->limit(15)
+                ->get(['item_code', 'item_name'])
+                ->map(function ($item) {
+                    return [
+                        'item_code' => $item->item_code,
+                        'item_name' => $item->item_name ?: $item->item_code,
+                        'uom'       => 'PCS',
+                    ];
+                })
+                ->toArray();
+        }
+
+        return $list;
     }
 
     public function selectReplaceMaterial(string $itemCode, ?string $itemName = null): void

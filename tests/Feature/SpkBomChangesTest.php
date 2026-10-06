@@ -6,6 +6,7 @@ use App\Livewire\SpkBomChangesView;
 use App\Models\MasterBom;
 use App\Models\MasterBomComponent;
 use App\Models\MasterBomFgHeader;
+use App\Models\MasterListMaterial;
 use App\Models\Role;
 use App\Models\SpkMaster;
 use App\Models\User;
@@ -73,6 +74,16 @@ class SpkBomChangesTest extends TestCase
             $table->string('item_code')->unique();
             $table->string('item_name')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('master_list_materials', function ($table) {
+            $table->id();
+            $table->string('item_code')->unique();
+            $table->text('item_description')->nullable();
+            $table->string('preferred_supplier')->nullable();
+            $table->string('purchasing_uom')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('spk_masters', function ($table) {
@@ -908,6 +919,65 @@ class SpkBomChangesTest extends TestCase
         // Akses route SPK BOM Changes oleh PPIC
         $responsePpic = $this->actingAs($ppicUser)->get(route('spk.bom-changes.index'));
         $responsePpic->assertStatus(200);
+    }
+
+    public function test_dropdown_suggestions_are_fetched_from_master_list_material(): void
+    {
+        $role = Role::create(['name' => 'SUPERADMIN']);
+        $user = User::create([
+            'name'     => 'Andreas Material',
+            'email'    => 'andreas_mat@daijo.co.id',
+            'password' => bcrypt('secret'),
+            'role_id'  => $role->id,
+        ]);
+        $this->actingAs($user);
+
+        // Buat data di master_list_materials
+        MasterListMaterial::create([
+            'item_code'        => 'RAW-RESIN-PP-01',
+            'item_description' => 'BIJI PLASTIK RESIN PP HITAM',
+            'purchasing_uom'   => 'KG',
+        ]);
+
+        MasterListMaterial::create([
+            'item_code'        => 'RAW-PAINT-RED-02',
+            'item_description' => 'CAT MERAH GLOSS AUTOMOTIVE',
+            'purchasing_uom'   => 'LT',
+        ]);
+
+        SpkMaster::create([
+            'spk_number'        => 'SPK-SUGGEST-001',
+            'item_code'         => 'FG-SUGGEST-01',
+            'planned_quantity'  => 500,
+            'production_status' => 'R',
+        ]);
+
+        $component = Livewire::test(SpkBomChangesView::class)
+            ->call('openAddMaterialModal', 'SPK-SUGGEST-001', 500)
+            ->set('addItemCode', 'RAW-RESIN');
+
+        // Verifikasi suggestion memuat item dari master_list_materials
+        $suggestions = $component->get('addItemSuggestions');
+        $this->assertNotEmpty($suggestions);
+        $this->assertEquals('RAW-RESIN-PP-01', $suggestions[0]['item_code']);
+        $this->assertEquals('BIJI PLASTIK RESIN PP HITAM', $suggestions[0]['item_name']);
+        $this->assertEquals('KG', $suggestions[0]['uom']);
+
+        // Verifikasi auto-fill nama material
+        $component->call('selectAddMaterial', 'RAW-RESIN-PP-01', 'BIJI PLASTIK RESIN PP HITAM');
+        $component->assertSet('addItemCode', 'RAW-RESIN-PP-01');
+        $component->assertSet('addItemName', 'BIJI PLASTIK RESIN PP HITAM');
+
+        // Verifikasi untuk modal Replace Material juga mengambil dari master_list_materials
+        $replaceComp = Livewire::test(SpkBomChangesView::class)
+            ->call('openReplaceModal', 'SPK-SUGGEST-001', 'OLD-ITEM', 'Old Material', 500)
+            ->set('replaceNewItemCode', 'RAW-PAINT');
+
+        $replaceSuggestions = $replaceComp->get('replaceItemSuggestions');
+        $this->assertNotEmpty($replaceSuggestions);
+        $this->assertEquals('RAW-PAINT-RED-02', $replaceSuggestions[0]['item_code']);
+        $this->assertEquals('CAT MERAH GLOSS AUTOMOTIVE', $replaceSuggestions[0]['item_name']);
+        $this->assertEquals('LT', $replaceSuggestions[0]['uom']);
     }
 }
 
