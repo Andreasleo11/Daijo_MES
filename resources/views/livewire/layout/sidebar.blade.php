@@ -151,6 +151,7 @@ new class extends Component {
                     <livewire:parent-dropdown label="WMS & Warehouse" :initiallyOpen="false" :childRoutes="[
                         ['name' => 'wms.dashboard', 'label' => 'WMS Rack Availability Dashboard'],
                         ['name' => 'wms.pallet-form.create-delivery', 'label' => 'Scan Delivery FG (Program Warehouse)'],
+                        ['name' => 'wms.pallet-form.daily-recap', 'label' => 'Rekap Harian Delivery FG'],
                         ['name' => 'wms.pallet-form.index', 'label' => 'Assign Slot & Riwayat Pallet'],
                         ['name' => 'wms.pallet-form.lookup', 'label' => 'Pallet Detail Check'],
                         ['name' => 'wms.pallet-form.sorting', 'label' => 'Pallet Sorting and Consolidation'],
@@ -361,6 +362,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('wms.pallet-form.create-delivery') }}"
                         label="Scan Delivery FG" :active="request()->routeIs('wms.pallet-form.create-delivery')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('wms.pallet-form.daily-recap') }}"
+                        label="Rekap Harian Delivery" :active="request()->routeIs('wms.pallet-form.daily-recap')" wire:navigate />
 
                     <livewire:sidebar-link href="{{ route('wms.pallet-form.index') }}"
                         label="Assign Slot & Riwayat Pallet" :active="request()->routeIs('wms.pallet-form.index')" wire:navigate />
