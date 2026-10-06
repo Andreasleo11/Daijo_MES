@@ -256,7 +256,7 @@ class ProductionDashboardService
 
         // 4. In-Memory Process All Sections Fast
         $productionResult = $this->processProductionData($dailyData, $startDate, $endDate);
-        $ngBreakdown = $this->processNgBreakdown($dailyData);
+        $ngBreakdown = $this->processNgBreakdown($dailyData, $masterItems);
         $downtimeAnalysis = $this->processDowntimeAnalysis($dailyData, $masterItems);
         $topRemarks = $this->processTopProblematicRemarks($dailyData, $masterItems);
         $machineWorkingHours = $this->processMachineWorkingHours($dailyData);
@@ -473,32 +473,101 @@ class ProductionDashboardService
     }
 
     /**
-     * Process NG breakdown by defect type
+     * Process NG breakdown by defect type with model breakdown and detailed remarks
      */
-    public function processNgBreakdown($dailyData): array
+    public function processNgBreakdown($dailyData, $masterItems = null): array
     {
         $ngBreakdown = [];
 
+        if ($masterItems === null) {
+            $neededCodes = collect($dailyData)->pluck('item_code')->filter()->unique()->values()->toArray();
+            $masterItems = !empty($neededCodes)
+                ? MasterListItem::whereIn('item_code', $neededCodes)->get()->keyBy('item_code')
+                : collect();
+        }
+
         foreach ($dailyData as $daily) {
+            $itemCode = $daily->item_code ?? 'UNKNOWN';
+            $master = $masterItems instanceof \Illuminate\Support\Collection
+                ? $masterItems->get($itemCode)
+                : ($masterItems[$itemCode] ?? null);
+            $itemName = $master?->item_name ?: $itemCode;
+            $machineName = $daily->user?->name ?: '-';
+            $dateStr = $daily->start_date ? Carbon::parse($daily->start_date)->format('d M Y') : '-';
+            $shift = $daily->shift ?? '-';
+
             foreach ($daily->hourlyRemarks as $hourly) {
                 if ($hourly->ngDetails && $hourly->ngDetails->count() > 0) {
+                    $hourLabel = ($hourly->start_time && $hourly->end_time)
+                        ? substr($hourly->start_time, 0, 5) . ' - ' . substr($hourly->end_time, 0, 5)
+                        : '-';
+                    $hourlyRemarkText = trim((string)($hourly->remark ?? ''));
+
                     foreach ($hourly->ngDetails as $ngDetail) {
-                        $ngTypeName = $ngDetail->ngType->ng_type ?? 'Unknown';
+                        $qty = (int)($ngDetail->ng_quantity ?? 0);
+                        if ($qty <= 0) continue;
+
+                        $ngTypeName = trim((string)($ngDetail->ngType->ng_type ?? 'Unknown'));
+                        if ($ngTypeName === '') $ngTypeName = 'Unknown';
+
+                        $ngRemarkText = trim((string)($ngDetail->ng_remarks ?? ''));
+
+                        // Tentukan format remark tampilan
+                        if ($ngRemarkText !== '' && $hourlyRemarkText !== '' && $ngRemarkText !== $hourlyRemarkText) {
+                            $displayRemark = $ngRemarkText . ' (' . $hourlyRemarkText . ')';
+                        } elseif ($ngRemarkText !== '') {
+                            $displayRemark = $ngRemarkText;
+                        } elseif ($hourlyRemarkText !== '') {
+                            $displayRemark = $hourlyRemarkText;
+                        } else {
+                            $displayRemark = '-';
+                        }
 
                         if (!isset($ngBreakdown[$ngTypeName])) {
                             $ngBreakdown[$ngTypeName] = [
-                                'name'  => $ngTypeName,
-                                'total' => 0,
+                                'name'   => $ngTypeName,
+                                'total'  => 0,
+                                'models' => [],
                             ];
                         }
 
-                        $ngBreakdown[$ngTypeName]['total'] += (int)($ngDetail->ng_quantity ?? 0);
+                        $ngBreakdown[$ngTypeName]['total'] += $qty;
+
+                        if (!isset($ngBreakdown[$ngTypeName]['models'][$itemCode])) {
+                            $ngBreakdown[$ngTypeName]['models'][$itemCode] = [
+                                'item_code' => $itemCode,
+                                'item_name' => $itemName,
+                                'total'     => 0,
+                                'records'   => [],
+                            ];
+                        }
+
+                        $ngBreakdown[$ngTypeName]['models'][$itemCode]['total'] += $qty;
+                        $ngBreakdown[$ngTypeName]['models'][$itemCode]['records'][] = [
+                            'date'          => $dateStr,
+                            'shift'         => $shift,
+                            'hour'          => $hourLabel,
+                            'machine'       => $machineName,
+                            'quantity'      => $qty,
+                            'remark'        => $displayRemark,
+                            'ng_remark'     => $ngRemarkText ?: null,
+                            'hourly_remark' => $hourlyRemarkText ?: null,
+                        ];
                     }
                 }
             }
         }
 
-        usort($ngBreakdown, fn($a, $b) => $b['total'] - $a['total']);
+        // Urutkan models di dalam setiap defect type berdasarkan total desc
+        foreach ($ngBreakdown as &$typeData) {
+            $models = array_values($typeData['models']);
+            usort($models, fn($a, $b) => $b['total'] <=> $a['total']);
+            $typeData['models'] = $models;
+            $typeData['models_count'] = count($models);
+        }
+        unset($typeData);
+
+        usort($ngBreakdown, fn($a, $b) => $b['total'] <=> $a['total']);
         return array_values($ngBreakdown);
     }
 
@@ -513,7 +582,7 @@ class ProductionDashboardService
         ?string $plant = null
     ): array {
         $query = DailyItemCode::query()
-            ->with(['hourlyRemarks.ngDetails.ngType'])
+            ->with(['hourlyRemarks.ngDetails.ngType', 'user:id,name'])
             ->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
 
         if ($itemCode) $query->where('item_code', $itemCode);
