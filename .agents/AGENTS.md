@@ -97,6 +97,27 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
    - Fast sub-second scan processing via composite database indexes on `scanned_data` (`[doc_num, item_code]`, `[doc_num, spk_code, label]`), `so_datas` (`[doc_num, item_code]`), and `wms_pallet_form_details` (`[part_no, label]`).
    - Frontend scanning features immediate Enter key handling, composite tab-delimited QR barcode parsing, and rapid debouncing (150ms).
 
+8. **User & Role Permissions Management (`RoleManager`, `Permission`, `Role`, `role_permissions`)**:
+   - Authorized users with `manage-users-roles` or `SUPER-ADMIN` can CRUD roles and assign/unassign granular permissions via `/user-role-manager?tab=roles`.
+   - **Database Architecture**:
+     - `permissions`: `[id, name, label, group, description]`.
+     - `role_permissions`: pivot `[role_id, permission_id]`.
+     - `roles.permissions_configured`: boolean flag distinguishing configured roles from legacy/unconfigured test fixtures, preserving 100% backward compatibility.
+   - **Gate Evaluation**: Dynamic evaluation in `AuthServiceProvider` and `User::hasPermission()`. `SUPER-ADMIN` retains root access via `Gate::before`.
+   - **Fine-Grained Pilot (Second Process Domain - Consolidated 1-Permission per Feature)**:
+     - Consolidates view and manage into 1 permission per menu/feature so Super Admin only toggles 1 permission to grant both sidebar navigation visibility and full feature capabilities:
+       - `second-process-work-orders`: Work Orders (view, create, edit, release, revert).
+       - `second-process-reports`: Daily Production Reports (view, create, edit, delete, reconcile).
+       - `second-process-dashboard`: Floor Overview Dashboard & Live Machine Monitor.
+       - `second-process-sessions`: Production Sessions / Line Gateway execution.
+       - `second-process-approvals`: Production Approvals authorization.
+       - `second-process-analytics`: Daily Report Analytics dashboard.
+       - `second-process-first-piece`: First Piece Inspection quality gates.
+       - `second-process-ipqc`: In-Process Quality Control inspection records.
+     - **Backward Compatibility & Alias Mapping**: `AuthServiceProvider` gates and `Role::defaultPermissionFallback` automatically map legacy split checks (`view-*`, `manage-*`) to the canonical feature gate.
+     - **Consolidated Navigation**: All Second Process sub-features are consolidated into a single "Second Process" parent dropdown in `sidebar.blade.php`, dynamically rendering only child links permitted for the authenticated user.
+     - **Plant Access Middleware (`EnsureSecondProcessPlantAccess`)**: Evaluates exact canonical route gates with 403 on unauthorized access.
+
 ## 3. Essential Development Guidelines
 - Always verify changes with automated tests via Sail: `./vendor/bin/sail test --filter=<TestClass>`.
 - Maintain field validation integrity, error feedback banners, and tab switching handlers across legacy Blade views.

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -18,6 +19,19 @@ class RoleManager extends Component
     public ?int $editingRoleId = null;
 
     public string $editingRoleName = '';
+
+    // Permission Management Properties
+    public ?int $managingPermissionsRoleId = null;
+
+    public string $managingPermissionsRoleName = '';
+
+    public bool $managingPermissionsRoleIsProtected = false;
+
+    public array $selectedPermissions = [];
+
+    public string $permissionSearch = '';
+
+    public array $newRolePermissions = [];
 
     protected $paginationTheme = 'tailwind';
 
@@ -49,12 +63,17 @@ class RoleManager extends Component
             'name' => 'required|string|max:50|unique:roles,name',
         ]);
 
-        Role::create([
+        $role = Role::create([
             'name' => $this->name,
         ]);
 
+        if (! empty($this->newRolePermissions)) {
+            $permIds = array_map('intval', array_filter($this->newRolePermissions, 'is_numeric'));
+            $role->syncPermissions($permIds);
+        }
+
         session()->flash('message', "Role '{$this->name}' created successfully.");
-        $this->reset('name');
+        $this->reset(['name', 'newRolePermissions']);
         $this->resetErrorBag();
         $this->dispatch('close-modal', 'create-role-modal');
     }
@@ -127,9 +146,108 @@ class RoleManager extends Component
         session()->flash('message', "Role '{$roleName}' deleted successfully.");
     }
 
+    public function managePermissions(int $roleId): void
+    {
+        if (Gate::denies('manage-users-roles')) {
+            abort(403, 'Unauthorized Action.');
+        }
+
+        $role = Role::with('permissions')->findOrFail($roleId);
+        $this->managingPermissionsRoleId = $role->id;
+        $this->managingPermissionsRoleName = $role->name;
+        $this->managingPermissionsRoleIsProtected = $role->isProtected() && strtoupper(trim($role->name)) === 'SUPER-ADMIN';
+        $this->permissionSearch = '';
+
+        if (strtoupper(trim($role->name)) === 'SUPER-ADMIN') {
+            $this->selectedPermissions = Permission::pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        } elseif ($role->permissions_configured) {
+            $this->selectedPermissions = $role->permissions->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        } else {
+            // Preload defaults for unconfigured role to avoid accidental wipeout
+            $allPerms = Permission::all();
+            $defaults = [];
+            foreach ($allPerms as $perm) {
+                if ($role->hasPermission($perm->name)) {
+                    $defaults[] = (int) $perm->id;
+                }
+            }
+            $this->selectedPermissions = $defaults;
+        }
+
+        $this->resetErrorBag();
+        $this->dispatch('open-modal', 'manage-permissions-modal');
+    }
+
+    public function saveRolePermissions(): void
+    {
+        if (Gate::denies('manage-users-roles')) {
+            abort(403, 'Unauthorized Action.');
+        }
+
+        if (! $this->managingPermissionsRoleId) {
+            return;
+        }
+
+        $role = Role::findOrFail($this->managingPermissionsRoleId);
+        $permissionIds = array_map('intval', array_filter($this->selectedPermissions, 'is_numeric'));
+
+        $role->syncPermissions($permissionIds);
+
+        session()->flash('message', "Permissions for role '{$role->name}' updated successfully (" . count($permissionIds) . " permissions assigned).");
+        $this->dispatch('close-modal', 'manage-permissions-modal');
+        $this->reset(['managingPermissionsRoleId', 'managingPermissionsRoleName', 'selectedPermissions']);
+    }
+
+    public function selectAllPermissions(): void
+    {
+        $permsQuery = Permission::query();
+        if (! empty(trim($this->permissionSearch))) {
+            $term = '%' . trim($this->permissionSearch) . '%';
+            $permsQuery->where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                  ->orWhere('label', 'like', $term)
+                  ->orWhere('group', 'like', $term)
+                  ->orWhere('description', 'like', $term);
+            });
+            $ids = $permsQuery->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+            $this->selectedPermissions = array_values(array_unique(array_merge($this->selectedPermissions, $ids)));
+        } else {
+            $this->selectedPermissions = Permission::pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        }
+    }
+
+    public function deselectAllPermissions(): void
+    {
+        if (! empty(trim($this->permissionSearch))) {
+            $term = '%' . trim($this->permissionSearch) . '%';
+            $ids = Permission::where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                  ->orWhere('label', 'like', $term)
+                  ->orWhere('group', 'like', $term)
+                  ->orWhere('description', 'like', $term);
+            })->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $ids));
+        } else {
+            $this->selectedPermissions = [];
+        }
+    }
+
+    public function toggleGroupPermissions(string $group): void
+    {
+        $groupPermissionIds = Permission::where('group', $group)->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        $allInGroupSelected = empty(array_diff($groupPermissionIds, $this->selectedPermissions));
+
+        if ($allInGroupSelected) {
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $groupPermissionIds));
+        } else {
+            $this->selectedPermissions = array_values(array_unique(array_merge($this->selectedPermissions, $groupPermissionIds)));
+        }
+    }
+
     public function render()
     {
-        $query = Role::withCount([
+        $query = Role::with(['permissions'])->withCount([
             'users as active_users_count' => function ($q) {
                 $q->withoutTrashed()->where('is_active', true);
             },
@@ -144,6 +262,19 @@ class RoleManager extends Component
 
         $roles = $query->orderBy('name')->paginate(10);
 
-        return view('livewire.admin.role-manager', compact('roles'));
+        $permissionsQuery = Permission::orderBy('group')->orderBy('label');
+        if (! empty(trim($this->permissionSearch))) {
+            $term = '%' . trim($this->permissionSearch) . '%';
+            $permissionsQuery->where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                  ->orWhere('label', 'like', $term)
+                  ->orWhere('group', 'like', $term)
+                  ->orWhere('description', 'like', $term);
+            });
+        }
+        $groupedPermissions = $permissionsQuery->get()->groupBy('group');
+        $totalAvailablePermissionsCount = Permission::count();
+
+        return view('livewire.admin.role-manager', compact('roles', 'groupedPermissions', 'totalAvailablePermissionsCount'));
     }
 }

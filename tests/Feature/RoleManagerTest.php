@@ -201,4 +201,181 @@ class RoleManagerTest extends TestCase
             ->assertSee('INSPECTOR')
             ->assertDontSee('OPERATOR');
     }
+
+    public function test_superadmin_can_open_manage_permissions_modal(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $customRole = Role::create(['name' => 'QC-INSPECTOR']);
+
+        Livewire::test(RoleManager::class)
+            ->call('managePermissions', $customRole->id)
+            ->assertSet('managingPermissionsRoleId', $customRole->id)
+            ->assertSet('managingPermissionsRoleName', 'QC-INSPECTOR')
+            ->assertDispatched('open-modal', 'manage-permissions-modal');
+    }
+
+    public function test_superadmin_can_assign_permissions_to_role(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $customRole = Role::create(['name' => 'WAREHOUSE-CLERK']);
+        $warehousePerm = \App\Models\Permission::where('name', 'view-warehouse-links')->firstOrFail();
+        $storePerm = \App\Models\Permission::where('name', 'view-store-links')->firstOrFail();
+
+        Livewire::test(RoleManager::class)
+            ->call('managePermissions', $customRole->id)
+            ->set('selectedPermissions', [$warehousePerm->id, $storePerm->id])
+            ->call('saveRolePermissions')
+            ->assertHasNoErrors()
+            ->assertDispatched('close-modal', 'manage-permissions-modal');
+
+        $this->assertDatabaseHas('role_permissions', [
+            'role_id' => $customRole->id,
+            'permission_id' => $warehousePerm->id,
+        ]);
+        $this->assertDatabaseHas('role_permissions', [
+            'role_id' => $customRole->id,
+            'permission_id' => $storePerm->id,
+        ]);
+
+        $customRole->refresh();
+        $this->assertTrue($customRole->hasPermission('view-warehouse-links'));
+        $this->assertTrue($customRole->hasPermission('view-store-links'));
+        $this->assertFalse($customRole->hasPermission('view-operator-links'));
+    }
+
+    public function test_superadmin_can_unassign_permission_from_role(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $customRole = Role::create(['name' => 'AUDIT-LEAD']);
+        $qcPerm = \App\Models\Permission::where('name', 'execute-qc-inspections')->firstOrFail();
+        $spPerm = \App\Models\Permission::where('name', 'second-process-work-orders')->firstOrFail();
+
+        $customRole->syncPermissions([$qcPerm->id, $spPerm->id]);
+        $this->assertTrue($customRole->fresh()->hasPermission('execute-qc-inspections'));
+
+        // Unassign execute-qc-inspections
+        Livewire::test(RoleManager::class)
+            ->call('managePermissions', $customRole->id)
+            ->set('selectedPermissions', [$spPerm->id])
+            ->call('saveRolePermissions')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('role_permissions', [
+            'role_id' => $customRole->id,
+            'permission_id' => $qcPerm->id,
+        ]);
+        $this->assertDatabaseHas('role_permissions', [
+            'role_id' => $customRole->id,
+            'permission_id' => $spPerm->id,
+        ]);
+
+        $customRole->refresh();
+        $this->assertFalse($customRole->hasPermission('execute-qc-inspections'));
+        $this->assertTrue($customRole->hasPermission('second-process-work-orders'));
+    }
+
+    public function test_assigned_permission_grants_gate_access_and_unassigned_denies_gate_access(): void
+    {
+        $customRole = Role::create(['name' => 'DISPATCHER']);
+        $warehousePerm = \App\Models\Permission::where('name', 'view-warehouse-links')->firstOrFail();
+
+        $user = User::create([
+            'name' => 'Dispatcher User',
+            'email' => 'dispatcher@test.com',
+            'username' => 'dispatcher',
+            'password' => Hash::make('password123'),
+            'role_id' => $customRole->id,
+            'is_active' => true,
+        ]);
+
+        // Initially no permissions assigned
+        $customRole->syncPermissions([]);
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($user->fresh())->allows('view-warehouse-links'));
+
+        // Assign permission
+        $customRole->syncPermissions([$warehousePerm->id]);
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($user->fresh())->allows('view-warehouse-links'));
+
+        // Unassign permission
+        $customRole->syncPermissions([]);
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($user->fresh())->allows('view-warehouse-links'));
+    }
+
+    public function test_select_all_and_deselect_all_permissions(): void
+    {
+        $this->actingAs($this->superAdmin);
+        $totalPermsCount = \App\Models\Permission::count();
+
+        $component = Livewire::test(RoleManager::class)
+            ->call('selectAllPermissions');
+
+        $selected = $component->get('selectedPermissions');
+        $this->assertCount($totalPermsCount, $selected);
+
+        $component->call('deselectAllPermissions');
+        $this->assertEmpty($component->get('selectedPermissions'));
+    }
+
+    public function test_toggle_group_permissions(): void
+    {
+        $this->actingAs($this->superAdmin);
+        $warehousePermCount = \App\Models\Permission::where('group', 'Warehouse & Inventory')->count();
+
+        $component = Livewire::test(RoleManager::class)
+            ->call('toggleGroupPermissions', 'Warehouse & Inventory');
+
+        $this->assertCount($warehousePermCount, $component->get('selectedPermissions'));
+
+        // Toggle again should deselect
+        $component->call('toggleGroupPermissions', 'Warehouse & Inventory');
+        $this->assertEmpty($component->get('selectedPermissions'));
+    }
+
+    public function test_granular_second_process_permissions_isolation(): void
+    {
+        $customRole = Role::create(['name' => 'SP-ANALYST']);
+        $analyticsPerm = \App\Models\Permission::where('name', 'second-process-analytics')->firstOrFail();
+        $workOrdersPerm = \App\Models\Permission::where('name', 'second-process-work-orders')->firstOrFail();
+        $reportsPerm = \App\Models\Permission::where('name', 'second-process-reports')->firstOrFail();
+
+        $user = User::create([
+            'name' => 'SP Analyst User',
+            'email' => 'spanalyst@test.com',
+            'username' => 'spanalyst',
+            'password' => Hash::make('password123'),
+            'role_id' => $customRole->id,
+            'is_active' => true,
+        ]);
+
+        // Assign ONLY analytics
+        $customRole->syncPermissions([$analyticsPerm->id]);
+        $refreshedUser = $user->fresh();
+
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-analytics'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-reports'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-work-orders'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-dashboard'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-first-piece'));
+
+        // Assign ONLY reports: unlocks both navigation gate and feature access
+        $customRole->syncPermissions([$reportsPerm->id]);
+        $refreshedUser = $user->fresh();
+
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-reports'));
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('view-second-process-reports'));
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('manage-second-process-reports'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-work-orders'));
+
+        // Switch to ONLY work orders
+        $customRole->syncPermissions([$workOrdersPerm->id]);
+        $refreshedUser = $user->fresh();
+
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-analytics'));
+        $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-reports'));
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('second-process-work-orders'));
+        $this->assertTrue(\Illuminate\Support\Facades\Gate::forUser($refreshedUser)->allows('manage-sp-work-orders'));
+    }
 }

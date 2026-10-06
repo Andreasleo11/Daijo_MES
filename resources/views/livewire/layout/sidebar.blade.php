@@ -128,27 +128,21 @@ new class extends Component {
                 ]" />
 
                 @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess())
-                    @if (auth()->user()?->can('view-second-process-ops'))
+                    @php
+                        $secondProcessLinks1 = array_values(array_filter([
+                            auth()->user()?->can('second-process-work-orders') ? ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'] : null,
+                            auth()->user()?->can('second-process-first-piece') ? ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'] : null,
+                            auth()->user()?->can('second-process-ipqc') ? ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'] : null,
+                            auth()->user()?->can('second-process-dashboard') ? ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'] : null,
+                            auth()->user()?->can('second-process-approvals') ? ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'] : null,
+                            auth()->user()?->can('second-process-analytics') ? ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'] : null,
+                            auth()->user()?->can('second-process-reports') ? ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'] : null,
+                        ]));
+                    @endphp
+
+                    @if (!empty($secondProcessLinks1))
                         <!-- Dropdown: Second Process -->
-                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
-                            ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
-                            ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
-                        ]" />
-
-                        <!-- Dropdown 2: Second Process — Shop Floor Ops -->
-                        <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
-                            ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
-                        ]" />
-                    @endif
-
-                    @if (auth()->user()?->can('view-second-process-reports'))
-                        <!-- Dropdown 3: Second Process — Reports & Analytics -->
-                        <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
-                            ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
-                        ]" />
+                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="$secondProcessLinks1" />
                     @endif
                 @endif
 
@@ -414,27 +408,21 @@ new class extends Component {
 
                 <!-- Second Process Links (Departmental) -->
                 @if (app(\App\Services\PlantContextService::class)->supportsSecondProcess() && !auth()->user()?->can('view-quality-links'))
-                    @if (auth()->user()?->can('view-second-process-ops'))
-                        <!-- Dropdown 1: Second Process -->
-                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'],
-                            ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'],
-                            ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'],
-                        ]" />
+                    @php
+                        $secondProcessLinks2 = array_values(array_filter([
+                            auth()->user()?->can('second-process-work-orders') ? ['name' => 'sp-work-orders.index', 'label' => 'Work Orders'] : null,
+                            auth()->user()?->can('second-process-first-piece') ? ['name' => 'first-piece-inspections.index', 'label' => 'First Piece Inspections'] : null,
+                            auth()->user()?->can('second-process-ipqc') ? ['name' => 'ipqc-inspections.index', 'label' => 'IPQC Inspections'] : null,
+                            auth()->user()?->can('second-process-dashboard') ? ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'] : null,
+                            auth()->user()?->can('second-process-approvals') ? ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'] : null,
+                            auth()->user()?->can('second-process-analytics') ? ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'] : null,
+                            auth()->user()?->can('second-process-reports') ? ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'] : null,
+                        ]));
+                    @endphp
 
-                        <!-- Dropdown 2: Second Process — Shop Floor Ops -->
-                        <livewire:parent-dropdown label="Second Process — Shop Floor Ops" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'second-process.dashboard', 'label' => 'Floor Overview Dashboard'],
-                            ['name' => 'sp-approvals.index', 'label' => 'Production Approvals'],
-                        ]" />
-                    @endif
-
-                    @if (auth()->user()?->can('view-second-process-reports'))
-                        <!-- Dropdown 3: Second Process — Reports & Analytics -->
-                        <livewire:parent-dropdown label="Second Process — Reports & Analytics" :initiallyOpen="false" :childRoutes="[
-                            ['name' => 'second-process.report-analytics', 'label' => 'Daily Report Analytics'],
-                            ['name' => 'second-process-reports.index', 'label' => 'Second Process Daily Report'],
-                        ]" />
+                    @if (!empty($secondProcessLinks2))
+                        <!-- Dropdown: Second Process -->
+                        <livewire:parent-dropdown label="Second Process" :initiallyOpen="false" :childRoutes="$secondProcessLinks2" />
                     @endif
                 @endif
 

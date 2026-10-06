@@ -110,6 +110,19 @@ class User extends Authenticatable
         return in_array($requiredRole, $roleHierarchy[$userRole]);
     }
 
+    public function hasPermission(string $permissionName): bool
+    {
+        if ($this->hasRole('SUPER-ADMIN')) {
+            return true;
+        }
+
+        if (! $this->role) {
+            return false;
+        }
+
+        return $this->role->hasPermission($permissionName);
+    }
+
     public function zone()
     {
         return $this->belongsTo(MasterZone::class, 'zone_id');

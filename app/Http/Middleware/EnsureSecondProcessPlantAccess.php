@@ -43,14 +43,22 @@ class EnsureSecondProcessPlantAccess
             abort(403, 'Akses Ditolak. Fitur Second Process tidak tersedia pada Plant ini.');
         }
 
-        // 2. Route Gate Check (Reports vs Shop Floor Ops)
+        // 2. Granular Route Gate Check (Fine-Grained Second Process Domain)
         $routeName = $request->route()?->getName() ?? '';
-        $isReportRoute = str_starts_with($routeName, 'second-process-reports')
-            || $routeName === 'second-process.report-analytics';
 
-        $requiredGate = $isReportRoute ? 'view-second-process-reports' : 'view-second-process-ops';
+        $isAuthorized = match (true) {
+            str_starts_with($routeName, 'second-process.report-analytics') => Gate::forUser($user)->allows('second-process-analytics'),
+            str_starts_with($routeName, 'second-process-reports') => Gate::forUser($user)->allows('second-process-reports'),
+            str_starts_with($routeName, 'sp-work-orders') => Gate::forUser($user)->allows('second-process-work-orders'),
+            str_starts_with($routeName, 'first-piece-inspections') => Gate::forUser($user)->allows('second-process-first-piece') || Gate::forUser($user)->allows('execute-qc-inspections'),
+            str_starts_with($routeName, 'ipqc-inspections') => Gate::forUser($user)->allows('second-process-ipqc') || Gate::forUser($user)->allows('execute-qc-inspections'),
+            str_starts_with($routeName, 'sp-approvals') => Gate::forUser($user)->allows('second-process-approvals'),
+            str_starts_with($routeName, 'sp-sessions') => Gate::forUser($user)->allows('second-process-sessions') || Gate::forUser($user)->allows('second-process-dashboard'),
+            $routeName === 'second-process.dashboard' || $routeName === 'second-process.line-dashboard' => Gate::forUser($user)->allows('second-process-dashboard'),
+            default => Gate::forUser($user)->allows('view-second-process-ops'),
+        };
 
-        if (Gate::forUser($user)->denies($requiredGate)) {
+        if (! $isAuthorized) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Akses Ditolak. Anda tidak memiliki izin untuk mengakses modul ini.',
