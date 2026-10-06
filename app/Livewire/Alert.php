@@ -18,6 +18,10 @@ class Alert extends Component
         if (session()->has('success')) {
             $this->message = session('success');
             $this->visible = true;
+        } elseif (session()->has('error')) {
+            $this->message = session('error');
+            $this->type = 'error';
+            $this->visible = true;
         } elseif (session()->has('errors')) {
             $this->message = 'Please correct the errors and try again.';
             $this->type = 'error';

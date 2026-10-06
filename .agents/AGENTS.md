@@ -116,7 +116,7 @@ Sebelum menulis kode baru, Anda wajib mengikuti tangga keputusan (decision ladde
        - `second-process-ipqc`: In-Process Quality Control inspection records.
      - **Backward Compatibility & Alias Mapping**: `AuthServiceProvider` gates and `Role::defaultPermissionFallback` automatically map legacy split checks (`view-*`, `manage-*`) to the canonical feature gate.
      - **Consolidated Navigation**: All Second Process sub-features are consolidated into a single "Second Process" parent dropdown in `sidebar.blade.php`, dynamically rendering only child links permitted for the authenticated user.
-     - **Plant Access Middleware (`EnsureSecondProcessPlantAccess`)**: Evaluates exact canonical route gates with 403 on unauthorized access.
+     - **Plant Access Middleware (`EnsureSecondProcessPlantAccess`)**: Evaluates canonical route gates. Instead of leaving users stuck on an HTTP 403 error page, unauthorized web requests redirect back to the previous page (with a safe dashboard fallback preventing loops) with an error flash message, while API/JSON requests return a 403 JSON response.
 
 ## 3. Essential Development Guidelines
 - Always verify changes with automated tests via Sail: `./vendor/bin/sail test --filter=<TestClass>`.

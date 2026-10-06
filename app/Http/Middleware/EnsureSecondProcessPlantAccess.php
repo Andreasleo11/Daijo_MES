@@ -34,13 +34,7 @@ class EnsureSecondProcessPlantAccess
 
         // 1. Plant Context Check
         if (! $this->plantContextService->supportsSecondProcess($user)) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Akses Ditolak. Fitur Second Process tidak tersedia pada Plant ini.',
-                ], 403);
-            }
-
-            abort(403, 'Akses Ditolak. Fitur Second Process tidak tersedia pada Plant ini.');
+            return $this->denyAccess($request, 'Akses Ditolak. Fitur Second Process tidak tersedia pada Plant ini.');
         }
 
         // 2. Granular Route Gate Check (Fine-Grained Second Process Domain)
@@ -59,15 +53,28 @@ class EnsureSecondProcessPlantAccess
         };
 
         if (! $isAuthorized) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Akses Ditolak. Anda tidak memiliki izin untuk mengakses modul ini.',
-                ], 403);
-            }
-
-            abort(403, 'Akses Ditolak. Anda tidak memiliki izin untuk mengakses modul ini.');
+            return $this->denyAccess($request, 'Akses Ditolak. Anda tidak memiliki izin untuk mengakses modul ini.');
         }
 
         return $next($request);
+    }
+
+    /**
+     * Handle denied access response: 403 JSON for API/AJAX, redirect with error for web.
+     */
+    protected function denyAccess(Request $request, string $message): Response
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+            ], 403);
+        }
+
+        $previousUrl = url()->previous();
+        $targetUrl = ($previousUrl && $previousUrl !== $request->fullUrl())
+            ? $previousUrl
+            : route('dashboard');
+
+        return redirect()->to($targetUrl)->with('error', $message);
     }
 }

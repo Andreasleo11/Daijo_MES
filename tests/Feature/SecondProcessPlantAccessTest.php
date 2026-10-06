@@ -156,7 +156,8 @@ class SecondProcessPlantAccessTest extends TestCase
         ]);
 
         $response = $this->actingAs($ppicUser)->get(route('sp-work-orders.index'));
-        $response->assertStatus(403);
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
     }
 
     /**
@@ -171,10 +172,12 @@ class SecondProcessPlantAccessTest extends TestCase
         ]);
 
         $response = $this->actingAs($krwUser)->get(route('sp-work-orders.index'));
-        $response->assertStatus(403);
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
 
         $response = $this->actingAs($krwUser)->get(route('second-process-reports.index'));
-        $response->assertStatus(403);
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
     }
 
     /**
