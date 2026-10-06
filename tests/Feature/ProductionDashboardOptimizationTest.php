@@ -612,4 +612,125 @@ class ProductionDashboardOptimizationTest extends TestCase
             ->assertSee('Sabtu')
             ->assertSee('Minggu');
     }
+
+    public function test_ng_breakdown_contains_models_breakdown_and_remarks(): void
+    {
+        $role = Role::create(['name' => 'ADMIN']);
+        $user = User::create([
+            'name'     => 'Admin NG',
+            'email'    => 'admin_ng@example.com',
+            'role_id'  => $role->id,
+            'password' => bcrypt('password'),
+        ]);
+        $machine = User::create(['name' => 'K0450A', 'email' => 'k450_ng@example.com', 'password' => 'secret']);
+
+        MasterListItem::create([
+            'item_code'  => 'PART-ALPHA',
+            'item_name'  => 'BEZEL FRONT PANEL',
+            'cycle_time' => 30,
+        ]);
+
+        MasterListItem::create([
+            'item_code'  => 'PART-BETA',
+            'item_name'  => 'COVER BOTTOM HOUSING',
+            'cycle_time' => 45,
+        ]);
+
+        $ngTypeBlackdot = ProductionNgType::create(['ng_type' => 'BLACKDOT']);
+
+        // Daily item code 1: PART-ALPHA
+        $dic1 = DailyItemCode::create([
+            'user_id'    => $machine->id,
+            'item_code'  => 'PART-ALPHA',
+            'start_date' => '2026-10-06',
+            'shift'      => 1,
+        ]);
+
+        $hourly1 = HourlyRemark::create([
+            'dic_id'            => $dic1->id,
+            'start_time'        => '08:00',
+            'target'            => 100,
+            'actual_production' => 85,
+            'remark'            => 'Bahan kotor',
+        ]);
+
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $hourly1->id,
+            'ng_type_id'       => $ngTypeBlackdot->id,
+            'ng_quantity'      => 15,
+            'ng_remarks'       => 'Bintik hitam di sisi kanan',
+        ]);
+
+        // Daily item code 2: PART-BETA
+        $dic2 = DailyItemCode::create([
+            'user_id'    => $machine->id,
+            'item_code'  => 'PART-BETA',
+            'start_date' => '2026-10-06',
+            'shift'      => 2,
+        ]);
+
+        $hourly2 = HourlyRemark::create([
+            'dic_id'            => $dic2->id,
+            'start_time'        => '16:00',
+            'target'            => 120,
+            'actual_production' => 110,
+            'remark'            => 'Suhu nozzle tinggi',
+        ]);
+
+        ProductionNgDetail::create([
+            'hourly_remark_id' => $hourly2->id,
+            'ng_type_id'       => $ngTypeBlackdot->id,
+            'ng_quantity'      => 10,
+            'ng_remarks'       => null,
+        ]);
+
+        $service = app(ProductionDashboardService::class);
+        $startDate = Carbon::parse('2026-10-06')->startOfDay();
+        $endDate = Carbon::parse('2026-10-06')->endOfDay();
+
+        $allData = $service->getAllDashboardData($startDate, $endDate, null, (string)$machine->id, 'karawang');
+        $ngBreakdown = $allData['ng_breakdown'];
+
+        $this->assertNotEmpty($ngBreakdown);
+        $blackdot = collect($ngBreakdown)->firstWhere('name', 'BLACKDOT');
+        $this->assertNotNull($blackdot);
+        $this->assertEquals(25, $blackdot['total']);
+        $this->assertEquals(2, $blackdot['models_count']);
+
+        // Verifikasi model breakdown
+        $this->assertCount(2, $blackdot['models']);
+        $this->assertEquals('PART-ALPHA', $blackdot['models'][0]['item_code']);
+        $this->assertEquals('BEZEL FRONT PANEL', $blackdot['models'][0]['item_name']);
+        $this->assertEquals(15, $blackdot['models'][0]['total']);
+
+        $this->assertEquals('PART-BETA', $blackdot['models'][1]['item_code']);
+        $this->assertEquals('COVER BOTTOM HOUSING', $blackdot['models'][1]['item_name']);
+        $this->assertEquals(10, $blackdot['models'][1]['total']);
+
+        // Verifikasi remark pada PART-ALPHA
+        $alphaRecord = $blackdot['models'][0]['records'][0];
+        $this->assertStringContainsString('Bintik hitam di sisi kanan', $alphaRecord['remark']);
+        $this->assertEquals(15, $alphaRecord['quantity']);
+        $this->assertEquals('K0450A', $alphaRecord['machine']);
+
+        // Verifikasi remark pada PART-BETA (fallback ke hourly remark)
+        $betaRecord = $blackdot['models'][1]['records'][0];
+        $this->assertEquals('Suhu nozzle tinggi', $betaRecord['remark']);
+        $this->assertEquals(10, $betaRecord['quantity']);
+
+        // Verifikasi tampilan Livewire Dashboard
+        $this->actingAs($user);
+        Livewire::test(ProductionDashboard::class)
+            ->set('viewType', 'daily')
+            ->set('selectedDate', '2026-10-06')
+            ->set('plant', 'karawang')
+            ->assertSee('BLACKDOT')
+            ->assertSee('2 Model')
+            ->assertSee('PART-ALPHA')
+            ->assertSee('BEZEL FRONT PANEL')
+            ->assertSee('Bintik hitam di sisi kanan')
+            ->assertSee('PART-BETA')
+            ->assertSee('Suhu nozzle tinggi');
+    }
 }
+

@@ -796,20 +796,142 @@
 
             {{-- NG Breakdown --}}
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">NG Breakdown</h2>
-                <div class="space-y-3 max-h-96 overflow-y-auto">
-                    @forelse($ngBreakdown as $ng)
-                        <div class="border-l-4 border-red-500 pl-3 py-2">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm font-medium text-gray-700">{{ $ng['name'] }}</span>
-                                <span class="text-sm font-bold text-red-600">{{ number_format($ng['total']) }}</span>
-                            </div>
-                            @if(($summary['total_ng'] ?? 0) > 0)
-                                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                                    <div class="bg-red-500 h-2 rounded-full" style="width: {{ ($ng['total'] / $summary['total_ng']) * 100 }}%"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">NG Breakdown</h2>
+                    <span class="text-xs text-gray-400 font-medium">Klik jenis NG untuk lihat model &amp; remark</span>
+                </div>
+                <div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                    @forelse($ngBreakdown as $ngIndex => $ng)
+                        <div x-data="{ open: false, selectedModel: 'ALL' }" 
+                             class="border-l-4 border-red-500 bg-white rounded-r-lg transition border border-gray-100 shadow-2xs">
+                            <div class="p-3 cursor-pointer hover:bg-gray-50/80 transition" @click="open = !open">
+                                <div class="flex justify-between items-center gap-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-sm font-bold text-gray-800">{{ $ng['name'] }}</span>
+                                        @if(!empty($ng['models_count']))
+                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                                                {{ $ng['models_count'] }} Model
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-sm font-black text-red-600 font-mono">{{ number_format($ng['total']) }}</span>
+                                        <button type="button" class="text-gray-400 hover:text-gray-600 transition-transform duration-200 p-1"
+                                                :class="{ 'rotate-180': open }" title="Buka detail model &amp; remark">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                                <span class="text-xs text-gray-500">{{ number_format(($ng['total'] / $summary['total_ng']) * 100, 1) }}%</span>
-                            @endif
+                                @if(($summary['total_ng'] ?? 0) > 0)
+                                    <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                        <div class="bg-red-500 h-2 rounded-full transition-all duration-300" style="width: {{ ($ng['total'] / $summary['total_ng']) * 100 }}%"></div>
+                                    </div>
+                                    <div class="flex justify-between items-center text-xs text-gray-500 mt-1">
+                                        <span>{{ number_format(($ng['total'] / $summary['total_ng']) * 100, 1) }}% dari total NG</span>
+                                        <span class="text-[11px] text-red-600 font-semibold" x-text="open ? 'Tutup Detail ▲' : 'Lihat Model &amp; Remark ▼'"></span>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- DROPDOWN ACCORDION DETAIL: Model apa saja & Remark per data NG --}}
+                            <div x-show="open" x-cloak class="border-t border-gray-100 bg-gray-50/60 p-3 space-y-3">
+                                @if(empty($ng['models']))
+                                    <div class="text-center py-3 text-xs text-gray-400">
+                                        Tidak ada detail model untuk jenis NG ini.
+                                    </div>
+                                @else
+                                    {{-- 1. Filter Dropdown Model --}}
+                                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                                        <label class="text-[11px] font-bold text-gray-600 flex items-center gap-1">
+                                            <span>🔍 Filter Model:</span>
+                                        </label>
+                                        <select x-model="selectedModel" 
+                                                class="text-xs bg-white border border-gray-300 rounded-lg px-2.5 py-1 font-semibold text-gray-800 shadow-2xs focus:ring-1 focus:ring-red-400 outline-none max-w-xs">
+                                            <option value="ALL">Semua Model ({{ $ng['models_count'] }} Model — {{ number_format($ng['total']) }} pcs)</option>
+                                            @foreach($ng['models'] as $mItem)
+                                                <option value="{{ $mItem['item_code'] }}">
+                                                    {{ $mItem['item_code'] }} - {{ \Illuminate\Support\Str::limit($mItem['item_name'], 25) }} ({{ number_format($mItem['total']) }} pcs)
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    {{-- 2. List Model & Remarks --}}
+                                    <div class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                                        @foreach($ng['models'] as $mItem)
+                                            <div x-show="selectedModel === 'ALL' || selectedModel === '{{ $mItem['item_code'] }}'" 
+                                                 class="bg-white rounded-lg border border-gray-200 p-2.5 shadow-2xs">
+                                                {{-- Header Model --}}
+                                                <div class="flex items-center justify-between gap-2 pb-2 border-b border-gray-100">
+                                                    <div>
+                                                        <div class="font-mono font-black text-xs text-gray-900 flex items-center gap-1.5">
+                                                            <span>{{ $mItem['item_code'] }}</span>
+                                                        </div>
+                                                        <div class="text-[11px] text-gray-600 font-medium">
+                                                            {{ $mItem['item_name'] }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right shrink-0">
+                                                        <span class="inline-block px-2 py-0.5 rounded text-xs font-black bg-red-100 text-red-800 font-mono">
+                                                            {{ number_format($mItem['total']) }} pcs
+                                                        </span>
+                                                        @if($ng['total'] > 0)
+                                                            <div class="text-[10px] text-gray-400 font-semibold mt-0.5">
+                                                                {{ number_format(($mItem['total'] / $ng['total']) * 100, 1) }}% dari {{ $ng['name'] }}
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+
+                                                {{-- Table Data & Remark --}}
+                                                <div class="mt-2">
+                                                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1 flex items-center gap-1">
+                                                        <span>📜 Data &amp; Remark ({{ count($mItem['records']) }} data):</span>
+                                                    </div>
+                                                    <div class="overflow-x-auto">
+                                                        <table class="w-full text-[11px] text-left">
+                                                            <thead class="bg-gray-50 text-[10px] text-gray-500 uppercase font-bold border-b border-gray-100">
+                                                                <tr>
+                                                                    <th class="py-1 px-2">Tanggal / Jam</th>
+                                                                    <th class="py-1 px-2">Mesin / Shift</th>
+                                                                    <th class="py-1 px-2 text-right">Qty NG</th>
+                                                                    <th class="py-1 px-2">Remark NG / Produksi</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-100">
+                                                                @foreach($mItem['records'] as $rec)
+                                                                    <tr class="hover:bg-gray-50/70">
+                                                                        <td class="py-1.5 px-2 whitespace-nowrap text-gray-700 font-medium">
+                                                                            {{ $rec['date'] }}
+                                                                            <span class="text-gray-400 block text-[10px] font-mono">{{ $rec['hour'] }}</span>
+                                                                        </td>
+                                                                        <td class="py-1.5 px-2 whitespace-nowrap">
+                                                                            <span class="font-mono font-bold text-gray-900">{{ $rec['machine'] }}</span>
+                                                                            <span class="text-gray-400 block text-[10px]">Shift {{ $rec['shift'] }}</span>
+                                                                        </td>
+                                                                        <td class="py-1.5 px-2 text-right font-mono font-black text-red-600 whitespace-nowrap">
+                                                                            {{ number_format($rec['quantity']) }}
+                                                                        </td>
+                                                                        <td class="py-1.5 px-2 text-gray-800">
+                                                                            @if($rec['remark'] !== '-')
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">
+                                                                                    💬 {{ $rec['remark'] }}
+                                                                                </span>
+                                                                            @else
+                                                                                <span class="text-gray-300 italic text-[10px]">-</span>
+                                                                            @endif
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div class="text-center py-8 text-gray-500">
