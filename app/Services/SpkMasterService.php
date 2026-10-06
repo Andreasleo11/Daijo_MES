@@ -5,6 +5,8 @@ namespace App\Services;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon; 
 use Illuminate\Support\Facades\DB;
+use App\Models\SpkBomChangeLog;
+use App\Models\MasterListItem;
 
 class SpkMasterService extends BaseSapService
 {
@@ -190,6 +192,28 @@ class SpkMasterService extends BaseSapService
                 ];
             }
 
+            // Guard: Cegah data-loss jika respons SAP kosong
+            if (empty($newSpkRecords)) {
+                Log::warning('[SPK_SYNC] Data SPK dari SAP kosong. Truncate dibatalkan demi perlindungan data.');
+                DB::table('api_logs')->insert([
+                    'api_name'    => 'SPK_SYNC',
+                    'method'      => 'GET',
+                    'endpoint'    => $this->baseUrl . '/api/sap_production_order/list',
+                    'status_code' => 200,
+                    'status'      => 'warning',
+                    'message'     => 'Data SPK dari SAP kosong. Truncate dibatalkan demi perlindungan data.',
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+
+                return response()->json([
+                    'success'       => false,
+                    'message'       => 'Data SPK dari SAP kosong. Truncate dibatalkan demi perlindungan data.',
+                    'changes_count' => 0,
+                    'batch_id'      => $batchId
+                ], 422);
+            }
+
             // Hapus data lama & simpan data baru ke spk_masters secara bulk
             DB::table('spk_masters')->truncate();
             foreach (array_chunk($newSpkRecords, 500) as $chunk) {
@@ -230,4 +254,268 @@ class SpkMasterService extends BaseSapService
         }
     }
 
+    /**
+     * Kirim permintaan update rincian material (BOM lines) pada SPK / Production Order ke SAP
+     *
+     * Endpoint: POST /api/sap_production_order/update
+     * Payload:
+     * {
+     *   "spk_code": "250012345",
+     *   "lines": [
+     *     { "item_code": "RM-STEEL-001", "plan_qty": 250 },
+     *     { "item_code": "RM-PAINT-020", "base_qty": 0.15, "plan_qty": 15, "warehouse": "WH-RM02" },
+     *     { "item_code": "RM-PAINT-010", "delete": true }
+     *   ]
+     * }
+     */
+    public function updateProductionOrderLines(string $spkCode, array $lines, ?int $userId = null, ?string $userName = null): array
+    {
+        $spkCode = trim($spkCode);
+        if ($spkCode === '' || empty($lines)) {
+            throw new \InvalidArgumentException('SPK code and lines payload cannot be empty.');
+        }
+
+        $cleanLines = [];
+        foreach ($lines as $line) {
+            $itemCode = trim($line['item_code'] ?? '');
+            if ($itemCode === '') {
+                continue;
+            }
+
+            $entry = [
+                'item_code' => $itemCode,
+            ];
+
+            if (!empty($line['delete'])) {
+                $entry['delete'] = true;
+            } else {
+                if (isset($line['base_qty']) && $line['base_qty'] !== null && $line['base_qty'] !== '') {
+                    $entry['base_qty'] = (float) $line['base_qty'];
+                }
+                if (isset($line['plan_qty']) && $line['plan_qty'] !== null && $line['plan_qty'] !== '') {
+                    $entry['plan_qty'] = (float) $line['plan_qty'];
+                }
+                if (!empty($line['warehouse'])) {
+                    $entry['warehouse'] = trim($line['warehouse']);
+                }
+            }
+
+            // Metainfo opsional untuk tracking audit internal (tidak dikirim ke SAP)
+            if (isset($line['old_plan_qty'])) {
+                $entry['_old_plan_qty'] = (float) $line['old_plan_qty'];
+            }
+            if (!empty($line['action_type'])) {
+                $entry['_action_type'] = $line['action_type'];
+            }
+            if (!empty($line['replaced_item_code'])) {
+                $entry['_replaced_item_code'] = $line['replaced_item_code'];
+            }
+
+            $cleanLines[] = $entry;
+        }
+
+        if (empty($cleanLines)) {
+            throw new \InvalidArgumentException('No valid lines provided for update.');
+        }
+
+        // Payload murni untuk SAP (filter keluar underscore keys)
+        $sapLines = array_map(function ($line) {
+            return array_filter($line, function ($key) {
+                return !str_starts_with($key, '_');
+            }, ARRAY_FILTER_USE_KEY);
+        }, $cleanLines);
+
+        $endpoint = '/api/sap_production_order/update';
+        $payload = [
+            'spk_code' => $spkCode,
+            'lines'    => $sapLines,
+        ];
+
+        $statusCode = null;
+        $responseBody = null;
+        $success = false;
+        $message = '';
+        $resultLines = [];
+
+        try {
+            $response = $this->post($endpoint, $payload);
+            $statusCode = $response ? $response->status() : null;
+            $responseBody = $response ? ($response->json() ?: $response->body()) : null;
+
+            if ($response && $response->successful()) {
+                $success = true;
+                $message = is_array($responseBody) && isset($responseBody['message'])
+                    ? $responseBody['message']
+                    : "SPK {$spkCode} updated successfully.";
+                $resultLines = is_array($responseBody) && isset($responseBody['lines'])
+                    ? $responseBody['lines']
+                    : [];
+            } else {
+                $message = is_array($responseBody) && isset($responseBody['message'])
+                    ? $responseBody['message']
+                    : "Gagal update SPK {$spkCode} di SAP: " . (is_string($responseBody) ? $responseBody : json_encode($responseBody));
+            }
+        } catch (\Exception $e) {
+            $statusCode = $statusCode ?: 500;
+            $message = $e->getMessage();
+            $responseBody = ['error' => $e->getMessage()];
+            $success = false;
+        }
+
+        // 1. Simpan ke central api_logs
+        $this->saveApiLog(
+            'sap_production_order_update',
+            'POST',
+            $endpoint,
+            $payload,
+            $responseBody,
+            $statusCode ?: 500,
+            $success ? 'SUCCESS' : 'FAILED',
+            $message
+        );
+
+        // 2. Simpan per-baris ke audit log spk_bom_change_logs
+        $this->recordBomChangeLogs($spkCode, $cleanLines, $resultLines, $payload, $responseBody, $success, $message, $userId, $userName);
+
+        if (!$success) {
+            throw new \Exception($message);
+        }
+
+        return [
+            'status'  => true,
+            'message' => $message,
+            'lines'   => $resultLines,
+        ];
+    }
+
+    /**
+     * Catat rincian perubahan ke tabel spk_bom_change_logs
+     */
+    protected function recordBomChangeLogs(
+        string $spkCode,
+        array $cleanLines,
+        array $resultLines,
+        array $payload,
+        mixed $responseBody,
+        bool $success,
+        string $generalMessage,
+        ?int $userId,
+        ?string $userName
+    ): void {
+        $resultByItem = collect($resultLines)->keyBy('item_code')->toArray();
+
+        foreach ($cleanLines as $line) {
+            $itemCode = $line['item_code'];
+            $resLine = $resultByItem[$itemCode] ?? null;
+            $action = $resLine['action'] ?? null;
+
+            $actionType = $line['_action_type'] ?? null;
+            if (!$actionType) {
+                if (!empty($line['delete'])) {
+                    $actionType = 'DELETE_MATERIAL';
+                } elseif ($action === 'added' || isset($line['base_qty'])) {
+                    $actionType = 'ADD_MATERIAL';
+                } else {
+                    $actionType = 'UPDATE_QTY';
+                }
+            }
+
+            $itemName = MasterListItem::where('item_code', $itemCode)->value('item_name');
+
+            SpkBomChangeLog::create([
+                'spk_number'         => $spkCode,
+                'action_type'        => $actionType,
+                'item_code'          => $itemCode,
+                'item_name'          => $itemName,
+                'replaced_item_code' => $line['_replaced_item_code'] ?? null,
+                'base_qty'           => $line['base_qty'] ?? null,
+                'plan_qty'           => $line['plan_qty'] ?? null,
+                'old_plan_qty'       => $line['_old_plan_qty'] ?? null,
+                'warehouse'          => $line['warehouse'] ?? null,
+                'status'             => $success ? 'SUCCESS' : 'FAILED',
+                'message'            => $generalMessage,
+                'payload'            => $line,
+                'response'           => $resLine ?: $responseBody,
+                'created_by'         => $userId,
+                'created_by_name'    => $userName,
+            ]);
+        }
+    }
+
+    /**
+     * Helper cepat untuk Update Plan Qty (dan opsional Base Qty)
+     */
+    public function updateMaterialQty(string $spkCode, string $itemCode, float $newPlanQty, ?float $baseQty = null, ?float $oldPlanQty = null, ?int $userId = null, ?string $userName = null): array
+    {
+        $line = [
+            'item_code'     => $itemCode,
+            'plan_qty'      => $newPlanQty,
+            '_old_plan_qty' => $oldPlanQty,
+            '_action_type'  => 'UPDATE_QTY',
+        ];
+        if ($baseQty !== null) {
+            $line['base_qty'] = $baseQty;
+        }
+
+        return $this->updateProductionOrderLines($spkCode, [$line], $userId, $userName);
+    }
+
+    /**
+     * Helper cepat untuk Tambah Material Baru
+     */
+    public function addNewMaterial(string $spkCode, string $itemCode, float $planQty, ?float $baseQty = null, ?string $warehouse = null, ?int $userId = null, ?string $userName = null): array
+    {
+        $line = [
+            'item_code'    => $itemCode,
+            'plan_qty'     => $planQty,
+            '_action_type' => 'ADD_MATERIAL',
+        ];
+        if ($baseQty !== null) {
+            $line['base_qty'] = $baseQty;
+        }
+        if ($warehouse !== null && trim($warehouse) !== '') {
+            $line['warehouse'] = trim($warehouse);
+        }
+
+        return $this->updateProductionOrderLines($spkCode, [$line], $userId, $userName);
+    }
+
+    /**
+     * Helper cepat untuk Delete Material
+     */
+    public function deleteMaterial(string $spkCode, string $itemCode, ?int $userId = null, ?string $userName = null): array
+    {
+        $line = [
+            'item_code'    => $itemCode,
+            'delete'       => true,
+            '_action_type' => 'DELETE_MATERIAL',
+        ];
+
+        return $this->updateProductionOrderLines($spkCode, [$line], $userId, $userName);
+    }
+
+    /**
+     * Helper cepat untuk Ganti Material (Delete Lama + Add Baru)
+     */
+    public function replaceMaterial(string $spkCode, string $oldItemCode, string $newItemCode, float $newPlanQty, ?float $baseQty = null, ?string $warehouse = null, ?int $userId = null, ?string $userName = null): array
+    {
+        $lines = [
+            [
+                'item_code'           => $oldItemCode,
+                'delete'              => true,
+                '_action_type'        => 'REPLACE_MATERIAL',
+                '_replaced_item_code' => $newItemCode,
+            ],
+            [
+                'item_code'           => $newItemCode,
+                'plan_qty'            => $newPlanQty,
+                'base_qty'            => $baseQty,
+                'warehouse'           => $warehouse,
+                '_action_type'        => 'REPLACE_MATERIAL',
+                '_replaced_item_code' => $oldItemCode,
+            ],
+        ];
+
+        return $this->updateProductionOrderLines($spkCode, $lines, $userId, $userName);
+    }
 }

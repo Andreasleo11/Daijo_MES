@@ -26,4 +26,19 @@ class SpkMaster extends Model
     {
         return $this->belongsTo(MasterListItem::class, 'item_code', 'item_code');
     }
+
+    public function fgHeader()
+    {
+        return $this->belongsTo(MasterBomFgHeader::class, 'item_code', 'fg_item_code');
+    }
+
+    public function changeLogs()
+    {
+        return $this->hasMany(SpkChangeLog::class, 'spk_number', 'spk_number');
+    }
+
+    public function bomChangeLogs()
+    {
+        return $this->hasMany(SpkBomChangeLog::class, 'spk_number', 'spk_number');
+    }
 }

@@ -108,6 +108,7 @@ new class extends Component {
                     ['name' => 'daily-item-code.index', 'label' => 'Daily Production Plan'],
                     ['name' => 'ppic.machine-daily-report', 'label' => 'Laporan Produksi Mesin'],
                     ['name' => 'spk.changes.index', 'label' => 'Audit Log SPK (SAP Sync)'],
+                    ['name' => 'spk.bom-changes.index', 'label' => 'SPK BOM Changes'],
                     ['name' => 'capacityforecastindex', 'label' => 'Capacity By Forecast'],
                     ['name' => 'waiting_purchase_orders.index', 'label' => 'Waiting Purchase Orders'],
                     ['name' => 'notification_recipients.index', 'label' => 'Notification Recipients'],
@@ -276,6 +277,9 @@ new class extends Component {
 
                     <livewire:sidebar-link href="{{ route('master-bom.index') }}" label="Master List BOM"
                         :active="request()->routeIs('master-bom.index')" wire:navigate />
+
+                    <livewire:sidebar-link href="{{ route('spk.bom-changes.index') }}" label="SPK BOM Changes"
+                        :active="request()->routeIs('spk.bom-changes.*')" wire:navigate />
                 @endif
 
 
@@ -304,6 +308,8 @@ new class extends Component {
                         label="Laporan Produksi Mesin" :active="request()->routeIs('ppic.machine-daily-report')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('spk.changes.index') }}" label="Audit Log SPK (SAP Sync)"
                         :active="request()->routeIs('spk.changes.index')" wire:navigate />
+                    <livewire:sidebar-link href="{{ route('spk.bom-changes.index') }}" label="SPK BOM Changes"
+                        :active="request()->routeIs('spk.bom-changes.*')" wire:navigate />
                     <livewire:sidebar-link href="{{ route('master-list-item') }}" label="Master List Item"
                         :active="request()->routeIs('master-list-item')" wire:navigate />
 

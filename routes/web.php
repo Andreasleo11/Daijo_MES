@@ -183,6 +183,9 @@ use App\Livewire\ManualSync;
     Route::post('/spk-changes/sync', [\App\Http\Controllers\SpkChangeLogController::class, 'triggerSync'])->name('spk.changes.sync');
     Route::get('/spk-changes/history/{spk}', [\App\Http\Controllers\SpkChangeLogController::class, 'getHistory'])->name('spk.changes.history');
 
+    // ROUTE UNTUK SPK BOM CHANGES (INTEGRASI SPK & FORMULA BOM NON-WIP)
+    Route::get('/spk-bom-changes', \App\Livewire\SpkBomChangesView::class)->name('spk.bom-changes.index');
+
     // ROUTE UNTUK MONITORING SPK MBA EMMA / INTAN
     // Route::get('/{user}', [DashboardController::class, 'autoLogin']);
 
