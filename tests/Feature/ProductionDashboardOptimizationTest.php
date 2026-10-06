@@ -728,6 +728,8 @@ class ProductionDashboardOptimizationTest extends TestCase
             ->assertSee('2 Model')
             ->assertSee('PART-ALPHA')
             ->assertSee('BEZEL FRONT PANEL')
+            ->assertSee('Remark Produksi')
+            ->assertSee('Remark NG')
             ->assertSee('Bintik hitam di sisi kanan')
             ->assertSee('PART-BETA')
             ->assertSee('Suhu nozzle tinggi');

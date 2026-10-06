@@ -857,50 +857,71 @@
                                     </div>
 
                                     {{-- 2. List Model & Remarks --}}
-                                    <div class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                                    <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
                                         @foreach($ng['models'] as $mItem)
                                             <div x-show="selectedModel === 'ALL' || selectedModel === '{{ $mItem['item_code'] }}'" 
-                                                 class="bg-white rounded-lg border border-gray-200 p-2.5 shadow-2xs">
-                                                {{-- Header Model --}}
-                                                <div class="flex items-center justify-between gap-2 pb-2 border-b border-gray-100">
-                                                    <div>
-                                                        <div class="font-mono font-black text-xs text-gray-900 flex items-center gap-1.5">
-                                                            <span>{{ $mItem['item_code'] }}</span>
-                                                        </div>
-                                                        <div class="text-[11px] text-gray-600 font-medium">
-                                                            {{ $mItem['item_name'] }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="text-right shrink-0">
-                                                        <span class="inline-block px-2 py-0.5 rounded text-xs font-black bg-red-100 text-red-800 font-mono">
-                                                            {{ number_format($mItem['total']) }} pcs
+                                                 x-data="{ modelOpen: false }"
+                                                 x-init="$watch('selectedModel', val => { if (val === '{{ $mItem['item_code'] }}') { modelOpen = true; } else if (val === 'ALL') { modelOpen = false; } })"
+                                                 class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-2xs transition">
+                                                
+                                                {{-- Header Model: Selalu ditutup secara default, klik untuk buka/tutup (dropdown) --}}
+                                                <button type="button" 
+                                                        @click="modelOpen = !modelOpen"
+                                                        class="w-full p-2.5 flex items-center justify-between gap-2 hover:bg-gray-50/90 text-left transition select-none group">
+                                                    <div class="flex items-center gap-2 min-w-0">
+                                                        <span class="w-5 h-5 rounded flex items-center justify-center text-gray-400 group-hover:text-gray-700 bg-gray-100 transition-transform duration-200 shrink-0"
+                                                              :class="{ 'rotate-180 bg-red-50 text-red-600': modelOpen }">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                            </svg>
                                                         </span>
-                                                        @if($ng['total'] > 0)
-                                                            <div class="text-[10px] text-gray-400 font-semibold mt-0.5">
-                                                                {{ number_format(($mItem['total'] / $ng['total']) * 100, 1) }}% dari {{ $ng['name'] }}
+                                                        <div class="truncate">
+                                                            <div class="font-mono font-black text-xs text-gray-900 flex items-center gap-1.5">
+                                                                <span>{{ $mItem['item_code'] }}</span>
+                                                                <span class="text-[10px] font-normal text-gray-400">({{ count($mItem['records']) }} data)</span>
                                                             </div>
-                                                        @endif
+                                                            <div class="text-[11px] text-gray-600 font-medium truncate" title="{{ $mItem['item_name'] }}">
+                                                                {{ $mItem['item_name'] }}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                    <div class="text-right shrink-0 flex items-center gap-2">
+                                                        <div>
+                                                            <span class="inline-block px-2 py-0.5 rounded text-xs font-black bg-red-100 text-red-800 font-mono">
+                                                                {{ number_format($mItem['total']) }} pcs
+                                                            </span>
+                                                            @if($ng['total'] > 0)
+                                                                <div class="text-[10px] text-gray-400 font-semibold mt-0.5">
+                                                                    {{ number_format(($mItem['total'] / $ng['total']) * 100, 1) }}%
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </button>
 
-                                                {{-- Table Data & Remark --}}
-                                                <div class="mt-2">
-                                                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1 flex items-center gap-1">
+                                                {{-- Detail Table: Ditutup secara default, hanya terbuka saat diklik drop down --}}
+                                                <div x-show="modelOpen" x-cloak class="border-t border-gray-100 p-2.5 bg-gray-50/60">
+                                                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 flex items-center justify-between">
                                                         <span>📜 Data &amp; Remark ({{ count($mItem['records']) }} data):</span>
+                                                        <button type="button" @click.stop="modelOpen = false" class="text-gray-400 hover:text-red-500 text-[10px] font-semibold flex items-center gap-0.5">
+                                                            <span>Tutup Detail</span>
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                                                        </button>
                                                     </div>
-                                                    <div class="overflow-x-auto">
+                                                    <div class="overflow-x-auto max-h-56 border border-gray-200 rounded">
                                                         <table class="w-full text-[11px] text-left">
-                                                            <thead class="bg-gray-50 text-[10px] text-gray-500 uppercase font-bold border-b border-gray-100">
+                                                            <thead class="bg-gray-100/90 text-[10px] text-gray-600 uppercase font-bold border-b border-gray-200 sticky top-0">
                                                                 <tr>
-                                                                    <th class="py-1 px-2">Tanggal / Jam</th>
-                                                                    <th class="py-1 px-2">Mesin / Shift</th>
-                                                                    <th class="py-1 px-2 text-right">Qty NG</th>
-                                                                    <th class="py-1 px-2">Remark NG / Produksi</th>
+                                                                    <th class="py-1.5 px-2">Tanggal / Jam</th>
+                                                                    <th class="py-1.5 px-2">Mesin / Shift</th>
+                                                                    <th class="py-1.5 px-2 text-right">Qty NG</th>
+                                                                    <th class="py-1.5 px-2 min-w-[120px]">Remark Produksi</th>
+                                                                    <th class="py-1.5 px-2 min-w-[120px]">Remark NG</th>
                                                                 </tr>
                                                             </thead>
-                                                            <tbody class="divide-y divide-gray-100">
+                                                            <tbody class="divide-y divide-gray-100 bg-white">
                                                                 @foreach($mItem['records'] as $rec)
-                                                                    <tr class="hover:bg-gray-50/70">
+                                                                    <tr class="hover:bg-gray-50/70 align-top">
                                                                         <td class="py-1.5 px-2 whitespace-nowrap text-gray-700 font-medium">
                                                                             {{ $rec['date'] }}
                                                                             <span class="text-gray-400 block text-[10px] font-mono">{{ $rec['hour'] }}</span>
@@ -913,9 +934,18 @@
                                                                             {{ number_format($rec['quantity']) }}
                                                                         </td>
                                                                         <td class="py-1.5 px-2 text-gray-800">
-                                                                            @if($rec['remark'] !== '-')
-                                                                                <span class="inline-block px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">
-                                                                                    💬 {{ $rec['remark'] }}
+                                                                            @if(!empty($rec['hourly_remark']))
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-medium leading-relaxed">
+                                                                                    🏭 {{ $rec['hourly_remark'] }}
+                                                                                </span>
+                                                                            @else
+                                                                                <span class="text-gray-300 italic text-[10px]">-</span>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="py-1.5 px-2 text-gray-800">
+                                                                            @if(!empty($rec['ng_remark']))
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded bg-red-50 text-red-900 border border-red-200 text-[10px] font-bold leading-relaxed">
+                                                                                    ⚠️ {{ $rec['ng_remark'] }}
                                                                                 </span>
                                                                             @else
                                                                                 <span class="text-gray-300 italic text-[10px]">-</span>
